@@ -6,7 +6,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
 
-    const where = pharmacieId ? { id: pharmacieId } : {}
+    const numeroAgrement = searchParams.get('numeroAgrement')
+
+    const where: Record<string, unknown> = {}
+    if (pharmacieId) where.id = pharmacieId
+    if (numeroAgrement) where.numeroAgrement = numeroAgrement
+
     const data = await db.pharmacie.findMany({
       where,
       include: { scoreConformite: true },

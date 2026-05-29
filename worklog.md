@@ -62,3 +62,75 @@ Stage Summary:
 - Database seeded with comprehensive demo data
 - Live dashboard connected to real database data
 - Full brand compliance maintained
+
+---
+Task ID: 4
+Agent: Full-stack Developer
+Task: Build MediHelm Grossistes (Wholesaler) Portal
+
+Work Log:
+- Analyzed existing Prisma schema: CommandeGrossiste, CataloguePrix, PartenaireGrossiste models
+- Examined existing API routes: /api/grossistes, /api/grossistes/[id]/commandes, /api/grossistes/[id]/catalogue, /api/grossistes/compare
+- Created utility library: src/lib/grossiste-utils.ts (types, status labels, color mappings, formatters)
+- Built GrossisteSidebar component with collapsible navigation and tooltips
+- Built GrossisteTopbar component with notifications dropdown and user menu
+- Built OrderCard component with status badges and action buttons per status
+- Built ProductRow component with inline editing for price and availability
+- Created Grossistes Layout (src/app/grossistes/layout.tsx) with sidebar + topbar
+- Built Dashboard Home (src/app/grossistes/page.tsx):
+  - 4 KPI cards (commandes reçues, en préparation, CA du mois, pharmacies clientes)
+  - Bar chart for monthly order trend (6 months)
+  - Pie chart for status distribution
+  - Line chart for revenue evolution
+  - Recent orders table with status badges
+  - Top pharmacies ranking
+- Built Orders Management (src/app/grossistes/commandes/page.tsx):
+  - Status summary cards (clickable to filter)
+  - Search by reference/pharmacy name
+  - Filter by status and pharmacy
+  - Order cards with contextual action buttons (Confirmer, Refuser, En préparation, En livraison, Livrée)
+  - Order detail dialog with line items
+  - Real-time status updates via PATCH API
+- Built Catalogue Management (src/app/grossistes/catalogue/page.tsx):
+  - Product count cards (total, available, out of stock)
+  - Search by DCI, name, or reference
+  - Filter by availability
+  - Inline editing of price and availability per product
+  - Add new product dialog with full form
+  - CSV export functionality
+- Built Statistics/Analytics (src/app/grossistes/statistiques/page.tsx):
+  - 4-tab layout: Ventes, Produits, Clients, Géographie
+  - Area chart for monthly revenue
+  - Bar charts for orders by month, by category, by pharmacy, by city
+  - Pie chart for status distribution
+  - Top products table with ranking
+  - Geographic distribution with progress bars
+- Built Settings (src/app/grossistes/parametres/page.tsx):
+  - 4-tab layout: Compte, API, Webhooks, Notifications
+  - Account info display with grossiste details
+  - API endpoint, key hash display with show/hide and copy
+  - API integration documentation with copyable endpoints
+  - Webhook configuration with URL, secret, event types
+  - Notification preferences with toggles
+- Created additional API routes:
+  - PATCH /api/grossistes/commandes/[id] - Update order status
+  - GET /api/grossistes/commandes/[id] - Get order detail with line items
+  - GET /api/grossistes/dashboard - Dashboard stats aggregation
+  - PATCH /api/grossistes/catalogue/[id] - Update catalogue item
+  - DELETE /api/grossistes/catalogue/[id] - Delete catalogue item
+  - POST /api/grossistes/[id]/catalogue - Add catalogue item
+- Updated main page to add "Accès portails partenaires" section with link to /grossistes
+- All pages tested returning HTTP 200
+- All text in French, currency in FCFA
+- Full MédiHelm brand compliance (teal palette #1D9E75, #085041, #0F6E56, #E1F5EE, #9FE1CB, amber #EF9F27)
+- Lint check: 0 errors in grossistes portal files
+
+Stage Summary:
+- 5 page files: layout, dashboard, commandes, catalogue, statistiques, parametres
+- 4 component files: sidebar, topbar, order-card, product-row
+- 1 utility library: grossiste-utils.ts
+- 3 new API route files: dashboard, commandes/[id], catalogue/[id]
+- 1 updated API route: catalogue POST method added
+- All using existing Prisma models connected to Neon PostgreSQL
+- Real data from seeded grossistes (UbiPharm Sénégal, Promopharma Sénégal)
+- Full responsive design with mobile-first approach

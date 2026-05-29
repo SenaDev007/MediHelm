@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Building2,
@@ -21,26 +22,29 @@ const spaces = [
     bgColor: "bg-teal-50/50",
     description:
       "Gestion complète de votre officine : stock, caisse, ordonnances, conformité DPMED",
+    href: "/pro",
   },
   {
     icon: Heart,
     title: "MédiHelm Patient",
     subtitle: "Patient",
-    accentColor: "#E1F5EE",
-    accentBorder: "border-t-teal-200",
-    bgColor: "bg-teal-50/30",
+    accentColor: "#378ADD",
+    accentBorder: "border-t-blue-brand",
+    bgColor: "bg-blue-50/30",
     description:
-      "Recherche de médicaments, géolocalisation, commandes, alertes de rappel de lot",
+      "Recherche de médicaments, géolocalisation, commandes, alertes de rappel de lot — 100% GRATUIT",
+    href: "/patient",
   },
   {
     icon: Network,
-    title: "MédiHelm Network",
-    subtitle: "Promoteur multi-pharmacie",
-    accentColor: "#0F6E56",
-    accentBorder: "border-t-teal-600",
-    bgColor: "bg-teal-50/50",
+    title: "MédiHelm Grossistes",
+    subtitle: "Grossistes & Fournisseurs",
+    accentColor: "#EF9F27",
+    accentBorder: "border-t-amber-400",
+    bgColor: "bg-amber-50/30",
     description:
-      "Supervisez plusieurs officines, scores de conformité, commandes groupées",
+      "Portail grossistes : commandes, catalogue, statistiques de vente",
+    href: "/grossistes",
   },
   {
     icon: BarChart3,
@@ -51,6 +55,7 @@ const spaces = [
     bgColor: "bg-amber-50/30",
     description:
       "Prédictions IA, KPIs en temps réel, scores de conformité réglementaire",
+    href: "/pro/analytics",
   },
   {
     icon: Landmark,
@@ -61,6 +66,7 @@ const spaces = [
     bgColor: "bg-teal-50/50",
     description:
       "Portail d'alertes, pharmacovigilance, traçabilité des livraisons",
+    href: "/institutions",
   },
 ];
 
@@ -106,39 +112,41 @@ export function ProductSpaces() {
         >
           {spaces.map((space) => (
             <motion.div key={space.title} variants={itemVariants}>
-              <Card
-                className={`h-full border-t-4 ${space.accentBorder} ${space.bgColor} hover:shadow-lg transition-shadow duration-300`}
-              >
-                <CardHeader>
-                  <div className="flex items-center gap-3 mb-1">
-                    <div
-                      className="p-2.5 rounded-lg"
-                      style={{ backgroundColor: space.accentColor + "20" }}
-                    >
-                      <space.icon
-                        size={22}
-                        style={{ color: space.accentColor }}
-                      />
-                    </div>
-                    <div>
-                      <CardTitle
-                        className="text-base font-medium"
-                        style={{ color: space.accentColor }}
+              <Link href={space.href}>
+                <Card
+                  className={`h-full border-t-4 ${space.accentBorder} ${space.bgColor} hover:shadow-lg transition-shadow duration-300 cursor-pointer group`}
+                >
+                  <CardHeader>
+                    <div className="flex items-center gap-3 mb-1">
+                      <div
+                        className="p-2.5 rounded-lg"
+                        style={{ backgroundColor: space.accentColor + "20" }}
                       >
-                        {space.title}
-                      </CardTitle>
-                      <CardDescription className="text-xs text-gray-400">
-                        {space.subtitle}
-                      </CardDescription>
+                        <space.icon
+                          size={22}
+                          style={{ color: space.accentColor }}
+                        />
+                      </div>
+                      <div>
+                        <CardTitle
+                          className="text-base font-medium group-hover:underline"
+                          style={{ color: space.accentColor }}
+                        >
+                          {space.title}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-gray-400">
+                          {space.subtitle}
+                        </CardDescription>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-gray-900 leading-relaxed">
-                    {space.description}
-                  </p>
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-gray-900 leading-relaxed">
+                      {space.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
           ))}
         </motion.div>
