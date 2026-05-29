@@ -120,7 +120,7 @@ export function Footer() {
         <div className="pt-6 border-t border-teal-600">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-teal-200">
             <p>
-              YEHI OR Tech — Cotonou, Bénin © 2025
+              YEHI OR Tech — Cotonou, Bénin © {new Date().getFullYear()}
             </p>
             <p>Tous droits réservés</p>
           </div>

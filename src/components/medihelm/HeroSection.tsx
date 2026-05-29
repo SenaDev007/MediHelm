@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Building2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,22 +82,26 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
           >
-            <Button
-              size="lg"
-              className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
-            >
-              <Building2 className="mr-2 size-5" />
-              Découvrir MédiHelm Pro
-              <ArrowRight className="ml-2 size-4" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white/30 text-white hover:bg-white/10 hover:text-white font-medium text-base px-8 h-12 bg-transparent"
-            >
-              <Heart className="mr-2 size-5" />
-              Espace Patient
-            </Button>
+            <Link href="/pro">
+              <Button
+                size="lg"
+                className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
+              >
+                <Building2 className="mr-2 size-5" />
+                Découvrir MédiHelm Pro
+                <ArrowRight className="ml-2 size-4" />
+              </Button>
+            </Link>
+            <Link href="/patient">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white/30 text-white hover:bg-white/10 hover:text-white font-medium text-base px-8 h-12 bg-transparent"
+              >
+                <Heart className="mr-2 size-5" />
+                Espace Patient
+              </Button>
+            </Link>
           </motion.div>
 
           {/* Animated Stats */}

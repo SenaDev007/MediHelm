@@ -1,10 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 
-const DATABASE_URL = 'postgresql://neondb_owner:npg_5TK7YFxdoRlk@ep-rapid-leaf-ag0eyijw-pooler.c-2.eu-central-1.aws.neon.tech/MediHelm?sslmode=require'
-
-const prisma = new PrismaClient({
-  datasources: { db: { url: DATABASE_URL } },
-})
+const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Début du seeding MédiHelm...')
@@ -33,13 +29,13 @@ async function main() {
       data: {
         nom: 'Pharmacie du Centre',
         adresse: '12 Avenue de la République',
-        ville: 'Dakar',
-        departement: 'Dakar',
-        telephone: '+221 33 821 0000',
-        email: 'contact@pharmacieducentre.sn',
+        ville: 'Cotonou',
+        departement: 'Littoral',
+        telephone: '+229 97 00 00 00',
+        email: 'contact@pharmacieducentre.bj',
         numeroAgrement: 'AGR-2024-001',
-        latitude: 14.6937,
-        longitude: -17.4441,
+        latitude: 6.3703,
+        longitude: 2.3912,
         plan: 'SEED',
         statutAbonnement: 'ACTIF',
         periodeFacturation: 'MENSUEL',
@@ -59,12 +55,12 @@ async function main() {
     await prisma.utilisateur.create({
       data: {
         pharmacieId: pharmacieData.id,
-        email: 'admin@medihelm.com',
+        email: 'admin@medihelm.bj',
         motDePasse: '$2a$10$dummyhashedpassword1234567890abcdefghijklm',
-        nom: 'Diop',
-        prenom: 'Amadou',
+        nom: 'Houénou',
+        prenom: 'Aminou',
         roleId: roles.DIRECTEUR.id,
-        telephone: '+221 77 123 4567',
+        telephone: '+229 97 00 00 01',
       },
     })
   }
@@ -106,25 +102,25 @@ async function main() {
 
   // 5. Create 2 PartenaireGrossiste
   console.log('🏭 Création des grossistes...')
-  const ubipharm = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'UBIPHARM-SN' } })
+  const ubipharm = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'UBIPHARM-BJ' } })
   if (!ubipharm) {
     await prisma.partenaireGrossiste.create({
       data: {
-        nom: 'UbiPharm Sénégal',
-        codeGrossiste: 'UBIPHARM-SN',
-        apiEndpoint: 'https://api.ubipharm.sn/v2',
+        nom: 'UbiPharm Bénin',
+        codeGrossiste: 'UBIPHARM-BJ',
+        apiEndpoint: 'https://api.ubipharm.bj/v2',
         apiKeyHash: 'hash_ubipharm_demo_key',
         webhookSecret: 'whsec_ubipharm_demo',
       },
     })
   }
-  const promopharma = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'PROMOPHARMA-SN' } })
+  const promopharma = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'PROMOPHARMA-BJ' } })
   if (!promopharma) {
     await prisma.partenaireGrossiste.create({
       data: {
-        nom: 'Promopharma Sénégal',
-        codeGrossiste: 'PROMOPHARMA-SN',
-        apiEndpoint: 'https://api.promopharma.sn/v1',
+        nom: 'Promopharma Bénin',
+        codeGrossiste: 'PROMOPHARMA-BJ',
+        apiEndpoint: 'https://api.promopharma.bj/v1',
         apiKeyHash: 'hash_promopharma_demo_key',
         webhookSecret: 'whsec_promopharma_demo',
       },
@@ -182,9 +178,9 @@ async function main() {
   if (existingPatients === 0) {
     await prisma.patient.createMany({
       data: [
-        { pharmacieId: pharmacieData.id, nom: 'Ndiaye', prenom: 'Fatou', telephone: '+221 77 234 5678', sexe: 'F', estFidele: true, pointsFidelite: 150 },
-        { pharmacieId: pharmacieData.id, nom: 'Sow', prenom: 'Mamadou', telephone: '+221 76 345 6789', sexe: 'M', estFidele: true, pointsFidelite: 85 },
-        { pharmacieId: pharmacieData.id, nom: 'Ba', prenom: 'Aissatou', telephone: '+221 78 456 7890', sexe: 'F' },
+        { pharmacieId: pharmacieData.id, nom: 'Agossou', prenom: 'Fatou', telephone: '+229 97 23 45 67', sexe: 'F', estFidele: true, pointsFidelite: 150 },
+        { pharmacieId: pharmacieData.id, nom: 'Houénou', prenom: 'Kofi', telephone: '+229 96 34 56 78', sexe: 'M', estFidele: true, pointsFidelite: 85 },
+        { pharmacieId: pharmacieData.id, nom: 'Dossou', prenom: 'Aïcha', telephone: '+229 97 45 67 89', sexe: 'F' },
       ],
     })
   }
