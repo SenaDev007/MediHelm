@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select'
 import { UserCog, Plus, Search, Phone, Mail, Calendar } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
+import { toast } from 'sonner'
 
 interface Employe {
   id: string
@@ -52,6 +53,50 @@ export default function PersonnelPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [formNom, setFormNom] = useState('')
+  const [formPrenom, setFormPrenom] = useState('')
+  const [formPoste, setFormPoste] = useState('')
+  const [formTelephone, setFormTelephone] = useState('')
+  const [formEmail, setFormEmail] = useState('')
+  const [formTypeContrat, setFormTypeContrat] = useState('')
+
+  const handleAddEmployee = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch('/api/employes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          nom: formNom,
+          prenom: formPrenom,
+          poste: formPoste,
+          telephone: formTelephone || null,
+          email: formEmail || null,
+          typeContrat: formTypeContrat || 'CDD',
+          dateEmbauche: new Date().toISOString(),
+          actif: true,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Employé ajouté avec succès')
+        setCreateOpen(false)
+        setFormNom('')
+        setFormPrenom('')
+        setFormPoste('')
+        setFormTelephone('')
+        setFormEmail('')
+        setFormTypeContrat('')
+        // Refresh
+        const data = await fetch(`/api/employes?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : [])
+        setEmployes(data)
+      } else {
+        toast.error("Erreur lors de l'ajout de l'employé")
+      }
+    } catch {
+      toast.error("Erreur lors de l'ajout de l'employé")
+    }
+  }
 
   useEffect(() => {
     if (pharmacie?.id) {
@@ -101,14 +146,14 @@ export default function PersonnelPage() {
             <DialogHeader><DialogTitle>Nouvel employé</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Nom</Label><Input placeholder="Nom" /></div>
-                <div><Label>Prénom</Label><Input placeholder="Prénom" /></div>
+                <div><Label>Nom</Label><Input placeholder="Nom" value={formNom} onChange={e => setFormNom(e.target.value)} /></div>
+                <div><Label>Prénom</Label><Input placeholder="Prénom" value={formPrenom} onChange={e => setFormPrenom(e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Poste</Label><Input placeholder="Pharmacien, Préparateur..." /></div>
+                <div><Label>Poste</Label><Input placeholder="Pharmacien, Préparateur..." value={formPoste} onChange={e => setFormPoste(e.target.value)} /></div>
                 <div>
                   <Label>Type de contrat</Label>
-                  <Select>
+                  <Select value={formTypeContrat} onValueChange={setFormTypeContrat}>
                     <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CDI">CDI</SelectItem>
@@ -120,10 +165,10 @@ export default function PersonnelPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><Label>Téléphone</Label><Input placeholder="+229..." /></div>
-                <div><Label>Salaire base (FCFA)</Label><Input type="number" placeholder="0" /></div>
+                <div><Label>Téléphone</Label><Input placeholder="+229..." value={formTelephone} onChange={e => setFormTelephone(e.target.value)} /></div>
+                <div><Label>Email</Label><Input placeholder="email@example.com" value={formEmail} onChange={e => setFormEmail(e.target.value)} /></div>
               </div>
-              <Button className="w-full">Enregistrer</Button>
+              <Button className="w-full" onClick={handleAddEmployee}>Enregistrer</Button>
             </div>
           </DialogContent>
         </Dialog>

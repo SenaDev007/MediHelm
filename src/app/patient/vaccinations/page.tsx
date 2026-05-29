@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Syringe, Plus, Calendar, Clock, QrCode, Share2, AlertCircle, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 interface VaccinationRecord {
   id: string
@@ -236,11 +237,19 @@ export default function VaccinationsPage() {
         <CardContent className="p-4 text-center">
           <p className="text-xs text-muted-foreground mb-3">Partagez votre carnet de vaccination</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary">
+            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary" onClick={() => toast('Fonctionnalité QR Code bientôt disponible')}>
               <QrCode className="h-3 w-3 mr-1" />
               QR Code
             </Button>
-            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary">
+            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary" onClick={async () => {
+              const shareData = { title: 'Carnet de vaccination MédiHelm', text: 'Mon carnet de vaccination sur MédiHelm', url: window.location.href }
+              if (navigator.share) {
+                try { await navigator.share(shareData) } catch { /* user cancelled */ }
+              } else {
+                await navigator.clipboard.writeText(window.location.href)
+                toast('Lien copié dans le presse-papiers')
+              }
+            }}>
               <Share2 className="h-3 w-3 mr-1" />
               Partager
             </Button>

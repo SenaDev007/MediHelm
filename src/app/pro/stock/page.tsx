@@ -31,6 +31,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Search, Plus, Package, AlertTriangle, Filter } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
+import { toast } from 'sonner'
 
 interface MedicamentWithLots {
   id: string
@@ -71,6 +72,59 @@ export default function StockPage() {
   const [filterAlert, setFilterAlert] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('nom')
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [formNom, setFormNom] = useState('')
+  const [formDci, setFormDci] = useState('')
+  const [formDosage, setFormDosage] = useState('')
+  const [formForme, setFormForme] = useState('')
+  const [formPrixVente, setFormPrixVente] = useState('')
+  const [formPrixAchat, setFormPrixAchat] = useState('')
+  const [formStockMin, setFormStockMin] = useState('')
+  const [formUnite, setFormUnite] = useState('')
+
+  const handleAddMedication = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch('/api/medicaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          nomCommercial: formNom,
+          dci: formDci,
+          dosage: formDosage,
+          forme: formForme,
+          prixVente: parseFloat(formPrixVente) || 0,
+          prixAchat: parseFloat(formPrixAchat) || null,
+          stockMin: parseInt(formStockMin) || 0,
+          unite: formUnite || 'Boîte',
+          tva: 0,
+          estStupefiant: false,
+          estGenerique: false,
+          estRemboursable: false,
+          actif: true,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Médicament ajouté avec succès')
+        setAddDialogOpen(false)
+        setFormNom('')
+        setFormDci('')
+        setFormDosage('')
+        setFormForme('')
+        setFormPrixVente('')
+        setFormPrixAchat('')
+        setFormStockMin('')
+        setFormUnite('')
+        // Refresh
+        const data = await fetch(`/api/medicaments?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : [])
+        setMedicaments(data)
+      } else {
+        toast.error("Erreur lors de l'ajout du médicament")
+      }
+    } catch {
+      toast.error("Erreur lors de l'ajout du médicament")
+    }
+  }
 
   useEffect(() => {
     if (pharmacie?.id) {
@@ -184,44 +238,44 @@ export default function StockPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>DCI</Label>
-                  <Input placeholder="Dénomination commune" />
+                  <Input placeholder="Dénomination commune" value={formDci} onChange={e => setFormDci(e.target.value)} />
                 </div>
                 <div>
                   <Label>Nom commercial</Label>
-                  <Input placeholder="Nom du produit" />
+                  <Input placeholder="Nom du produit" value={formNom} onChange={e => setFormNom(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Forme</Label>
-                  <Input placeholder="Comprimé, sirop..." />
+                  <Input placeholder="Comprimé, sirop..." value={formForme} onChange={e => setFormForme(e.target.value)} />
                 </div>
                 <div>
                   <Label>Dosage</Label>
-                  <Input placeholder="500mg, 5ml..." />
+                  <Input placeholder="500mg, 5ml..." value={formDosage} onChange={e => setFormDosage(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Prix de vente (FCFA)</Label>
-                  <Input type="number" placeholder="0" />
+                  <Input type="number" placeholder="0" value={formPrixVente} onChange={e => setFormPrixVente(e.target.value)} />
                 </div>
                 <div>
                   <Label>Prix d&apos;achat (FCFA)</Label>
-                  <Input type="number" placeholder="0" />
+                  <Input type="number" placeholder="0" value={formPrixAchat} onChange={e => setFormPrixAchat(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Stock minimum</Label>
-                  <Input type="number" placeholder="0" />
+                  <Input type="number" placeholder="0" value={formStockMin} onChange={e => setFormStockMin(e.target.value)} />
                 </div>
                 <div>
                   <Label>Unité</Label>
-                  <Input placeholder="Boîte, flacon..." />
+                  <Input placeholder="Boîte, flacon..." value={formUnite} onChange={e => setFormUnite(e.target.value)} />
                 </div>
               </div>
-              <Button className="w-full mt-2">Enregistrer le médicament</Button>
+              <Button className="w-full mt-2" onClick={handleAddMedication}>Enregistrer le médicament</Button>
             </div>
           </DialogContent>
         </Dialog>

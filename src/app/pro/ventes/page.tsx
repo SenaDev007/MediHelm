@@ -94,15 +94,16 @@ export default function VentesPage() {
   }
 
   const updateQuantity = (medId: string, delta: number) => {
-    setCart(prev =>
-      prev.map(c => {
+    setCart(prev => {
+      const updated = prev.map(c => {
         if (c.medicament.id === medId) {
           const newQty = c.quantite + delta
-          return newQty > 0 ? { ...c, quantite: newQty } : c
+          return { ...c, quantite: newQty }
         }
         return c
-      }).filter(c => c.quantite > 0)
-    )
+      })
+      return updated.filter(c => c.quantite > 0)
+    })
   }
 
   const removeFromCart = (medId: string) => {

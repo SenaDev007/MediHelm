@@ -179,11 +179,22 @@ export default function AlertDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => toast.info('Impression en cours...')}>
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-1" />
             Imprimer
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info('Lien copié !')}>
+          <Button variant="outline" size="sm" onClick={() => {
+            if (navigator.share) {
+              navigator.share({
+                title: alert.titre,
+                text: `${alert.referenceOfficielle} — ${alert.titre}`,
+                url: window.location.href,
+              }).catch(() => {})
+            } else {
+              navigator.clipboard.writeText(window.location.href)
+              toast.success('Lien copié dans le presse-papier')
+            }
+          }}>
             <Share2 className="h-4 w-4 mr-1" />
             Partager
           </Button>

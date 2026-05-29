@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { HeartPulse, Plus, AlertTriangle, Eye, FileWarning } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface SurveillanceItem {
   id: string
@@ -69,7 +70,7 @@ export default function QualitePage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">M16 — Contrôle qualité et signalements</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button className="bg-primary hover:bg-primary/90" onClick={() => toast('Fonctionnalité de signalement bientôt disponible')}>
           <Plus className="w-4 h-4 mr-2" />
           Signalement EI
         </Button>

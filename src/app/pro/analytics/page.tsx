@@ -259,7 +259,7 @@ export default function AnalyticsPage() {
         {/* Pharmacy Health Radar */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">🏥 Score de santé pharmacie</CardTitle>
+            <CardTitle className="text-sm font-semibold">Score de santé pharmacie</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
         {/* Sales Distribution Pie */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">📊 Répartition du CA par produit</CardTitle>
+            <CardTitle className="text-sm font-semibold">Répartition du CA par produit</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">

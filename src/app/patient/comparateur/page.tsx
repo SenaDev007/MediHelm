@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Scale, Pill, QrCode, MessageCircle, ArrowRight, TrendingDown, Shield } from 'lucide-react'
+import { Scale, Pill, QrCode, MessageCircle, ArrowRight, TrendingDown, Shield, Camera } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 interface PriceComparison {
   pharmacieNom: string
@@ -73,12 +74,17 @@ export default function ComparateurPage() {
 
         {/* Price Comparator */}
         <TabsContent value="prix" className="space-y-3 mt-3">
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher un médicament..."
-            className="h-10 border-teal-200"
-          />
+          <div className="flex gap-2">
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un médicament..."
+              className="h-10 border-teal-200 flex-1"
+            />
+            <Button variant="outline" size="icon" className="h-10 w-10 border-teal-200" onClick={() => toast('Scanner bientôt disponible')}>
+              <Camera className="h-4 w-4 text-primary" />
+            </Button>
+          </div>
           <div className="flex gap-1.5 flex-wrap">
             {Object.keys(mockComparisons).map((med) => (
               <Badge

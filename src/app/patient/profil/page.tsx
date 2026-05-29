@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { User, Mail, Phone, MapPin, Heart, Edit3, Check, X, Users, AlertCircle } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 export default function ProfilPage() {
   const [editing, setEditing] = useState(false)
@@ -31,7 +32,7 @@ export default function ProfilPage() {
 
   const handleSave = () => {
     setEditing(false)
-    // Save to API in production
+    toast('Profil sauvegardé')
   }
 
   return (
@@ -241,7 +242,7 @@ export default function ProfilPage() {
               </Badge>
             </div>
           ))}
-          <Button variant="outline" size="sm" className="w-full h-8 text-xs border-primary text-primary">
+          <Button variant="outline" size="sm" className="w-full h-8 text-xs border-primary text-primary" onClick={() => toast('Fonctionnalité bientôt disponible')}>
             <Users className="h-3 w-3 mr-1" />
             Ajouter un membre
           </Button>

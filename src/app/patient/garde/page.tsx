@@ -8,6 +8,7 @@ import { ShieldCheck, Phone, MapPin, Calendar, Clock } from 'lucide-react'
 import { SosButton } from '@/components/patient/sos-button'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface GardePharmacy {
   id: string
@@ -166,7 +167,7 @@ export default function GardePage() {
                           Appeler
                         </Button>
                       </a>
-                      <Link href={`/patient/pharmacies`} className="flex-1">
+                      <Link href={`/patient/pharmacies?direction=true`} className="flex-1">
                         <Button size="sm" variant="outline" className="w-full h-8 text-xs border-primary text-primary">
                           <MapPin className="h-3 w-3 mr-1" />
                           Itinéraire
@@ -235,7 +236,7 @@ export default function GardePage() {
           <p className="text-xs text-muted-foreground mb-2">
             Recevez une notification pour les plannings de garde
           </p>
-          <Button size="sm" className="h-8 text-xs bg-primary hover:bg-teal-700">
+          <Button size="sm" className="h-8 text-xs bg-primary hover:bg-teal-700" onClick={() => toast('Notifications de garde activées')}>
             Activer les notifications garde
           </Button>
         </CardContent>

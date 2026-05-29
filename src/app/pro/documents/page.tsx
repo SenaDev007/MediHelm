@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FolderOpen, Plus, Upload, FileText, Shield, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface DocItem {
   id: string
@@ -50,7 +51,7 @@ export default function DocumentsPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Coffre-fort numérique et documents officiels</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button className="bg-primary hover:bg-primary/90" onClick={() => toast('Fonctionnalité bientôt disponible')}>
           <Upload className="w-4 h-4 mr-2" />
           Ajouter document
         </Button>

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Moon, Plus, Calendar, Clock, User } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface GardeItem {
   id: string
@@ -47,7 +48,7 @@ export default function GardePage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Planning et rapports de garde</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button className="bg-primary hover:bg-primary/90" onClick={() => toast('Fonctionnalité bientôt disponible')}>
           <Plus className="w-4 h-4 mr-2" />
           Ajouter planning
         </Button>

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Star, Gift, Trophy, History, TrendingUp } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 const badges = [
   { id: '1', nom: 'Premier achat', description: 'Première commande passée', icon: '🛒', unlocked: true },
@@ -111,6 +112,7 @@ export default function FidelitePage() {
                     size="sm"
                     className="h-7 text-[10px] bg-primary hover:bg-teal-700"
                     disabled={!canRedeem}
+                    onClick={() => toast('Fonctionnalité d\'échange bientôt disponible')}
                   >
                     {canRedeem ? 'Échanger' : 'Insuffisant'}
                   </Button>

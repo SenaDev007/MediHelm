@@ -22,7 +22,7 @@ export default function ConformitePage() {
             Scores de conformité des officines et certification DPMED
           </p>
         </div>
-        <Button variant="outline" onClick={() => toast.info('Export PDF en préparation...')} className="border-teal-300 text-teal-700">
+        <Button variant="outline" onClick={() => toast.info('Export en cours de préparation')} className="border-teal-300 text-teal-700">
           <Download className="h-4 w-4 mr-1" />
           Exporter rapport
         </Button>

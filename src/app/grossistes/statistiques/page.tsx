@@ -59,12 +59,16 @@ const categoryData = [
 
 // Simulated geographic data
 const geographicData = [
-  { ville: "Dakar", commandes: 89, montant: 1250000 },
-  { ville: "Thiès", commandes: 34, montant: 425000 },
-  { ville: "Saint-Louis", commandes: 22, montant: 298000 },
-  { ville: "Kaolack", commandes: 18, montant: 185000 },
-  { ville: "Ziguinchor", commandes: 12, montant: 142000 },
-  { ville: "Tambacounda", commandes: 8, montant: 95000 },
+  { ville: "Cotonou", commandes: 89, montant: 1250000 },
+  { ville: "Porto-Novo", commandes: 34, montant: 425000 },
+  { ville: "Parakou", commandes: 22, montant: 298000 },
+  { ville: "Abomey-Calavi", commandes: 18, montant: 185000 },
+  { ville: "Bohicon", commandes: 12, montant: 142000 },
+  { ville: "Natitingou", commandes: 8, montant: 95000 },
+  { ville: "Kandi", commandes: 6, montant: 72000 },
+  { ville: "Lokossa", commandes: 5, montant: 58000 },
+  { ville: "Ouidah", commandes: 4, montant: 45000 },
+  { ville: "Abomey", commandes: 3, montant: 38000 },
 ]
 
 // Top products simulated

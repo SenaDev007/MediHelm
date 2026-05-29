@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Upload, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react'
+import { FileText, Upload, Clock, CheckCircle, XCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Prescription {
   id: string
@@ -52,6 +54,8 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
 export default function OrdonnancesPage() {
   const [prescriptions] = useState<Prescription[]>(mockPrescriptions)
   const [uploading, setUploading] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const router = useRouter()
 
   const handleUpload = () => {
     const input = document.createElement('input')
@@ -126,15 +130,27 @@ export default function OrdonnancesPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 mt-3">
-                    <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary">
+                    <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-primary text-primary" onClick={() => setExpandedId(expandedId === prescription.id ? null : prescription.id)}>
+                      {expandedId === prescription.id ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
                       Détails
                     </Button>
                     {prescription.statut === 'VALIDEE' && (
-                      <Button size="sm" className="flex-1 h-8 text-xs bg-primary">
+                      <Button size="sm" className="flex-1 h-8 text-xs bg-primary" onClick={() => {
+                        toast('Redirection vers la recherche de médicaments...')
+                        router.push(`/patient/recherche?ordonnanceId=${prescription.id}`)
+                      }}>
                         Commander
                       </Button>
                     )}
                   </div>
+                  {expandedId === prescription.id && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-teal-100 space-y-1">
+                      <p className="text-xs text-muted-foreground">Prescription par {prescription.prescripteurNom}</p>
+                      <p className="text-xs text-muted-foreground">Date : {new Date(prescription.dateOrdonnance).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-xs text-muted-foreground">Statut : {statusConfig[prescription.statut]?.label || prescription.statut}</p>
+                      {prescription.estStupefiant && <p className="text-xs text-red-600 font-medium">⚠ Médicament stupéfiant</p>}
+                    </motion.div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

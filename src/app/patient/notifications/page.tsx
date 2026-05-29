@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -78,6 +78,23 @@ const filterTypes = [
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(mockNotifications)
   const [filter, setFilter] = useState('ALL')
+
+  useEffect(() => {
+    async function fetchNotifications() {
+      try {
+        const res = await fetch('/api/patient/notifications')
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data) && data.length > 0) {
+            setNotifications(data)
+          }
+        }
+      } catch {
+        // Fallback to mock data already set in state
+      }
+    }
+    fetchNotifications()
+  }, [])
 
   const filtered = filter === 'ALL'
     ? notifications

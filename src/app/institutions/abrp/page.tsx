@@ -27,9 +27,6 @@ import {
   Cell,
   LineChart,
   Line,
-  ScatterChart,
-  Scatter,
-  ZAxis,
 } from 'recharts'
 import { toast } from 'sonner'
 

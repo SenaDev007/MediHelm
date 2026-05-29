@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ClipboardList, Plus, Truck, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface Commande {
   id: string
@@ -82,6 +83,39 @@ export default function CommandesPage() {
   const [filterStatut, setFilterStatut] = useState<string>('all')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [selectedCommande, setSelectedCommande] = useState<Commande | null>(null)
+  const [formFournisseurId, setFormFournisseurId] = useState('')
+  const [formNotes, setFormNotes] = useState('')
+
+  const handleCreateOrder = async () => {
+    if (!pharmacie?.id || !formFournisseurId) return
+    try {
+      const res = await fetch('/api/commandes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          fournisseurId: formFournisseurId,
+          reference: `CMD-${Date.now()}`,
+          statut: 'BROUILLON',
+          dateCommande: new Date().toISOString(),
+          observations: formNotes || null,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Commande créée avec succès')
+        setCreateDialogOpen(false)
+        setFormFournisseurId('')
+        setFormNotes('')
+        // Refresh
+        const cmds = await fetch(`/api/commandes?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : [])
+        setCommandes(cmds)
+      } else {
+        toast.error('Erreur lors de la création de la commande')
+      }
+    } catch {
+      toast.error('Erreur lors de la création de la commande')
+    }
+  }
 
   useEffect(() => {
     if (pharmacie?.id) {
@@ -138,7 +172,7 @@ export default function CommandesPage() {
             <div className="grid gap-4 py-4">
               <div>
                 <Label>Fournisseur</Label>
-                <Select>
+                <Select value={formFournisseurId} onValueChange={setFormFournisseurId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un fournisseur" />
                   </SelectTrigger>
@@ -150,24 +184,10 @@ export default function CommandesPage() {
                 </Select>
               </div>
               <div>
-                <Label>DCI / Médicament</Label>
-                <Input placeholder="Rechercher un médicament..." />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Quantité</Label>
-                  <Input type="number" placeholder="0" />
-                </div>
-                <div>
-                  <Label>Prix d&apos;achat unitaire</Label>
-                  <Input type="number" placeholder="0" />
-                </div>
-              </div>
-              <div>
                 <Label>Observations</Label>
-                <Input placeholder="Notes..." />
+                <Input placeholder="Notes..." value={formNotes} onChange={e => setFormNotes(e.target.value)} />
               </div>
-              <Button className="w-full">Créer la commande</Button>
+              <Button className="w-full" onClick={handleCreateOrder}>Créer la commande</Button>
             </div>
           </DialogContent>
         </Dialog>

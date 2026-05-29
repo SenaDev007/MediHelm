@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Shield, Download, Award, FileText, AlertTriangle, HeartPulse, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 interface ScoreConformite {
   scoreTotal: number
@@ -99,11 +100,11 @@ export default function ConformitePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => toast('Export en cours de préparation')}>
             <Download className="w-4 h-4" />
             Exporter stupéfiants
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => toast('Export en cours de préparation')}>
             <Download className="w-4 h-4" />
             Exporter destructions
           </Button>
@@ -223,7 +224,7 @@ export default function ConformitePage() {
       {/* Recommendations */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">📋 Recommandations</CardTitle>
+          <CardTitle className="text-sm font-semibold">Recommandations</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

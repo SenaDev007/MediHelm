@@ -156,8 +156,8 @@ export default function ParametresPage() {
                   <Input
                     id="contactEmail"
                     type="email"
-                    defaultValue="contact@ubipharm.sn"
-                    placeholder="contact@ubipharm.sn"
+                    defaultValue="contact@ubipharm.bj"
+                    placeholder="contact@ubipharm.bj"
                   />
                 </div>
                 <div className="space-y-2">
@@ -165,21 +165,21 @@ export default function ParametresPage() {
                   <Input
                     id="contactPhone"
                     type="tel"
-                    defaultValue="+221 33 839 0000"
-                    placeholder="+221 XX XXX XXXX"
+                    defaultValue="+229 97 00 00 00"
+                    placeholder="+229 XX XX XX XX"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Adresse</Label>
                   <Input
                     id="address"
-                    defaultValue="Zone Franche Industrielle, Dakar, Sénégal"
+                    defaultValue="Zone Industrielle, Cotonou, Bénin"
                     placeholder="Adresse complète"
                   />
                 </div>
                 <Button
                   className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white mt-2"
-                  onClick={() => toast.success("Coordonnées mises à jour")}
+                  onClick={() => toast.success("Paramètres sauvegardés")}
                 >
                   Sauvegarder les modifications
                 </Button>
@@ -402,7 +402,7 @@ export default function ParametresPage() {
               <div className="flex gap-2">
                 <Button
                   className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white"
-                  onClick={() => toast.success("Configuration webhook sauvegardée")}
+                  onClick={() => toast.success("Paramètres sauvegardés")}
                 >
                   Sauvegarder
                 </Button>
@@ -484,7 +484,7 @@ export default function ParametresPage() {
 
               <Button
                 className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white"
-                onClick={() => toast.success("Préférences de notifications mises à jour")}
+                onClick={() => toast.success("Paramètres sauvegardés")}
               >
                 Sauvegarder les préférences
               </Button>

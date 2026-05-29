@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Users, Search, Plus, Phone, Mail, CreditCard, Star, User } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
+import { toast } from 'sonner'
 
 interface Patient {
   id: string
@@ -58,6 +59,47 @@ export default function PatientsPage() {
   const [search, setSearch] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [formNom, setFormNom] = useState('')
+  const [formPrenom, setFormPrenom] = useState('')
+  const [formTelephone, setFormTelephone] = useState('')
+  const [formEmail, setFormEmail] = useState('')
+  const [formAdresse, setFormAdresse] = useState('')
+
+  const handleAddPatient = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          nom: formNom,
+          prenom: formPrenom,
+          telephone: formTelephone || null,
+          email: formEmail || null,
+          adresse: formAdresse || null,
+          estFidele: false,
+          pointsFidelite: 0,
+        }),
+      })
+      if (res.ok) {
+        toast.success('Patient ajouté avec succès')
+        setCreateDialogOpen(false)
+        setFormNom('')
+        setFormPrenom('')
+        setFormTelephone('')
+        setFormEmail('')
+        setFormAdresse('')
+        // Refresh
+        const data = await fetch(`/api/patients?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : [])
+        setPatients(data)
+      } else {
+        toast.error("Erreur lors de l'ajout du patient")
+      }
+    } catch {
+      toast.error("Erreur lors de l'ajout du patient")
+    }
+  }
 
   useEffect(() => {
     if (pharmacie?.id) {
@@ -123,34 +165,28 @@ export default function PatientsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nom</Label>
-                  <Input placeholder="Nom de famille" />
+                  <Input placeholder="Nom de famille" value={formNom} onChange={e => setFormNom(e.target.value)} />
                 </div>
                 <div>
                   <Label>Prénom</Label>
-                  <Input placeholder="Prénom" />
+                  <Input placeholder="Prénom" value={formPrenom} onChange={e => setFormPrenom(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Téléphone</Label>
-                  <Input placeholder="+229 97 00 00 00" />
+                  <Input placeholder="+229 97 00 00 00" value={formTelephone} onChange={e => setFormTelephone(e.target.value)} />
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <Input placeholder="email@example.com" />
+                  <Input placeholder="email@example.com" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Date de naissance</Label>
-                  <Input type="date" />
-                </div>
-                <div>
-                  <Label>Sexe</Label>
-                  <Input placeholder="M / F" />
-                </div>
+              <div>
+                <Label>Adresse</Label>
+                <Input placeholder="Adresse du patient" value={formAdresse} onChange={e => setFormAdresse(e.target.value)} />
               </div>
-              <Button className="w-full">Enregistrer le patient</Button>
+              <Button className="w-full" onClick={handleAddPatient}>Enregistrer le patient</Button>
             </div>
           </DialogContent>
         </Dialog>
