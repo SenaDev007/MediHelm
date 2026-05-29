@@ -1,0 +1,202 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-georgia);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* MédiHelm Brand Colors */
+  --color-teal-400: #1D9E75;
+  --color-teal-600: #0F6E56;
+  --color-teal-800: #085041;
+  --color-teal-50: #E1F5EE;
+  --color-teal-200: #9FE1CB;
+  --color-amber-400: #EF9F27;
+  --color-gray-900: #2C2C2A;
+  --color-gray-400: #888780;
+  --color-gray-50: #F1EFE8;
+  --color-red-brand: #E24B4A;
+  --color-blue-brand: #378ADD;
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: #F1EFE8;
+  --foreground: #2C2C2A;
+  --card: #FFFFFF;
+  --card-foreground: #2C2C2A;
+  --popover: #FFFFFF;
+  --popover-foreground: #2C2C2A;
+  --primary: #1D9E75;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E1F5EE;
+  --secondary-foreground: #085041;
+  --muted: #E1F5EE;
+  --muted-foreground: #888780;
+  --accent: #EF9F27;
+  --accent-foreground: #2C2C2A;
+  --destructive: #E24B4A;
+  --border: #9FE1CB;
+  --input: #9FE1CB;
+  --ring: #1D9E75;
+  --chart-1: #1D9E75;
+  --chart-2: #0F6E56;
+  --chart-3: #EF9F27;
+  --chart-4: #378ADD;
+  --chart-5: #085041;
+  --sidebar: #E1F5EE;
+  --sidebar-foreground: #2C2C2A;
+  --sidebar-primary: #1D9E75;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E1F5EE;
+  --sidebar-accent-foreground: #085041;
+  --sidebar-border: #9FE1CB;
+  --sidebar-ring: #1D9E75;
+}
+
+.dark {
+  --background: #085041;
+  --foreground: #F1EFE8;
+  --card: #0F6E56;
+  --card-foreground: #F1EFE8;
+  --popover: #0F6E56;
+  --popover-foreground: #F1EFE8;
+  --primary: #1D9E75;
+  --primary-foreground: #FFFFFF;
+  --secondary: #0F6E56;
+  --secondary-foreground: #E1F5EE;
+  --muted: #0F6E56;
+  --muted-foreground: #9FE1CB;
+  --accent: #EF9F27;
+  --accent-foreground: #2C2C2A;
+  --destructive: #E24B4A;
+  --border: #1D9E75;
+  --input: #1D9E75;
+  --ring: #1D9E75;
+  --chart-1: #1D9E75;
+  --chart-2: #9FE1CB;
+  --chart-3: #EF9F27;
+  --chart-4: #378ADD;
+  --chart-5: #E1F5EE;
+  --sidebar: #085041;
+  --sidebar-foreground: #F1EFE8;
+  --sidebar-primary: #1D9E75;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #0F6E56;
+  --sidebar-accent-foreground: #E1F5EE;
+  --sidebar-border: #1D9E75;
+  --sidebar-ring: #1D9E75;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ECG Line Animation */
+@keyframes ecg-draw {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ecg-loop {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  80% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1000;
+  }
+}
+
+.ecg-line {
+  stroke-dasharray: 1000;
+  animation: ecg-draw 3s ease-in-out forwards;
+}
+
+.ecg-line-loop {
+  stroke-dasharray: 1000;
+  animation: ecg-loop 4s ease-in-out infinite;
+}
+
+/* Fade-in on scroll animation helper */
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in-up.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #E1F5EE;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #9FE1CB;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #1D9E75;
+}
