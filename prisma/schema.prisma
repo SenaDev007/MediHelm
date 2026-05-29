@@ -1,32 +1,1671 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ============================================================
+// MédiHelm Health Ecosystem — Complete Prisma Schema
+// 31 Enums | 74 Models | PostgreSQL (Neon)
+// ============================================================
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ============================================================
+// ENUMS (31)
+// ============================================================
+
+// === M16 — Pharmacovigilance ===
+
+enum TypeSurv {
+  CONTREFACON
+  NON_CONFORME
+  RAPPEL_LOT
+  AMM_SUSPENDUE
+  SOUS_SURVEILLANCE
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum NiveauRisque {
+  CRITIQUE
+  ELEVE
+  MODERE
+  INFORMATIF
+}
+
+enum StatutAlerte {
+  ACTIVE
+  LEVEE
+  ARCHIVEE
+}
+
+enum GraviteEI {
+  LEGER
+  MODERE
+  GRAVE
+  FATAL
+}
+
+enum StatutEnvoi {
+  EN_ATTENTE
+  SOUMIS
+  ACCUSE_RECEPTION
+  EN_ANALYSE
+  CLOTURE
+}
+
+// === M17 — Grossistes ===
+
+enum StatutCmdAPI {
+  ENVOYEE
+  CONFIRMEE
+  REFUSEE
+  EN_PREPARATION
+  EN_LIVRAISON
+  LIVREE
+  LITIGE
+}
+
+// === M18 — Alertes DPMED ===
+
+enum TypeAlerteDPMED {
+  RAPPEL_LOT
+  CONTREFACON
+  AMM_SUSPENDUE
+  PHARMACOVIGILANCE
+  INFO_REGLEMENTAIRE
+}
+
+enum NiveauUrgence {
+  URGENCE_IMMEDIATE
+  URGENT
+  NORMAL
+  INFORMATIF
+}
+
+enum StatutAlerteMH {
+  EN_DIFFUSION
+  DIFFUSEE
+  ARCHIVEE
+}
+
+enum StatutConf {
+  CONFORME
+  AVEC_ECART
+  REFUSE
+}
+
+// === M19 — Conformité ===
+
+enum TypeDocReg {
+  LICENCE_EXPLOITATION
+  DIPLOME_PHARMACIEN
+  ASSURANCE
+  AGREMENT_DPMED
+  AUTORISATION_STUPEFIANTS
+}
+
+enum StatutDoc {
+  VALIDE
+  EXPIRE_BIENTOT
+  EXPIRE
+  SUSPENDU
+}
+
+// === M01 — Stock ===
+
+enum TypeMouvementStock {
+  ENTREE
+  SORTIE
+  AJUSTEMENT_PLUS
+  AJUSTEMENT_MOINS
+  TRANSFERT
+}
+
+// === M02 — POS ===
+
+enum TypeVente {
+  COMPTOIR
+  ORDONNANCE
+  INTERNET
+}
+
+enum StatutVente {
+  EN_COURS
+  VALIDEE
+  ANNULEE
+  REMBOURSEE
+}
+
+enum ModePaiement {
+  ESPECES
+  CARTE
+  MOBILE_MONEY
+  WAVE
+  MTN_MONEY
+  MOOV_MONEY
+  TIERS_PAYANT
+}
+
+// === M03 — Commandes ===
+
+enum StatutCommande {
+  BROUILLON
+  ENVOYEE
+  CONFIRMEE
+  EN_PREPARATION
+  LIVREE_PARTIELLEMENT
+  LIVREE
+  ANNULEE
+}
+
+// === M07 — RH ===
+
+enum TypeContrat {
+  CDI
+  CDD
+  STAGE
+  TEMPORAIRE
+}
+
+enum StatutConge {
+  DEMANDE
+  VALIDE
+  REFUSE
+  EN_COURS
+  TERMINE
+}
+
+// === M06 — Ordonnances ===
+
+enum StatutOrdonnance {
+  RECUE
+  EN_COURS_VALIDATION
+  VALIDEE
+  PARTIELLEMENT_DELIVREE
+  DELIVREE
+  REFUSEE
+}
+
+// === M11 — Retours ===
+
+enum TypeRetour {
+  PERIME
+  ENDOMMAGE
+  ERREUR_LIVRAISON
+  RAPPEL_LOT
+}
+
+enum StatutDestruction {
+  PLANIFIEE
+  EN_COURS
+  EFFECTUEE
+  PV_SIGNE
+}
+
+// === M12 — Communication ===
+
+enum CanalNotification {
+  PUSH
+  SMS
+  EMAIL
+  IN_APP
+}
+
+// === Patient ===
+
+enum StatutCommandePatient {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  PICKED_UP
+  CANCELLED
+}
+
+// === Pricing ===
+
+enum PlanTarifaire {
+  SEED
+  GROW
+  LEAD
+  NETWORK
+}
+
+enum StatutAbonnement {
+  ESSAI
+  ACTIF
+  SUSPENDU
+  RESILIE
+}
+
+enum PeriodeFacturation {
+  MENSUEL
+  ANNUEL
+}
+
+// === M13 — Documents ===
+
+enum TypeDocumentGeneral {
+  LICENCE
+  DIPLOME
+  CONTRAT
+  ASSURANCE
+  AUTRE
+}
+
+// === M14/M15 — Dashboard/Analytics ===
+
+enum TypeKPI {
+  STOCK
+  VENTE
+  FINANCE
+  RH
+  CONFORMITE
+  QUALITE
+}
+
+enum NiveauAlerte {
+  INFO
+  ATTENTION
+  CRITIQUE
+  URGENCE
+}
+
+// === M16 — Interactions ===
+
+enum GraviteInteraction {
+  MINEURE
+  MODEREE
+  MAJEURE
+  CONTRE_INDIQUEE
+}
+
+// ============================================================
+// MODELS (74)
+// ============================================================
+
+// === Core / Tenant ===
+
+model Pharmacie {
+  id                  String              @id @default(uuid())
+  nom                 String
+  adresse             String
+  ville               String
+  departement         String
+  telephone           String
+  email               String?
+  numeroAgrement      String              @unique
+  latitude            Float?
+  longitude           Float?
+  plan                PlanTarifaire
+  statutAbonnement    StatutAbonnement
+  periodeFacturation  PeriodeFacturation
+  dateDebutEssai      DateTime?
+  dateFinEssai        DateTime?
+  nbUtilisateursMax   Int
+  nbCaissiersSimut    Int
+  nbPatientsMax       Int?
+  stockageDocuments   Int
+  apiGrossistesMax    Int
+  logoUrl             String?
+  sousDomaine         String?
+  actif               Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  utilisateurs            Utilisateur[]
+  medicaments             Medicament[]
+  lots                    Lot[]
+  mouvementsStock         MouvementStock[]
+  alertesExpiration       AlerteExpiration[]
+  caisses                 Caisse[]
+  sessionsCaisse          SessionCaisse[]
+  ventes                  Vente[]
+  commandes               CommandeFournisseur[]
+  receptions              Reception[]
+  fournisseurs            Fournisseur[]
+  patients                Patient[]
+  credits                 CreditPatient[]
+  ordonnances             Ordonnance[]
+  employes                Employe[]
+  planningsEmploye        PlanningEmploye[]
+  conges                  Conge[]
+  presences               Presence[]
+  bulletinsPaie           BulletinPaie[]
+  journaux                Journal[]
+  ecritures               EcritureComptable[]
+  tresoreries             Tresorerie[]
+  rapportsFinanciers      RapportFinancier[]
+  planningsGarde          PlanningGarde[]
+  rapportsGarde           RapportGarde[]
+  organismes              Organisme[]
+  tiersPayants            TiersPayant[]
+  remboursements          Remboursement[]
+  retours                 Retour[]
+  destructions            DestructionMedicament[]
+  notifications           Notification[]
+  campagnesSMS            CampagneSMS[]
+  documents               Document[]
+  coffres                 CoffreNumerique[]
+  kpis                    KPI[]
+  alertesOp               AlerteOperationnelle[]
+  predictions             PredictionIA[]
+  scoresPharmacie         ScorePharmacie[]
+  rapportsAnalytics       RapportAnalytics[]
+  signalementsEI          SignalementEI[]
+  commandesGrossiste      CommandeGrossiste[]
+  confirmationsSoBAPS     ConfirmationReceptionSoBAPS[]
+  scoreConformite         ScoreConformite?
+  documentsReg            DocumentReglementaire[]
+  commandesPatient        CommandePatient[]
+  officinesReseau         OfficineReseau[]
+  transfertsSource        TransfertStock[]    @relation("TransfertSource")
+  transfertsDest          TransfertStock[]    @relation("TransfertDest")
+  abonnements             Abonnement[]
+  evaluationsFournisseur  EvaluationFournisseur[]
+  diffusionsAlerte        DiffusionAlerte[]
+  reseauxPromus           Reseau[]
+}
+
+model Utilisateur {
+  id            String    @id @default(uuid())
+  pharmacieId   String
+  email         String    @unique
+  motDePasse    String
+  nom           String
+  prenom        String
+  roleId        String
+  telephone     String?
+  avatarUrl     String?
+  actif         Boolean   @default(true)
+  dernierLogin  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  pharmacie              Pharmacie              @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  role                   Role                   @relation(fields: [roleId], references: [id])
+  sessionsCaisse         SessionCaisse[]
+  ventes                 Vente[]
+  mouvementsStock        MouvementStock[]
+  signalementsEI         SignalementEI[]
+  validations            ValidationPharmacien[]
+  planningsGarde         PlanningGarde[]
+  rapportsGarde          RapportGarde[]
+  congesApprouves        Conge[]                @relation("CongeApprouvePar")
+  destructionsPharmacien DestructionMedicament[] @relation("DestructionPharmacien")
+  destructionsTemoin     DestructionMedicament[] @relation("DestructionTemoin")
+  notifications          Notification[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  nom         String   @unique
+  description String?
+
+  // Relations
+  utilisateurs Utilisateur[]
+  permissions  RolePermission[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  description String
+  module      String
+  action      String
+
+  // Relations
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Medicament {
+  id                   String   @id @default(uuid())
+  pharmacieId          String
+  dci                  String
+  nomCommercial        String
+  codeCIP              String?
+  codeEAN              String?
+  categorieATCId       String?
+  forme                String
+  dosage               String
+  unite                String
+  prixVente            Float
+  prixAchat            Float?
+  tva                  Float
+  estStupefiant        Boolean  @default(false)
+  estGenerique         Boolean  @default(false)
+  estRemboursable      Boolean  @default(false)
+  stockMin             Int
+  stockMax             Int?
+  commandeAuto         Boolean  @default(false)
+  fournisseurParDefaut String?
+  actif                Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  pharmacie           Pharmacie           @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  categorieATC        CategorieATC?       @relation(fields: [categorieATCId], references: [id])
+  lots                Lot[]
+  lignesVente         LigneVente[]
+  lignesCommande      LigneCommande[]
+  lignesReception     LigneReception[]
+  lignesOrdonnance    LigneOrdonnance[]   @relation("LigneOrdonnanceMedicament")
+  lignesOrdonnanceSub LigneOrdonnance[]   @relation("LigneOrdonnanceSub")
+  retours             Retour[]
+  destructions        DestructionMedicament[]
+  signalementsEI      SignalementEI[]
+  lignesCommandePatient LigneCommandePatient[]
+  conditions          ConditionAchat[]
+  transfertsStock     TransfertStock[]
+}
+
+model CategorieATC {
+  id       String   @id @default(uuid())
+  code     String   @unique
+  nom      String
+  niveau   Int
+  parentId String?
+
+  // Relations
+  parent      CategorieATC?  @relation("CategorieATCHierarchie", fields: [parentId], references: [id])
+  enfants     CategorieATC[] @relation("CategorieATCHierarchie")
+  medicaments Medicament[]
+}
+
+// === M01 — Stock ===
+
+model Lot {
+  id             String   @id @default(uuid())
+  medicamentId   String
+  pharmacieId    String
+  numeroLot      String
+  dateExpiration DateTime
+  quantite       Int
+  prixAchat      Float
+  fournisseur    String?
+  dateReception  DateTime
+  origine        String?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  medicament        Medicament        @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+  pharmacie         Pharmacie         @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  mouvementsStock   MouvementStock[]
+  alertesExpiration AlerteExpiration[]
+  lignesVente       LigneVente[]
+  retours           Retour[]
+  destructions      DestructionMedicament[]
+
+  @@index([numeroLot, medicamentId])
+}
+
+model MouvementStock {
+  id             String               @id @default(uuid())
+  lotId          String
+  pharmacieId    String
+  type           TypeMouvementStock
+  quantite       Int
+  quantiteAvant  Int
+  quantiteApres  Int
+  motif          String?
+  utilisateurId  String
+  referenceId    String?
+  referenceType  String?
+  createdAt      DateTime             @default(now())
+
+  // Relations
+  lot         Lot         @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+}
+
+model AlerteExpiration {
+  id            String   @id @default(uuid())
+  pharmacieId   String
+  lotId         String
+  joursRestants Int
+  notif90j      Boolean  @default(false)
+  notif60j      Boolean  @default(false)
+  notif30j      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  lot       Lot       @relation(fields: [lotId], references: [id], onDelete: Cascade)
+}
+
+// === M02 — POS ===
+
+model Caisse {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  nom         String
+  numero      Int
+  actif       Boolean  @default(true)
+
+  // Relations
+  pharmacie      Pharmacie      @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  sessionsCaisse SessionCaisse[]
+}
+
+model SessionCaisse {
+  id              String   @id @default(uuid())
+  pharmacieId     String
+  utilisateurId   String
+  caisseId        String
+  dateOuverture   DateTime
+  dateFermeture   DateTime?
+  fondDeCaisse    Float
+  totalEntrees    Float    @default(0)
+  totalSorties    Float    @default(0)
+  ecart           Float?
+
+  // Relations
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+  caisse      Caisse      @relation(fields: [caisseId], references: [id], onDelete: Cascade)
+  ventes      Vente[]
+}
+
+model Vente {
+  id              String      @id @default(uuid())
+  pharmacieId     String
+  utilisateurId   String
+  sessionId       String?
+  patientId       String?
+  ordonnanceId    String?
+  typeVente       TypeVente
+  statut          StatutVente
+  montantTotal    Float
+  montantRemise   Float       @default(0)
+  montantPaye     Float
+  monnaieRendue   Float       @default(0)
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  pharmacie     Pharmacie      @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur   Utilisateur    @relation(fields: [utilisateurId], references: [id])
+  session       SessionCaisse? @relation(fields: [sessionId], references: [id])
+  patient       Patient?       @relation(fields: [patientId], references: [id])
+  ordonnance    Ordonnance?    @relation(fields: [ordonnanceId], references: [id])
+  lignes        LigneVente[]
+  paiements     Paiement[]
+  remboursements Remboursement[]
+}
+
+model LigneVente {
+  id            String   @id @default(uuid())
+  venteId       String
+  medicamentId  String
+  lotId         String?
+  quantite      Int
+  prixUnitaire  Float
+  montant       Float
+  remise        Float    @default(0)
+
+  // Relations
+  vente      Vente      @relation(fields: [venteId], references: [id], onDelete: Cascade)
+  medicament Medicament @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+  lot        Lot?       @relation(fields: [lotId], references: [id])
+}
+
+model Paiement {
+  id              String        @id @default(uuid())
+  venteId         String
+  modePaiement    ModePaiement
+  montant         Float
+  reference       String?
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  vente Vente @relation(fields: [venteId], references: [id], onDelete: Cascade)
+}
+
+// === M03 — Commandes ===
+
+model CommandeFournisseur {
+  id                  String          @id @default(uuid())
+  pharmacieId         String
+  fournisseurId       String
+  reference           String          @unique
+  statut              StatutCommande
+  dateCommande        DateTime
+  dateLivraisonPrev   DateTime?
+  dateLivraisonReelle DateTime?
+  montantTotal        Float?
+  observations        String?
+  createdAt           DateTime        @default(now())
+
+  // Relations
+  pharmacie          Pharmacie           @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  fournisseur        Fournisseur         @relation(fields: [fournisseurId], references: [id])
+  lignes             LigneCommande[]
+  receptions         Reception[]
+  commandesGrossiste CommandeGrossiste[]
+}
+
+model LigneCommande {
+  id                String    @id @default(uuid())
+  commandeId        String
+  medicamentId      String?
+  refGrossiste      String?
+  dci               String
+  quantiteCommandee Int
+  quantiteLivree    Int       @default(0)
+  prixAchat         Float?
+  dateSouhaitee     DateTime?
+
+  // Relations
+  commande   CommandeFournisseur @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  medicament Medicament?         @relation(fields: [medicamentId], references: [id])
+}
+
+model Reception {
+  id             String     @id @default(uuid())
+  commandeId     String
+  pharmacieId    String
+  dateReception  DateTime
+  numeroBL       String?
+  statut         StatutConf @default(CONFORME)
+  ecarts         Json?
+  createdAt      DateTime   @default(now())
+
+  // Relations
+  commande  CommandeFournisseur @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie           @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  lignes    LigneReception[]
+}
+
+model LigneReception {
+  id             String   @id @default(uuid())
+  receptionId    String
+  medicamentId   String
+  numeroLot      String
+  dateExpiration DateTime
+  quantiteBL     Int
+  quantiteRecue  Int
+  prixAchat      Float
+
+  // Relations
+  reception  Reception  @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  medicament Medicament @relation(fields: [medicamentId], references: [id])
+}
+
+// === M04 — Fournisseurs ===
+
+model Fournisseur {
+  id               String   @id @default(uuid())
+  pharmacieId      String
+  nom              String
+  code             String   @unique
+  adresse          String?
+  telephone        String?
+  email            String?
+  estGrossisteAPI  Boolean  @default(false)
+  grossisteId      String?
+  delaiLivraison   Int?
+  noteEvaluation   Float?
+  actif            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  // Relations
+  pharmacie      Pharmacie              @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  commandes      CommandeFournisseur[]
+  conditions     ConditionAchat[]
+  evaluations    EvaluationFournisseur[]
+  retours        Retour[]
+}
+
+model ConditionAchat {
+  id            String   @id @default(uuid())
+  fournisseurId String
+  medicamentId  String?
+  prixAchat     Float
+  remise        Float?
+  delaiPaiement Int?
+  minCommande   Int?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  medicament  Medicament? @relation(fields: [medicamentId], references: [id])
+}
+
+model EvaluationFournisseur {
+  id              String   @id @default(uuid())
+  fournisseurId   String
+  pharmacieId     String
+  delaiRespecte   Int
+  qualiteProduit  Int
+  communication   Int
+  commentaire     String?
+  dateEvaluation  DateTime @default(now())
+
+  // Relations
+  fournisseur Fournisseur @relation(fields: [fournisseurId], references: [id], onDelete: Cascade)
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M05 — Patients ===
+
+model Patient {
+  id                 String   @id @default(uuid())
+  pharmacieId        String
+  nom                String
+  prenom             String
+  dateNaissance      DateTime?
+  sexe               String?
+  telephone          String?
+  email              String?
+  adresse            String?
+  numeroCNSS         String?
+  organismeAssurance String?
+  numeroAssurance    String?
+  compteMedihelmId   String?
+  allergies          Json?
+  antecedents        Json?
+  notes              String?
+  estFidele          Boolean  @default(false)
+  pointsFidelite     Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  pharmacie      Pharmacie       @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  compteMedihelm ComptePatient?  @relation(fields: [compteMedihelmId], references: [id])
+  credits        CreditPatient[]
+  ordonnances    Ordonnance[]
+  tiersPayants   TiersPayant[]
+  ventes         Vente[]
+  notifications  Notification[]
+}
+
+model CreditPatient {
+  id          String   @id @default(uuid())
+  patientId   String
+  pharmacieId String
+  montant     Float
+  montantPaye Float    @default(0)
+  statut      String
+  dateEcheance DateTime
+  createdAt   DateTime @default(now())
+
+  // Relations
+  patient   Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M06 — Ordonnances ===
+
+model Ordonnance {
+  id                 String             @id @default(uuid())
+  pharmacieId        String
+  patientId          String?
+  prescripteurNom    String
+  prescripteurInami  String?
+  dateOrdonnance     DateTime
+  dateReception      DateTime
+  statut             StatutOrdonnance
+  estStupefiant      Boolean            @default(false)
+  numeroRegistre     String?
+  imageOrdonnanceUrl String?
+  createdAt          DateTime           @default(now())
+
+  // Relations
+  pharmacie   Pharmacie           @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  patient     Patient?            @relation(fields: [patientId], references: [id])
+  lignes      LigneOrdonnance[]
+  validations ValidationPharmacien[]
+  ventes      Vente[]
+}
+
+model LigneOrdonnance {
+  id             String    @id @default(uuid())
+  ordonnanceId   String
+  medicamentId   String
+  posologie      String
+  duree          String
+  quantite       Int
+  delivree       Boolean   @default(false)
+  substitue      Boolean   @default(false)
+  medicamentSubId String?
+
+  // Relations
+  ordonnance    Ordonnance  @relation(fields: [ordonnanceId], references: [id], onDelete: Cascade)
+  medicament    Medicament  @relation("LigneOrdonnanceMedicament", fields: [medicamentId], references: [id])
+  medicamentSub Medicament? @relation("LigneOrdonnanceSub", fields: [medicamentSubId], references: [id])
+}
+
+model ValidationPharmacien {
+  id              String   @id @default(uuid())
+  ordonnanceId    String
+  utilisateurId   String
+  typeValidation  String
+  commentaire     String?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  ordonnance  Ordonnance  @relation(fields: [ordonnanceId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+}
+
+// === M07 — RH ===
+
+model Employe {
+  id              String       @id @default(uuid())
+  pharmacieId     String
+  nom             String
+  prenom          String
+  dateNaissance   DateTime?
+  sexe            String?
+  adresse         String?
+  telephone       String?
+  email           String?
+  poste           String
+  typeContrat     TypeContrat
+  dateEmbauche    DateTime
+  dateFinContrat  DateTime?
+  salaireBase     Float?
+  actif           Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  // Relations
+  pharmacie    Pharmacie         @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  plannings    PlanningEmploye[]
+  conges       Conge[]
+  presences    Presence[]
+  bulletinsPaie BulletinPaie[]
+}
+
+model PlanningEmploye {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  employeId   String
+  date        DateTime
+  heureDebut  DateTime
+  heureFin    DateTime
+  poste       String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  employe   Employe   @relation(fields: [employeId], references: [id], onDelete: Cascade)
+}
+
+model Conge {
+  id          String       @id @default(uuid())
+  employeId   String
+  pharmacieId String
+  typeConge   String
+  dateDebut   DateTime
+  dateFin     DateTime
+  statut      StatutConge
+  motif       String?
+  approuvePar String?
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  employe    Employe    @relation(fields: [employeId], references: [id], onDelete: Cascade)
+  pharmacie  Pharmacie  @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  approuveur Utilisateur? @relation("CongeApprouvePar", fields: [approuvePar], references: [id])
+}
+
+model Presence {
+  id          String   @id @default(uuid())
+  employeId   String
+  pharmacieId String
+  date        DateTime
+  heureArrivee DateTime
+  heureDepart DateTime?
+  statut      String
+
+  // Relations
+  employe   Employe   @relation(fields: [employeId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model BulletinPaie {
+  id          String   @id @default(uuid())
+  employeId   String
+  pharmacieId String
+  mois        Int
+  annee       Int
+  salaireBrut Float
+  cotisations Float
+  salaireNet  Float
+  prime       Float?
+  avance      Float?
+  pdfUrl      String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  employe   Employe   @relation(fields: [employeId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M08 — Finance ===
+
+model Journal {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  code        String
+  libelle     String
+
+  // Relations
+  pharmacie  Pharmacie          @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  ecritures  EcritureComptable[]
+}
+
+model EcritureComptable {
+  id            String   @id @default(uuid())
+  pharmacieId   String
+  journalId     String
+  date          DateTime
+  numeroPiece   String
+  compte        String
+  libelle       String
+  debit         Float    @default(0)
+  credit        Float    @default(0)
+  lettrage      String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  journal   Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+}
+
+model Tresorerie {
+  id              String   @id @default(uuid())
+  pharmacieId     String
+  date            DateTime
+  soldeBanque     Float
+  soldeCaisse     Float
+  soldeMobileMoney Float
+  total           Float
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model RapportFinancier {
+  id            String   @id @default(uuid())
+  pharmacieId   String
+  type          String
+  periodeDebut  DateTime
+  periodeFin    DateTime
+  pdfUrl        String
+  createdAt     DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M09 — Garde ===
+
+model PlanningGarde {
+  id           String    @id @default(uuid())
+  pharmacieId  String
+  date         DateTime
+  type         String
+  heureDebut   DateTime
+  heureFin     DateTime
+  pharmacienId String?
+
+  // Relations
+  pharmacie    Pharmacie    @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  pharmacien   Utilisateur? @relation(fields: [pharmacienId], references: [id])
+  rapportGarde RapportGarde?
+}
+
+model RapportGarde {
+  id               String   @id @default(uuid())
+  pharmacieId      String
+  planningGardeId  String   @unique
+  nbVentes         Int
+  chiffreAffaires  Float
+  incidents        Json?
+  pharmacienId     String
+  createdAt        DateTime @default(now())
+
+  // Relations
+  pharmacie     Pharmacie     @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  planningGarde PlanningGarde @relation(fields: [planningGardeId], references: [id], onDelete: Cascade)
+  pharmacien    Utilisateur   @relation(fields: [pharmacienId], references: [id])
+}
+
+// === M10 — Remboursables ===
+
+model Organisme {
+  id               String   @id @default(uuid())
+  pharmacieId      String
+  nom              String
+  code             String
+  type             String
+  tauxRemboursement Float
+  actif            Boolean  @default(true)
+
+  // Relations
+  pharmacie    Pharmacie    @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  tiersPayants TiersPayant[]
+}
+
+model TiersPayant {
+  id               String   @id @default(uuid())
+  pharmacieId      String
+  patientId        String
+  organismeId      String
+  numeroAdhesion   String
+  tauxPriseEnCharge Float
+  plafondAnnuel    Float?
+  actif            Boolean  @default(true)
+
+  // Relations
+  pharmacie     Pharmacie     @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  organisme     Organisme     @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  remboursements Remboursement[]
+}
+
+model Remboursement {
+  id                 String   @id @default(uuid())
+  pharmacieId        String
+  venteId            String
+  tiersPayantId      String
+  montantTotal       Float
+  montantPrisEnCharge Float
+  montantPatient     Float
+  statut             String
+  dateSoumission     DateTime
+  dateRemboursement  DateTime?
+
+  // Relations
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  vente       Vente       @relation(fields: [venteId], references: [id], onDelete: Cascade)
+  tiersPayant TiersPayant @relation(fields: [tiersPayantId], references: [id], onDelete: Cascade)
+}
+
+// === M11 — Retours / Destructions ===
+
+model Retour {
+  id            String     @id @default(uuid())
+  pharmacieId   String
+  medicamentId  String
+  lotId         String?
+  typeRetour    TypeRetour
+  quantite      Int
+  motif         String
+  fournisseurId String?
+  statut        String
+  createdAt     DateTime   @default(now())
+
+  // Relations
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  medicament  Medicament  @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+  lot         Lot?        @relation(fields: [lotId], references: [id])
+  fournisseur Fournisseur? @relation(fields: [fournisseurId], references: [id])
+}
+
+model DestructionMedicament {
+  id              String            @id @default(uuid())
+  pharmacieId     String
+  medicamentId    String
+  lotId           String
+  quantite        Int
+  motif           String
+  dateDestruction DateTime
+  pharmacienId    String
+  temoinId        String?
+  pvUrl           String?
+  statut          StatutDestruction
+  createdAt       DateTime          @default(now())
+
+  // Relations
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  medicament  Medicament  @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+  lot         Lot         @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  pharmacien  Utilisateur @relation("DestructionPharmacien", fields: [pharmacienId], references: [id])
+  temoin      Utilisateur? @relation("DestructionTemoin", fields: [temoinId], references: [id])
+}
+
+// === M12 — Communication ===
+
+model Notification {
+  id             String            @id @default(uuid())
+  pharmacieId    String
+  utilisateurId  String?
+  patientId      String?
+  titre          String
+  message        String
+  canal          CanalNotification
+  lu             Boolean           @default(false)
+  typeReference  String?
+  referenceId    String?
+  createdAt      DateTime          @default(now())
+
+  // Relations
+  pharmacie   Pharmacie  @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
+  patient     Patient?   @relation(fields: [patientId], references: [id])
+}
+
+model CampagneSMS {
+  id           String   @id @default(uuid())
+  pharmacieId  String
+  titre        String
+  message      String
+  destinataires String[]
+  nbEnvoyes    Int      @default(0)
+  nbDelivres   Int      @default(0)
+  dateEnvoi    DateTime
+  statut       String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M13 — Documents ===
+
+model Document {
+  id               String              @id @default(uuid())
+  pharmacieId      String
+  nom              String
+  type             TypeDocumentGeneral
+  fichierUrl       String
+  taille           Int?
+  dateEmission     DateTime?
+  dateExpiration   DateTime?
+  estConfidentiel  Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model CoffreNumerique {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  nom         String
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M14 — Dashboard ===
+
+model KPI {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  type        TypeKPI
+  valeur      Float
+  periode     String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model AlerteOperationnelle {
+  id          String         @id @default(uuid())
+  pharmacieId String
+  type        String
+  niveau      NiveauAlerte
+  message     String
+  estLu       Boolean        @default(false)
+  actionUrl   String?
+  createdAt   DateTime       @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M15 — Analytics ===
+
+model PredictionIA {
+  id             String   @id @default(uuid())
+  pharmacieId    String
+  domaine        String
+  typePrediction String
+  valeur         Float
+  confiance      Float
+  datePrediction DateTime @default(now())
+  periodeCible   String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model ScorePharmacie {
+  id               String   @id @default(uuid())
+  pharmacieId      String
+  scoreSante       Float
+  scoreStock       Float
+  scoreFinance     Float
+  scoreConformite  Float
+  scoreRH          Float
+  calculatedAt     DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model RapportAnalytics {
+  id            String   @id @default(uuid())
+  pharmacieId   String
+  domaine       String
+  periodeDebut  DateTime
+  periodeFin    DateTime
+  donnees       Json
+  pdfUrl        String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M16 — Pharmacovigilance ===
+
+model MedicamentSurveillance {
+  id             String       @id @default(uuid())
+  dci            String
+  nomCommercial  String?
+  fabricant      String?
+  numeroLot      String?
+  typeSurveillance TypeSurv
+  description    String
+  sourceAlerte   String
+  dateEmission   DateTime
+  dateExpiration DateTime?
+  niveauRisque   NiveauRisque
+  statut         StatutAlerte @default(ACTIVE)
+  documentUrl    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  signalementsEI SignalementEI[]
+  alertesDPMED   AlerteDPMED[]
+}
+
+model SignalementEI {
+  id              String      @id @default(uuid())
+  pharmacieId     String
+  utilisateurId   String
+  patientCode     String
+  medicamentId    String?
+  medicamentSurvId String?
+  dciConcernee    String
+  descriptionEI   String
+  gravite         GraviteEI
+  dateDebut       DateTime
+  evolution       String?
+  actionPrise     String?
+  statutEnvoi     StatutEnvoi @default(EN_ATTENTE)
+  refDPMED        String?
+  createdAt       DateTime    @default(now())
+
+  // Relations
+  pharmacie        Pharmacie            @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur      Utilisateur          @relation(fields: [utilisateurId], references: [id])
+  medicament       Medicament?          @relation(fields: [medicamentId], references: [id])
+  medicamentSurv   MedicamentSurveillance? @relation(fields: [medicamentSurvId], references: [id])
+}
+
+model FicheDCI {
+  id                   String   @id @default(uuid())
+  dci                  String   @unique
+  classeThera          String
+  mecanismeAction      String
+  indicationsPrincipales String
+  posologie            String
+  contreIndications    String
+  interactions         Json
+  effetsIndesirables   Json
+  conservation         String
+  sourceVersion        String
+  updatedAt            DateTime @updatedAt
+}
+
+// === M17 — Grossistes ===
+
+model PartenaireGrossiste {
+  id             String   @id @default(uuid())
+  nom            String
+  codeGrossiste  String   @unique
+  apiEndpoint    String
+  apiKeyHash     String
+  webhookSecret  String
+  actif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  // Relations
+  commandes   CommandeGrossiste[]
+  catalogue   CataloguePrix[]
+}
+
+model CommandeGrossiste {
+  id                   String        @id @default(uuid())
+  pharmacieId          String
+  grossisteId          String
+  commandeInterneId    String
+  referenceGrossiste   String?
+  statut               StatutCmdAPI  @default(ENVOYEE)
+  montantTotal         Float?
+  dateEnvoi            DateTime      @default(now())
+  dateConfirmation     DateTime?
+  dateLivraisonPrev    DateTime?
+  dateLivraisonReelle  DateTime?
+  payload              Json
+  reponseGrossiste     Json?
+
+  // Relations
+  pharmacie        Pharmacie          @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  grossiste        PartenaireGrossiste @relation(fields: [grossisteId], references: [id])
+  commandeInterne  CommandeFournisseur @relation(fields: [commandeInterneId], references: [id])
+}
+
+model CataloguePrix {
+  id             String   @id @default(uuid())
+  grossisteId    String
+  referenceGros  String
+  dci            String
+  nomCommercial  String
+  forme          String
+  dosage         String
+  prixAchat      Float
+  disponible     Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  grossiste PartenaireGrossiste @relation(fields: [grossisteId], references: [id], onDelete: Cascade)
+
+  @@unique([grossisteId, referenceGros])
+}
+
+// === M18 — Alertes DPMED ===
+
+model AlerteDPMED {
+  id                       String            @id @default(uuid())
+  referenceOfficielle      String            @unique
+  titre                    String
+  description              String
+  typeAlerte               TypeAlerteDPMED
+  niveauUrgence            NiveauUrgence
+  medicamentSurvId         String?
+  dciConcernee             String?
+  numerosLotConcernes      String[]
+  fabricantConcerne        String?
+  sourceEmission           String
+  documentOfficielUrl      String?
+  signatureNumerique       String
+  dateEmissionDPMED        DateTime
+  dateReceptionMH          DateTime          @default(now())
+  statut                   StatutAlerteMH    @default(EN_DIFFUSION)
+  nbOfficinesNotifiees     Int               @default(0)
+  nbOfficinesAcquittees    Int               @default(0)
+  nbPatientsNotifies       Int               @default(0)
+
+  // Relations
+  medicamentSurv  MedicamentSurveillance? @relation(fields: [medicamentSurvId], references: [id])
+  diffusions      DiffusionAlerte[]
+}
+
+model DiffusionAlerte {
+  id               String   @id @default(uuid())
+  alerteId         String
+  pharmacieId      String
+  lotsConcernes    String[]
+  canalEnvoi       String[]
+  dateEnvoi        DateTime
+  dateAcquittement DateTime?
+  actionPrise      String?
+
+  // Relations
+  alerte    AlerteDPMED @relation(fields: [alerteId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === M19 — Conformité ===
+
+model ConfirmationReceptionSoBAPS {
+  id               String     @id @default(uuid())
+  pharmacieId      String
+  bonLivraisonRef  String
+  dateReception    DateTime
+  statut           StatutConf @default(CONFORME)
+  ecarts           Json?
+  webhookSent      Boolean    @default(false)
+  webhookSentAt    DateTime?
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model ScoreConformite {
+  id                    String    @id @default(uuid())
+  pharmacieId           String    @unique
+  scoreTotal            Float
+  scoreRegistreStup     Float
+  scoreAlerteDPMED      Float
+  scoreDocuments        Float
+  scorePharmacovigi     Float
+  scoreDestructions     Float
+  certificationDPMED    Boolean   @default(false)
+  dateCertification     DateTime?
+  dateExpirCertification DateTime?
+  calculatedAt          DateTime  @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model DocumentReglementaire {
+  id             String      @id @default(uuid())
+  pharmacieId    String
+  typeDocument   TypeDocReg
+  fileUrl        String
+  dateEmission   DateTime?
+  dateExpiration DateTime?
+  statut         StatutDoc   @default(VALIDE)
+  alertes90j     Boolean     @default(false)
+  alertes60j     Boolean     @default(false)
+  alertes30j     Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  // Relations
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+// === Patient Space ===
+
+model ComptePatient {
+  id            String   @id @default(uuid())
+  nom           String
+  prenom        String
+  telephone     String   @unique
+  email         String?
+  motDePasse    String
+  dateNaissance DateTime?
+  sexe          String?
+  adresse       String?
+  fcmToken      String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  patients          Patient[]
+  commandes         CommandePatient[]
+  profilsFamille    ProfilFamille[]
+  vaccinations      Vaccination[]
+}
+
+model CommandePatient {
+  id                 String                 @id @default(uuid())
+  patientId          String
+  pharmacieId        String
+  statut             StatutCommandePatient
+  montantTotal       Float
+  fraisLivraison     Float?
+  modePaiement       ModePaiement?
+  referencePaiement  String?
+  createdAt          DateTime               @default(now())
+
+  // Relations
+  patient   ComptePatient @relation(fields: [patientId], references: [id])
+  pharmacie Pharmacie     @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  lignes    LigneCommandePatient[]
+}
+
+model LigneCommandePatient {
+  id            String   @id @default(uuid())
+  commandeId    String
+  medicamentId  String
+  quantite      Int
+  prixUnitaire  Float
+
+  // Relations
+  commande   CommandePatient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  medicament Medicament      @relation(fields: [medicamentId], references: [id])
+}
+
+model ProfilFamille {
+  id              String   @id @default(uuid())
+  comptePatientId String
+  nom             String
+  prenom          String
+  dateNaissance   DateTime
+  lienParente     String
+  allergies       Json?
+
+  // Relations
+  comptePatient ComptePatient @relation(fields: [comptePatientId], references: [id], onDelete: Cascade)
+  vaccinations  Vaccination[]
+}
+
+model Vaccination {
+  id              String   @id @default(uuid())
+  comptePatientId String
+  profilFamilleId String?
+  vaccin          String
+  numeroLot       String
+  dateVaccination DateTime
+  centreSante     String
+  dateRappel      DateTime?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  comptePatient ComptePatient  @relation(fields: [comptePatientId], references: [id], onDelete: Cascade)
+  profilFamille ProfilFamille? @relation(fields: [profilFamilleId], references: [id], onDelete: Cascade)
+}
+
+// === Network ===
+
+model Reseau {
+  id          String   @id @default(uuid())
+  promoteurId String
+  nom         String
+  nbOfficines Int
+  coefficient Float
+  createdAt   DateTime @default(now())
+
+  // Relations
+  promoteur       Pharmacie        @relation(fields: [promoteurId], references: [id])
+  officines       OfficineReseau[]
+  transfertsStock TransfertStock[]
+}
+
+model OfficineReseau {
+  id          String        @id @default(uuid())
+  reseauId    String
+  pharmacieId String
+  plan        PlanTarifaire
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  reseau    Reseau    @relation(fields: [reseauId], references: [id], onDelete: Cascade)
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+}
+
+model TransfertStock {
+  id                String   @id @default(uuid())
+  reseauId          String
+  pharmacieSourceId String
+  pharmacieDestId   String
+  medicamentId      String
+  quantite          Int
+  statut            String
+  dateDemande       DateTime @default(now())
+  dateEffectuee     DateTime?
+
+  // Relations
+  reseau          Reseau    @relation(fields: [reseauId], references: [id], onDelete: Cascade)
+  pharmacieSource Pharmacie @relation("TransfertSource", fields: [pharmacieSourceId], references: [id])
+  pharmacieDest   Pharmacie @relation("TransfertDest", fields: [pharmacieDestId], references: [id])
+  medicament      Medicament @relation(fields: [medicamentId], references: [id])
+}
+
+// === Billing ===
+
+model Abonnement {
+  id               String             @id @default(uuid())
+  pharmacieId      String
+  plan             PlanTarifaire
+  periode          PeriodeFacturation
+  prix             Float
+  debut            DateTime
+  fin              DateTime?
+  statut           StatutAbonnement
+  modePaiement     ModePaiement?
+  essaiActif       Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+
+  // Relations
+  pharmacie Pharmacie         @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  factures  Facture[]
+  options   OptionAbonnement[]
+}
+
+model Facture {
+  id                 String   @id @default(uuid())
+  abonnementId       String
+  montant            Float
+  taxe               Float
+  total              Float
+  statut             String
+  dateEmission       DateTime
+  dateEcheance       DateTime
+  datePaiement       DateTime?
+  referencePaiement  String?
+  pdfUrl             String?
+
+  // Relations
+  abonnement Abonnement @relation(fields: [abonnementId], references: [id], onDelete: Cascade)
+}
+
+model OptionAbonnement {
+  id            String   @id @default(uuid())
+  abonnementId  String
+  code          String
+  prix          Float
+  debut         DateTime
+  fin           DateTime?
+
+  // Relations
+  abonnement Abonnement @relation(fields: [abonnementId], references: [id], onDelete: Cascade)
 }

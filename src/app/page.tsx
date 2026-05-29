@@ -11,6 +11,7 @@ import { AlertProcess } from "@/components/medihelm/AlertProcess";
 import { ComplianceScore } from "@/components/medihelm/ComplianceScore";
 import { TechStack } from "@/components/medihelm/TechStack";
 import { Footer } from "@/components/medihelm/Footer";
+import { DashboardPro } from "@/components/medihelm/DashboardPro";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <Navbar />
       <main className="flex-1">
         <HeroSection />
+        <DashboardPro />
         <ProductSpaces />
         <ModulesShowcase />
         <PatientFeatures />
