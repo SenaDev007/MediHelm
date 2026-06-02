@@ -1,6 +1,14 @@
 import { PrismaClient } from '@prisma/client'
+import { createHash } from 'crypto'
 
 const prisma = new PrismaClient()
+
+/**
+ * Hash un mot de passe en SHA-256 (identique à auth.ts)
+ */
+function hashPassword(password: string): string {
+  return createHash('sha256').update(password).digest('hex')
+}
 
 async function main() {
   console.log('🌱 Début du seeding MédiHelm...')
@@ -56,7 +64,7 @@ async function main() {
       data: {
         pharmacieId: pharmacieData.id,
         email: 'admin@medihelm.bj',
-        motDePasse: '$2a$10$dummyhashedpassword1234567890abcdefghijklm',
+        motDePasse: hashPassword('admin123'),
         nom: 'Houénou',
         prenom: 'Aminou',
         roleId: roles.DIRECTEUR.id,

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       include: {
         fournisseur: true,
         lignes: { include: { medicament: true } },
-        receptions: true,
+        receptions: { include: { lignes: { include: { medicament: { select: { id: true, nomCommercial: true, dci: true } } } } } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,

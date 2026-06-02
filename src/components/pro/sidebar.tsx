@@ -23,6 +23,9 @@ import {
   ChevronRight,
   Pill,
   Bell,
+  Truck,
+  RotateCcw,
+  MessageSquare,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -59,6 +62,7 @@ const sidebarItems = [
       { href: '/pro/patients', label: 'Patients', icon: Users },
       { href: '/pro/ordonnances', label: 'Ordonnances', icon: FileText },
       { href: '/pro/personnel', label: 'Personnel', icon: UserCog },
+      { href: '/pro/fournisseurs', label: 'Fournisseurs', icon: Truck },
     ],
   },
   {
@@ -69,10 +73,18 @@ const sidebarItems = [
     ],
   },
   {
+    category: 'Remboursement & Retours',
+    items: [
+      { href: '/pro/remboursables', label: 'Remboursables', icon: Shield },
+      { href: '/pro/retours', label: 'Retours & Destructions', icon: RotateCcw },
+    ],
+  },
+  {
     category: 'Autres',
     items: [
       { href: '/pro/garde', label: 'Garde', icon: Moon },
       { href: '/pro/documents', label: 'Documents', icon: FolderOpen },
+      { href: '/pro/communication', label: 'Communication', icon: MessageSquare },
     ],
   },
 ]

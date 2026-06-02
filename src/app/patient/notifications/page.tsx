@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Bell, Pill, Package, AlertTriangle, Clock, Check, Filter } from 'lucide-react'
+import { Bell, Pill, Package, AlertTriangle, Clock, Check, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 interface NotificationItem {
   id: string
@@ -16,52 +17,9 @@ interface NotificationItem {
   createdAt: string
 }
 
-const mockNotifications: NotificationItem[] = [
-  {
-    id: '1',
-    titre: 'Rappel médicament',
-    message: 'Il est temps de prendre votre Amoxicilline 500mg',
-    type: 'RAPPEL',
-    lu: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    titre: 'Commande prête',
-    message: 'Votre commande CMD-2026-001 est prête à être récupérée à Pharmacie Centrale',
-    type: 'COMMANDE',
-    lu: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '3',
-    titre: 'Alerte DPMED',
-    message: 'Rappel de lot pour le Paracétamol 500mg — Lot PRC2026A',
-    type: 'DP_MED',
-    lu: true,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '4',
-    titre: 'Points fidélité',
-    message: 'Vous avez gagné 50 points fidélité ! Total : 320 points',
-    type: 'FIDELITE',
-    lu: true,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: '5',
-    titre: 'Pharmacie de garde',
-    message: 'Pharmacie du Centre est de garde ce weekend',
-    type: 'GARDE',
-    lu: true,
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-]
-
 const typeConfig: Record<string, { icon: React.ElementType; color: string }> = {
   RAPPEL: { icon: Pill, color: 'bg-primary/10 text-primary' },
-  COMMANDE: { icon: Package, color: 'bg-blue-brand/10 text-blue-brand' },
+  COMMANDE: { icon: Package, color: 'bg-blue-500/10 text-blue-600' },
   DP_MED: { icon: AlertTriangle, color: 'bg-destructive/10 text-destructive' },
   FIDELITE: { icon: Clock, color: 'bg-amber-400/10 text-amber-600' },
   GARDE: { icon: Bell, color: 'bg-teal-800/10 text-teal-800' },
@@ -76,25 +34,44 @@ const filterTypes = [
 ]
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(mockNotifications)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('ALL')
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchNotifications() {
-      try {
-        const res = await fetch('/api/patient/notifications')
-        if (res.ok) {
-          const data = await res.json()
-          if (Array.isArray(data) && data.length > 0) {
-            setNotifications(data)
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const patientRes = await fetch('/api/patients')
+      if (patientRes.ok) {
+        const patients = await patientRes.json()
+        if (Array.isArray(patients) && patients.length > 0) {
+          const patientId = patients[0].id
+          const res = await fetch(`/api/patient/notifications?patientId=${patientId}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (Array.isArray(data) && data.length > 0) {
+              setNotifications(data.map((n: NotificationItem) => ({
+                id: n.id,
+                titre: n.titre,
+                message: n.message,
+                type: n.typeReference || 'RAPPEL',
+                lu: n.lu,
+                createdAt: n.createdAt,
+              })))
+            }
           }
         }
-      } catch {
-        // Fallback to mock data already set in state
       }
+    } catch {
+      // fallback
+    } finally {
+      setLoading(false)
     }
-    fetchNotifications()
   }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
 
   const filtered = filter === 'ALL'
     ? notifications
@@ -102,14 +79,54 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter(n => !n.lu).length
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n =>
-      n.id === id ? { ...n, lu: true } : n
-    ))
+  const toggleRead = async (id: string, currentRead: boolean) => {
+    setTogglingId(id)
+    // Optimistic update
+    setNotifications(notifications.map(n => n.id === id ? { ...n, lu: !currentRead } : n))
+    try {
+      const res = await fetch('/api/patient/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, lu: !currentRead }),
+      })
+      if (res.ok) {
+        toast.success(currentRead ? 'Marquée comme non lue' : 'Marquée comme lue')
+      } else {
+        // Revert on failure
+        setNotifications(notifications.map(n => n.id === id ? { ...n, lu: currentRead } : n))
+        toast.error('Erreur lors de la mise à jour')
+      }
+    } catch {
+      // Revert on failure
+      setNotifications(notifications.map(n => n.id === id ? { ...n, lu: currentRead } : n))
+      toast.error('Erreur lors de la mise à jour')
+    } finally {
+      setTogglingId(null)
+    }
   }
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setNotifications(notifications.map(n => ({ ...n, lu: true })))
+    try {
+      const patientRes = await fetch('/api/patients')
+      if (patientRes.ok) {
+        const patients = await patientRes.json()
+        if (Array.isArray(patients) && patients.length > 0) {
+          await fetch(`/api/patient/notifications?patientId=${patients[0].id}`, { method: 'PUT' })
+        }
+      }
+      toast.success('Toutes les notifications marquées comme lues')
+    } catch {
+      // optimistic
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
+        <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      </div>
+    )
   }
 
   return (
@@ -153,16 +170,11 @@ export default function NotificationsPage() {
         {filtered.map((notification) => {
           const config = typeConfig[notification.type] || typeConfig.RAPPEL
           return (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
+            <motion.div key={notification.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
               <Card
-                className={`border-teal-200 cursor-pointer transition-all ${
+                className={`border-teal-200 transition-all ${
                   !notification.lu ? 'bg-primary/5 border-primary/30' : ''
                 }`}
-                onClick={() => markAsRead(notification.id)}
               >
                 <CardContent className="p-3 flex items-start gap-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${config.color}`}>
@@ -182,6 +194,22 @@ export default function NotificationsPage() {
                       })}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                    disabled={togglingId === notification.id}
+                    onClick={() => toggleRead(notification.id, notification.lu)}
+                    title={notification.lu ? 'Marquer comme non lue' : 'Marquer comme lue'}
+                  >
+                    {togglingId === notification.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : notification.lu ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-primary" />
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
             </motion.div>

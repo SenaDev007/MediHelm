@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -792,6 +792,7 @@ model Patient {
   tiersPayants   TiersPayant[]
   ventes         Vente[]
   notifications  Notification[]
+  transactionsFidelite TransactionFidelite[]
 }
 
 model CreditPatient {
@@ -1167,7 +1168,7 @@ model CampagneSMS {
   pharmacieId  String
   titre        String
   message      String
-  destinataires String[]
+  destinataires Json
   nbEnvoyes    Int      @default(0)
   nbDelivres   Int      @default(0)
   dateEnvoi    DateTime
@@ -1253,14 +1254,16 @@ model PredictionIA {
 }
 
 model ScorePharmacie {
-  id               String   @id @default(uuid())
-  pharmacieId      String
-  scoreSante       Float
-  scoreStock       Float
-  scoreFinance     Float
-  scoreConformite  Float
-  scoreRH          Float
-  calculatedAt     DateTime @default(now())
+  id                    String   @id @default(uuid())
+  pharmacieId           String
+  scoreSante            Float
+  scoreStock            Float
+  scoreFinance          Float
+  scoreConformite       Float
+  scoreRH               Float
+  scorePharmacovigilance Float  @default(0)
+  scoreQualite          Float   @default(0)
+  calculatedAt          DateTime @default(now())
 
   // Relations
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
@@ -1410,7 +1413,7 @@ model AlerteDPMED {
   niveauUrgence            NiveauUrgence
   medicamentSurvId         String?
   dciConcernee             String?
-  numerosLotConcernes      String[]
+  numerosLotConcernes      Json
   fabricantConcerne        String?
   sourceEmission           String
   documentOfficielUrl      String?
@@ -1431,8 +1434,8 @@ model DiffusionAlerte {
   id               String   @id @default(uuid())
   alerteId         String
   pharmacieId      String
-  lotsConcernes    String[]
-  canalEnvoi       String[]
+  lotsConcernes    Json
+  canalEnvoi       Json
   dateEnvoi        DateTime
   dateAcquittement DateTime?
   actionPrise      String?
@@ -1513,6 +1516,7 @@ model ComptePatient {
   commandes         CommandePatient[]
   profilsFamille    ProfilFamille[]
   vaccinations      Vaccination[]
+  rappels           RappelPatient[]
 }
 
 model CommandePatient {
@@ -1621,6 +1625,35 @@ model TransfertStock {
 }
 
 // === Billing ===
+
+// === Patient Space — Extended ===
+
+model RappelPatient {
+  id              String   @id @default(uuid())
+  comptePatientId String
+  medicament      String
+  heure           String
+  frequence       String
+  actif           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  comptePatient ComptePatient @relation(fields: [comptePatientId], references: [id], onDelete: Cascade)
+}
+
+model TransactionFidelite {
+  id              String   @id @default(uuid())
+  patientId       String
+  type            String
+  points          Int
+  description     String
+  referenceId     String?
+  createdAt       DateTime @default(now())
+
+  // Relations
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
 
 model Abonnement {
   id               String             @id @default(uuid())

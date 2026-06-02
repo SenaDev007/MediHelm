@@ -5,26 +5,30 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
+    const periode = searchParams.get('periode') || '7j'
 
     if (!pharmacieId) {
       return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
     }
 
-    // CA du jour
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const ventesAujourdhui = await db.vente.findMany({
+    const days = periode === '30j' ? 30 : periode === '14j' ? 14 : 7
+    const periodStart = new Date()
+    periodStart.setDate(periodStart.getDate() - days)
+    periodStart.setHours(0, 0, 0, 0)
+
+    // CA total de la période
+    const ventesPeriode = await db.vente.findMany({
       where: {
         pharmacieId,
-        createdAt: { gte: today },
+        createdAt: { gte: periodStart },
         statut: { in: ['VALIDEE', 'EN_COURS'] },
       },
       select: { montantTotal: true },
     })
-    const caDuJour = ventesAujourdhui.reduce((sum, v) => sum + v.montantTotal, 0)
+    const caDuJour = ventesPeriode.reduce((sum, v) => sum + v.montantTotal, 0)
 
-    // Nombre de ventes du jour
-    const nbVentesJour = ventesAujourdhui.length
+    // Nombre de ventes de la période
+    const nbVentesJour = ventesPeriode.length
 
     // Stock en alerte (médicaments avec stock total <= stockMin)
     const medicaments = await db.medicament.findMany({
@@ -41,13 +45,11 @@ export async function GET(request: NextRequest) {
       where: { pharmacieId },
     })
 
-    // Ventes des 7 derniers jours pour graphique
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    // Ventes de la période pour graphique
     const ventesRecentes = await db.vente.findMany({
       where: {
         pharmacieId,
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: periodStart },
         statut: { in: ['VALIDEE', 'EN_COURS'] },
       },
       select: { montantTotal: true, createdAt: true },
@@ -102,6 +104,51 @@ export async function GET(request: NextRequest) {
       orderBy: { calculatedAt: 'desc' },
     })
 
+    // === Pharmacovigilance domain data ===
+    const signalementsPeriode = await db.signalementEI.findMany({
+      where: {
+        pharmacieId,
+        createdAt: { gte: periodStart },
+      },
+      select: { gravite: true, statutEnvoi: true },
+    })
+
+    const eiStats = {
+      total: signalementsPeriode.length,
+      leger: signalementsPeriode.filter(s => s.gravite === 'LEGER').length,
+      modere: signalementsPeriode.filter(s => s.gravite === 'MODERE').length,
+      grave: signalementsPeriode.filter(s => s.gravite === 'GRAVE').length,
+      fatal: signalementsPeriode.filter(s => s.gravite === 'FATAL').length,
+      enAttente: signalementsPeriode.filter(s => s.statutEnvoi === 'EN_ATTENTE').length,
+      soumis: signalementsPeriode.filter(s => s.statutEnvoi === 'SOUMIS').length,
+    }
+
+    const surveillancesActives = await db.medicamentSurveillance.count({
+      where: { statut: 'ACTIVE' },
+    })
+
+    // === Conformité domain data ===
+    const conformiteData = {
+      scoreTotal: scoreConf?.scoreTotal ?? 0,
+      scoreRegistreStup: scoreConf?.scoreRegistreStup ?? 0,
+      scoreAlerteDPMED: scoreConf?.scoreAlerteDPMED ?? 0,
+      scoreDocuments: scoreConf?.scoreDocuments ?? 0,
+      scorePharmacovigi: scoreConf?.scorePharmacovigi ?? 0,
+      scoreDestructions: scoreConf?.scoreDestructions ?? 0,
+      certificationDPMED: scoreConf?.certificationDPMED ?? false,
+      pendingAlertesDPMED: diffusions.length,
+      documentsExpirant: await db.documentReglementaire.count({
+        where: { pharmacieId, statut: 'EXPIRE_BIENTOT' },
+      }),
+    }
+
+    // Predictions
+    const predictions = await db.predictionIA.findMany({
+      where: { pharmacieId },
+      orderBy: { datePrediction: 'desc' },
+      take: 6,
+    })
+
     return NextResponse.json({
       caDuJour,
       nbVentesJour,
@@ -117,6 +164,10 @@ export async function GET(request: NextRequest) {
       topProduits,
       scorePharmacie,
       scoreConf,
+      eiStats,
+      surveillancesActives,
+      conformiteData,
+      predictions,
     })
   } catch (error) {
     console.error('Erreur GET dashboard:', error)

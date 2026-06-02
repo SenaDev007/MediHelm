@@ -5,10 +5,18 @@ import { ComplianceGauge } from '@/components/pro/compliance-gauge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Shield, Download, Award, FileText, AlertTriangle, HeartPulse, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { Shield, Download, Award, FileText, AlertTriangle, HeartPulse, Trash2, Upload, RefreshCw } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 
 interface ScoreConformite {
@@ -41,7 +49,7 @@ const conformiteComponents = [
 ] as const
 
 const typeDocLabels: Record<string, string> = {
-  LICENCE_EXPLOITATION: 'Licence d\'exploitation',
+  LICENCE_EXPLOITATION: "Licence d'exploitation",
   DIPLOME_PHARMACIEN: 'Diplôme de pharmacien',
   ASSURANCE: 'Assurance',
   AGREMENT_DPMED: 'Agrément DPMED',
@@ -61,18 +69,157 @@ export default function ConformitePage() {
   const [documents, setDocuments] = useState<DocumentReg[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (pharmacie?.id) {
-      setLoading(true)
-      Promise.all([
+  // Upload document dialog
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [uploadType, setUploadType] = useState('LICENCE_EXPLOITATION')
+  const [uploadDateEmission, setUploadDateEmission] = useState('')
+  const [uploadDateExpiration, setUploadDateExpiration] = useState('')
+
+  const loadData = useCallback(async () => {
+    if (!pharmacie?.id) return
+    setLoading(true)
+    try {
+      const [sc, docs] = await Promise.all([
         fetch(`/api/conformite/score?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : null),
         fetch(`/api/conformite/documents?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
-      ]).then(([sc, docs]) => {
-        setScore(sc)
-        setDocuments(docs)
-      }).catch(() => {}).finally(() => setLoading(false))
+      ])
+      setScore(sc)
+      setDocuments(docs)
+    } catch { /* ignore */ } finally {
+      setLoading(false)
     }
   }, [pharmacie?.id])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Export functions with actual file download
+  const downloadJsonAsFile = (data: unknown, filename: string) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportStupfiants = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch(`/api/conformite/exports/stupefiants?pharmacieId=${pharmacie.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        downloadJsonAsFile(data, `registre-stupefiants-${pharmacie.id}.json`)
+        toast.success(`Export stupéfiants: ${data.total || 0} entrées exportées`)
+      } else {
+        toast.error('Erreur lors de l\'export')
+      }
+    } catch {
+      toast.error('Erreur lors de l\'export')
+    }
+  }
+
+  const handleExportDestructions = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch(`/api/conformite/exports/destructions?pharmacieId=${pharmacie.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        downloadJsonAsFile(data, `pv-destructions-${pharmacie.id}.json`)
+        toast.success(`Export destructions: ${data.total || 0} PVs exportés`)
+      } else {
+        toast.error('Erreur lors de l\'export')
+      }
+    } catch {
+      toast.error('Erreur lors de l\'export')
+    }
+  }
+
+  const handleExportOrdonnances = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch(`/api/conformite/exports/ordonnances?pharmacieId=${pharmacie.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        downloadJsonAsFile(data, `registre-ordonnances-${pharmacie.id}.json`)
+        toast.success(`Export ordonnances: ${data.total || 0} ordonnances exportées`)
+      } else {
+        toast.error('Erreur lors de l\'export')
+      }
+    } catch {
+      toast.error('Erreur lors de l\'export')
+    }
+  }
+
+  // Upload document réglementaire
+  const handleUploadDocument = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch('/api/conformite/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          typeDocument: uploadType,
+          dateEmission: uploadDateEmission || null,
+          dateExpiration: uploadDateExpiration || null,
+          statut: 'VALIDE',
+        }),
+      })
+      if (res.ok) {
+        toast.success('Document réglementaire ajouté')
+        setUploadDialogOpen(false)
+        setUploadType('LICENCE_EXPLOITATION')
+        setUploadDateEmission('')
+        setUploadDateExpiration('')
+        loadData()
+      }
+    } catch {
+      toast.error('Erreur lors de l\'ajout')
+    }
+  }
+
+  // Recalculate score
+  const handleRecalculateScore = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch(`/api/conformite/score?pharmacieId=${pharmacie.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setScore(data)
+        toast.success('Score recalculé')
+      }
+    } catch {
+      toast.error('Erreur lors du recalcul')
+    }
+  }
+
+  // Request certification
+  const handleRequestCertification = async () => {
+    if (!pharmacie?.id) return
+    try {
+      const res = await fetch('/api/conformite/certification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pharmacieId: pharmacie.id,
+          certificationDPMED: true,
+          dateCertification: new Date().toISOString(),
+          dateExpirCertification: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        }),
+      })
+      if (res.ok) {
+        toast.success('Demande de certification envoyée')
+        loadData()
+      }
+    } catch {
+      toast.error('Erreur lors de la demande')
+    }
+  }
 
   if (loading) {
     return (
@@ -99,14 +246,22 @@ export default function ConformitePage() {
             Évaluation réglementaire de votre pharmacie
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => toast('Export en cours de préparation')}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportStupfiants}>
             <Download className="w-4 h-4" />
-            Exporter stupéfiants
+            Stupéfiants
           </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => toast('Export en cours de préparation')}>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportDestructions}>
             <Download className="w-4 h-4" />
-            Exporter destructions
+            Destructions
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportOrdonnances}>
+            <Download className="w-4 h-4" />
+            Ordonnances
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleRecalculateScore}>
+            <RefreshCw className="w-4 h-4" />
+            Recalculer
           </Button>
         </div>
       </div>
@@ -118,18 +273,22 @@ export default function ConformitePage() {
           <div className="relative mb-4">
             <ComplianceGauge score={score?.scoreTotal ?? 0} size={200} />
           </div>
-          {score?.certificationDPMED && (
+          {score?.certificationDPMED ? (
             <div className="flex items-center gap-2 mb-2">
               <Award className="w-5 h-5 text-primary" />
               <span className="text-sm font-semibold text-primary">Certifié DPMED</span>
             </div>
-          )}
-          {!score?.certificationDPMED && (
+          ) : (
             <div className="text-center">
               <Badge variant="outline" className="text-xs mb-2">Non certifié</Badge>
               <p className="text-xs text-muted-foreground">
                 Atteignez 80% pour obtenir la certification
               </p>
+              {(score?.scoreTotal ?? 0) >= 80 && (
+                <Button size="sm" className="mt-2 gap-1" onClick={handleRequestCertification}>
+                  <Award className="w-3 h-3" /> Demander la certification
+                </Button>
+              )}
             </div>
           )}
           {score?.dateCertification && (
@@ -183,10 +342,15 @@ export default function ConformitePage() {
       {/* Documents réglementaires */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <FileText className="w-4 h-4 text-primary" />
-            Documents réglementaires
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              Documents réglementaires
+            </CardTitle>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => setUploadDialogOpen(true)}>
+              <Upload className="w-3 h-3" /> Ajouter
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {documents.length === 0 ? (
@@ -246,17 +410,44 @@ export default function ConformitePage() {
                 <span className="text-sm">Chargez vos documents réglementaires manquants pour gagner jusqu&apos;à {20 - Math.round(score.scoreDocuments)} points</span>
               </div>
             )}
-            {score && score.scoreTotal >= 80 && (
+            {score && score.scoreTotal >= 80 && !score.certificationDPMED && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
                 <Award className="w-4 h-4 text-primary shrink-0" />
                 <span className="text-sm font-medium text-primary">
-                  Votre pharmacie est éligible à la certification DPMED ! Contactez la direction pour l&apos;obtention.
+                  Votre pharmacie est éligible à la certification DPMED ! Cliquez sur &quot;Demander la certification&quot; ci-dessus.
                 </span>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Upload Document Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Ajouter un document réglementaire</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label>Type de document</Label>
+              <Select value={uploadType} onValueChange={setUploadType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LICENCE_EXPLOITATION">Licence d&apos;exploitation</SelectItem>
+                  <SelectItem value="DIPLOME_PHARMACIEN">Diplôme de pharmacien</SelectItem>
+                  <SelectItem value="ASSURANCE">Assurance</SelectItem>
+                  <SelectItem value="AGREMENT_DPMED">Agrément DPMED</SelectItem>
+                  <SelectItem value="AUTORISATION_STUPEFIANTS">Autorisation stupéfiants</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Date d&apos;émission</Label><Input type="date" value={uploadDateEmission} onChange={e => setUploadDateEmission(e.target.value)} /></div>
+              <div><Label>Date d&apos;expiration</Label><Input type="date" value={uploadDateExpiration} onChange={e => setUploadDateExpiration(e.target.value)} /></div>
+            </div>
+            <Button className="w-full" onClick={handleUploadDocument}>Enregistrer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

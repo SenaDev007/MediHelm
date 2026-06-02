@@ -1,6 +1,9 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useSession, SessionProvider } from 'next-auth/react'
+
+// === Types ===
 
 interface User {
   id: string
@@ -30,6 +33,7 @@ interface AuthContextType {
   isLoading: boolean
   login: () => void
   logout: () => void
+  isAuthenticated: boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -38,82 +42,134 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: () => {},
   logout: () => {},
+  isAuthenticated: false,
 })
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+// === Composant interne qui utilise useSession ===
 
-  const loadDemoData = useCallback(async () => {
-    try {
-      const res = await fetch('/api/pharmacies?numeroAgrement=AGR-2024-001')
-      if (res.ok) {
-        const pharmacies = await res.json()
-        if (pharmacies.length > 0) {
-          const p = pharmacies[0]
+function AuthProviderInner({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession()
+  const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
+  const [isLoadingPharmacie, setIsLoadingPharmacie] = useState(true)
+
+  const isLoading = status === 'loading' || isLoadingPharmacie
+
+  // Charger les données de la pharmacie quand la session est disponible
+  useEffect(() => {
+    async function loadPharmacie() {
+      if (!session?.user) {
+        setIsLoadingPharmacie(false)
+        return
+      }
+
+      const sessionUser = session.user as Record<string, unknown>
+      const pharmacieId = sessionUser.pharmacieId as string
+      const pharmacieNom = sessionUser.pharmacieNom as string
+
+      if (pharmacieId) {
+        try {
+          const res = await fetch(`/api/pharmacies?numeroAgrement=${pharmacieId}`)
+          if (res.ok) {
+            const pharmacies = await res.json()
+            if (pharmacies.length > 0) {
+              const p = pharmacies[0]
+              setPharmacie({
+                id: p.id,
+                nom: p.nom,
+                adresse: p.adresse,
+                ville: p.ville,
+                telephone: p.telephone,
+                email: p.email,
+                numeroAgrement: p.numeroAgrement,
+                plan: p.plan,
+                statutAbonnement: p.statutAbonnement,
+                logoUrl: p.logoUrl,
+              })
+            } else {
+              // Pharmacie non trouvée via API, utiliser les données du JWT
+              setPharmacie({
+                id: pharmacieId,
+                nom: pharmacieNom || 'Pharmacie',
+                adresse: '',
+                ville: '',
+                telephone: '',
+                numeroAgrement: '',
+                plan: 'GROW',
+                statutAbonnement: 'ACTIF',
+              })
+            }
+          } else {
+            // Fallback sur les données du JWT
+            setPharmacie({
+              id: pharmacieId,
+              nom: pharmacieNom || 'Pharmacie',
+              adresse: '',
+              ville: '',
+              telephone: '',
+              numeroAgrement: '',
+              plan: 'GROW',
+              statutAbonnement: 'ACTIF',
+            })
+          }
+        } catch {
+          // Erreur réseau — fallback sur les données du JWT
           setPharmacie({
-            id: p.id,
-            nom: p.nom,
-            adresse: p.adresse,
-            ville: p.ville,
-            telephone: p.telephone,
-            email: p.email,
-            numeroAgrement: p.numeroAgrement,
-            plan: p.plan,
-            statutAbonnement: p.statutAbonnement,
-            logoUrl: p.logoUrl,
-          })
-          setUser({
-            id: 'demo-admin',
-            nom: 'Houénou',
-            prenom: 'Aminou',
-            email: 'admin@medihelm.bj',
-            role: 'Pharmacien-Propriétaire',
+            id: pharmacieId,
+            nom: pharmacieNom || 'Pharmacie',
+            adresse: '',
+            ville: '',
+            telephone: '',
+            numeroAgrement: '',
+            plan: 'GROW',
+            statutAbonnement: 'ACTIF',
           })
         }
       }
-    } catch {
-      // Fallback demo data
-      setPharmacie({
-        id: 'demo-pharmacy',
-        nom: 'Pharmacie MédiHelm Demo',
-        adresse: 'Cotonou, Bénin',
-        ville: 'Cotonou',
-        telephone: '+229 97 00 00 00',
-        numeroAgrement: 'AGR-2024-001',
-        plan: 'GROW',
-        statutAbonnement: 'ACTIF',
-      })
-      setUser({
-        id: 'demo-admin',
-        nom: 'Houénou',
-        prenom: 'Aminou',
-        email: 'admin@medihelm.bj',
-        role: 'Pharmacien-Propriétaire',
-      })
-    } finally {
-      setIsLoading(false)
+      setIsLoadingPharmacie(false)
     }
-  }, [])
 
-  useEffect(() => {
-    loadDemoData()
-  }, [loadDemoData])
+    loadPharmacie()
+  }, [session])
+
+  // Construire l'objet User depuis la session NextAuth
+  const user: User | null = session?.user
+    ? {
+        id: (session.user as Record<string, unknown>).id as string || '',
+        nom: ((session.user as Record<string, unknown>).nom as string) || '',
+        prenom: ((session.user as Record<string, unknown>).prenom as string) || '',
+        email: session.user.email || '',
+        role: ((session.user as Record<string, unknown>).roleName as string) || 'PHARMACIEN',
+        avatarUrl: (session.user as Record<string, unknown>).avatarUrl as string | undefined,
+      }
+    : null
+
+  const isAuthenticated = !!session?.user
 
   const login = useCallback(() => {
-    loadDemoData()
-  }, [loadDemoData])
+    // Rediriger vers la page de connexion NextAuth
+    window.location.href = '/connexion'
+  }, [])
 
   const logout = useCallback(() => {
-    setUser(null)
-    setPharmacie(null)
+    // Déconnexion NextAuth + nettoyage
+    window.location.href = '/api/auth/signout'
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, pharmacie, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, pharmacie, isLoading, login, logout, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
+  )
+}
+
+// === Composant Provider principal ===
+// Enveloppe avec SessionProvider de next-auth, puis AuthProviderInner
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider refetchInterval={5 * 60} refetchOnWindowFocus={true}>
+      <AuthProviderInner>{children}</AuthProviderInner>
+    </SessionProvider>
   )
 }
 
