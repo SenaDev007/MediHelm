@@ -215,7 +215,7 @@ Work Log:
 - Created comprehensive seed with 26 pharmacies across 12 Benin departments
 - Seeded: 8 garde pharmacies today, 2 DPMED alerts, 45 diffusions, 22 SoBAPS confirmations
 - Build verified successful
-- GitHub push FAILED: token [TOKEN_REDACTED] expired
+- GitHub push FAILED: token [TOKEN EXPIRÉ] expired
 
 Stage Summary:
 - 3 critical bugs fixed in the geolocation map system
