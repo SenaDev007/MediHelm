@@ -1,11 +1,12 @@
 'use client'
 
 import { useAuth } from '@/app/pro/auth-context'
-import { Bell, Search, Menu } from 'lucide-react'
+import { Bell, Search, Menu, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { useTheme } from 'next-themes'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,15 @@ export function ProTopbar({ onToggleSidebar }: { onToggleSidebar?: () => void })
   const { user, pharmacie } = useAuth()
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Use useSyncExternalStore pattern to avoid lint warning for mounted state
+  const mountedRef = useState(false)
+  if (typeof window !== 'undefined' && !mountedRef[0]) {
+    mountedRef[1](true)
+  }
+  const isMounted = mountedRef[0]
 
   useEffect(() => {
     if (pharmacie?.id) {
@@ -85,8 +95,23 @@ export function ProTopbar({ onToggleSidebar }: { onToggleSidebar?: () => void })
         </div>
       </div>
 
-      {/* Right: Notifications + User */}
+      {/* Right: Theme Toggle + Notifications + User */}
       <div className="flex items-center gap-2">
+        {/* Dark mode toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-foreground"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label="Basculer le thème"
+        >
+          {mounted && theme === 'dark' ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+        </Button>
+
         {/* Notifications */}
         <Popover>
           <PopoverTrigger asChild>

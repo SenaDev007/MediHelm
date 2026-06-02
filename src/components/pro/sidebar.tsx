@@ -22,11 +22,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Pill,
-  Bell,
   Truck,
   RotateCcw,
   MessageSquare,
   Lock,
+  Receipt,
+  CreditCard,
+  Network,
+  ShieldCheck,
+  Crown,
+  Settings,
+  ScrollText,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -44,8 +50,9 @@ const sidebarItems = [
     category: 'Principal',
     items: [
       { href: '/pro', label: 'Tableau de bord', icon: LayoutDashboard },
+      { href: '/pro/caisse', label: 'Caisse', icon: ShoppingCart },
       { href: '/pro/stock', label: 'Stock', icon: Package },
-      { href: '/pro/ventes', label: 'Ventes', icon: ShoppingCart },
+      { href: '/pro/ventes', label: 'Ventes', icon: Receipt },
       { href: '/pro/commandes', label: 'Commandes', icon: ClipboardList },
     ],
   },
@@ -62,6 +69,7 @@ const sidebarItems = [
     category: 'Gestion',
     items: [
       { href: '/pro/patients', label: 'Patients', icon: Users },
+      { href: '/pro/credits', label: 'Crédits', icon: CreditCard },
       { href: '/pro/ordonnances', label: 'Ordonnances', icon: FileText },
       { href: '/pro/personnel', label: 'Personnel', icon: UserCog },
       { href: '/pro/fournisseurs', label: 'Fournisseurs', icon: Truck },
@@ -72,12 +80,13 @@ const sidebarItems = [
     items: [
       { href: '/pro/finance', label: 'Finance', icon: Banknote },
       { href: '/pro/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/pro/reseau', label: 'Réseau', icon: Network },
     ],
   },
   {
     category: 'Remboursement & Retours',
     items: [
-      { href: '/pro/remboursables', label: 'Remboursables', icon: Shield },
+      { href: '/pro/remboursables', label: 'Remboursables', icon: ShieldCheck },
       { href: '/pro/retours', label: 'Retours & Destructions', icon: RotateCcw },
     ],
   },
@@ -85,8 +94,11 @@ const sidebarItems = [
     category: 'Autres',
     items: [
       { href: '/pro/garde', label: 'Garde', icon: Moon },
-      { href: '/pro/documents', label: 'Documents', icon: FolderOpen },
       { href: '/pro/communication', label: 'Communication', icon: MessageSquare },
+      { href: '/pro/documents', label: 'Documents', icon: FolderOpen },
+      { href: '/pro/abonnement', label: 'Abonnement', icon: Crown },
+      { href: '/pro/parametres', label: 'Paramètres', icon: Settings },
+      { href: '/pro/audit', label: 'Journal d\'audit', icon: ScrollText },
     ],
   },
 ]

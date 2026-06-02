@@ -1,14 +1,12 @@
 import { PrismaClient } from '@prisma/client'
-import { createHash } from 'crypto'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 /**
- * Hash un mot de passe en SHA-256 (identique à auth.ts)
+ * Hash un mot de passe avec bcrypt (identique à auth.ts)
  */
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
-}
+const hashPassword = (pw: string) => bcrypt.hash(pw, 12)
 
 async function main() {
   console.log('🌱 Début du seeding MédiHelm...')
@@ -16,7 +14,7 @@ async function main() {
   // 1. Create Roles (skip if exists)
   console.log('📋 Création des rôles...')
   const roleNames = [
-    'DIRECTEUR', 'PHARMACIEN', 'CAISSIER', 'MAGASINIER', 'PROMOTEUR',
+    'ADMIN', 'DIRECTEUR', 'PHARMACIEN', 'CAISSIER', 'MAGASINIER', 'PROMOTEUR',
     'DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER', 'GROSSISTE_PARTNER', 'PLATFORM_ADMIN',
   ]
   const roles: Record<string, { id: string }> = {}
@@ -56,19 +54,58 @@ async function main() {
   }
   const pharmacieData = await prisma.pharmacie.findUniqueOrThrow({ where: { numeroAgrement: 'AGR-2024-001' } })
 
-  // 3. Create Demo Directeur User
-  console.log('👤 Création de l\'utilisateur démo...')
-  const existingUser = await prisma.utilisateur.findUnique({ where: { email: 'admin@medihelm.com' } })
-  if (!existingUser) {
+  // 3. Create Demo Admin (Directeur) User
+  console.log('👤 Création de l\'utilisateur admin démo...')
+  const existingAdmin = await prisma.utilisateur.findUnique({ where: { email: 'admin@medihelm.bj' } })
+  if (!existingAdmin) {
     await prisma.utilisateur.create({
       data: {
         pharmacieId: pharmacieData.id,
         email: 'admin@medihelm.bj',
-        motDePasse: hashPassword('admin123'),
+        motDePasse: await hashPassword('admin123'),
         nom: 'Houénou',
         prenom: 'Aminou',
         roleId: roles.DIRECTEUR.id,
         telephone: '+229 97 00 00 01',
+      },
+    })
+  }
+
+  // 3b. Create Demo Caissier User
+  console.log('👤 Création de l\'utilisateur caissier démo...')
+  const existingCaissier = await prisma.utilisateur.findUnique({ where: { email: 'caissier@medihelm.bj' } })
+  if (!existingCaissier) {
+    await prisma.utilisateur.create({
+      data: {
+        pharmacieId: pharmacieData.id,
+        email: 'caissier@medihelm.bj',
+        motDePasse: await hashPassword('caissier123'),
+        nom: 'Dossou',
+        prenom: 'Marie',
+        roleId: roles.CAISSIER.id,
+        telephone: '+229 97 00 00 02',
+      },
+    })
+  }
+
+  // 3c. Create Demo Caisse for the pharmacy
+  console.log('💳 Création de la caisse démo...')
+  const existingCaisse = await prisma.caisse.findFirst({ where: { pharmacieId: pharmacieData.id } })
+  if (!existingCaisse) {
+    await prisma.caisse.create({
+      data: {
+        pharmacieId: pharmacieData.id,
+        nom: 'Caisse Principale',
+        numero: 1,
+        actif: true,
+      },
+    })
+    await prisma.caisse.create({
+      data: {
+        pharmacieId: pharmacieData.id,
+        nom: 'Caisse 2',
+        numero: 2,
+        actif: true,
       },
     })
   }
@@ -191,6 +228,47 @@ async function main() {
         { pharmacieId: pharmacieData.id, nom: 'Dossou', prenom: 'Aïcha', telephone: '+229 97 45 67 89', sexe: 'F' },
       ],
     })
+  }
+
+  // 9b. Create Demo Organisme (CNSS Bénin) and Tiers Payant
+  console.log('🏥 Création de l\'organisme CNSS Bénin...')
+  const existingOrg = await prisma.organisme.findFirst({
+    where: { pharmacieId: pharmacieData.id, code: 'CNSS-BJ' },
+  })
+  if (!existingOrg) {
+    const org = await prisma.organisme.create({
+      data: {
+        pharmacieId: pharmacieData.id,
+        nom: 'CNSS Bénin',
+        code: 'CNSS-BJ',
+        type: 'ASSURANCE_MALADIE',
+        tauxRemboursement: 0.8,
+        actif: true,
+      },
+    })
+
+    // Create Tiers Payant for the first demo patient (Agossou Fatou)
+    const firstPatient = await prisma.patient.findFirst({
+      where: { pharmacieId: pharmacieData.id, nom: 'Agossou' },
+    })
+    if (firstPatient) {
+      const existingTP = await prisma.tiersPayant.findFirst({
+        where: { patientId: firstPatient.id, organismeId: org.id },
+      })
+      if (!existingTP) {
+        await prisma.tiersPayant.create({
+          data: {
+            pharmacieId: pharmacieData.id,
+            patientId: firstPatient.id,
+            organismeId: org.id,
+            numeroAdhesion: 'CNSS-2024-001',
+            tauxPriseEnCharge: 0.8,
+            plafondAnnuel: 500000,
+            actif: true,
+          },
+        })
+      }
+    }
   }
 
   // 10. Create DPMED Alert

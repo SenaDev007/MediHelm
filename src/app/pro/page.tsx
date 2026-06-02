@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/app/pro/auth-context'
 import { KpiCard } from '@/components/pro/kpi-card'
+import { ComplianceGauge } from '@/components/pro/compliance-gauge'
 import { AlertBadge } from '@/components/pro/alert-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,11 @@ import {
   ClipboardList,
   Package,
   TrendingUp,
+  CreditCard,
+  FileText,
+  Clock,
+  Bell,
+  Users,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -28,8 +34,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
 } from 'recharts'
 
 interface DashboardData {
@@ -79,6 +83,12 @@ interface DashboardData {
     scoreDestructions: number
     certificationDPMED: boolean
   } | null
+  creditsPatients: {
+    totalOutstanding: number
+    count: number
+  } | null
+  pendingConges: number
+  pendingOrdonnances: number
 }
 
 function formatFCFA(amount: number) {
@@ -105,11 +115,73 @@ export default function ProDashboard() {
 
   useEffect(() => {
     if (pharmacie?.id) {
-      fetch(`/api/pro/dashboard?pharmacieId=${pharmacie.id}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(d => setData(d))
+      Promise.all([
+        fetch(`/api/pro/dashboard?pharmacieId=${pharmacie.id}`).then(res => res.ok ? res.json() : null),
+        fetch(`/api/conformite/score?pharmacieId=${pharmacie.id}`).then(res => res.ok ? res.json() : null).catch(() => null),
+        fetch(`/api/alertes/dpmed?pharmacieId=${pharmacie.id}`).then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch(`/api/stocks/alertes?pharmacieId=${pharmacie.id}`).then(res => res.ok ? res.json() : []).catch(() => []),
+      ])
+        .then(([dashboardData, conformiteScore, alertesDPMED, alertesExpiration]) => {
+          if (dashboardData) {
+            // Merge additional data
+            const merged: DashboardData = {
+              ...dashboardData,
+              scoreConf: dashboardData.scoreConf || conformiteScore,
+              // Count unacknowledged DPMED alerts
+              alertesDPMED: Array.isArray(alertesDPMED)
+                ? alertesDPMED.slice(0, 5).map((a: Record<string, unknown>) => ({
+                    id: a.id as string,
+                    dateAcquittement: (a.diffusions?.[0] as Record<string, unknown>)?.dateAcquittement as string | null ?? null,
+                    alerte: {
+                      titre: (a.medicamentSurv as Record<string, unknown>)?.description as string || a.titre as string || 'Alerte DPMED',
+                      typeAlerte: a.typeAlerte as string || '',
+                      niveauUrgence: (a.medicamentSurv as Record<string, unknown>)?.niveauRisque as string || 'NORMAL',
+                      dateEmissionDPMED: a.dateEmissionDPMED as string || new Date().toISOString(),
+                    },
+                  }))
+                : dashboardData.alertesDPMED || [],
+              alertesExpiration: Array.isArray(alertesExpiration) && alertesExpiration.length > 0
+                ? alertesExpiration.slice(0, 5)
+                : dashboardData.alertesExpiration || [],
+              creditsPatients: null,
+              pendingConges: 0,
+              pendingOrdonnances: 0,
+            }
+            setData(merged)
+          }
+        })
         .catch(() => {})
         .finally(() => setLoading(false))
+
+      // Fetch credits patients in parallel
+      fetch(`/api/credits?pharmacieId=${pharmacie.id}`)
+        .then(res => res.ok ? res.json() : [])
+        .then((credits: Array<{ montant: number; montantPaye: number; statut: string }>) => {
+          const outstanding = credits
+            .filter((c: { statut: string }) => c.statut !== 'PAYE' && c.statut !== 'ANNULE')
+            .reduce((sum: number, c: { montant: number; montantPaye: number }) => sum + (c.montant - c.montantPaye), 0)
+          setData(prev => prev ? {
+            ...prev,
+            creditsPatients: { totalOutstanding: outstanding, count: credits.filter((c: { statut: string }) => c.statut !== 'PAYE' && c.statut !== 'ANNULE').length },
+          } : prev)
+        })
+        .catch(() => {})
+
+      // Fetch pending conges
+      fetch(`/api/conges?pharmacieId=${pharmacie.id}&statut=DEMANDE`)
+        .then(res => res.ok ? res.json() : [])
+        .then((conges: unknown[]) => {
+          setData(prev => prev ? { ...prev, pendingConges: conges.length } : prev)
+        })
+        .catch(() => {})
+
+      // Fetch pending ordonnances
+      fetch(`/api/ordonnances?pharmacieId=${pharmacie.id}&statut=RECUE`)
+        .then(res => res.ok ? res.json() : [])
+        .then((ordonnances: unknown[]) => {
+          setData(prev => prev ? { ...prev, pendingOrdonnances: ordonnances.length } : prev)
+        })
+        .catch(() => {})
     }
   }, [pharmacie?.id])
 
@@ -132,6 +204,16 @@ export default function ProDashboard() {
     return Array.from(dayMap.entries()).map(([name, ca]) => ({ name, ca }))
   })()
 
+  // Group expiration alerts by time range
+  const expirationSummary = (() => {
+    const alerts = data?.alertesExpiration || []
+    return {
+      j90: alerts.filter(a => a.joursRestants > 60 && a.joursRestants <= 90).length,
+      j60: alerts.filter(a => a.joursRestants > 30 && a.joursRestants <= 60).length,
+      j30: alerts.filter(a => a.joursRestants <= 30).length,
+    }
+  })()
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -152,6 +234,8 @@ export default function ProDashboard() {
     )
   }
 
+  const unacknowledgedDPMED = (data?.alertesDPMED || []).filter(a => !a.dateAcquittement).length
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -164,7 +248,7 @@ export default function ProDashboard() {
         </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards Row 1 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="CA du jour"
@@ -188,15 +272,109 @@ export default function ProDashboard() {
           subtitle="produits sous seuil"
         />
         <KpiCard
-          title="Score conformité"
-          value={`${Math.round(data?.scoreConformite ?? 0)}%`}
-          icon={Shield}
-          variant={(data?.scoreConformite ?? 0) >= 80 ? 'success' : 'warning'}
-          subtitle={data?.scoreConf?.certificationDPMED ? 'Certifié DPMED ✓' : 'Non certifié'}
+          title="Crédits patients"
+          value={formatFCFA(data?.creditsPatients?.totalOutstanding ?? 0)}
+          icon={CreditCard}
+          variant={(data?.creditsPatients?.totalOutstanding ?? 0) > 0 ? 'warning' : 'default'}
+          subtitle={`${data?.creditsPatients?.count ?? 0} en attente`}
         />
       </div>
 
-      {/* Charts + Alerts */}
+      {/* Compliance & Alert Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Conformité Gauge */}
+        <Card className="flex flex-col items-center justify-center p-4">
+          <div className="relative">
+            <ComplianceGauge
+              score={data?.scoreConf?.scoreTotal ?? data?.scoreConformite ?? 0}
+              size={140}
+            />
+          </div>
+          <div className="mt-2 text-center">
+            <span className="text-sm font-semibold">Conformité</span>
+            {data?.scoreConf?.certificationDPMED && (
+              <Badge className="ml-2 bg-primary text-[10px]">Certifié DPMED</Badge>
+            )}
+          </div>
+        </Card>
+
+        {/* Alertes DPMED en attente */}
+        <Card className="border-destructive/20">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Alertes DPMED
+                </span>
+                <span className="text-2xl font-bold tracking-tight text-destructive">
+                  {unacknowledgedDPMED}
+                </span>
+                <span className="text-xs text-muted-foreground">en attente d&apos;acquittement</span>
+              </div>
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-destructive/10 text-destructive">
+                <Shield className="w-5 h-5" />
+              </div>
+            </div>
+            <Link href="/pro/alertes">
+              <Button variant="outline" size="sm" className="mt-3 w-full text-xs">
+                Voir les alertes
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Ordonnances en attente */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Ordonnances
+                </span>
+                <span className="text-2xl font-bold tracking-tight">
+                  {data?.pendingOrdonnances ?? 0}
+                </span>
+                <span className="text-xs text-muted-foreground">en attente de validation</span>
+              </div>
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary">
+                <FileText className="w-5 h-5" />
+              </div>
+            </div>
+            <Link href="/pro/ordonnances">
+              <Button variant="outline" size="sm" className="mt-3 w-full text-xs">
+                Traiter les ordonnances
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Congés en attente */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Demandes de congé
+                </span>
+                <span className="text-2xl font-bold tracking-tight">
+                  {data?.pendingConges ?? 0}
+                </span>
+                <span className="text-xs text-muted-foreground">en attente d&apos;approbation</span>
+              </div>
+              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500">
+                <Users className="w-5 h-5" />
+              </div>
+            </div>
+            <Link href="/pro/personnel">
+              <Button variant="outline" size="sm" className="mt-3 w-full text-xs">
+                Gérer les congés
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Sales Chart */}
         <Card className="lg:col-span-2">
@@ -210,7 +388,7 @@ export default function ProDashboard() {
             <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={salesChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, #E1F5EE)" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#888780" />
                   <YAxis tick={{ fontSize: 11 }} stroke="#888780" />
                   <Tooltip
@@ -230,7 +408,7 @@ export default function ProDashboard() {
             <CardTitle className="text-sm font-semibold">Actions rapides</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <Link href="/pro/ventes">
+            <Link href="/pro/caisse">
               <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90" size="sm">
                 <Plus className="w-4 h-4" />
                 Nouvelle vente
@@ -257,6 +435,77 @@ export default function ProDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Rappels Section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Bell className="w-4 h-4 text-amber-500" />
+            Rappels & Échéances
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Expiring medications */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase text-amber-500 tracking-wide flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Expiration médicaments
+              </span>
+              <div className="flex gap-3">
+                <div className="flex flex-col items-center p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex-1">
+                  <span className="text-lg font-bold text-amber-600">{expirationSummary.j90}</span>
+                  <span className="text-[10px] text-muted-foreground">90j</span>
+                </div>
+                <div className="flex flex-col items-center p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 flex-1">
+                  <span className="text-lg font-bold text-orange-600">{expirationSummary.j60}</span>
+                  <span className="text-[10px] text-muted-foreground">60j</span>
+                </div>
+                <div className="flex flex-col items-center p-2 rounded-lg bg-red-50 dark:bg-red-950/30 flex-1">
+                  <span className="text-lg font-bold text-red-600">{expirationSummary.j30}</span>
+                  <span className="text-[10px] text-muted-foreground">30j</span>
+                </div>
+              </div>
+              <Link href="/pro/stock">
+                <Button variant="ghost" size="sm" className="text-[11px] w-full mt-1">
+                  Voir le stock →
+                </Button>
+              </Link>
+            </div>
+
+            {/* Pending congés */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase text-primary tracking-wide flex items-center gap-1">
+                <Users className="w-3 h-3" /> Demandes de congé
+              </span>
+              <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-primary/5">
+                <span className="text-3xl font-bold text-primary">{data?.pendingConges ?? 0}</span>
+                <span className="text-xs text-muted-foreground">en attente</span>
+              </div>
+              <Link href="/pro/personnel">
+                <Button variant="ghost" size="sm" className="text-[11px] w-full mt-1">
+                  Gérer les congés →
+                </Button>
+              </Link>
+            </div>
+
+            {/* Pending ordonnances */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase text-blue-500 tracking-wide flex items-center gap-1">
+                <FileText className="w-3 h-3" /> Ordonnances à valider
+              </span>
+              <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+                <span className="text-3xl font-bold text-blue-600">{data?.pendingOrdonnances ?? 0}</span>
+                <span className="text-xs text-muted-foreground">en attente</span>
+              </div>
+              <Link href="/pro/ordonnances">
+                <Button variant="ghost" size="sm" className="text-[11px] w-full mt-1">
+                  Traiter →
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bottom Row: Top Products + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

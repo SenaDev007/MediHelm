@@ -1,6 +1,6 @@
 // ============================================================
 // MédiHelm Health Ecosystem — Complete Prisma Schema
-// 31 Enums | 74 Models | PostgreSQL (Neon)
+// 31 Enums | 77 Models | PostgreSQL (Neon)
 // ============================================================
 
 generator client {
@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -368,6 +368,7 @@ model Pharmacie {
   diffusionsAlerte        DiffusionAlerte[]
   reseauxPromus           Reseau[]
   registreStupefiants     RegistreStupefiant[]
+  auditLogs               AuditLog[]
 
   @@index([ville])
   @@index([actif])
@@ -403,6 +404,7 @@ model Utilisateur {
   destructionsTemoin     DestructionMedicament[] @relation("DestructionTemoin")
   notifications          Notification[]
   registreStupefiants     RegistreStupefiant[]
+  auditLogs               AuditLog[]
 
   @@index([pharmacieId])
   @@index([roleId])
@@ -1773,4 +1775,25 @@ model OptionAbonnement {
 
   // Relations
   abonnement Abonnement @relation(fields: [abonnementId], references: [id], onDelete: Cascade)
+}
+
+
+// === Audit Log ===
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  utilisateurId String?
+  action      String
+  entite      String
+  entiteId    String?
+  details     Json?
+  adresseIP   String?
+  createdAt   DateTime @default(now())
+
+  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
+
+  @@index([pharmacieId, createdAt])
+  @@index([entite, entiteId])
 }
