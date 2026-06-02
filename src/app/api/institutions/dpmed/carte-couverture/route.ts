@@ -21,15 +21,15 @@ export async function GET(request: NextRequest) {
         latitude: true,
         longitude: true,
         diffusionsAlerte: {
-          where: alerteId ? { alerteDPMEDId: alerteId } : {
-            alerteDPMED: { statut: 'EN_DIFFUSION' },
+          where: alerteId ? { alerteId: alerteId } : {
+            alerte: { statut: 'EN_DIFFUSION' },
           },
           select: {
             id: true,
             statut: true,
             dateEnvoi: true,
             dateAcquittement: true,
-            alerteDPMED: {
+            alerte: {
               select: {
                 id: true,
                 titre: true,
@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
 
       if (diffusion) {
         if (diffusion.statut === 'ACQUITTEE' || diffusion.dateAcquittement) {
+          statutAcquittement = 'action_taken'
+        } else if (diffusion.statut === 'LUE') {
           statutAcquittement = 'acknowledged'
         } else if (diffusion.statut === 'ENVOYEE') {
           statutAcquittement = 'notified'
@@ -65,8 +67,8 @@ export async function GET(request: NextRequest) {
         latitude: p.latitude,
         longitude: p.longitude,
         statutAcquittement,
-        alerteTitre: diffusion?.alerteDPMED?.titre || null,
-        alerteType: diffusion?.alerteDPMED?.typeAlerte || null,
+        alerteTitre: diffusion?.alerte?.titre || null,
+        alerteType: diffusion?.alerte?.typeAlerte || null,
         dateNotification: diffusion?.dateEnvoi?.toISOString() || null,
       }
     })
