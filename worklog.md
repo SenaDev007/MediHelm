@@ -195,3 +195,32 @@ Stage Summary:
 - SoBAPS carte: New page at /institutions/sobaps/carte with delivery confirmation map
 - 3 new API routes, 2 new map components, 4 new pages, 5 updated files
 - Build passes with 0 errors
+
+---
+Task ID: geolocation-map-fix-and-seed
+Agent: Main Agent
+Task: Ensure interactive geolocation map is functional as specified + seed DB + push
+
+Work Log:
+- Explored all 3 map components (PharmacyMap, CoverageMap, BeninSupplyMap)
+- Explored all 6 map pages (3 patient + 3 institutional)
+- Explored all 5 API routes serving map data
+- Found Bug 1: DiffusionAlerte model missing `statut` field (API carte-couverture references it)
+- Found Bug 2: carte-couverture where clause uses `alerteDPMEDId` instead of `alerteId`
+- Found Bug 3: /api/pharmacies doesn't handle `garde=semaine` param used by garde page
+- Fixed Bug 1: Added `StatutDiffusion` enum (ENVOYEE, LUE, ACQUITTEE) and `statut` field to DiffusionAlerte
+- Fixed Bug 2: Changed `alerteDPMEDId` to `alerteId` in where clause
+- Fixed Bug 3: Added `garde=semaine` support to /api/pharmacies route
+- Pushed schema changes to Neon PostgreSQL (prisma db push)
+- Created comprehensive seed with 26 pharmacies across 12 Benin departments
+- Seeded: 8 garde pharmacies today, 2 DPMED alerts, 45 diffusions, 22 SoBAPS confirmations
+- Build verified successful
+- GitHub push FAILED: token [TOKEN_REDACTED] expired
+
+Stage Summary:
+- 3 critical bugs fixed in the geolocation map system
+- Schema updated with StatutDiffusion enum and DiffusionAlerte.statut field
+- 26 pharmacies seeded across all 12 Benin departments
+- All 6 interactive maps now have test data
+- Build passes successfully
+- GitHub push blocked by expired token — user needs to provide new token
