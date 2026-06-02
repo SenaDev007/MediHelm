@@ -1,6 +1,37 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    // Get the rapport for this planning garde
+    const rapport = await db.rapportGarde.findUnique({
+      where: { planningGardeId: id },
+      include: {
+        planningGarde: {
+          include: {
+            pharmacien: { select: { id: true, nom: true, prenom: true } },
+          },
+        },
+        pharmacien: { select: { id: true, nom: true, prenom: true } },
+      },
+    })
+
+    if (!rapport) {
+      return NextResponse.json({ error: 'Rapport non trouvé pour cette garde' }, { status: 404 })
+    }
+
+    return NextResponse.json(rapport)
+  } catch (error) {
+    console.error('Erreur GET rapport garde:', error)
+    return NextResponse.json({ error: 'Erreur lors de la récupération du rapport' }, { status: 500 })
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

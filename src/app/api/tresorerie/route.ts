@@ -65,3 +65,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur lors de la récupération de la trésorerie' }, { status: 500 })
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { pharmacieId, date, soldeBanque, soldeCaisse, soldeMobileMoney, total } = body
+
+    if (!pharmacieId) {
+      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
+    }
+
+    const data = await db.tresorerie.create({
+      data: {
+        pharmacieId,
+        date: date ? new Date(date) : new Date(),
+        soldeBanque: soldeBanque ?? 0,
+        soldeCaisse: soldeCaisse ?? 0,
+        soldeMobileMoney: soldeMobileMoney ?? 0,
+        total: total ?? (soldeBanque ?? 0) + (soldeCaisse ?? 0) + (soldeMobileMoney ?? 0),
+      },
+    })
+
+    return NextResponse.json(data, { status: 201 })
+  } catch (error) {
+    console.error('Erreur POST tresorerie:', error)
+    return NextResponse.json({ error: 'Erreur lors de la création de la trésorerie' }, { status: 500 })
+  }
+}

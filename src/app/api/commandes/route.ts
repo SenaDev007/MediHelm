@@ -46,3 +46,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur lors de la création de la commande' }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, statut, dateLivraisonPrev, dateLivraisonReelle, montantTotal, observations } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'id requis' }, { status: 400 })
+    }
+
+    const updateData: Record<string, unknown> = {}
+    if (statut !== undefined) updateData.statut = statut
+    if (dateLivraisonPrev !== undefined) updateData.dateLivraisonPrev = dateLivraisonPrev ? new Date(dateLivraisonPrev) : null
+    if (dateLivraisonReelle !== undefined) updateData.dateLivraisonReelle = dateLivraisonReelle ? new Date(dateLivraisonReelle) : null
+    if (montantTotal !== undefined) updateData.montantTotal = montantTotal
+    if (observations !== undefined) updateData.observations = observations
+
+    const data = await db.commandeFournisseur.update({
+      where: { id },
+      data: updateData,
+      include: { fournisseur: true, lignes: { include: { medicament: true } } },
+    })
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Erreur PATCH commandes:', error)
+    return NextResponse.json({ error: 'Erreur lors de la mise à jour de la commande' }, { status: 500 })
+  }
+}
