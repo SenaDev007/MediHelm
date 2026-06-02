@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Champs requis manquants' }, { status: 400 })
     }
 
-    const salaireNet = salaireBrut - (cotisations || 0) + (prime || 0) - (avance || 0)
+    // CNSS Bénin: 18% du salaire brut
+    const calculatedCotisations = cotisations !== undefined ? cotisations : salaireBrut * 0.18
+    const salaireNet = salaireBrut - calculatedCotisations + (prime || 0) - (avance || 0)
 
     const data = await db.bulletinPaie.create({
       data: {
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
         mois,
         annee,
         salaireBrut,
-        cotisations: cotisations || 0,
+        cotisations: calculatedCotisations,
         salaireNet,
         prime: prime || null,
         avance: avance || null,

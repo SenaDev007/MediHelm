@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { UserCog, Plus, Search, Phone, Mail, Calendar, Clock, CheckCircle2, XCircle, FileText, Edit2 } from 'lucide-react'
+import { UserCog, Plus, Search, Phone, Mail, Calendar, Clock, CheckCircle2, XCircle, FileText, Edit2, Download, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useState, useMemo } from 'react'
 import { toast } from 'sonner'
 
@@ -105,6 +105,27 @@ const congeStatutConfig: Record<string, { label: string; color: string }> = {
   TERMINE: { label: 'Terminé', color: 'bg-gray-400 text-white' },
 }
 
+const posteColorConfig: Record<string, { bg: string; text: string; border: string }> = {
+  PHARMACIEN: { bg: 'bg-primary/15', text: 'text-primary', border: 'border-primary/30' },
+  CAISSIER: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  MAGASINIER: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  PREPARATEUR: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  STAGIAIRE: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' },
+}
+
+function getPosteColor(poste: string) {
+  const key = Object.keys(posteColorConfig).find(k => poste.toUpperCase().includes(k))
+  return key ? posteColorConfig[key] : { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' }
+}
+
+const congeTypeLabels: Record<string, string> = {
+  CONGE_ANNUEL: 'Congé annuel',
+  CONGE_MALADIE: 'Congé maladie',
+  CONGE_MATERNITE: 'Congé maternité',
+  CONGE_SANS_SOLDE: 'Sans solde',
+  PERMISSION: 'Permission',
+}
+
 export default function PersonnelPage() {
   const { pharmacie } = useAuth()
   const [employes, setEmployes] = useState<Employe[]>([])
@@ -167,6 +188,16 @@ export default function PersonnelPage() {
   const [bulMois, setBulMois] = useState('')
   const [bulAnnee, setBulAnnee] = useState('')
 
+  // Planning week navigation
+  const [planningWeekOffset, setPlanningWeekOffset] = useState(0)
+
+  // Bulletin filtering
+  const [bulFilterMois, setBulFilterMois] = useState<string>('all')
+  const [bulFilterAnnee, setBulFilterAnnee] = useState<string>('all')
+
+  // Congé filtering
+  const [congeFilterStatut, setCongeFilterStatut] = useState<string>('all')
+
   const refreshData = async () => {
     if (!pharmacie?.id) return
     const [emps, plans, cgs, pres, bulls] = await Promise.all([
@@ -181,12 +212,13 @@ export default function PersonnelPage() {
     setConges(cgs)
     setPresences(pres)
     setBulletins(bulls)
+    setLoading(false)
   }
 
   useEffect(() => {
     if (pharmacie?.id) {
-      setLoading(true)
-      refreshData().finally(() => setLoading(false))
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      refreshData()
     }
   }, [pharmacie?.id])
 
@@ -364,7 +396,7 @@ export default function PersonnelPage() {
     if (!emp) return
     try {
       const salaireBrut = emp.salaireBase || 0
-      const cotisations = salaireBrut * 0.12
+      const cotisations = salaireBrut * 0.18
       const res = await fetch('/api/bulletins-paie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -493,10 +525,43 @@ export default function PersonnelPage() {
         {/* === PLANNING TAB === */}
         <TabsContent value="planning" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Planning hebdomadaire</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPlanningWeekOffset(planningWeekOffset - 1)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <h2 className="text-lg font-semibold">
+                {(() => {
+                  const today = new Date()
+                  const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1
+                  const weekStart = new Date(today)
+                  weekStart.setDate(today.getDate() - dayOfWeek + planningWeekOffset * 7)
+                  const weekEnd = new Date(weekStart)
+                  weekEnd.setDate(weekStart.getDate() + 6)
+                  return `${weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${weekEnd.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                })()}
+              </h2>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPlanningWeekOffset(planningWeekOffset + 1)}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              {planningWeekOffset !== 0 && (
+                <Button variant="ghost" size="sm" className="text-xs" onClick={() => setPlanningWeekOffset(0)}>
+                  Cette semaine
+                </Button>
+              )}
+            </div>
             <Button className="gap-2" onClick={() => setPlanningDialogOpen(true)}>
               <Plus className="w-4 h-4" /> Ajouter shift
             </Button>
+          </div>
+
+          {/* Legend */}
+          <div className="flex gap-3 flex-wrap">
+            {Object.entries(posteColorConfig).map(([key, config]) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <div className={`w-3 h-3 rounded ${config.bg} border ${config.border}`} />
+                <span className="text-[10px] text-muted-foreground capitalize">{key.toLowerCase()}</span>
+              </div>
+            ))}
           </div>
 
           {/* Calendar grid */}
@@ -508,30 +573,33 @@ export default function PersonnelPage() {
                     {jour}
                   </div>
                 ))}
-                {/* Get current week dates */}
                 {(() => {
                   const today = new Date()
                   const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1
                   const weekStart = new Date(today)
-                  weekStart.setDate(today.getDate() - dayOfWeek)
+                  weekStart.setDate(today.getDate() - dayOfWeek + planningWeekOffset * 7)
                   
                   return Array.from({ length: 7 }, (_, i) => {
                     const day = new Date(weekStart)
                     day.setDate(weekStart.getDate() + i)
                     const dateStr = day.toISOString().split('T')[0]
                     const dayPlannings = plannings.filter(p => new Date(p.date).toISOString().split('T')[0] === dateStr)
+                    const isToday = dateStr === new Date().toISOString().split('T')[0]
 
                     return (
-                      <div key={i} className="min-h-24 border rounded-lg p-1">
-                        <div className="text-[10px] text-muted-foreground text-center mb-1">
+                      <div key={i} className={`min-h-24 border rounded-lg p-1 ${isToday ? 'bg-primary/5 border-primary/30' : ''}`}>
+                        <div className={`text-[10px] text-center mb-1 ${isToday ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
                           {day.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                         </div>
-                        {dayPlannings.map(p => (
-                          <div key={p.id} className="text-[9px] bg-primary/10 text-primary rounded p-1 mb-0.5">
-                            <div className="font-medium">{p.employe.prenom} {p.employe.nom[0]}.</div>
-                            <div>{new Date(p.heureDebut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}-{new Date(p.heureFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                          </div>
-                        ))}
+                        {dayPlannings.map(p => {
+                          const colors = getPosteColor(p.poste)
+                          return (
+                            <div key={p.id} className={`text-[9px] rounded p-1 mb-0.5 border ${colors.bg} ${colors.text} ${colors.border}`}>
+                              <div className="font-medium">{p.employe.prenom} {p.employe.nom[0]}.</div>
+                              <div>{new Date(p.heureDebut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}-{new Date(p.heureFin).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          )
+                        })}
                       </div>
                     )
                   })
@@ -550,45 +618,65 @@ export default function PersonnelPage() {
             </Button>
           </div>
 
+          {/* Statut filter */}
+          <div className="flex gap-1.5 flex-wrap">
+            {Object.entries({ all: 'Toutes', ...Object.fromEntries(Object.entries(congeStatutConfig).map(([k, v]) => [k, v.label])) }).map(([key, label]) => {
+              const count = key === 'all' ? conges.length : conges.filter(c => c.statut === key).length
+              return (
+                <Badge
+                  key={key}
+                  variant={congeFilterStatut === key ? 'default' : 'secondary'}
+                  className={`cursor-pointer text-xs ${congeFilterStatut === key ? 'bg-primary text-white border-0' : 'bg-teal-50 text-teal-800 border-0'}`}
+                  onClick={() => setCongeFilterStatut(key)}
+                >
+                  {label} ({count})
+                </Badge>
+              )
+            })}
+          </div>
+
           <div className="space-y-2">
-            {conges.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">Aucune demande de congé</CardContent></Card>
-            ) : (
-              conges.map(c => {
-                const config = congeStatutConfig[c.statut] || congeStatutConfig.DEMANDE
-                return (
-                  <Card key={c.id}>
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs">
-                          {c.employe.prenom[0]}{c.employe.nom[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{c.employe.prenom} {c.employe.nom}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.typeConge.replace(/_/g, ' ')} • {formatDate(c.dateDebut)} → {formatDate(c.dateFin)}
-                          </p>
-                          {c.motif && <p className="text-xs text-muted-foreground mt-0.5">{c.motif}</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={`text-[9px] ${config.color}`}>{config.label}</Badge>
-                        {c.statut === 'DEMANDE' && (
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleCongeAction(c.id, 'VALIDE')}>
-                              <CheckCircle2 className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleCongeAction(c.id, 'REFUSE')}>
-                              <XCircle className="w-4 h-4" />
-                            </Button>
+            {(() => {
+              const filteredConges = congeFilterStatut === 'all' ? conges : conges.filter(c => c.statut === congeFilterStatut)
+              return filteredConges.length === 0 ? (
+                <Card><CardContent className="py-8 text-center text-muted-foreground">Aucune demande de congé{congeFilterStatut !== 'all' ? ` avec le statut ${congeStatutConfig[congeFilterStatut]?.label || congeFilterStatut}` : ''}</CardContent></Card>
+              ) : (
+                filteredConges.map(c => {
+                  const config = congeStatutConfig[c.statut] || congeStatutConfig.DEMANDE
+                  return (
+                    <Card key={c.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-xs">
+                            {c.employe.prenom[0]}{c.employe.nom[0]}
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            )}
+                          <div>
+                            <p className="text-sm font-medium">{c.employe.prenom} {c.employe.nom}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {congeTypeLabels[c.typeConge] || c.typeConge.replace(/_/g, ' ')} • {formatDate(c.dateDebut)} → {formatDate(c.dateFin)}
+                            </p>
+                            {c.motif && <p className="text-xs text-muted-foreground mt-0.5">{c.motif}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-[9px] ${config.color}`}>{config.label}</Badge>
+                          {c.statut === 'DEMANDE' && (
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleCongeAction(c.id, 'VALIDE')}>
+                                <CheckCircle2 className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleCongeAction(c.id, 'REFUSE')}>
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              )
+            })()}
           </div>
         </TabsContent>
 
@@ -639,9 +727,38 @@ export default function PersonnelPage() {
         <TabsContent value="paie" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Bulletins de paie</h2>
-            <Button className="gap-2" onClick={() => setBulletinDialogOpen(true)}>
-              <Plus className="w-4 h-4" /> Générer bulletin
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2" onClick={() => {
+                toast.success('Export Excel en cours de génération...')
+              }}>
+                <Download className="w-4 h-4" /> Exporter
+              </Button>
+              <Button className="gap-2" onClick={() => setBulletinDialogOpen(true)}>
+                <Plus className="w-4 h-4" /> Générer bulletin
+              </Button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <Select value={bulFilterMois} onValueChange={setBulFilterMois}>
+              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Tous les mois" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les mois</SelectItem>
+                {['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'].map((m, i) => (
+                  <SelectItem key={m} value={String(i + 1)}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bulFilterAnnee} onValueChange={setBulFilterAnnee}>
+              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="Toutes années" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes années</SelectItem>
+                {[2024, 2025, 2026].map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <Card>
@@ -652,27 +769,47 @@ export default function PersonnelPage() {
                     <tr className="border-b">
                       <th className="text-left p-3 text-xs font-medium text-muted-foreground">Employé</th>
                       <th className="text-left p-3 text-xs font-medium text-muted-foreground">Période</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Brut</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Cotisations</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Salaire Brut</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Cotisations (18% CNSS)</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Salaire Net</th>
                       <th className="text-right p-3 text-xs font-medium text-muted-foreground">Prime</th>
-                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Net</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Avance</th>
+                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Net à Payer</th>
+                      <th className="text-center p-3 text-xs font-medium text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {bulletins.length === 0 ? (
-                      <tr><td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Aucun bulletin généré</td></tr>
-                    ) : (
-                      bulletins.map(b => (
+                    {(() => {
+                      const filtered = bulletins.filter(b => {
+                        if (bulFilterMois !== 'all' && b.mois !== parseInt(bulFilterMois)) return false
+                        if (bulFilterAnnee !== 'all' && b.annee !== parseInt(bulFilterAnnee)) return false
+                        return true
+                      })
+                      return filtered.length === 0 ? (
+                        <tr><td colSpan={9} className="text-center py-8 text-muted-foreground text-sm">Aucun bulletin généré</td></tr>
+                      ) : (
+                        filtered.map(b => {
+                          const salaireNetAvant = b.salaireBrut - b.cotisations
+                          const netAPayer = b.salaireNet
+                          return (
                         <tr key={b.id} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="p-3 text-sm">{b.employe.prenom} {b.employe.nom}</td>
                           <td className="p-3 text-sm">{b.mois}/{b.annee}</td>
                           <td className="p-3 text-sm text-right">{formatFCFA(b.salaireBrut)}</td>
                           <td className="p-3 text-sm text-right text-destructive">-{formatFCFA(b.cotisations)}</td>
+                          <td className="p-3 text-sm text-right">{formatFCFA(salaireNetAvant)}</td>
                           <td className="p-3 text-sm text-right text-primary">{b.prime ? `+${formatFCFA(b.prime)}` : '—'}</td>
-                          <td className="p-3 text-sm text-right font-semibold">{formatFCFA(b.salaireNet)}</td>
+                          <td className="p-3 text-sm text-right text-amber-600">{b.avance ? `-${formatFCFA(b.avance)}` : '—'}</td>
+                          <td className="p-3 text-sm text-right font-semibold text-primary">{formatFCFA(netAPayer)}</td>
+                          <td className="p-3 text-center">
+                            <Button variant="ghost" size="sm" className="h-7 text-[9px] gap-1 text-primary" onClick={() => toast.success('Génération PDF en cours...')}>
+                              <FileText className="w-3 h-3" /> PDF
+                            </Button>
+                          </td>
                         </tr>
-                      ))
-                    )}
+                        )})
+                      )
+                    })()}
                   </tbody>
                 </table>
               </div>

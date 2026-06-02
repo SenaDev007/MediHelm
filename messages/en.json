@@ -1,0 +1,136 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "loading": "Loading...",
+    "noData": "No data",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "total": "Total",
+    "amount": "Amount",
+    "currency": "FCFA",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "stock": "Stock",
+    "ventes": "Sales",
+    "commandes": "Orders",
+    "fournisseurs": "Suppliers",
+    "patients": "Patients",
+    "ordonnances": "Prescriptions",
+    "personnel": "Staff",
+    "finance": "Finance",
+    "garde": "On-call",
+    "documents": "Documents",
+    "qualite": "Quality",
+    "conformite": "Compliance",
+    "alertes": "Alerts",
+    "analytics": "Analytics",
+    "stupefiants": "Narcotics",
+    "remboursables": "Third-party Payer",
+    "retours": "Returns & Disposals",
+    "communication": "Communication"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "invalidCredentials": "Invalid credentials",
+    "accountDisabled": "Account disabled"
+  },
+  "pro": {
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome": "Welcome",
+      "kpis": "Key indicators",
+      "recentActivity": "Recent activity",
+      "alerts": "Alerts"
+    }
+  },
+  "patient": {
+    "dashboard": {
+      "title": "My Health Space",
+      "searchMed": "Search for a medication",
+      "myPharmacy": "My pharmacy",
+      "vaccinations": "My vaccinations",
+      "reminders": "My reminders"
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "Benin's Health Ecosystem",
+      "subtitle": "Manage your pharmacy, track your health, with confidence",
+      "cta": "Get started now"
+    }
+  },
+  "pwa": {
+    "offline": "You are offline",
+    "online": "Connection restored",
+    "install": "Install MédiHelm",
+    "updateAvailable": "Update available"
+  },
+  "vaccination": {
+    "title": "Vaccination record",
+    "addVaccination": "Add a vaccination",
+    "vaccine": "Vaccine",
+    "lotNumber": "Lot number",
+    "vaccinationDate": "Vaccination date",
+    "healthCenter": "Health center",
+    "boosterDate": "Booster date",
+    "boosterOptional": "Booster date (optional)",
+    "qrCard": "QR Card",
+    "showQR": "Show QR code",
+    "hideQR": "Hide QR",
+    "download": "Download",
+    "share": "Share",
+    "shareCard": "Share your complete vaccination record",
+    "scanToAccess": "Scan to access the record",
+    "attestation": "Vaccination certificate",
+    "noRecords": "No vaccinations recorded",
+    "addFirst": "Add your first vaccination",
+    "upcomingBoosters": "Vaccination reminders",
+    "boosterOn": "Booster on",
+    "saved": "Vaccination saved",
+    "saveError": "Error saving vaccination",
+    "requiredFields": "Please fill in the required fields"
+  },
+  "predictions": {
+    "title": "AI Predictions",
+    "stockPredictions": "Stock predictions",
+    "revenuePredictions": "Revenue predictions",
+    "medicament": "Medication",
+    "predictedDemand": "Predicted demand",
+    "confidence": "Confidence",
+    "currentStock": "Current stock",
+    "reorderNeeded": "Reorder needed",
+    "suggestedQty": "Suggested quantity",
+    "month": "Month",
+    "predicted": "Predicted",
+    "lowerBound": "Min",
+    "upperBound": "Max",
+    "order": "Order",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "noData": "Not enough data for predictions",
+    "loading": "Computing predictions..."
+  }
+}

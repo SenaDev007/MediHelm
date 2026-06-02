@@ -5,23 +5,29 @@
 
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { createHash } from 'crypto'
+import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 
 /**
- * Hash un mot de passe en SHA-256
- * Note: En production, utiliser bcrypt/argon2 — SHA-256 est un substitut temporaire
- * car bcryptjs n'est pas installé dans ce projet.
+ * Hash un mot de passe avec bcrypt (cost factor 12)
  */
-export function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
 }
 
 /**
- * Vérifie un mot de passe contre un hash SHA-256
+ * Vérifie un mot de passe contre un hash
+ * Supporte les hashes bcrypt ($2a$/$2b$) et SHA-256 (legacy) pour la migration
  */
-export function verifyPassword(password: string, hashedPassword: string): boolean {
-  return hashPassword(password) === hashedPassword
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  // Support bcrypt hashes
+  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$')) {
+    return bcrypt.compare(password, hashedPassword)
+  }
+  // Legacy SHA-256 fallback
+  const { createHash } = await import('crypto')
+  const sha256Hash = createHash('sha256').update(password).digest('hex')
+  return sha256Hash === hashedPassword
 }
 
 /**
@@ -78,8 +84,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Pharmacie désactivée. Contactez le support MédiHelm.')
         }
 
-        // Vérification du mot de passe (SHA-256)
-        if (!verifyPassword(credentials.password, utilisateur.motDePasse)) {
+        // Vérification du mot de passe (bcrypt + SHA-256 legacy)
+        if (!(await verifyPassword(credentials.password, utilisateur.motDePasse))) {
           throw new Error('Identifiants invalides')
         }
 

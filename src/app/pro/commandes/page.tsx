@@ -127,6 +127,7 @@ export default function CommandesPage() {
     dateExpiration: string
     quantiteRecue: string
     prixAchat: string
+    conformite: string
   }>>([])
 
   useEffect(() => {
@@ -256,6 +257,7 @@ export default function CommandesPage() {
       dateExpiration: '',
       quantiteRecue: String(l.quantiteCommandee - l.quantiteLivree),
       prixAchat: String(l.prixAchat || ''),
+      conformite: 'CONFORME',
     })))
     setReceptionDialogOpen(true)
   }
@@ -275,17 +277,25 @@ export default function CommandesPage() {
           prixAchat: parseFloat(l.prixAchat) || 0,
         }))
 
-      // Detect discrepancies
+      // Detect discrepancies and conformité
       const ecarts = lignesReception
-        .filter(l => l.quantiteRecue !== l.quantiteBL)
-        .map(l => ({
-          medicamentId: l.medicamentId,
-          attendu: l.quantiteBL,
-          recu: l.quantiteRecue,
-          ecart: l.quantiteBL - l.quantiteRecue,
-        }))
+        .filter(l => l.quantiteRecue !== l.quantiteBL || receptionLignes.find(rl => rl.medicamentId === l.medicamentId)?.conformite !== 'CONFORME')
+        .map(l => {
+          const rl = receptionLignes.find(r => r.medicamentId === l.medicamentId)
+          return {
+            medicamentId: l.medicamentId,
+            attendu: l.quantiteBL,
+            recu: l.quantiteRecue,
+            ecart: l.quantiteBL - l.quantiteRecue,
+            conformite: rl?.conformite || 'CONFORME',
+          }
+        })
 
       const hasEcart = ecarts.length > 0
+      const hasRefuse = receptionLignes.some(l => l.conformite === 'REFUSE')
+
+      // Determine reception status
+      const receptionStatut = hasRefuse ? 'REFUSE' : hasEcart ? 'AVEC_ECART' : 'CONFORME'
 
       const res = await fetch('/api/receptions', {
         method: 'POST',
@@ -295,14 +305,14 @@ export default function CommandesPage() {
           pharmacieId: pharmacie.id,
           dateReception: new Date().toISOString(),
           numeroBL: receptionNumeroBL || null,
-          statut: hasEcart ? 'AVEC_ECART' : 'CONFORME',
+          statut: receptionStatut,
           ecarts: hasEcart ? ecarts : null,
           lignes: lignesReception,
         }),
       })
 
       if (res.ok) {
-        toast.success(hasEcart ? 'Réception enregistrée avec écarts détectés' : 'Réception enregistrée')
+        toast.success(hasRefuse ? 'Réception enregistrée avec articles refusés' : hasEcart ? 'Réception enregistrée avec écarts détectés' : 'Réception enregistrée')
         setReceptionDialogOpen(false)
         refreshCommandes()
       } else {
@@ -793,15 +803,23 @@ export default function CommandesPage() {
                 return (
                   <div key={i} className={`p-3 rounded-lg border ${hasDiscrepancy ? 'border-amber-400 bg-amber-400/5' : ''}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm">{ligne.nom}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{ligne.nom}</span>
+                        {ligne.conformite === 'REFUSE' && (
+                          <Badge variant="destructive" className="text-[9px]">Refusé</Badge>
+                        )}
+                        {ligne.conformite === 'AVEC_ECART' && (
+                          <Badge className="text-[9px] bg-amber-400 text-gray-900">Avec écart</Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Attendu: {ligne.quantiteBL}</span>
                         {hasDiscrepancy && (
-                          <Badge variant="destructive" className="text-[9px]">Écart détecté</Badge>
+                          <Badge variant="destructive" className="text-[9px]">Écart Qté</Badge>
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div>
                         <Label className="text-[10px]">N° Lot</Label>
                         <Input
@@ -852,6 +870,26 @@ export default function CommandesPage() {
                             setReceptionLignes(updated)
                           }}
                         />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Conformité</Label>
+                        <Select
+                          value={ligne.conformite}
+                          onValueChange={v => {
+                            const updated = [...receptionLignes]
+                            updated[i] = { ...updated[i], conformite: v }
+                            setReceptionLignes(updated)
+                          }}
+                        >
+                          <SelectTrigger className={`h-8 text-xs ${ligne.conformite === 'REFUSE' ? 'border-destructive' : ligne.conformite === 'AVEC_ECART' ? 'border-amber-400' : ''}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CONFORME">Conforme</SelectItem>
+                            <SelectItem value="AVEC_ECART">Avec écart</SelectItem>
+                            <SelectItem value="REFUSE">Refusé</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>

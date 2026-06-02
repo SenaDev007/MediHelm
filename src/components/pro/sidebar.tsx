@@ -26,6 +26,7 @@ import {
   Truck,
   RotateCcw,
   MessageSquare,
+  Lock,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,7 @@ const sidebarItems = [
       { href: '/pro/alertes', label: 'Alertes DPMED', icon: AlertTriangle },
       { href: '/pro/conformite', label: 'Conformité', icon: Shield },
       { href: '/pro/qualite', label: 'Pharmacovigilance', icon: HeartPulse },
+      { href: '/pro/stupefiants', label: 'Stupéfiants', icon: Lock },
     ],
   },
   {

@@ -18,12 +18,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import { Progress } from '@/components/ui/progress'
 import {
   FileText, Search, CheckCircle2, Clock, AlertCircle, Eye,
-  Plus, Upload, XCircle, ShoppingCart, AlertTriangle
+  Plus, Upload, XCircle, ShoppingCart, AlertTriangle, CloudUpload, Image as ImageIcon, Loader2
 } from 'lucide-react'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
+import { useUpload } from '@/hooks/use-upload'
 
 interface Ordonnance {
   id: string
@@ -50,6 +52,7 @@ interface Ordonnance {
     typeValidation: string
     commentaire: string | null
     createdAt: string
+    utilisateur?: { id: string; nom: string; prenom: string } | null
   }[]
 }
 
@@ -75,13 +78,21 @@ function formatFCFA(amount: number) {
   return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
 }
 
-const statutConfig: Record<string, { label: string; color: string }> = {
-  RECUE: { label: 'Reçue', color: 'bg-blue-500 text-white' },
-  EN_COURS_VALIDATION: { label: 'En validation', color: 'bg-amber-400 text-gray-900' },
-  VALIDEE: { label: 'Validée', color: 'bg-primary text-white' },
-  PARTIELLEMENT_DELIVREE: { label: 'Partielle', color: 'bg-orange-500 text-white' },
-  DELIVREE: { label: 'Délivrée', color: 'bg-green-600 text-white' },
-  REFUSEE: { label: 'Refusée', color: 'bg-destructive text-white' },
+const statutConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  RECUE: { label: 'Reçue', color: 'bg-blue-500 text-white', icon: Clock },
+  EN_COURS_VALIDATION: { label: 'En validation', color: 'bg-amber-400 text-gray-900', icon: Loader2 },
+  VALIDEE: { label: 'Validée', color: 'bg-primary text-white', icon: CheckCircle2 },
+  PARTIELLEMENT_DELIVREE: { label: 'Partielle', color: 'bg-orange-500 text-white', icon: AlertCircle },
+  DELIVREE: { label: 'Délivrée', color: 'bg-green-600 text-white', icon: CheckCircle2 },
+  REFUSEE: { label: 'Refusée', color: 'bg-destructive text-white', icon: XCircle },
+}
+
+const statutFlow = ['RECUE', 'EN_COURS_VALIDATION', 'VALIDEE', 'DELIVREE']
+
+function getStatutProgress(statut: string): number {
+  const idx = statutFlow.indexOf(statut)
+  if (idx === -1) return 0
+  return ((idx + 1) / statutFlow.length) * 100
 }
 
 export default function OrdonnancesPage() {
@@ -104,11 +115,15 @@ export default function OrdonnancesPage() {
 
   // Validation dialog
   const [validateDialogOpen, setValidateDialogOpen] = useState(false)
-  const [validateType, setValidateType] = useState<'VALIDATION' | 'REFUS'>('VALIDATION')
+  const [validateType, setValidateType] = useState<'VALIDATION' | 'REFUS' | 'EN_COURS'>('VALIDATION')
   const [validateCommentaire, setValidateCommentaire] = useState('')
 
-  // Upload image
-  const [uploadingImage, setUploadingImage] = useState(false)
+  // Upload dialog with drag & drop
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [uploadOrdoId, setUploadOrdoId] = useState<string | null>(null)
+  const { upload, uploading, progress, error: uploadError } = useUpload()
+  const [dragActive, setDragActive] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Create sale from ordonnance
   const [createSaleOpen, setCreateSaleOpen] = useState(false)
@@ -121,7 +136,6 @@ export default function OrdonnancesPage() {
 
   useEffect(() => {
     if (pharmacie?.id) {
-      setLoading(true)
       Promise.all([
         fetch(`/api/ordonnances?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
         fetch(`/api/patients?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
@@ -130,7 +144,8 @@ export default function OrdonnancesPage() {
         setOrdonnances(ordos)
         setPatients(pats)
         setMedicaments(meds)
-      }).catch(() => {}).finally(() => setLoading(false))
+        setLoading(false)
+      }).catch(() => { setLoading(false) })
     }
   }, [pharmacie?.id])
 
@@ -144,7 +159,6 @@ export default function OrdonnancesPage() {
     )
   }, [ordonnances, search])
 
-  // Stupéfiant ordonnances
   const ordoStupfiants = useMemo(() => ordonnances.filter(o => o.estStupefiant), [ordonnances])
 
   // Create ordonnance
@@ -196,7 +210,7 @@ export default function OrdonnancesPage() {
     }
   }
 
-  // Validate/Refuse
+  // Validate/Refuse/Start validation
   const handleValidate = async () => {
     if (!selected) return
     try {
@@ -210,11 +224,15 @@ export default function OrdonnancesPage() {
         }),
       })
       if (res.ok) {
-        toast.success(validateType === 'VALIDATION' ? 'Ordonnance validée' : 'Ordonnance refusée')
+        const labels: Record<string, string> = {
+          VALIDATION: 'Ordonnance validée',
+          REFUS: 'Ordonnance refusée',
+          EN_COURS: 'Validation en cours',
+        }
+        toast.success(labels[validateType] || 'Statut mis à jour')
         setValidateDialogOpen(false)
         setValidateCommentaire('')
         refreshOrdonnances()
-        // Update selected
         setSelected(null)
       }
     } catch {
@@ -235,7 +253,6 @@ export default function OrdonnancesPage() {
         refreshOrdonnances()
       }
     } catch {
-      // Fallback: update locally
       if (selected) {
         const updatedLignes = selected.lignes.map(l =>
           l.id === ligneId ? { ...l, delivree: !currentDelivree } : l
@@ -245,24 +262,51 @@ export default function OrdonnancesPage() {
     }
   }
 
-  // Upload image
-  const handleUploadImage = async (ordoId: string, file: File) => {
-    setUploadingImage(true)
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }, [])
+
+  const doFileUpload = useCallback(async (file: File) => {
+    if (!uploadOrdoId) return
     try {
-      const formData = new FormData()
-      formData.append('image', file)
-      const res = await fetch(`/api/ordonnances/${ordoId}/image`, {
-        method: 'POST',
-        body: formData,
-      })
-      if (res.ok) {
-        toast.success('Image téléchargée')
+      const result = await upload(file)
+      if (result) {
+        await fetch(`/api/ordonnances/${uploadOrdoId}/image`, {
+          method: 'POST',
+          body: (() => {
+            const fd = new FormData()
+            fd.append('image', file)
+            return fd
+          })(),
+        })
+        toast.success('Image téléchargée avec succès')
+        setUploadDialogOpen(false)
+        setUploadOrdoId(null)
         refreshOrdonnances()
       }
     } catch {
       toast.error("Erreur lors du téléchargement")
-    } finally {
-      setUploadingImage(false)
+    }
+  }, [uploadOrdoId, upload, refreshOrdonnances])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      doFileUpload(e.dataTransfer.files[0])
+    }
+  }, [doFileUpload])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      doFileUpload(e.target.files[0])
     }
   }
 
@@ -387,6 +431,13 @@ export default function OrdonnancesPage() {
                           </Button>
                         </div>
                       </div>
+                      {/* Image indicator */}
+                      {ordo.imageOrdonnanceUrl && (
+                        <div className="mt-2 flex items-center gap-1 text-xs text-primary">
+                          <ImageIcon className="h-3 w-3" />
+                          <span>Image attachée</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )
@@ -416,7 +467,6 @@ export default function OrdonnancesPage() {
                         <th className="text-left p-2 text-xs font-medium text-muted-foreground">Prescripteur</th>
                         <th className="text-left p-2 text-xs font-medium text-muted-foreground">Patient</th>
                         <th className="text-left p-2 text-xs font-medium text-muted-foreground">Médicament</th>
-                        <th className="text-right p-2 text-xs font-medium text-muted-foreground">Qté entrée</th>
                         <th className="text-right p-2 text-xs font-medium text-muted-foreground">Qté sortie</th>
                         <th className="text-center p-2 text-xs font-medium text-muted-foreground">Statut</th>
                       </tr>
@@ -436,7 +486,6 @@ export default function OrdonnancesPage() {
                               </>
                             )}
                             <td className="p-2 text-sm">{ligne.medicament.nomCommercial}</td>
-                            <td className="p-2 text-sm text-right">0</td>
                             <td className="p-2 text-sm text-right">{ligne.delivree ? ligne.quantite : 0}</td>
                             {i === 0 && (
                               <td rowSpan={ordo.lignes.length} className="p-2 text-center align-top">
@@ -456,7 +505,7 @@ export default function OrdonnancesPage() {
       </Tabs>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selected && !validateDialogOpen && !createSaleOpen} onOpenChange={() => setSelected(null)}>
+      <Dialog open={!!selected && !validateDialogOpen && !createSaleOpen && !uploadDialogOpen} onOpenChange={() => setSelected(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {selected && (
             <>
@@ -465,6 +514,22 @@ export default function OrdonnancesPage() {
               </DialogHeader>
               <ScrollArea className="max-h-[60vh]">
                 <div className="space-y-4 pr-3">
+                  {/* Status Progress */}
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-muted-foreground">Progression</span>
+                      <Badge className={statutConfig[selected.statut]?.color}>{statutConfig[selected.statut]?.label}</Badge>
+                    </div>
+                    <Progress value={getStatutProgress(selected.statut)} className="h-2" />
+                    <div className="flex justify-between mt-1">
+                      {statutFlow.map((s, i) => (
+                        <span key={s} className={`text-[8px] ${statutFlow.indexOf(selected.statut) >= i ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                          {statutConfig[s]?.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div><span className="text-muted-foreground">Patient</span><p className="font-medium">{selected.patient ? `${selected.patient.prenom} ${selected.patient.nom}` : '—'}</p></div>
                     <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDate(selected.dateOrdonnance)}</p></div>
@@ -475,31 +540,37 @@ export default function OrdonnancesPage() {
                   {/* Image upload */}
                   <div>
                     <Label className="text-sm font-semibold">Image ordonnance</Label>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="mt-2">
                       {selected.imageOrdonnanceUrl ? (
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <FileText className="w-3 h-3" /> Image attachée
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs gap-1 border-primary text-primary">
+                            <CheckCircle2 className="w-3 h-3" /> Image attachée
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[10px]"
+                            onClick={() => {
+                              setUploadOrdoId(selected.id)
+                              setUploadDialogOpen(true)
+                            }}
+                          >
+                            <Upload className="w-3 h-3 mr-1" /> Remplacer
+                          </Button>
+                        </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Aucune image</span>
-                      )}
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={e => {
-                            const file = e.target.files?.[0]
-                            if (file) handleUploadImage(selected.id, file)
+                        <div
+                          className="border-2 border-dashed border-teal-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                          onClick={() => {
+                            setUploadOrdoId(selected.id)
+                            setUploadDialogOpen(true)
                           }}
-                        />
-                        <Button variant="outline" size="sm" className="gap-1" disabled={uploadingImage} asChild>
-                          <span>
-                            <Upload className="w-3 h-3" />
-                            {uploadingImage ? 'Chargement...' : 'Télécharger'}
-                          </span>
-                        </Button>
-                      </label>
+                        >
+                          <CloudUpload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-xs text-muted-foreground">Cliquez pour télécharger une image</p>
+                          <p className="text-[10px] text-muted-foreground">ou glisser-déposer (JPG, PNG, PDF)</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -527,28 +598,52 @@ export default function OrdonnancesPage() {
                     ))}
                   </div>
 
-                  {/* Validations */}
+                  {/* Validations History */}
                   {selected.validations.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold mb-2">Validations</h4>
-                      {selected.validations.map(v => (
-                        <div key={v.id} className="flex items-center gap-2 py-1 text-sm">
-                          {v.typeValidation === 'VALIDATION' ? (
-                            <CheckCircle2 className="w-4 h-4 text-primary" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-destructive" />
-                          )}
-                          <span>{v.typeValidation === 'VALIDATION' ? 'Validée' : 'Refusée'}</span>
-                          <span className="text-xs text-muted-foreground">{formatDate(v.createdAt)}</span>
-                          {v.commentaire && <span className="text-xs text-muted-foreground">— {v.commentaire}</span>}
-                        </div>
-                      ))}
+                      <h4 className="text-sm font-semibold mb-2">Historique des validations</h4>
+                      <div className="space-y-2">
+                        {selected.validations.map(v => (
+                          <div key={v.id} className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 text-sm">
+                            {v.typeValidation === 'VALIDATION' ? (
+                              <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                            ) : v.typeValidation === 'REFUS' ? (
+                              <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                            ) : (
+                              <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <span className="text-xs font-medium">
+                                {v.typeValidation === 'VALIDATION' ? 'Validée' : v.typeValidation === 'REFUS' ? 'Refusée' : 'En cours de validation'}
+                                {v.utilisateur && (
+                                  <span className="text-muted-foreground font-normal"> par {v.utilisateur.prenom} {v.utilisateur.nom}</span>
+                                )}
+                              </span>
+                              {v.commentaire && <p className="text-[10px] text-muted-foreground">{v.commentaire}</p>}
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">{formatDate(v.createdAt)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   {/* Action buttons */}
                   <Separator />
                   <div className="flex flex-wrap gap-2">
+                    {selected.statut === 'RECUE' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-amber-500 text-amber-700 hover:bg-amber-50"
+                        onClick={() => {
+                          setValidateType('EN_COURS')
+                          setValidateDialogOpen(true)
+                        }}
+                      >
+                        <Clock className="w-4 h-4" /> Commencer validation
+                      </Button>
+                    )}
                     {(selected.statut === 'RECUE' || selected.statut === 'EN_COURS_VALIDATION') && (
                       <>
                         <Button
@@ -584,11 +679,80 @@ export default function OrdonnancesPage() {
                         <ShoppingCart className="w-4 h-4" /> Créer une vente
                       </Button>
                     )}
+                    {!selected.imageOrdonnanceUrl && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => {
+                          setUploadOrdoId(selected.id)
+                          setUploadDialogOpen(true)
+                        }}
+                      >
+                        <Upload className="w-4 h-4" /> Télécharger image
+                      </Button>
+                    )}
                   </div>
                 </div>
               </ScrollArea>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Upload Dialog with Drag & Drop */}
+      <Dialog open={uploadDialogOpen} onOpenChange={(open) => { setUploadDialogOpen(open); if (!open) setUploadOrdoId(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CloudUpload className="w-5 h-5 text-primary" />
+              Télécharger l&apos;image de l&apos;ordonnance
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                dragActive ? 'border-primary bg-primary/10' : 'border-teal-300 hover:border-primary hover:bg-primary/5'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              {uploading ? (
+                <div className="space-y-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                  <p className="text-xs text-muted-foreground">Téléchargement en cours...</p>
+                  <Progress value={progress} className="h-2" />
+                </div>
+              ) : (
+                <>
+                  <CloudUpload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm font-medium text-gray-900">Glissez-déposez votre fichier ici</p>
+                  <p className="text-xs text-muted-foreground mt-1">ou cliquez pour sélectionner</p>
+                  <p className="text-[10px] text-muted-foreground mt-2">JPG, PNG, WebP, PDF — Max 10 MB</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    variant="outline"
+                    className="mt-3 border-primary text-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-1" />
+                    Sélectionner un fichier
+                  </Button>
+                </>
+              )}
+            </div>
+            {uploadError && (
+              <p className="text-xs text-destructive text-center">{uploadError}</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -701,8 +865,8 @@ export default function OrdonnancesPage() {
       <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className={validateType === 'VALIDATION' ? 'text-primary' : 'text-destructive'}>
-              {validateType === 'VALIDATION' ? 'Valider l\'ordonnance' : 'Refuser l\'ordonnance'}
+            <DialogTitle className={validateType === 'VALIDATION' ? 'text-primary' : validateType === 'REFUS' ? 'text-destructive' : 'text-amber-600'}>
+              {validateType === 'VALIDATION' ? 'Valider l\'ordonnance' : validateType === 'REFUS' ? 'Refuser l\'ordonnance' : 'Démarrer la validation'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -721,7 +885,7 @@ export default function OrdonnancesPage() {
                 variant={validateType === 'REFUS' ? 'destructive' : 'default'}
                 onClick={handleValidate}
               >
-                {validateType === 'VALIDATION' ? 'Confirmer la validation' : 'Confirmer le refus'}
+                {validateType === 'VALIDATION' ? 'Confirmer la validation' : validateType === 'REFUS' ? 'Confirmer le refus' : 'Démarrer la validation'}
               </Button>
             </div>
           </div>

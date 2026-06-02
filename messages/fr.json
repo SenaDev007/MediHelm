@@ -1,0 +1,136 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "export": "Exporter",
+    "import": "Importer",
+    "loading": "Chargement...",
+    "noData": "Aucune donnée",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "close": "Fermer",
+    "actions": "Actions",
+    "status": "Statut",
+    "date": "Date",
+    "total": "Total",
+    "amount": "Montant",
+    "currency": "FCFA",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "stock": "Stock",
+    "ventes": "Ventes",
+    "commandes": "Commandes",
+    "fournisseurs": "Fournisseurs",
+    "patients": "Patients",
+    "ordonnances": "Ordonnances",
+    "personnel": "Personnel",
+    "finance": "Finance",
+    "garde": "Garde",
+    "documents": "Documents",
+    "qualite": "Qualité",
+    "conformite": "Conformité",
+    "alertes": "Alertes",
+    "analytics": "Analytics",
+    "stupefiants": "Stupéfiants",
+    "remboursables": "Tiers Payant",
+    "retours": "Retours & Destructions",
+    "communication": "Communication"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "invalidCredentials": "Identifiants invalides",
+    "accountDisabled": "Compte désactivé"
+  },
+  "pro": {
+    "dashboard": {
+      "title": "Tableau de bord",
+      "welcome": "Bienvenue",
+      "kpis": "Indicateurs clés",
+      "recentActivity": "Activité récente",
+      "alerts": "Alertes"
+    }
+  },
+  "patient": {
+    "dashboard": {
+      "title": "Mon Espace Santé",
+      "searchMed": "Rechercher un médicament",
+      "myPharmacy": "Ma pharmacie",
+      "vaccinations": "Mes vaccinations",
+      "reminders": "Mes rappels"
+    }
+  },
+  "landing": {
+    "hero": {
+      "title": "L'écosystème santé du Bénin",
+      "subtitle": "Gérez votre pharmacie, suivez votre santé, en toute confiance",
+      "cta": "Commencer maintenant"
+    }
+  },
+  "pwa": {
+    "offline": "Vous êtes hors ligne",
+    "online": "Connexion rétablie",
+    "install": "Installer MédiHelm",
+    "updateAvailable": "Mise à jour disponible"
+  },
+  "vaccination": {
+    "title": "Carnet de vaccination",
+    "addVaccination": "Ajouter une vaccination",
+    "vaccine": "Vaccin",
+    "lotNumber": "N° de lot",
+    "vaccinationDate": "Date de vaccination",
+    "healthCenter": "Centre de santé",
+    "boosterDate": "Date de rappel",
+    "boosterOptional": "Date de rappel (optionnel)",
+    "qrCard": "Carte QR",
+    "showQR": "Voir QR code",
+    "hideQR": "Masquer QR",
+    "download": "Télécharger",
+    "share": "Partager",
+    "shareCard": "Partagez votre carnet de vaccination complet",
+    "scanToAccess": "Scannez pour accéder au carnet",
+    "attestation": "Attestation de vaccination",
+    "noRecords": "Aucune vaccination enregistrée",
+    "addFirst": "Ajoutez votre première vaccination",
+    "upcomingBoosters": "Rappels vaccination",
+    "boosterOn": "Rappel le",
+    "saved": "Vaccination enregistrée",
+    "saveError": "Erreur lors de l'enregistrement",
+    "requiredFields": "Veuillez remplir les champs obligatoires"
+  },
+  "predictions": {
+    "title": "Prédictions IA",
+    "stockPredictions": "Prédictions de stock",
+    "revenuePredictions": "Prédictions de revenus",
+    "medicament": "Médicament",
+    "predictedDemand": "Demande prévue",
+    "confidence": "Confiance",
+    "currentStock": "Stock actuel",
+    "reorderNeeded": "Réappro. nécessaire",
+    "suggestedQty": "Quantité suggérée",
+    "month": "Mois",
+    "predicted": "Prévu",
+    "lowerBound": "Min",
+    "upperBound": "Max",
+    "order": "Commander",
+    "high": "Élevée",
+    "medium": "Moyenne",
+    "low": "Faible",
+    "noData": "Pas assez de données pour les prédictions",
+    "loading": "Calcul des prédictions..."
+  }
+}

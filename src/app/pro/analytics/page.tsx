@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BarChart3, TrendingUp, Package, DollarSign, Download, Brain, Shield, HeartPulse, AlertTriangle, FileWarning } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
+import { BarChart3, TrendingUp, Package, DollarSign, Download, Brain, Shield, HeartPulse, AlertTriangle, ShoppingCart, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import {
   BarChart,
@@ -31,6 +32,8 @@ import {
   PieChart,
   Pie,
   Cell,
+  AreaChart,
+  Area,
 } from 'recharts'
 import { toast } from 'sonner'
 
@@ -58,6 +61,23 @@ interface ConformiteData {
   certificationDPMED: boolean
   pendingAlertesDPMED: number
   documentsExpirant: number
+}
+
+interface StockPrediction {
+  medicamentId: string
+  medicamentNom: string
+  predictedDemand: number
+  confidence: number
+  currentStock: number
+  reorderNeeded: boolean
+  suggestedOrderQty: number
+}
+
+interface RevenuePrediction {
+  month: string
+  predicted: number
+  lowerBound: number
+  upperBound: number
 }
 
 interface DashboardData {
@@ -99,6 +119,9 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [periode, setPeriode] = useState('7j')
+  const [stockPredictions, setStockPredictions] = useState<StockPrediction[]>([])
+  const [revenuePredictions, setRevenuePredictions] = useState<RevenuePrediction[]>([])
+  const [predLoading, setPredLoading] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!pharmacie?.id) return
@@ -114,9 +137,36 @@ export default function AnalyticsPage() {
     }
   }, [pharmacie?.id, periode])
 
+  const loadPredictions = useCallback(async () => {
+    if (!pharmacie?.id) return
+    setPredLoading(true)
+    try {
+      const [stockRes, revenueRes] = await Promise.all([
+        fetch(`/api/ai/predictions?type=stock&pharmacieId=${pharmacie.id}`),
+        fetch(`/api/ai/predictions?type=revenue&pharmacieId=${pharmacie.id}`),
+      ])
+      if (stockRes.ok) {
+        const stockData = await stockRes.json()
+        setStockPredictions(stockData.data || [])
+      }
+      if (revenueRes.ok) {
+        const revData = await revenueRes.json()
+        setRevenuePredictions(revData.data || [])
+      }
+    } catch { /* ignore */ } finally {
+      setPredLoading(false)
+    }
+  }, [pharmacie?.id])
+
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    if (pharmacie?.id) {
+      loadPredictions()
+    }
+  }, [pharmacie?.id, loadPredictions])
 
   // Sales trend chart data
   const salesTrendData = (() => {
@@ -151,7 +201,7 @@ export default function AnalyticsPage() {
     quantite: p.quantite,
   }))
 
-  // Radar data for pharmacy health — now includes Pharmacovigilance + Conformité + Qualité
+  // Radar data for pharmacy health
   const radarData = data?.scorePharmacie ? [
     { subject: 'Santé', score: data.scorePharmacie.scoreSante, fullMark: 100 },
     { subject: 'Stock', score: data.scorePharmacie.scoreStock, fullMark: 100 },
@@ -161,7 +211,6 @@ export default function AnalyticsPage() {
     { subject: 'Pharmacovigilance', score: data.scorePharmacie.scorePharmacovigilance || 0, fullMark: 100 },
     { subject: 'Qualité', score: data.scorePharmacie.scoreQualite || 0, fullMark: 100 },
   ] : (() => {
-    // Calculate from actual data instead of hardcoded fallback
     const conf = data?.conformiteData
     const ei = data?.eiStats
     return [
@@ -192,7 +241,18 @@ export default function AnalyticsPage() {
     { name: 'Destructions', score: data.conformiteData.scoreDestructions, max: 15 },
   ].map(item => ({ ...item, pct: Math.round((item.score / item.max) * 100) })) : []
 
-  // Predictions
+  // Revenue prediction chart data
+  const revenueChartData = revenuePredictions.map(r => ({
+    name: r.month,
+    predicted: r.predicted,
+    lowerBound: r.lowerBound,
+    upperBound: r.upperBound,
+  }))
+
+  // Stock predictions needing reorder
+  const reorderItems = stockPredictions.filter(p => p.reorderNeeded)
+
+  // Predictions from dashboard
   const predictions = data?.predictions || []
 
   if (loading) {
@@ -397,7 +457,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Score indicators — now includes Pharmacovigilance + Conformité + Qualité */}
+      {/* Score indicators */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Indicateurs clés</CardTitle>
@@ -539,13 +599,223 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      {/* Predictions */}
+      {/* ===== AI Predictions Section ===== */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Brain className="w-4 h-4 text-primary" />
+              Prédictions IA
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-primary gap-1"
+              onClick={loadPredictions}
+              disabled={predLoading}
+            >
+              <RefreshCw className={`h-3 w-3 ${predLoading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {predLoading && stockPredictions.length === 0 && revenuePredictions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Calcul des prédictions...</p>
+            </div>
+          ) : (
+            <>
+              {/* Stock Predictions Table */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-primary" />
+                  Prédictions de stock
+                  {reorderItems.length > 0 && (
+                    <Badge variant="destructive" className="text-[9px]">
+                      {reorderItems.length} réappro. nécessaire{reorderItems.length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </h3>
+                {stockPredictions.length > 0 ? (
+                  <div className="max-h-96 overflow-y-auto rounded-lg border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 sticky top-0">
+                        <tr>
+                          <th className="text-left p-3 font-medium">Médicament</th>
+                          <th className="text-center p-3 font-medium">Demande prévue</th>
+                          <th className="text-center p-3 font-medium">Stock actuel</th>
+                          <th className="text-center p-3 font-medium">Confiance</th>
+                          <th className="text-center p-3 font-medium">Statut</th>
+                          <th className="text-center p-3 font-medium">Qté suggérée</th>
+                          <th className="text-center p-3 font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stockPredictions.map((pred) => (
+                          <tr key={pred.medicamentId} className={`border-t ${pred.reorderNeeded ? 'bg-red-50/50' : ''}`}>
+                            <td className="p-3 font-medium max-w-[150px] truncate">{pred.medicamentNom}</td>
+                            <td className="p-3 text-center">{pred.predictedDemand}</td>
+                            <td className="p-3 text-center">
+                              <span className={pred.currentStock < pred.predictedDemand ? 'text-destructive font-bold' : ''}>
+                                {pred.currentStock}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <div className="flex items-center gap-1 justify-center">
+                                <Progress
+                                  value={pred.confidence * 100}
+                                  className="h-1.5 w-12"
+                                />
+                                <span className={`text-[10px] ${
+                                  pred.confidence >= 0.8 ? 'text-primary' : pred.confidence >= 0.6 ? 'text-amber-500' : 'text-muted-foreground'
+                                }`}>
+                                  {Math.round(pred.confidence * 100)}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              {pred.reorderNeeded ? (
+                                <Badge variant="destructive" className="text-[9px]">Réappro.</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary">OK</Badge>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {pred.reorderNeeded ? (
+                                <span className="font-bold text-destructive">{pred.suggestedOrderQty}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {pred.reorderNeeded && (
+                                <Button
+                                  size="sm"
+                                  className="h-6 text-[9px] bg-primary hover:bg-teal-700 gap-1"
+                                  onClick={() => toast.success(`Commande de ${pred.suggestedOrderQty} unités de ${pred.medicamentNom} initiée`)}
+                                >
+                                  <ShoppingCart className="h-3 w-3" />
+                                  Commander
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-lg">
+                    Pas assez de données pour les prédictions de stock
+                  </div>
+                )}
+              </div>
+
+              {/* Revenue Prediction Chart */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  Prévisions de revenus (6 mois)
+                </h3>
+                {revenueChartData.length > 0 ? (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10 }}
+                          stroke="#888780"
+                          tickFormatter={(value: string) => {
+                            const [y, m] = value.split('-')
+                            const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+                            return months[parseInt(m, 10) - 1] + ' ' + y.slice(2)
+                          }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10 }}
+                          stroke="#888780"
+                          tickFormatter={(value: number) => `${(value / 1000).toFixed(0)}k`}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            const labels: Record<string, string> = {
+                              predicted: 'Prévu',
+                              upperBound: 'Max',
+                              lowerBound: 'Min',
+                            }
+                            return [formatFCFA(value), labels[name] || name]
+                          }}
+                          labelFormatter={(label: string) => {
+                            const [y, m] = String(label).split('-')
+                            const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+                            return months[parseInt(m, 10) - 1] + ' ' + y
+                          }}
+                          contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="upperBound"
+                          stroke="#9FE1CB"
+                          fill="#9FE1CB"
+                          fillOpacity={0.2}
+                          strokeDasharray="4 4"
+                          strokeWidth={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="lowerBound"
+                          stroke="#9FE1CB"
+                          fill="#9FE1CB"
+                          fillOpacity={0.2}
+                          strokeDasharray="4 4"
+                          strokeWidth={1}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="predicted"
+                          stroke="#1D9E75"
+                          fill="#1D9E75"
+                          fillOpacity={0.15}
+                          strokeWidth={2}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-lg">
+                    Pas assez de données pour les prévisions de revenus
+                  </div>
+                )}
+              </div>
+
+              {/* Confidence Legend */}
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <span className="font-medium">Indicateurs de confiance :</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Élevée ({'>'}80%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> Moyenne (60-80%)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-sm bg-muted-foreground/30 inline-block" /> Faible ({'<'}60%)
+                </span>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Legacy Predictions (from dashboard) */}
       {predictions.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Brain className="w-4 h-4 text-primary" />
-              Prédictions IA
+              Prédictions IA — Historique
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -104,6 +104,7 @@ export default function VentesPage() {
   const [openSessionDialog, setOpenSessionDialog] = useState(false)
   const [closeSessionDialog, setCloseSessionDialog] = useState(false)
   const [fondDeCaisse, setFondDeCaisse] = useState('0')
+  const [soldePhysique, setSoldePhysique] = useState('')
   const [zReport, setZReport] = useState<Record<string, unknown> | null>(null)
 
   // Patient & Ordonnance
@@ -132,6 +133,11 @@ export default function VentesPage() {
 
   // Stupéfiant warning
   const [stupWarningOpen, setStupWarningOpen] = useState(false)
+
+  // Ticket dialog for historique
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false)
+  const [ticketData, setTicketData] = useState<Record<string, unknown> | null>(null)
+  const [ticketLoading, setTicketLoading] = useState(false)
 
   useEffect(() => {
     const pid = pharmacie?.id
@@ -304,13 +310,17 @@ export default function VentesPage() {
       const res = await fetch(`/api/sessions-caisse/${sessionCaisse.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ecart: 0 }),
+        body: JSON.stringify({
+          soldePhysique: soldePhysique ? parseFloat(soldePhysique) : undefined,
+          ecart: soldePhysique ? undefined : 0,
+        }),
       })
       if (res.ok) {
         const data = await res.json()
         setZReport(data.zReport)
         setSessionCaisse(null)
         setCloseSessionDialog(false)
+        setSoldePhysique('')
         toast.success('Session fermée — Z-report généré')
       }
     } catch {
@@ -713,12 +723,13 @@ export default function VentesPage() {
                     <th className="text-right p-3 text-xs font-medium text-muted-foreground">Montant</th>
                     <th className="text-right p-3 text-xs font-medium text-muted-foreground">Remise</th>
                     <th className="text-center p-3 text-xs font-medium text-muted-foreground">Statut</th>
+                    <th className="text-center p-3 text-xs font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(ventes as { id: string; createdAt: string; typeVente: string; montantTotal: number; montantRemise: number; statut: string; lignes: unknown[] }[]).length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                      <td colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
                         Aucune vente enregistrée
                       </td>
                     </tr>
@@ -739,6 +750,37 @@ export default function VentesPage() {
                           >
                             {v.statut}
                           </Badge>
+                        </td>
+                        <td className="p-3 text-center">
+                          {v.statut === 'VALIDEE' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 text-xs h-7"
+                              onClick={async () => {
+                                setTicketLoading(true)
+                                setTicketDialogOpen(true)
+                                try {
+                                  const res = await fetch(`/api/ticket?venteId=${v.id}`)
+                                  if (res.ok) {
+                                    const data = await res.json()
+                                    setTicketData(data)
+                                  } else {
+                                    toast.error('Erreur lors du chargement du ticket')
+                                    setTicketDialogOpen(false)
+                                  }
+                                } catch {
+                                  toast.error('Erreur lors du chargement du ticket')
+                                  setTicketDialogOpen(false)
+                                } finally {
+                                  setTicketLoading(false)
+                                }
+                              }}
+                            >
+                              <Printer className="w-3 h-3" />
+                              Ticket
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1013,13 +1055,116 @@ export default function VentesPage() {
                   <div className="flex justify-between"><span>Sorties</span><span className="font-semibold">{formatFCFA(sessionCaisse.totalSorties)}</span></div>
                 </div>
               )}
-              <p className="text-sm text-muted-foreground">Confirmez la fermeture de la session. Le Z-report sera généré automatiquement.</p>
+              <div>
+                <Label>Solde physique (comptage)</Label>
+                <Input
+                  type="number"
+                  placeholder="Saisir le solde compté..."
+                  value={soldePhysique}
+                  onChange={e => setSoldePhysique(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  L'écart sera calculé automatiquement: Théorique − Physique
+                </p>
+              </div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setCloseSessionDialog(false)}>Annuler</Button>
+                <Button variant="outline" className="flex-1" onClick={() => { setCloseSessionDialog(false); setSoldePhysique('') }}>Annuler</Button>
                 <Button className="flex-1" onClick={handleCloseSession}>Fermer la session</Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Detail Dialog (from historique) */}
+      <Dialog open={ticketDialogOpen} onOpenChange={setTicketDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5 text-primary" />
+              Ticket de Caisse
+            </DialogTitle>
+          </DialogHeader>
+          {ticketLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : ticketData ? (
+            <div className="space-y-3 text-sm">
+              <div className="text-center border-b pb-3">
+                <p className="font-bold text-base">{(ticketData.pharmacie as Record<string, string>)?.nom || 'Pharmacie'}</p>
+                <p className="text-xs text-muted-foreground">{(ticketData.pharmacie as Record<string, string>)?.adresse}</p>
+                <p className="text-xs text-muted-foreground">{(ticketData.pharmacie as Record<string, string>)?.telephone}</p>
+              </div>
+              <div className="text-xs text-muted-foreground flex justify-between">
+                <span>N° {(ticketData.vente as Record<string, string>)?.numeroCourt || ''}</span>
+                <span>
+                  {(ticketData.vente as Record<string, string>)?.date
+                    ? new Date((ticketData.vente as Record<string, string>).date).toLocaleDateString('fr-FR')
+                    : ''}
+                </span>
+              </div>
+              {(ticketData.patient as Record<string, string> | null)?.nom && (
+                <div className="text-xs text-muted-foreground">
+                  <User className="w-3 h-3 inline mr-1" />
+                  Client: {(ticketData.patient as Record<string, string>).nom}
+                </div>
+              )}
+              <Separator />
+              <div className="space-y-1">
+                {((ticketData.lignes as Array<Record<string, unknown>> || []).map((item, i) => (
+                  <div key={i} className="space-y-0.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-medium">{String(item.medicament || '')} ×{String(item.quantite || '')}</span>
+                      <span>{formatFCFA(Number(item.montant || 0))}</span>
+                    </div>
+                    {Number(item.remise) > 0 && (
+                      <div className="flex justify-between text-[10px] text-destructive">
+                        <span>  Remise {item.remise}%</span>
+                        <span>-{formatFCFA(Number(item.prixUnitaire || 0) * Number(item.quantite || 0) * Number(item.remise || 0) / 100)}</span>
+                      </div>
+                    )}
+                  </div>
+                )))}
+              </div>
+              <Separator />
+              <div className="space-y-1">
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>{formatFCFA(Number((ticketData.totaux as Record<string, number>)?.montantTotal || 0))}</span>
+                </div>
+                {Number((ticketData.totaux as Record<string, number>)?.montantRemise || 0) > 0 && (
+                  <div className="flex justify-between text-destructive text-xs">
+                    <span>Remise</span>
+                    <span>-{formatFCFA(Number((ticketData.totaux as Record<string, number>)?.montantRemise || 0))}</span>
+                  </div>
+                )}
+              </div>
+              {((ticketData.paiements as Array<Record<string, unknown>> || []).length > 0) && (
+                <div className="border-t pt-2 space-y-1">
+                  <p className="text-xs font-semibold">Paiement</p>
+                  {(ticketData.paiements as Array<Record<string, unknown>>).map((p, i) => (
+                    <div key={i} className="flex justify-between text-xs text-muted-foreground">
+                      <span>{String(p.mode === 'ESPECES' ? 'Espèces' : p.mode === 'WAVE' ? 'Wave' : p.mode === 'MTN_MONEY' ? 'MTN Money' : p.mode === 'MOOV_MONEY' ? 'Moov Money' : p.mode === 'CARTE' ? 'Carte' : p.mode)}</span>
+                      <span>{formatFCFA(Number(p.montant || 0))}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-center text-xs text-muted-foreground pt-2 border-t">
+                <p>Merci pour votre achat !</p>
+                <p>MédiHelm — Pharmacie intelligente</p>
+              </div>
+            </div>
+          ) : null}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setTicketDialogOpen(false)}>
+              Fermer
+            </Button>
+            <Button className="flex-1 gap-1" onClick={() => toast.success('Ticket imprimé')}>
+              <Printer className="w-4 h-4" /> Imprimer
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

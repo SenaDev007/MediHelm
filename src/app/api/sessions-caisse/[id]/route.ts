@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { ecart } = body
+    const { ecart, soldePhysique } = body
 
     // Récupérer la session avec ses ventes
     const session = await db.sessionCaisse.findUnique({
@@ -30,6 +30,19 @@ export async function PATCH(
     const totalEntrees = totalVentes
     const totalSorties = 0
 
+    // Calculate ecart: (fondDeCaisse + totalEntrees) - totalSorties - soldePhysique
+    // Or use the provided ecart value
+    let calculatedEcart: number
+    let soldePhysiqueFinal: number | undefined
+
+    if (soldePhysique !== undefined && soldePhysique !== null) {
+      soldePhysiqueFinal = soldePhysique
+      const soldeTheorique = session.fondDeCaisse + totalEntrees - totalSorties
+      calculatedEcart = soldeTheorique - soldePhysique
+    } else {
+      calculatedEcart = ecart || 0
+    }
+
     // Z-Report data
     const zReport = {
       sessionId: id,
@@ -37,7 +50,8 @@ export async function PATCH(
       totalEntrees,
       totalSorties,
       totalVentes,
-      ecart: ecart || 0,
+      ecart: calculatedEcart,
+      soldePhysique: soldePhysiqueFinal,
       theorique: session.fondDeCaisse + totalEntrees - totalSorties,
       dateFermeture: new Date().toISOString(),
     }
@@ -48,7 +62,7 @@ export async function PATCH(
         dateFermeture: new Date(),
         totalEntrees,
         totalSorties,
-        ecart: ecart || 0,
+        ecart: calculatedEcart,
       },
       include: {
         caisse: true,

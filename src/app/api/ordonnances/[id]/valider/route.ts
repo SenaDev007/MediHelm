@@ -19,17 +19,15 @@ export async function POST(
       return NextResponse.json({ error: 'Ordonnance non trouvée' }, { status: 404 })
     }
 
-    // Créer la validation
-    const validation = await db.validationPharmacien.create({
-      data: {
-        ordonnanceId: id,
-        utilisateurId,
-        typeValidation,
-        commentaire: commentaire || null,
-      },
-    })
+    // Validate status flow: RECUE → EN_COURS_VALIDATION → VALIDEE/REFUSEE → DELIVREE
+    const validTransitions: Record<string, string[]> = {
+      RECUE: ['EN_COURS_VALIDATION', 'VALIDEE', 'REFUSEE'],
+      EN_COURS_VALIDATION: ['VALIDEE', 'REFUSEE'],
+      VALIDEE: ['DELIVREE', 'PARTIELLEMENT_DELIVREE'],
+      PARTIELLEMENT_DELIVREE: ['DELIVREE'],
+    }
 
-    // Mettre à jour le statut de l'ordonnance
+    // Determine the new status based on validation type
     let newStatut = ordonnance.statut
     if (typeValidation === 'VALIDATION') {
       newStatut = 'VALIDEE'
@@ -37,8 +35,32 @@ export async function POST(
       newStatut = 'REFUSEE'
     } else if (typeValidation === 'EN_COURS') {
       newStatut = 'EN_COURS_VALIDATION'
+    } else if (typeValidation === 'DELIVREE') {
+      newStatut = 'DELIVREE'
     }
 
+    // Check if transition is valid
+    const allowedNext = validTransitions[ordonnance.statut] || []
+    if (!allowedNext.includes(newStatut)) {
+      return NextResponse.json({ 
+        error: `Transition invalide: ${ordonnance.statut} → ${newStatut}. Transitions autorisées: ${allowedNext.join(', ')}` 
+      }, { status: 400 })
+    }
+
+    // Create the validation record
+    const validation = await db.validationPharmacien.create({
+      data: {
+        ordonnanceId: id,
+        utilisateurId,
+        typeValidation,
+        commentaire: commentaire || null,
+      },
+      include: {
+        utilisateur: { select: { id: true, nom: true, prenom: true } },
+      },
+    })
+
+    // Update the ordonnance status
     await db.ordonnance.update({
       where: { id },
       data: { statut: newStatut },

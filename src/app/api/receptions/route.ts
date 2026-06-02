@@ -6,10 +6,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
     const commandeId = searchParams.get('commandeId')
+    const statut = searchParams.get('statut')
+    const dateDebut = searchParams.get('dateDebut')
+    const dateFin = searchParams.get('dateFin')
 
     const where: Record<string, unknown> = {}
     if (pharmacieId) where.pharmacieId = pharmacieId
     if (commandeId) where.commandeId = commandeId
+    if (statut) where.statut = statut
+    if (dateDebut || dateFin) {
+      const dateFilter: Record<string, Date> = {}
+      if (dateDebut) dateFilter.gte = new Date(dateDebut)
+      if (dateFin) dateFilter.lte = new Date(dateFin)
+      where.dateReception = dateFilter
+    }
 
     const data = await db.reception.findMany({
       where,
@@ -30,10 +40,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { commandeId, pharmacieId, dateReception, numeroBL, statut, ecarts, lignes } = body
+    const { commandeId, pharmacieId, dateReception, numeroBL, statut, ecarts, lignes, utilisateurId } = body
 
     if (!commandeId || !pharmacieId) {
       return NextResponse.json({ error: 'commandeId et pharmacieId requis' }, { status: 400 })
+    }
+
+    // Validate the commande exists and has an appropriate status
+    const commande = await db.commandeFournisseur.findUnique({
+      where: { id: commandeId },
+      include: { lignes: true },
+    })
+
+    if (!commande) {
+      return NextResponse.json({ error: 'Commande non trouvée' }, { status: 404 })
+    }
+
+    if (!['CONFIRMEE', 'EN_PREPARATION', 'LIVREE_PARTIELLEMENT'].includes(commande.statut)) {
+      return NextResponse.json(
+        { error: `La commande doit être CONFIRMEE, EN_PREPARATION ou LIVREE_PARTIELLEMENT. Statut actuel: ${commande.statut}` },
+        { status: 400 }
+      )
     }
 
     // Create reception with lignes
@@ -47,7 +74,14 @@ export async function POST(request: NextRequest) {
         ecarts: ecarts || null,
         lignes: lignes
           ? {
-              create: lignes.map((l: { medicamentId: string; numeroLot: string; dateExpiration: string; quantiteBL: number; quantiteRecue: number; prixAchat: number }) => ({
+              create: lignes.map((l: {
+                medicamentId: string
+                numeroLot: string
+                dateExpiration: string
+                quantiteBL: number
+                quantiteRecue: number
+                prixAchat: number
+              }) => ({
                 medicamentId: l.medicamentId,
                 numeroLot: l.numeroLot,
                 dateExpiration: l.dateExpiration ? new Date(l.dateExpiration) : new Date(),
@@ -61,7 +95,7 @@ export async function POST(request: NextRequest) {
       include: { lignes: { include: { medicament: true } } },
     })
 
-    // Update commande line quantities and create lots
+    // Update commande line quantities, create lots, and create stock movements
     if (lignes) {
       for (const l of lignes) {
         // Update LigneCommande quantiteLivree
@@ -84,6 +118,7 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        let lotId: string
         if (existingLot) {
           await db.lot.update({
             where: { id: existingLot.id },
@@ -92,8 +127,9 @@ export async function POST(request: NextRequest) {
               prixAchat: l.prixAchat || existingLot.prixAchat,
             },
           })
+          lotId = existingLot.id
         } else {
-          await db.lot.create({
+          const newLot = await db.lot.create({
             data: {
               medicamentId: l.medicamentId,
               pharmacieId,
@@ -104,14 +140,33 @@ export async function POST(request: NextRequest) {
               dateReception: new Date(),
             },
           })
+          lotId = newLot.id
+        }
+
+        // Create MouvementStock (ENTREE) for each received item
+        if (l.quantiteRecue > 0) {
+          const currentLot = await db.lot.findUnique({ where: { id: lotId } })
+          const quantiteAvant = currentLot ? currentLot.quantite - l.quantiteRecue : 0
+          const quantiteApres = currentLot ? currentLot.quantite : l.quantiteRecue
+
+          await db.mouvementStock.create({
+            data: {
+              lotId,
+              pharmacieId,
+              type: 'ENTREE',
+              quantite: l.quantiteRecue,
+              quantiteAvant: Math.max(0, quantiteAvant),
+              quantiteApres,
+              motif: `Réception commande ${commande.reference}`,
+              utilisateurId: utilisateurId || 'system',
+              referenceId: data.id,
+              referenceType: 'Reception',
+            },
+          })
         }
       }
 
       // Update commande statut based on delivery status
-      const commande = await db.commandeFournisseur.findUnique({
-        where: { id: commandeId },
-        include: { lignes: true },
-      })
       if (commande) {
         const allDelivered = commande.lignes.every(l => l.quantiteLivree >= l.quantiteCommandee)
         const someDelivered = commande.lignes.some(l => l.quantiteLivree > 0)

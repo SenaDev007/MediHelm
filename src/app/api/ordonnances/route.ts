@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const data = await db.ordonnance.findMany({
       where,
-      include: { patient: true, lignes: { include: { medicament: true } }, validations: true },
+      include: { patient: true, lignes: { include: { medicament: true } }, validations: { include: { utilisateur: { select: { id: true, nom: true, prenom: true } } }, orderBy: { createdAt: 'desc' } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
     })

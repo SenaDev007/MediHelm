@@ -367,6 +367,10 @@ model Pharmacie {
   evaluationsFournisseur  EvaluationFournisseur[]
   diffusionsAlerte        DiffusionAlerte[]
   reseauxPromus           Reseau[]
+  registreStupefiants     RegistreStupefiant[]
+
+  @@index([ville])
+  @@index([actif])
 }
 
 model Utilisateur {
@@ -398,6 +402,11 @@ model Utilisateur {
   destructionsPharmacien DestructionMedicament[] @relation("DestructionPharmacien")
   destructionsTemoin     DestructionMedicament[] @relation("DestructionTemoin")
   notifications          Notification[]
+  registreStupefiants     RegistreStupefiant[]
+
+  @@index([pharmacieId])
+  @@index([roleId])
+  @@index([actif])
 }
 
 model Role {
@@ -471,6 +480,11 @@ model Medicament {
   lignesCommandePatient LigneCommandePatient[]
   conditions          ConditionAchat[]
   transfertsStock     TransfertStock[]
+  registreStupefiants RegistreStupefiant[]
+
+  @@index([pharmacieId])
+  @@index([dci])
+  @@index([estStupefiant])
 }
 
 model CategorieATC {
@@ -509,6 +523,7 @@ model Lot {
   lignesVente       LigneVente[]
   retours           Retour[]
   destructions      DestructionMedicament[]
+  registreStupefiants RegistreStupefiant[]
 
   @@index([numeroLot, medicamentId])
 }
@@ -531,6 +546,9 @@ model MouvementStock {
   lot         Lot         @relation(fields: [lotId], references: [id], onDelete: Cascade)
   pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
   utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+
+  @@index([pharmacieId, createdAt])
+  @@index([lotId])
 }
 
 model AlerteExpiration {
@@ -605,6 +623,10 @@ model Vente {
   lignes        LigneVente[]
   paiements     Paiement[]
   remboursements Remboursement[]
+
+  @@index([pharmacieId, createdAt])
+  @@index([patientId])
+  @@index([sessionId])
 }
 
 model LigneVente {
@@ -621,6 +643,8 @@ model LigneVente {
   vente      Vente      @relation(fields: [venteId], references: [id], onDelete: Cascade)
   medicament Medicament @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
   lot        Lot?       @relation(fields: [lotId], references: [id])
+
+  @@index([venteId])
 }
 
 model Paiement {
@@ -656,6 +680,9 @@ model CommandeFournisseur {
   lignes             LigneCommande[]
   receptions         Reception[]
   commandesGrossiste CommandeGrossiste[]
+
+  @@index([pharmacieId, statut])
+  @@index([fournisseurId])
 }
 
 model LigneCommande {
@@ -793,6 +820,9 @@ model Patient {
   ventes         Vente[]
   notifications  Notification[]
   transactionsFidelite TransactionFidelite[]
+
+  @@index([pharmacieId])
+  @@index([telephone])
 }
 
 model CreditPatient {
@@ -832,6 +862,9 @@ model Ordonnance {
   lignes      LigneOrdonnance[]
   validations ValidationPharmacien[]
   ventes      Vente[]
+  registreStupefiants RegistreStupefiant[]
+
+  @@index([pharmacieId, statut])
 }
 
 model LigneOrdonnance {
@@ -987,6 +1020,9 @@ model EcritureComptable {
   // Relations
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
   journal   Journal   @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([pharmacieId, date])
+  @@index([journalId])
 }
 
 model Tresorerie {
@@ -1142,6 +1178,37 @@ model DestructionMedicament {
   temoin      Utilisateur? @relation("DestructionTemoin", fields: [temoinId], references: [id])
 }
 
+// === Registre des Stupéfiants (Obligation légale Bénin) ===
+
+model RegistreStupefiant {
+  id                String   @id @default(uuid())
+  pharmacieId       String
+  medicamentId      String
+  ordonnanceId      String?
+  lotId             String
+  dateEntree        DateTime @default(now())
+  dateSortie        DateTime?
+  quantiteEntree    Int
+  quantiteSortie    Int?
+  stockRestant      Int
+  patientNom        String?
+  prescripteurNom   String?
+  pharmacienId      String
+  numeroPage        Int
+  statut            String   @default("EN_STOCK")
+  createdAt         DateTime @default(now())
+
+  // Relations
+  pharmacie    Pharmacie    @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
+  medicament   Medicament   @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+  ordonnance   Ordonnance?  @relation(fields: [ordonnanceId], references: [id])
+  lot          Lot          @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  pharmacien   Utilisateur  @relation(fields: [pharmacienId], references: [id])
+
+  @@index([pharmacieId, medicamentId])
+  @@index([pharmacieId, dateEntree])
+}
+
 // === M12 — Communication ===
 
 model Notification {
@@ -1161,6 +1228,9 @@ model Notification {
   pharmacie   Pharmacie  @relation(fields: [pharmacieId], references: [id], onDelete: Cascade)
   utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
   patient     Patient?   @relation(fields: [patientId], references: [id])
+
+  @@index([pharmacieId, lu])
+  @@index([utilisateurId])
 }
 
 model CampagneSMS {
@@ -1385,16 +1455,17 @@ model CommandeGrossiste {
 }
 
 model CataloguePrix {
-  id             String   @id @default(uuid())
-  grossisteId    String
-  referenceGros  String
-  dci            String
-  nomCommercial  String
-  forme          String
-  dosage         String
-  prixAchat      Float
-  disponible     Boolean  @default(true)
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(uuid())
+  grossisteId     String
+  referenceGros   String
+  dci             String
+  nomCommercial   String
+  forme           String
+  dosage          String
+  prixAchat       Float
+  disponible      Boolean  @default(true)
+  delaiLivraison  Int      @default(3)
+  updatedAt       DateTime @updatedAt
 
   // Relations
   grossiste PartenaireGrossiste @relation(fields: [grossisteId], references: [id], onDelete: Cascade)
@@ -1632,6 +1703,7 @@ model RappelPatient {
   id              String   @id @default(uuid())
   comptePatientId String
   medicament      String
+  posologie       String   @default("")
   heure           String
   frequence       String
   actif           Boolean  @default(true)

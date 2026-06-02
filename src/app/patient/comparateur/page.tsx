@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Scale, Pill, QrCode, MessageCircle, ArrowRight, TrendingDown, Shield, Loader2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Scale, Pill, QrCode, MessageCircle, ArrowRight, TrendingDown, Shield, Loader2, ShoppingCart, Truck } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -16,8 +17,10 @@ interface PriceComparison {
   nomCommercial: string
   forme: string
   dosage: string
+  dci: string
   prixAchat: number
   disponible: boolean
+  delaiLivraison: number
 }
 
 interface GenericAlternative {
@@ -35,12 +38,21 @@ interface EmergencyCard {
   telephoneUrgence: string
 }
 
+interface CartItem {
+  nomCommercial: string
+  grossiste: string
+  prixAchat: number
+  quantite: number
+}
+
 export default function ComparateurPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMed, setSelectedMed] = useState<string | null>(null)
   const [comparisons, setComparisons] = useState<PriceComparison[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [sortBy, setSortBy] = useState<'price' | 'availability'>('price')
+  const [cart, setCart] = useState<CartItem[]>([])
   const [emergencyCard, setEmergencyCard] = useState<EmergencyCard>({
     nom: '',
     groupeSanguin: '',
@@ -52,7 +64,6 @@ export default function ComparateurPage() {
 
   const fetchPatientData = useCallback(async () => {
     try {
-      // Fetch emergency card data from patient profile
       const comptesRes = await fetch('/api/patient/comptes')
       if (comptesRes.ok) {
         const comptes = await comptesRes.json()
@@ -67,7 +78,6 @@ export default function ComparateurPage() {
         }
       }
 
-      // Fetch allergies from patients
       const patientRes = await fetch('/api/patients')
       if (patientRes.ok) {
         const patients = await patientRes.json()
@@ -80,12 +90,10 @@ export default function ComparateurPage() {
         }
       }
 
-      // Fetch generic alternatives from catalogue (medicaments with generics)
-      const catalogRes = await fetch('/api/grossistes/compare?dci=Paracétamol')
+      const catalogRes = await fetch('/api/grossistes/compare?search=Paracétamol')
       if (catalogRes.ok) {
         const data = await catalogRes.json()
         if (data.comparaison && Array.isArray(data.comparaison) && data.comparaison.length > 0) {
-          // Build generic alternatives from real catalogue data
           const alts: GenericAlternative[] = []
           const seen = new Set<string>()
           for (const item of data.comparaison) {
@@ -120,7 +128,7 @@ export default function ComparateurPage() {
     setLoading(true)
     setSearched(true)
     try {
-      const res = await fetch(`/api/grossistes/compare?dci=${encodeURIComponent(dci)}`)
+      const res = await fetch(`/api/grossistes/compare?search=${encodeURIComponent(dci)}`)
       if (res.ok) {
         const data = await res.json()
         setComparisons(data.comparaison || [])
@@ -134,14 +142,42 @@ export default function ComparateurPage() {
     }
   }
 
+  const handleAddToCart = (comp: PriceComparison) => {
+    const existing = cart.find(c => c.nomCommercial === comp.nomCommercial && c.grossiste === comp.grossiste)
+    if (existing) {
+      setCart(cart.map(c =>
+        c.nomCommercial === comp.nomCommercial && c.grossiste === comp.grossiste
+          ? { ...c, quantite: c.quantite + 1 }
+          : c
+      ))
+    } else {
+      setCart([...cart, { nomCommercial: comp.nomCommercial, grossiste: comp.grossiste, prixAchat: comp.prixAchat, quantite: 1 }])
+    }
+    toast.success(`${comp.nomCommercial} ajouté au panier`)
+  }
+
+  const sortedComparisons = [...comparisons].sort((a, b) => {
+    if (sortBy === 'price') return a.prixAchat - b.prixAchat
+    if (sortBy === 'availability') return (b.disponible ? 1 : 0) - (a.disponible ? 1 : 0)
+    return 0
+  })
+
   const popularDCIs = ['Paracétamol', 'Amoxicilline', 'Ibuprofène', 'Oméprazole', 'Metformine']
 
   return (
     <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
-      <h1 className="text-lg font-bold text-teal-800 flex items-center gap-2">
-        <Scale className="h-5 w-5 text-primary" />
-        Comparateur
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold text-teal-800 flex items-center gap-2">
+          <Scale className="h-5 w-5 text-primary" />
+          Comparateur
+        </h1>
+        {cart.length > 0 && (
+          <Badge className="bg-primary text-white border-0 text-xs gap-1">
+            <ShoppingCart className="h-3 w-3" />
+            {cart.reduce((s, c) => s + c.quantite, 0)}
+          </Badge>
+        )}
+      </div>
 
       <Tabs defaultValue="prix" className="w-full">
         <TabsList className="w-full bg-teal-50">
@@ -180,32 +216,68 @@ export default function ComparateurPage() {
             ))}
           </div>
 
+          {comparisons.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">Trier par :</span>
+              <Select value={sortBy} onValueChange={(v: 'price' | 'availability') => setSortBy(v)}>
+                <SelectTrigger className="h-7 text-xs w-36 border-teal-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="price">Prix croissant</SelectItem>
+                  <SelectItem value="availability">Disponibilité</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : comparisons.length > 0 ? (
+          ) : sortedComparisons.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">{comparisons.length} offre(s) de grossiste(s)</p>
-              {comparisons.sort((a, b) => a.prixAchat - b.prixAchat).map((comp, idx) => (
+              {sortedComparisons.map((comp, idx) => (
                 <motion.div key={`${comp.grossiste}-${comp.referenceGros}`} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                  <Card className={`border-teal-200 ${idx === 0 ? 'ring-1 ring-primary' : ''}`}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-900">{comp.grossiste}</p>
-                        <p className="text-[10px] text-muted-foreground">{comp.nomCommercial} — {comp.forme} {comp.dosage}</p>
-                        <p className="text-[10px] text-muted-foreground">Réf : {comp.referenceGros}</p>
-                        {comp.disponible ? (
-                          <Badge variant="secondary" className="text-[9px] bg-green-50 text-green-700 border-0 mt-0.5">Disponible</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[9px] bg-red-50 text-red-700 border-0 mt-0.5">Indisponible</Badge>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-primary">{comp.prixAchat.toLocaleString('fr-FR')} FCFA</p>
-                        {idx === 0 && (
-                          <Badge className="text-[9px] bg-green-50 text-green-700 border-0">
-                            <TrendingDown className="h-2.5 w-2.5 mr-0.5" /> Meilleur prix
-                          </Badge>
-                        )}
+                  <Card className={`border-teal-200 ${idx === 0 && sortBy === 'price' ? 'ring-1 ring-green-500' : ''}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-gray-900">{comp.grossiste}</p>
+                          <p className="text-[10px] text-muted-foreground">{comp.nomCommercial} — {comp.forme} {comp.dosage}</p>
+                          <p className="text-[10px] text-muted-foreground">Réf : {comp.referenceGros}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {comp.disponible ? (
+                              <Badge variant="secondary" className="text-[9px] bg-green-50 text-green-700 border-0">Disponible</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[9px] bg-red-50 text-red-700 border-0">Indisponible</Badge>
+                            )}
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <Truck className="h-3 w-3" />
+                              {comp.delaiLivraison} jour{comp.delaiLivraison > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <p className={`text-sm font-bold ${idx === 0 && sortBy === 'price' ? 'text-green-600' : 'text-primary'}`}>
+                            {comp.prixAchat.toLocaleString('fr-FR')} FCFA
+                          </p>
+                          {idx === 0 && sortBy === 'price' && (
+                            <Badge className="text-[9px] bg-green-50 text-green-700 border-0">
+                              <TrendingDown className="h-2.5 w-2.5 mr-0.5" /> Meilleur prix
+                            </Badge>
+                          )}
+                          {comp.disponible && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[9px] border-primary text-primary"
+                              onClick={() => handleAddToCart(comp)}
+                            >
+                              <ShoppingCart className="h-3 w-3 mr-1" />
+                              Ajouter
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -214,7 +286,7 @@ export default function ComparateurPage() {
               {comparisons.length > 1 && (
                 <div className="text-center">
                   <p className="text-xs text-green-700 font-medium">
-                    Économie max : {(comparisons[comparisons.length - 1].prixAchat - comparisons[0].prixAchat).toLocaleString('fr-FR')} FCFA
+                    Économie max : {(comparisons.reduce((max, c) => c.prixAchat > max ? c.prixAchat : max, 0) - comparisons.reduce((min, c) => c.prixAchat < min ? c.prixAchat : min, Infinity)).toLocaleString('fr-FR')} FCFA
                   </p>
                 </div>
               )}
@@ -231,6 +303,39 @@ export default function ComparateurPage() {
               <CardContent className="p-4 text-center">
                 <Scale className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-xs text-muted-foreground">Recherchez un médicament pour comparer les prix</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Cart summary */}
+          {cart.length > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="p-3">
+                <h3 className="text-xs font-semibold text-primary mb-2 flex items-center gap-1">
+                  <ShoppingCart className="h-3 w-3" />
+                  Mon panier ({cart.reduce((s, c) => s + c.quantite, 0)} article(s))
+                </h3>
+                {cart.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-1 border-b border-teal-50 last:border-0">
+                    <div>
+                      <p className="text-xs font-medium text-gray-900">{item.nomCommercial}</p>
+                      <p className="text-[9px] text-muted-foreground">{item.grossiste} × {item.quantite}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-primary">{(item.prixAchat * item.quantite).toLocaleString('fr-FR')} FCFA</span>
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => setCart(cart.filter((_, j) => j !== i))}>
+                        ×
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between mt-2 pt-2 border-t border-primary/20">
+                  <span className="text-xs font-semibold">Total</span>
+                  <span className="text-sm font-bold text-primary">{cart.reduce((s, c) => s + c.prixAchat * c.quantite, 0).toLocaleString('fr-FR')} FCFA</span>
+                </div>
+                <Button className="w-full mt-2 bg-primary hover:bg-teal-700 h-8 text-xs" onClick={() => toast.success('Commande envoyée !')}>
+                  Commander
+                </Button>
               </CardContent>
             </Card>
           )}
