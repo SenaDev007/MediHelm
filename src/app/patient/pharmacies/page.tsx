@@ -6,8 +6,9 @@ import { PharmacyCard } from '@/components/patient/pharmacy-card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MapPin, List, Crosshair, Filter, RefreshCw } from 'lucide-react'
+import { MapPin, List, Crosshair, Filter, RefreshCw, Columns } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 
 const PharmacyMap = dynamic(
   () => import('@/components/patient/pharmacy-map'),
@@ -48,16 +49,19 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c
 }
 
+type ViewMode = 'map' | 'list' | 'split'
+
 export default function PharmaciesPage() {
   const [pharmacies, setPharmacies] = useState<PharmacyResult[]>([])
   const [filteredPharmacies, setFilteredPharmacies] = useState<PharmacyResult[]>([])
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'map' | 'list'>('map')
+  const [viewMode, setViewMode] = useState<ViewMode>('split')
   const [userLat, setUserLat] = useState<number | undefined>()
   const [userLng, setUserLng] = useState<number | undefined>()
   const [selectedRadius, setSelectedRadius] = useState(10)
   const [geoError, setGeoError] = useState<string | null>(null)
   const [medicamentFilter, setMedicamentFilter] = useState<string | null>(null)
+  const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | undefined>()
 
   // Get URL params for medicament filter
   useEffect(() => {
@@ -146,6 +150,34 @@ export default function PharmaciesPage() {
     fetchPharmacies()
   }
 
+  const handlePharmacyClick = (id: string) => {
+    setSelectedPharmacyId(id)
+    // Scroll to the pharmacy card in the list
+    const element = document.getElementById(`pharmacy-${id}`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  const viewModeButtons: Array<{ mode: ViewMode; icon: React.ReactNode; label: string }> = [
+    { mode: 'split', icon: <Columns className="h-3 w-3 mr-1" />, label: 'Split' },
+    { mode: 'map', icon: <MapPin className="h-3 w-3 mr-1" />, label: 'Carte' },
+    { mode: 'list', icon: <List className="h-3 w-3 mr-1" />, label: 'Liste' },
+  ]
+
+  const mapPharmacies = filteredPharmacies.map(p => ({
+    id: p.id,
+    nom: p.nom,
+    adresse: p.adresse,
+    telephone: p.telephone,
+    latitude: p.latitude,
+    longitude: p.longitude,
+    estGarde: p.estGarde,
+    distance: p.distance,
+    ville: p.ville,
+    medicamentDispo: p.medicamentDispo,
+  }))
+
   return (
     <div className="px-4 py-4 max-w-lg mx-auto space-y-4">
       {/* Header */}
@@ -165,24 +197,18 @@ export default function PharmaciesPage() {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button
-            variant={viewMode === 'map' ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setViewMode('map')}
-          >
-            <MapPin className="h-3 w-3 mr-1" />
-            Carte
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setViewMode('list')}
-          >
-            <List className="h-3 w-3 mr-1" />
-            Liste
-          </Button>
+          {viewModeButtons.map(({ mode, icon, label }) => (
+            <Button
+              key={mode}
+              variant={viewMode === mode ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setViewMode(mode)}
+            >
+              {icon}
+              {label}
+            </Button>
+          ))}
         </div>
       </div>
 
@@ -228,28 +254,27 @@ export default function PharmaciesPage() {
             </Badge>
           ))}
         </div>
+        <Link href="/patient/urgence" className="ml-auto">
+          <Badge className="text-[10px] bg-red-600 text-white border-0 cursor-pointer hover:bg-red-700">
+            Urgence
+          </Badge>
+        </Link>
       </div>
 
       {/* Map View */}
-      {viewMode === 'map' && (
+      {(viewMode === 'map' || viewMode === 'split') && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           {!loading ? (
             <PharmacyMap
-              pharmacies={filteredPharmacies.map(p => ({
-                id: p.id,
-                nom: p.nom,
-                adresse: p.adresse,
-                telephone: p.telephone,
-                latitude: p.latitude,
-                longitude: p.longitude,
-                estGarde: p.estGarde,
-                distance: p.distance,
-              }))}
+              pharmacies={mapPharmacies}
               userLatitude={userLat}
               userLongitude={userLng}
+              selectedPharmacyId={selectedPharmacyId}
+              onPharmacyClick={handlePharmacyClick}
+              height={viewMode === 'split' ? '280px' : '400px'}
             />
           ) : (
             <Skeleton className="w-full h-[400px] rounded-xl" />
@@ -258,37 +283,45 @@ export default function PharmaciesPage() {
       )}
 
       {/* Pharmacy List */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filteredPharmacies.map((pharmacy) => (
-            <PharmacyCard
-              key={pharmacy.id}
-              id={pharmacy.id}
-              nom={pharmacy.nom}
-              adresse={pharmacy.adresse}
-              ville={pharmacy.ville}
-              telephone={pharmacy.telephone}
-              latitude={pharmacy.latitude}
-              longitude={pharmacy.longitude}
-              distance={pharmacy.distance}
-              estGarde={pharmacy.estGarde}
-              medicamentDispo={pharmacy.medicamentDispo}
-            />
-          ))}
-          {filteredPharmacies.length === 0 && (
-            <div className="text-center py-8">
-              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-900">Aucune pharmacie dans ce rayon</p>
-              <p className="text-xs text-muted-foreground mt-1">Augmentez le rayon de recherche</p>
+      {(viewMode === 'list' || viewMode === 'split') && (
+        <>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-32 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredPharmacies.map((pharmacy) => (
+                <div id={`pharmacy-${pharmacy.id}`} key={pharmacy.id}>
+                  <PharmacyCard
+                    id={pharmacy.id}
+                    nom={pharmacy.nom}
+                    adresse={pharmacy.adresse}
+                    ville={pharmacy.ville}
+                    telephone={pharmacy.telephone}
+                    latitude={pharmacy.latitude}
+                    longitude={pharmacy.longitude}
+                    distance={pharmacy.distance}
+                    estGarde={pharmacy.estGarde}
+                    medicamentDispo={pharmacy.medicamentDispo}
+                    onSelect={() => setSelectedPharmacyId(
+                      selectedPharmacyId === pharmacy.id ? undefined : pharmacy.id
+                    )}
+                  />
+                </div>
+              ))}
+              {filteredPharmacies.length === 0 && (
+                <div className="text-center py-8">
+                  <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm font-medium text-gray-900">Aucune pharmacie dans ce rayon</p>
+                  <p className="text-xs text-muted-foreground mt-1">Augmentez le rayon de recherche</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   )

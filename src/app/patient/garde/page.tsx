@@ -1,14 +1,30 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ShieldCheck, Phone, MapPin, Calendar, Clock } from 'lucide-react'
+import { ShieldCheck, Phone, MapPin, Calendar, Clock, Crosshair, RefreshCw, Eye, List } from 'lucide-react'
 import { SosButton } from '@/components/patient/sos-button'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { toast } from 'sonner'
+
+const PharmacyMap = dynamic(
+  () => import('@/components/patient/pharmacy-map'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[300px] rounded-xl border border-teal-200 bg-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <MapPin className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+          <p className="text-xs text-muted-foreground">Chargement de la carte...</p>
+        </div>
+      </div>
+    ),
+  }
+)
 
 interface GardePharmacy {
   id: string
@@ -22,12 +38,34 @@ interface GardePharmacy {
   heureDebut: string
   heureFin: string
   type: string
+  distance?: number
 }
 
 export default function GardePage() {
   const [todayGarde, setTodayGarde] = useState<GardePharmacy[]>([])
   const [weekGarde, setWeekGarde] = useState<Array<{ date: string; pharmacies: GardePharmacy[] }>>([])
   const [loading, setLoading] = useState(true)
+  const [showMap, setShowMap] = useState(true)
+  const [userLat, setUserLat] = useState<number | undefined>()
+  const [userLng, setUserLng] = useState<number | undefined>()
+  const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | undefined>()
+
+  // Get user geolocation
+  const getUserLocation = useCallback(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLat(position.coords.latitude)
+        setUserLng(position.coords.longitude)
+      },
+      () => { /* ignore */ },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    )
+  }, [])
+
+  useEffect(() => {
+    getUserLocation()
+  }, [getUserLocation])
 
   useEffect(() => {
     async function fetchGarde() {
@@ -35,7 +73,6 @@ export default function GardePage() {
         const res = await fetch('/api/pharmacies?garde=semaine')
         if (res.ok) {
           const data = await res.json()
-          // Process garde data
           const today = new Date().toISOString().split('T')[0]
           const gardeList: GardePharmacy[] = []
 
@@ -65,11 +102,9 @@ export default function GardePage() {
             })
           }
 
-          // Separate today and week
           const todayGar = gardeList.filter(g => g.planningDate.startsWith(today))
           setTodayGarde(todayGar)
 
-          // Group by date for the week
           const weekMap = new Map<string, GardePharmacy[]>()
           gardeList.forEach(g => {
             const existing = weekMap.get(g.planningDate) || []
@@ -95,17 +130,36 @@ export default function GardePage() {
     return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
   }
 
+  // Map data for today's garde pharmacies
+  const mapPharmacies = todayGarde.map(g => ({
+    id: g.id,
+    nom: g.nom,
+    adresse: g.adresse,
+    telephone: g.telephone,
+    latitude: g.latitude,
+    longitude: g.longitude,
+    estGarde: true,
+    ville: g.ville,
+  }))
+
   return (
     <div className="px-4 py-4 max-w-lg mx-auto space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-lg font-bold text-teal-800 flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          Pharmacie de garde
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1">
-          Pharmacies ouvertes en dehors des heures normales
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-teal-800 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            Pharmacie de garde
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Pharmacies ouvertes en dehors des heures normales
+          </p>
+        </div>
+        <Link href="/patient/urgence">
+          <Button size="sm" className="h-8 text-xs bg-red-600 hover:bg-red-700">
+            Urgence
+          </Button>
+        </Link>
       </div>
 
       {/* SOS Button */}
@@ -115,6 +169,35 @@ export default function GardePage() {
           pharmacieNom={todayGarde[0].nom}
         />
       )}
+
+      {/* Interactive Map */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            Carte des pharmacies de garde
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setShowMap(!showMap)}
+          >
+            {showMap ? <List className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />}
+            {showMap ? 'Liste' : 'Carte'}
+          </Button>
+        </div>
+        {showMap && (
+          <PharmacyMap
+            pharmacies={mapPharmacies}
+            userLatitude={userLat}
+            userLongitude={userLng}
+            selectedPharmacyId={selectedPharmacyId}
+            onPharmacyClick={setSelectedPharmacyId}
+            height="300px"
+          />
+        )}
+      </div>
 
       {/* Today's Garde */}
       <div>
@@ -142,7 +225,7 @@ export default function GardePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className="border-primary/30 bg-gradient-to-br from-teal-50 to-white">
+                <Card className={`border-primary/30 ${selectedPharmacyId === g.id ? 'ring-1 ring-primary' : 'bg-gradient-to-br from-teal-50 to-white'}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -167,12 +250,20 @@ export default function GardePage() {
                           Appeler
                         </Button>
                       </a>
-                      <Link href={`/patient/pharmacies?direction=true`} className="flex-1">
-                        <Button size="sm" variant="outline" className="w-full h-8 text-xs border-primary text-primary">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          Itinéraire
-                        </Button>
-                      </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-8 text-xs border-primary text-primary"
+                        onClick={() => {
+                          setSelectedPharmacyId(g.id)
+                          if (g.latitude && g.longitude) {
+                            window.open(`https://www.openstreetmap.org/directions?from=&to=${g.latitude},${g.longitude}`, '_blank')
+                          }
+                        }}
+                      >
+                        <MapPin className="h-3 w-3 mr-1" />
+                        Itinéraire
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

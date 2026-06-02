@@ -17,7 +17,7 @@ const quickActions = [
   { href: '/patient/recherche', icon: Search, label: 'Rechercher\nmédicament', color: 'bg-primary/10 text-primary' },
   { href: '/patient/pharmacies', icon: MapPin, label: 'Pharmacies\nproches', color: 'bg-blue-brand/10 text-blue-brand' },
   { href: '/patient/garde', icon: ShieldCheck, label: 'Pharmacie\nde garde', color: 'bg-amber-400/10 text-amber-600' },
-  { href: '/patient/verifier', icon: QrCode, label: 'Vérifier\nmédicament', color: 'bg-teal-800/10 text-teal-800' },
+  { href: '/patient/urgence', icon: Shield, label: 'Carte\nurgence', color: 'bg-red-500/10 text-red-600' },
   { href: '/patient/vaccinations', icon: Syringe, label: 'Carnet\nvaccination', color: 'bg-green-600/10 text-green-700' },
   { href: '/patient/comparateur', icon: Star, label: 'Comparateur\nprix', color: 'bg-purple-600/10 text-purple-700' },
 ]

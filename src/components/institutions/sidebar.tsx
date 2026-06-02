@@ -60,14 +60,17 @@ const navigationByRole: Record<InstitutionRole, NavItem[]> = {
     { href: '/institutions/dpmed', label: 'Tableau de bord', icon: <Activity className="h-4 w-4" /> },
     { href: '/institutions/dpmed/alertes', label: 'Alertes DPMED', icon: <AlertTriangle className="h-4 w-4" /> },
     { href: '/institutions/dpmed/alertes/nouvelle', label: 'Nouvelle alerte', icon: <FileText className="h-4 w-4" /> },
+    { href: '/institutions/dpmed/carte', label: 'Carte couverture', icon: <Map className="h-4 w-4" /> },
     { href: '/institutions/dpmed/pharmacovigilance', label: 'Pharmacovigilance', icon: <Heart className="h-4 w-4" /> },
     { href: '/institutions/dpmed/conformite', label: 'Conformité', icon: <ClipboardCheck className="h-4 w-4" /> },
   ],
   SOBAPS_VIEWER: [
     { href: '/institutions/sobaps', label: 'Tableau de bord', icon: <Activity className="h-4 w-4" /> },
+    { href: '/institutions/sobaps/carte', label: 'Carte officines', icon: <Map className="h-4 w-4" /> },
   ],
   ABRP_VIEWER: [
     { href: '/institutions/abrp', label: 'Tableau de bord', icon: <Activity className="h-4 w-4" /> },
+    { href: '/institutions/abrp/carte', label: 'Carte approvisionnement', icon: <Map className="h-4 w-4" /> },
   ],
   GROSSISTE_PARTNER: [
     { href: '/institutions', label: 'Portail Grossiste', icon: <Building2 className="h-4 w-4" /> },
