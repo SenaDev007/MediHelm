@@ -224,3 +224,31 @@ Stage Summary:
 - All 6 interactive maps now have test data
 - Build passes successfully
 - GitHub push blocked by expired token — user needs to provide new token
+
+---
+Task ID: mapbox-migration
+Agent: Main Agent
+Task: Migrate interactive maps from Leaflet/OpenStreetMap to Mapbox GL JS
+
+Work Log:
+- Uninstalled: leaflet, react-leaflet, react-leaflet-cluster, @types/leaflet
+- Installed: mapbox-gl, react-map-gl, supercluster
+- Added NEXT_PUBLIC_MAPBOX_TOKEN to .env (and .env.local)
+- Rewrote PharmacyMap: react-map-gl/mapbox + supercluster clustering + custom SVG markers + NavigationControl + GeolocateControl
+- Rewrote CoverageMap: react-map-gl/mapbox + supercluster + status-colored markers + legend
+- Rewrote BeninSupplyMap: react-map-gl/mapbox + GeoJSON Source/Layer for circles + label markers
+- Updated globals.css with Mapbox popup and control styling (rounded, branded)
+- Used mapbox://styles/mapbox/streets-v12 as default style
+- Directions now via Google Maps Directions API instead of OpenStreetMap
+- All 6 pages verified: dynamic imports still work, no Leaflet references remain
+- Build passes successfully
+- Pushed to GitHub (force push after cleaning .env from history)
+
+Stage Summary:
+- Complete migration from Leaflet to Mapbox GL JS
+- 3 components fully rewritten with Mapbox native features
+- Custom markers, clustering via supercluster, GeoJSON layers
+- GeolocateControl for user position tracking
+- Google Maps directions integration
+- CSS branded popups and controls
+- Token: pk.eyJ1Ijoic2VuYWRldiIs... (public token, safe for client-side)
