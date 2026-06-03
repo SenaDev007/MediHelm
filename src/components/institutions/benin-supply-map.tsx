@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import Map, { Marker, Popup, NavigationControl, Layer, Source } from 'react-map-gl/mapbox'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
+import 'mapbox-gl/dist/mapbox-gl.css'
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
 interface SupplyMapProps {
   data: Array<{
@@ -44,29 +46,15 @@ function getSupplyLabel(score: number): string {
   return 'Sous-approvisionné'
 }
 
-function MapBoundsUpdater({ data }: { data: SupplyMapProps['data'] }) {
-  const map = useMap()
-  const initialized = useRef(false)
-
-  useEffect(() => {
-    if (initialized.current || data.length === 0) return
-    initialized.current = true
-
-    const bounds = L.latLngBounds(
-      data.map(d => {
-        const centre = d.centre || DEPT_CENTERS[d.departement]
-        return centre ? [centre.lat, centre.lng] as [number, number] : [6.3703, 2.3912] as [number, number]
-      })
-    )
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [30, 30] })
-    }
-  }, [data, map])
-
-  return null
-}
-
 export function BeninSupplyMap({ data, height = '500px' }: SupplyMapProps) {
+  const mapRef = useRef<MapRef>(null)
+  const [viewState, setViewState] = useState({
+    longitude: 2.3,
+    latitude: 9.3,
+    zoom: 6,
+  })
+  const [popupInfo, setPopupInfo] = useState<SupplyMapProps['data'][0] | null>(null)
+
   const enrichedData = useMemo(() =>
     data.map(d => ({
       ...d,
@@ -75,96 +63,153 @@ export function BeninSupplyMap({ data, height = '500px' }: SupplyMapProps) {
     [data]
   )
 
+  // Build GeoJSON circle features for each department
+  const circleFeatures = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: enrichedData.map(d => ({
+      type: 'Feature' as const,
+      properties: {
+        departement: d.departement,
+        score: d.scoreApprovisionnement,
+        color: getSupplyColor(d.scoreApprovisionnement),
+        pharmaciesCount: d.pharmaciesCount || 0,
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [d.centre.lng, d.centre.lat] as [number, number],
+      },
+    })),
+  }), [enrichedData])
+
+  // Auto-fit bounds
+  useEffect(() => {
+    if (enrichedData.length === 0 || !mapRef.current) return
+    const bounds: [number, number, number, number] = [
+      Math.min(...enrichedData.map(d => d.centre!.lng)) - 1,
+      Math.min(...enrichedData.map(d => d.centre!.lat)) - 1,
+      Math.max(...enrichedData.map(d => d.centre!.lng)) + 1,
+      Math.max(...enrichedData.map(d => d.centre!.lat)) + 1,
+    ]
+    mapRef.current.fitBounds(bounds as LngLatBoundsLike, { padding: 30 })
+  }, [enrichedData])
+
+  const handleMove = useCallback((evt: { viewState: typeof viewState }) => {
+    setViewState(evt.viewState)
+  }, [])
+
   return (
     <div className="w-full rounded-xl overflow-hidden border border-teal-200" style={{ height }}>
-      <MapContainer
-        center={[9.3, 2.3]}
-        zoom={7}
-        scrollWheelZoom={true}
-        className="h-full w-full"
-        style={{ height: '100%' }}
+      <Map
+        ref={mapRef}
+        {...viewState}
+        onMove={handleMove}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapboxAccessToken={MAPBOX_TOKEN}
+        scrollZoom
+        attributionControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <NavigationControl position="top-right" />
 
-        {enrichedData.map((d) => (
-          <div key={d.departement}>
-            {/* Colored circle showing supply level */}
-            <Circle
-              center={[d.centre.lat, d.centre.lng]}
-              radius={30000}
-              pathOptions={{
-                color: getSupplyColor(d.scoreApprovisionnement),
-                fillColor: getSupplyColor(d.scoreApprovisionnement),
-                fillOpacity: 0.35,
-                weight: 2,
-              }}
-            >
-              <Popup>
-                <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 180 }}>
-                  <strong style={{ fontSize: 14, color: '#085041' }}>{d.departement}</strong>
-                  <div style={{ marginTop: 6 }}>
-                    <div style={{
-                      fontSize: 20, fontWeight: 700,
-                      color: getSupplyColor(d.scoreApprovisionnement),
-                    }}>
-                      {d.scoreApprovisionnement}%
-                    </div>
-                    <div style={{
-                      fontSize: 11,
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      display: 'inline-block',
-                      background: getSupplyColor(d.scoreApprovisionnement) + '20',
-                      color: getSupplyColor(d.scoreApprovisionnement),
-                    }}>
-                      {getSupplyLabel(d.scoreApprovisionnement)}
-                    </div>
-                  </div>
-                  {d.pharmaciesCount !== undefined && (
-                    <div style={{ fontSize: 12, marginTop: 6, color: '#666' }}>
-                      {d.pharmaciesCount} pharmacie(s)
-                    </div>
-                  )}
-                  {d.dciEnTension && d.dciEnTension.length > 0 && (
-                    <div style={{ marginTop: 6 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#E24B4A' }}>DCI en tension :</div>
-                      {d.dciEnTension.slice(0, 5).map((dci, i) => (
-                        <div key={i} style={{ fontSize: 11, color: '#666' }}>- {dci}</div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Popup>
-            </Circle>
+        {/* Department supply circles */}
+        <Source id="supply-circles" type="geojson" data={circleFeatures}>
+          <Layer
+            id="supply-circle"
+            type="circle"
+            paint={{
+              'circle-radius': [
+                'interpolate', ['linear'], ['zoom'],
+                5, 20,
+                8, 40,
+                12, 60,
+              ],
+              'circle-color': ['get', 'color'],
+              'circle-opacity': 0.35,
+              'circle-stroke-color': ['get', 'color'],
+              'circle-stroke-width': 2,
+              'circle-stroke-opacity': 0.8,
+            }}
+          />
+        </Source>
 
-            {/* Department label marker */}
+        {/* Department label markers */}
+        {enrichedData.map((d) => {
+          const color = getSupplyColor(d.scoreApprovisionnement)
+          return (
             <Marker
-              position={[d.centre.lat, d.centre.lng]}
-              icon={L.divIcon({
-                html: `<div style="
-                  background:white;
-                  border:2px solid ${getSupplyColor(d.scoreApprovisionnement)};
-                  border-radius:6px;
-                  padding:2px 8px;
-                  font-size:11px;
-                  font-weight:600;
-                  color:${getSupplyColor(d.scoreApprovisionnement)};
-                  white-space:nowrap;
-                  box-shadow:0 1px 4px rgba(0,0,0,0.15);
-                ">${d.departement} — ${d.scoreApprovisionnement}%</div>`,
-                className: '',
-                iconSize: [120, 22],
-                iconAnchor: [60, 11],
-              })}
-            />
-          </div>
-        ))}
+              key={d.departement}
+              longitude={d.centre!.lng}
+              latitude={d.centre!.lat}
+              anchor="center"
+            >
+              <button
+                onClick={() => setPopupInfo(d)}
+                className="border-0 bg-transparent cursor-pointer p-0"
+              >
+                <div
+                  style={{
+                    background: 'white',
+                    border: `2px solid ${color}`,
+                    borderRadius: 6,
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: color,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                  }}
+                >
+                  {d.departement} — {d.scoreApprovisionnement}%
+                </div>
+              </button>
+            </Marker>
+          )
+        })}
 
-        <MapBoundsUpdater data={enrichedData} />
-      </MapContainer>
+        {/* Popup */}
+        {popupInfo && (
+          <Popup
+            longitude={popupInfo.centre!.lng}
+            latitude={popupInfo.centre!.lat}
+            anchor="bottom"
+            offset={[0, -10] as [number, number]}
+            closeOnClick={false}
+            onClose={() => setPopupInfo(null)}
+          >
+            <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 180, padding: 4 }}>
+              <strong style={{ fontSize: 14, color: '#085041' }}>{popupInfo.departement}</strong>
+              <div style={{ marginTop: 6 }}>
+                <div style={{
+                  fontSize: 20, fontWeight: 700,
+                  color: getSupplyColor(popupInfo.scoreApprovisionnement),
+                }}>
+                  {popupInfo.scoreApprovisionnement}%
+                </div>
+                <div style={{
+                  fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                  display: 'inline-block',
+                  background: getSupplyColor(popupInfo.scoreApprovisionnement) + '20',
+                  color: getSupplyColor(popupInfo.scoreApprovisionnement),
+                }}>
+                  {getSupplyLabel(popupInfo.scoreApprovisionnement)}
+                </div>
+              </div>
+              {popupInfo.pharmaciesCount !== undefined && (
+                <div style={{ fontSize: 12, marginTop: 6, color: '#666' }}>
+                  {popupInfo.pharmaciesCount} pharmacie(s)
+                </div>
+              )}
+              {popupInfo.dciEnTension && popupInfo.dciEnTension.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#E24B4A' }}>DCI en tension :</div>
+                  {popupInfo.dciEnTension.slice(0, 5).map((dci, i) => (
+                    <div key={i} style={{ fontSize: 11, color: '#666' }}>- {dci}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Popup>
+        )}
+      </Map>
     </div>
   )
 }

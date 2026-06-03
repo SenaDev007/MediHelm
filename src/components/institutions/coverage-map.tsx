@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
-import MarkerClusterGroup from 'react-leaflet-cluster'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import Map, { Marker, Popup, NavigationControl, Source, Layer } from 'react-map-gl/mapbox'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
+import SuperCluster from 'supercluster'
+import 'mapbox-gl/dist/mapbox-gl.css'
+
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
 interface CoverageMapProps {
   pharmacies: Array<{
@@ -30,60 +32,67 @@ const STATUT_CONFIG: Record<string, { color: string; label: string; bgColor: str
   none: { color: '#9ca3af', label: 'Non notifiée', bgColor: '#f3f4f6' },
 }
 
-function createPharmacyIcon(statut: string): L.DivIcon {
+// Status marker SVG
+function StatusMarker({ statut, onClick }: { statut: string; onClick: () => void }) {
   const config = STATUT_CONFIG[statut] || STATUT_CONFIG.none
-  return L.divIcon({
-    html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
-      <path d="M14 0C6.3 0 0 6.3 0 14c0 10 14 22 14 22s14-12 14-22C28 6.3 21.7 0 14 0z" fill="${config.color}"/>
-      <circle cx="14" cy="13" r="5" fill="white" opacity="0.9"/>
-    </svg>`,
-    className: '',
-    iconSize: [28, 36],
-    iconAnchor: [14, 36],
-    popupAnchor: [0, -36],
-  })
+  const size = 32
+
+  return (
+    <button
+      onClick={onClick}
+      className="border-0 bg-transparent cursor-pointer p-0"
+      style={{ width: size, height: size + 8 }}
+    >
+      <svg width={size} height={size + 8} viewBox={`0 0 ${size} ${size + 8}`}>
+        <path
+          d={`M${size/2} 0C${size * 0.225} 0 0 ${size * 0.225} 0 ${size/2}c0 ${size * 0.375} ${size/2} ${size/2 + 8} ${size/2} ${size/2 + 8}s${size/2}-${size * 0.375 + 8} ${size/2}-${size/2 + 8}C${size} ${size * 0.225} ${size * 0.775} 0 ${size/2} 0z`}
+          fill={config.color}
+          stroke="white"
+          strokeWidth="2"
+        />
+        <circle cx={size/2} cy={size/2 - 2} r="5" fill="white" opacity="0.9" />
+      </svg>
+    </button>
+  )
 }
 
-const clusterIcon = (cluster: L.MarkerCluster) => {
-  const count = cluster.getChildCount()
-  const size = count < 10 ? 38 : count < 50 ? 48 : 56
-  return L.divIcon({
-    html: `<div style="
-      background:rgba(8,80,65,0.9);
-      color:white;
-      border-radius:50%;
-      width:${size}px;
-      height:${size}px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:700;
-      font-size:${size < 48 ? 13 : 16}px;
-      border:3px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,0.3);
-    ">${count}</div>`,
-    className: '',
-    iconSize: L.point(size, size, true),
-  })
-}
+// Cluster marker for coverage map
+function CoverageClusterMarker({ count, longitude, latitude, onClick }: {
+  count: number
+  longitude: number
+  latitude: number
+  onClick: () => void
+}) {
+  const size = count < 10 ? 42 : count < 50 ? 54 : 64
 
-function MapBoundsUpdater({ pharmacies }: { pharmacies: CoverageMapProps['pharmacies'] }) {
-  const map = useMap()
-  const initialized = useRef(false)
-
-  useEffect(() => {
-    if (initialized.current) return
-    const valid = pharmacies.filter(p => p.latitude && p.longitude)
-    if (valid.length === 0) return
-    initialized.current = true
-
-    const bounds = L.latLngBounds(
-      valid.map(p => [p.latitude!, p.longitude!])
-    )
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 })
-  }, [pharmacies, map])
-
-  return null
+  return (
+    <Marker longitude={longitude} latitude={latitude} anchor="center">
+      <button
+        onClick={onClick}
+        className="border-0 bg-transparent cursor-pointer p-0"
+        style={{ width: size, height: size }}
+      >
+        <div
+          style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: 'rgba(8,80,65,0.9)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+            fontSize: size < 50 ? 13 : 16,
+            border: '3px solid white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+        >
+          {count}
+        </div>
+      </button>
+    </Marker>
+  )
 }
 
 export function CoverageMap({
@@ -92,10 +101,95 @@ export function CoverageMap({
   title = 'Carte de couverture',
   mode = 'dpmed',
 }: CoverageMapProps) {
+  const mapRef = useRef<MapRef>(null)
+  const [viewState, setViewState] = useState({
+    longitude: 2.3,
+    latitude: 9.3,
+    zoom: 6,
+  })
+  const [popupInfo, setPopupInfo] = useState<CoverageMapProps['pharmacies'][0] | null>(null)
+  const [clusters, setClusters] = useState<Array<{
+    properties: { cluster?: boolean; pharmacyId?: string; statut?: string; point_count?: number }
+    geometry: { coordinates: [number, number] }
+  }>>([])
+
+  const superclusterRef = useRef<SuperCluster | null>(null)
+
   const validPharmacies = useMemo(
     () => pharmacies.filter(p => p.latitude && p.longitude),
     [pharmacies]
   )
+
+  const points = useMemo(() =>
+    validPharmacies.map(p => ({
+      type: 'Feature' as const,
+      properties: {
+        cluster: false,
+        pharmacyId: p.id,
+        statut: p.statutAcquittement || 'none',
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [p.longitude!, p.latitude!] as [number, number],
+      },
+    })),
+    [validPharmacies]
+  )
+
+  // Initialize supercluster
+  useEffect(() => {
+    const sc = new SuperCluster({
+      radius: 60,
+      maxZoom: 16,
+      map: (props) => ({ count: 1 }),
+      reduce: (acc, props) => { acc.count += props.count },
+    })
+    sc.load(points)
+    superclusterRef.current = sc
+  }, [points])
+
+  const updateClusters = useCallback(() => {
+    if (!superclusterRef.current || !mapRef.current) return
+    const map = mapRef.current.getMap()
+    const bounds = map.getBounds()
+    const zoom = Math.floor(map.getZoom())
+
+    const bbox: [number, number, number, number] = [
+      bounds.getWest(),
+      bounds.getSouth(),
+      bounds.getEast(),
+      bounds.getNorth(),
+    ]
+
+    setClusters(superclusterRef.current.getClusters(bbox, zoom) as typeof clusters)
+  }, [])
+
+  // Auto-fit bounds
+  useEffect(() => {
+    if (validPharmacies.length === 0 || !mapRef.current) return
+    const bounds: [number, number, number, number] = [
+      Math.min(...validPharmacies.map(p => p.longitude!)),
+      Math.min(...validPharmacies.map(p => p.latitude!)),
+      Math.max(...validPharmacies.map(p => p.longitude!)),
+      Math.max(...validPharmacies.map(p => p.latitude!)),
+    ]
+    mapRef.current.fitBounds(bounds as LngLatBoundsLike, { padding: 40, maxZoom: 12 })
+  }, [validPharmacies])
+
+  const handleMove = useCallback((evt: { viewState: typeof viewState }) => {
+    setViewState(evt.viewState)
+    updateClusters()
+  }, [updateClusters])
+
+  const handleMapLoad = useCallback(() => {
+    updateClusters()
+  }, [updateClusters])
+
+  const handleClusterClick = useCallback((clusterId: number, lng: number, lat: number) => {
+    if (!superclusterRef.current) return
+    const zoom = superclusterRef.current.getClusterExpansionZoom(clusterId)
+    mapRef.current?.flyTo({ center: [lng, lat], zoom, duration: 500 })
+  }, [])
 
   // Stats
   const stats = useMemo(() => {
@@ -107,6 +201,17 @@ export function CoverageMap({
     })
     return s
   }, [pharmacies])
+
+  // Display items
+  const displayItems = useMemo(() => {
+    return clusters.map(c => {
+      if (c.properties.cluster) {
+        return { type: 'cluster' as const, count: c.properties.point_count || 0, lng: c.geometry.coordinates[0], lat: c.geometry.coordinates[1] }
+      }
+      const pharmacy = validPharmacies.find(p => p.id === c.properties.pharmacyId)
+      return pharmacy ? { type: 'pharmacy' as const, pharmacy } : null
+    }).filter(Boolean) as Array<{ type: 'pharmacy'; pharmacy: CoverageMapProps['pharmacies'][0] } | { type: 'cluster'; count: number; lng: number; lat: number }>
+  }, [clusters, validPharmacies])
 
   return (
     <div className="space-y-4">
@@ -128,70 +233,91 @@ export function CoverageMap({
 
       {/* Map */}
       <div className="w-full rounded-xl overflow-hidden border border-teal-200" style={{ height }}>
-        <MapContainer
-          center={[9.3, 2.3]}
-          zoom={7}
-          scrollWheelZoom={true}
-          className="h-full w-full"
-          style={{ height: '100%' }}
+        <Map
+          ref={mapRef}
+          {...viewState}
+          onMove={handleMove}
+          onLoad={handleMapLoad}
+          mapStyle="mapbox://styles/mapbox/streets-v12"
+          mapboxAccessToken={MAPBOX_TOKEN}
+          scrollZoom
+          attributionControl={false}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <NavigationControl position="top-right" />
 
-          <MarkerClusterGroup
-            chunkedLoading
-            iconCreateFunction={clusterIcon}
-            maxClusterRadius={60}
-            spiderfyOnMaxZoom
-            showCoverageOnHover={false}
-          >
-            {validPharmacies.map((p) => (
+          {displayItems.map((item, idx) => {
+            if (item.type === 'cluster') {
+              return (
+                <CoverageClusterMarker
+                  key={`cluster-${idx}`}
+                  count={item.count}
+                  longitude={item.lng}
+                  latitude={item.lat}
+                  onClick={() => handleClusterClick(idx, item.lng, item.lat)}
+                />
+              )
+            }
+
+            const p = item.pharmacy
+            if (!p.latitude || !p.longitude) return null
+
+            return (
               <Marker
                 key={p.id}
-                position={[p.latitude!, p.longitude!]}
-                icon={createPharmacyIcon(p.statutAcquittement || 'none')}
+                longitude={p.longitude}
+                latitude={p.latitude}
+                anchor="bottom"
               >
-                <Popup>
-                  <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 180 }}>
-                    <strong style={{ fontSize: 14, color: '#085041' }}>{p.nom}</strong>
-                    <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{p.ville}</div>
-                    <div style={{ marginTop: 6 }}>
-                      <span style={{
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        background: (STATUT_CONFIG[p.statutAcquittement || 'none'] || STATUT_CONFIG.none).bgColor,
-                        color: (STATUT_CONFIG[p.statutAcquittement || 'none'] || STATUT_CONFIG.none).color,
-                        fontWeight: 600,
-                      }}>
-                        {(STATUT_CONFIG[p.statutAcquittement || 'none'] || STATUT_CONFIG.none).label}
-                      </span>
-                    </div>
-                    {p.alerteTitre && (
-                      <div style={{ fontSize: 11, marginTop: 6, color: '#666' }}>
-                        Alerte : {p.alerteTitre}
-                      </div>
-                    )}
-                    {p.dateNotification && (
-                      <div style={{ fontSize: 10, marginTop: 4, color: '#999' }}>
-                        Notifiée le {new Date(p.dateNotification).toLocaleDateString('fr-FR')}
-                      </div>
-                    )}
-                    {mode === 'sobaps' && (
-                      <div style={{ fontSize: 10, marginTop: 4, color: '#666' }}>
-                        Dernière livraison confirmée
-                      </div>
-                    )}
-                  </div>
-                </Popup>
+                <StatusMarker
+                  statut={p.statutAcquittement || 'none'}
+                  onClick={() => setPopupInfo(p)}
+                />
               </Marker>
-            ))}
-          </MarkerClusterGroup>
+            )
+          })}
 
-          <MapBoundsUpdater pharmacies={pharmacies} />
-        </MapContainer>
+          {/* Popup */}
+          {popupInfo && popupInfo.latitude && popupInfo.longitude && (
+            <Popup
+              longitude={popupInfo.longitude}
+              latitude={popupInfo.latitude}
+              anchor="bottom"
+              offset={[0, -10] as [number, number]}
+              closeOnClick={false}
+              onClose={() => setPopupInfo(null)}
+            >
+              <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 180, padding: 4 }}>
+                <strong style={{ fontSize: 14, color: '#085041' }}>{popupInfo.nom}</strong>
+                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{popupInfo.ville}</div>
+                <div style={{ marginTop: 6 }}>
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 4,
+                    background: (STATUT_CONFIG[popupInfo.statutAcquittement || 'none'] || STATUT_CONFIG.none).bgColor,
+                    color: (STATUT_CONFIG[popupInfo.statutAcquittement || 'none'] || STATUT_CONFIG.none).color,
+                    fontWeight: 600,
+                  }}>
+                    {(STATUT_CONFIG[popupInfo.statutAcquittement || 'none'] || STATUT_CONFIG.none).label}
+                  </span>
+                </div>
+                {popupInfo.alerteTitre && (
+                  <div style={{ fontSize: 11, marginTop: 6, color: '#666' }}>
+                    Alerte : {popupInfo.alerteTitre}
+                  </div>
+                )}
+                {popupInfo.dateNotification && (
+                  <div style={{ fontSize: 10, marginTop: 4, color: '#999' }}>
+                    Notifiée le {new Date(popupInfo.dateNotification).toLocaleDateString('fr-FR')}
+                  </div>
+                )}
+                {mode === 'sobaps' && (
+                  <div style={{ fontSize: 10, marginTop: 4, color: '#666' }}>
+                    Dernière livraison confirmée
+                  </div>
+                )}
+              </div>
+            </Popup>
+          )}
+        </Map>
       </div>
     </div>
   )
