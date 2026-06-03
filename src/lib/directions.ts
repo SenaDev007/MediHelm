@@ -3,9 +3,10 @@
  *
  * Features:
  * - Uses user's current position as origin (if available)
- * - Sets the pharmacy as destination with its name as a place label
+ * - Sets the pharmacy as destination with its name as a searchable label
  * - Defaults to driving mode
  * - Falls back to destination-only if user position is unavailable
+ * - Uses destination name for Google Maps business listing lookup
  *
  * @see https://developers.google.com/maps/documentation/urls/get-started#directions-feature
  */
@@ -36,34 +37,52 @@ export function buildDirectionsUrl({
   const params = new URLSearchParams()
   params.set('api', '1')
 
-  // Origin: user's current position
+  // Origin: user's current position for personalized routing
   if (originLat !== undefined && originLng !== undefined) {
     params.set('origin', `${originLat},${originLng}`)
   }
 
-  // Destination: pharmacy coordinates + name as place ID
-  // Using destination=place_id format doesn't work with coordinates,
-  // so we use the coordinates and set the destination name via the URL fragment
-  const encodedName = destName ? encodeURIComponent(destName) : ''
-  params.set('destination', encodedName ? `${encodedName}@${destLat},${destLng}` : `${destLat},${destLng}`)
+  // Destination: use pharmacy name for Google Maps search
+  // Google Maps will match the name to a business listing if it exists,
+  // and use coordinates as fallback for precise positioning
+  if (destName) {
+    // Include city and country for better search results in Benin
+    const searchQuery = `${destName}, Bénin`
+    params.set('destination', encodeURIComponent(searchQuery))
+    // Also provide coordinates via the center parameter for precision
+    params.set('destination_place_id', `${destLat},${destLng}`)
+  } else {
+    params.set('destination', `${destLat},${destLng}`)
+  }
 
   // Travel mode
   params.set('travelmode', travelMode)
 
-  // Directionsb waypoints action
+  // Auto-navigate action
   params.set('dir_action', 'navigate')
 
   return `https://www.google.com/maps/dir/?${params.toString()}`
 }
 
 /**
- * Build a simple Google Maps link to show a place on the map
- * (without directions — just pin the location)
+ * Build a personalized Google Maps link to show a place on the map
+ * (without directions — just pin the location with a search query)
+ *
+ * This uses the search endpoint so Google Maps can find the actual
+ * business listing with photos, reviews, hours, etc.
  */
 export function buildMapUrl(lat: number, lng: number, name?: string): string {
-  const encodedName = name ? encodeURIComponent(name) : ''
-  if (encodedName) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodedName}&center=${lat},${lng}`
+  const params = new URLSearchParams()
+  params.set('api', '1')
+
+  if (name) {
+    // Search for the pharmacy by name — Google Maps will show the
+    // business listing if it exists (with reviews, hours, photos)
+    params.set('query', encodeURIComponent(name))
+    params.set('query_place_id', `${lat},${lng}`)
+  } else {
+    params.set('query', `${lat},${lng}`)
   }
-  return `https://www.google.com/maps/@?api=1&map_action=map&center=${lat},${lng}&zoom=16`
+
+  return `https://www.google.com/maps/search/?${params.toString()}`
 }

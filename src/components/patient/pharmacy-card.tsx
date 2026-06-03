@@ -3,8 +3,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Phone, Navigation, ShieldCheck } from 'lucide-react'
-import { buildDirectionsUrl } from '@/lib/directions'
+import { MapPin, Phone, Navigation, ShieldCheck, ExternalLink } from 'lucide-react'
+import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
 
 interface PharmacyCardProps {
   id: string
@@ -47,6 +47,10 @@ export function PharmacyCard({
       })
     : '#'
 
+  const mapUrl = latitude && longitude
+    ? buildMapUrl(latitude, longitude, `${nom} ${ville} Bénin`)
+    : '#'
+
   return (
     <Card
       className="hover:shadow-md transition-shadow border-teal-200 cursor-pointer"
@@ -56,9 +60,18 @@ export function PharmacyCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-gray-900 text-sm truncate">{nom}</h3>
+              {/* Pharmacy icon + name */}
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <svg width={10} height={10} viewBox="0 0 10 10" fill="#1D9E75">
+                    <rect x={3.5} y={1} width={3} height={8} rx={0.5} />
+                    <rect x={1} y={3.5} width={8} height={3} rx={0.5} />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-sm truncate">{nom}</h3>
+              </div>
               {estGarde && (
-                <Badge className="text-[10px] bg-primary text-white border-0">
+                <Badge className="text-[10px] bg-amber-500 text-white border-0">
                   <ShieldCheck className="h-3 w-3 mr-0.5" /> Garde
                 </Badge>
               )}
@@ -108,6 +121,20 @@ export function PharmacyCard({
             <Navigation className="h-3 w-3 mr-1" />
             Itinéraire
           </Button>
+          {mapUrl !== '#' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-muted-foreground hover:text-primary"
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(mapUrl, '_blank')
+              }}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Google Maps
+            </Button>
+          )}
           <a href={`tel:${telephone}`} onClick={(e) => e.stopPropagation()}>
             <Button size="sm" className="h-8 text-xs bg-primary hover:bg-teal-700">
               <Phone className="h-3 w-3 mr-1" />

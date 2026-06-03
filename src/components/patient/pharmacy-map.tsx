@@ -5,7 +5,7 @@ import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl,
 import type { MapRef, MapLayerMouseEvent, LngLatBoundsLike } from 'react-map-gl/mapbox'
 import SuperCluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { buildDirectionsUrl } from '@/lib/directions'
+import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
@@ -31,46 +31,86 @@ interface PharmacyMapProps {
   showClusters?: boolean
 }
 
-// Pharmacy marker SVG component
+// ─── Pharmacy Marker with cross icon ────────────────────────────────────────
 function PharmacyMarker({ estGarde, isSelected, onClick }: {
   estGarde?: boolean
   isSelected?: boolean
   onClick: () => void
 }) {
-  const size = isSelected ? 44 : 36
+  const size = isSelected ? 48 : 38
+  const pinH = size + 12
   const color = isSelected ? '#085041' : estGarde ? '#EF9F27' : '#1D9E75'
-  const label = estGarde ? 'G' : '+'
+
+  // Cross dimensions (pharmacy ✚)
+  const arm = size * 0.22
+  const thick = size * 0.09
 
   return (
     <button
       onClick={onClick}
       className="border-0 bg-transparent cursor-pointer p-0"
-      style={{ width: size, height: size + 8 }}
+      style={{ width: size, height: pinH }}
     >
-      <svg width={size} height={size + 8} viewBox={`0 0 ${size} ${size + 8}`}>
+      <svg width={size} height={pinH} viewBox={`0 0 ${size} ${pinH}`}>
+        {/* Shadow */}
+        <ellipse cx={size / 2} cy={pinH - 1} rx={size * 0.22} ry={2.5} fill="rgba(0,0,0,0.12)" />
+
+        {/* Pin shape */}
         <path
-          d={`M${size/2} 0C${size * 0.225} 0 0 ${size * 0.225} 0 ${size/2}c0 ${size * 0.375} ${size/2} ${size/2 + 8} ${size/2} ${size/2 + 8}s${size/2}-${size * 0.375 + 8} ${size/2}-${size/2 + 8}C${size} ${size * 0.225} ${size * 0.775} 0 ${size/2} 0z`}
+          d={`M${size / 2} 2C${size * 0.24} 2 2 ${size * 0.24} 2 ${size / 2}c0 ${size * 0.36} ${size / 2 - 2} ${size / 2 + 9} ${size / 2 - 2} ${size / 2 + 9}s${size / 2 - 2}-${size * 0.36 + 9} ${size / 2 - 2}-${size / 2 + 9}C${size - 2} ${size * 0.24} ${size * 0.76} 2 ${size / 2} 2z`}
           fill={color}
           stroke="white"
-          strokeWidth="2"
+          strokeWidth="2.5"
         />
-        <text
-          x={size/2}
-          y={size/2 + 2}
-          textAnchor="middle"
-          fill="white"
-          fontSize={isSelected ? 16 : 13}
-          fontWeight="bold"
-          fontFamily="system-ui, sans-serif"
-        >
-          {label}
-        </text>
+
+        {/* Inner white circle background */}
+        <circle cx={size / 2} cy={size / 2 - 1} r={size * 0.24} fill="white" opacity="0.2" />
+
+        {/* Pharmacy cross ✚ */}
+        <g transform={`translate(${size / 2}, ${size / 2 - 1})`}>
+          <rect x={-thick / 2} y={-arm} width={thick} height={arm * 2} rx={1.5} fill="white" />
+          <rect x={-arm} y={-thick / 2} width={arm * 2} height={thick} rx={1.5} fill="white" />
+        </g>
+
+        {/* Garde badge */}
+        {estGarde && (
+          <>
+            <circle cx={size - 5} cy={7} r={6} fill="#EF9F27" stroke="white" strokeWidth="1.5" />
+            <text
+              x={size - 5}
+              y={10.5}
+              textAnchor="middle"
+              fill="white"
+              fontSize={8}
+              fontWeight="bold"
+              fontFamily="system-ui, sans-serif"
+            >
+              G
+            </text>
+          </>
+        )}
+
+        {/* Selected pulse ring */}
+        {isSelected && (
+          <circle
+            cx={size / 2}
+            cy={size / 2 - 1}
+            r={size * 0.42}
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            opacity="0.4"
+          >
+            <animate attributeName="r" from={size * 0.35} to={size * 0.5} dur="1s" repeatCount="indefinite" />
+            <animate attributeName="opacity" from="0.4" to="0" dur="1s" repeatCount="indefinite" />
+          </circle>
+        )}
       </svg>
     </button>
   )
 }
 
-// Cluster marker component
+// ─── Cluster marker component ───────────────────────────────────────────────
 function ClusterMarker({ count, longitude, latitude, onClick }: {
   count: number
   longitude: number
@@ -91,7 +131,7 @@ function ClusterMarker({ count, longitude, latitude, onClick }: {
             width: size,
             height: size,
             borderRadius: '50%',
-            background: 'rgba(29,158,117,0.9)',
+            background: 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
@@ -99,7 +139,7 @@ function ClusterMarker({ count, longitude, latitude, onClick }: {
             fontWeight: 700,
             fontSize: size < 50 ? 14 : 18,
             border: '3px solid white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            boxShadow: '0 2px 12px rgba(29,158,117,0.4)',
           }}
         >
           {count}
@@ -272,8 +312,12 @@ export default function PharmacyMap({
         {userLatitude && userLongitude && (
           <Marker longitude={userLongitude} latitude={userLatitude} anchor="center">
             <div className="relative">
-              <div className="w-6 h-6 rounded-full bg-[#378ADD] border-[3px] border-white shadow-lg" />
-              <div className="absolute -top-1.5 -left-1.5 w-9 h-9 rounded-full border-2 border-[#378ADD] opacity-40 animate-ping" />
+              <div className="w-7 h-7 rounded-full bg-[#378ADD] border-[3px] border-white shadow-lg flex items-center justify-center">
+                <svg width={12} height={12} viewBox="0 0 12 12" fill="none">
+                  <circle cx={6} cy={6} r={3} fill="white" opacity="0.8" />
+                </svg>
+              </div>
+              <div className="absolute -top-2 -left-2 w-11 h-11 rounded-full border-2 border-[#378ADD] opacity-40 animate-ping" />
             </div>
           </Marker>
         )}
@@ -314,7 +358,7 @@ export default function PharmacyMap({
           )
         })}
 
-        {/* Popup */}
+        {/* Popup — Personalized MédiHelm design */}
         {popupInfo && popupInfo.latitude && popupInfo.longitude && (
           <Popup
             longitude={popupInfo.longitude}
@@ -325,46 +369,156 @@ export default function PharmacyMap({
             onClose={() => setPopupInfo(null)}
             className="medihelm-popup"
           >
-            <div style={{ minWidth: 200, fontFamily: 'system-ui, sans-serif', padding: 4 }}>
-              <strong style={{ fontSize: 14, color: '#085041' }}>{popupInfo.nom}</strong>
-              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                {popupInfo.adresse}{popupInfo.ville ? `, ${popupInfo.ville}` : ''}
-              </div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>{popupInfo.telephone}</div>
-              {popupInfo.estGarde && (
-                <div style={{ color: '#EF9F27', fontWeight: 600, fontSize: 12, marginTop: 4 }}>
-                  Pharmacie de garde
-                </div>
-              )}
-              {popupInfo.distance !== undefined && (
-                <div style={{ fontSize: 12, marginTop: 4, color: '#1D9E75', fontWeight: 600 }}>
-                  {popupInfo.distance.toFixed(1)} km
-                </div>
-              )}
-              {popupInfo.medicamentDispo !== undefined && (
+            <div style={{
+              minWidth: 220,
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              padding: 0,
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}>
+              {/* Header bar */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)',
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
                 <div style={{
-                  fontSize: 11, marginTop: 4, padding: '2px 6px', borderRadius: 4,
-                  display: 'inline-block',
-                  background: popupInfo.medicamentDispo ? '#dcfce7' : '#fef2f2',
-                  color: popupInfo.medicamentDispo ? '#166534' : '#991b1b',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}>
-                  {popupInfo.medicamentDispo ? 'Médicament disponible' : 'Indisponible'}
+                  {/* Pharmacy cross icon */}
+                  <svg width={16} height={16} viewBox="0 0 16 16" fill="white">
+                    <rect x={6} y={2} width={4} height={12} rx={1} />
+                    <rect x={2} y={6} width={12} height={4} rx={1} />
+                  </svg>
                 </div>
-              )}
-              <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'white', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {popupInfo.nom}
+                  </div>
+                  {popupInfo.estGarde && (
+                    <div style={{ fontSize: 10, color: '#FFD700', fontWeight: 600, marginTop: 1 }}>
+                      ⭐ Pharmacie de garde
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '8px 12px 10px' }}>
+                {/* Address */}
+                <div style={{ fontSize: 12, color: '#555', display: 'flex', alignItems: 'flex-start', gap: 4, lineHeight: 1.3 }}>
+                  <span style={{ flexShrink: 0, marginTop: 1 }}>📍</span>
+                  <span>{popupInfo.adresse}{popupInfo.ville ? `, ${popupInfo.ville}` : ''}</span>
+                </div>
+
+                {/* Phone */}
                 <a
                   href={`tel:${popupInfo.telephone}`}
-                  style={{ padding: '4px 10px', background: '#1D9E75', color: 'white', borderRadius: 6, textDecoration: 'none', fontSize: 11 }}
+                  style={{ fontSize: 12, color: '#1D9E75', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontWeight: 500 }}
                 >
-                  Appeler
+                  📞 {popupInfo.telephone}
                 </a>
+
+                {/* Distance */}
+                {popupInfo.distance !== undefined && (
+                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#1D9E75',
+                      background: '#E1F5EE',
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                    }}>
+                      {popupInfo.distance.toFixed(1)} km
+                    </span>
+                  </div>
+                )}
+
+                {/* Medication availability */}
+                {popupInfo.medicamentDispo !== undefined && (
+                  <div style={{
+                    fontSize: 11, marginTop: 4, padding: '2px 8px', borderRadius: 10,
+                    display: 'inline-block',
+                    background: popupInfo.medicamentDispo ? '#dcfce7' : '#fef2f2',
+                    color: popupInfo.medicamentDispo ? '#166534' : '#991b1b',
+                    fontWeight: 600,
+                  }}>
+                    {popupInfo.medicamentDispo ? '✓ Médicament disponible' : '✗ Indisponible'}
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+                  <a
+                    href={`tel:${popupInfo.telephone}`}
+                    style={{
+                      flex: 1,
+                      padding: '6px 0',
+                      background: '#1D9E75',
+                      color: 'white',
+                      borderRadius: 8,
+                      textDecoration: 'none',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      display: 'block',
+                    }}
+                  >
+                    📞 Appeler
+                  </a>
+                  <a
+                    href={buildDirectionsUrl({
+                      destLat: popupInfo.latitude!,
+                      destLng: popupInfo.longitude!,
+                      destName: popupInfo.nom,
+                      originLat: userLatitude,
+                      originLng: userLongitude,
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      padding: '6px 0',
+                      background: 'white',
+                      color: '#1D9E75',
+                      borderRadius: 8,
+                      textDecoration: 'none',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      border: '1.5px solid #1D9E75',
+                      display: 'block',
+                    }}
+                  >
+                    🧭 Itinéraire
+                  </a>
+                </div>
+
+                {/* See on Google Maps */}
                 <a
-                  href={buildDirectionsUrl({ destLat: popupInfo.latitude!, destLng: popupInfo.longitude!, destName: popupInfo.nom, originLat: userLatitude, originLng: userLongitude })}
+                  href={buildMapUrl(popupInfo.latitude!, popupInfo.longitude!, `${popupInfo.nom} ${popupInfo.ville || ''} Bénin`)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ padding: '4px 10px', background: 'white', color: '#1D9E75', borderRadius: 6, textDecoration: 'none', fontSize: 11, border: '1px solid #1D9E75' }}
+                  style={{
+                    display: 'block',
+                    marginTop: 6,
+                    fontSize: 10,
+                    color: '#888',
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                  }}
                 >
-                  Itinéraire
+                  Voir sur Google Maps →
                 </a>
               </div>
             </div>
