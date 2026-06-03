@@ -257,7 +257,7 @@ export default function GardePage() {
                         onClick={() => {
                           setSelectedPharmacyId(g.id)
                           if (g.latitude && g.longitude) {
-                            window.open(`https://www.openstreetmap.org/directions?from=&to=${g.latitude},${g.longitude}`, '_blank')
+                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`, '_blank')
                           }
                         }}
                       >

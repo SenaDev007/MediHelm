@@ -33,7 +33,7 @@ export function PharmacyCard({
   onSelect,
 }: PharmacyCardProps) {
   const directionsUrl = latitude && longitude
-    ? `https://www.openstreetmap.org/directions?from=&to=${latitude},${longitude}`
+    ? `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`
     : '#'
 
   return (

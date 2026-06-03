@@ -41,7 +41,7 @@ const patientFeatures: PatientFeature[] = [
     id: "fp02",
     code: "F-P02",
     title: "Géolocalisation de pharmacies",
-    description: "OpenStreetMap",
+    description: "Mapbox",
     icon: MapPin,
   },
   {

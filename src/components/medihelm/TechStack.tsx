@@ -73,7 +73,7 @@ const techItems: TechItem[] = [
   },
   {
     category: "Cartes",
-    technology: "OpenStreetMap",
+    technology: "Mapbox",
     icon: Map,
     color: "#378ADD",
   },
