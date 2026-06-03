@@ -20,7 +20,7 @@ const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
 const PUBLIC_PATHS = ['/', '/patient', '/connexion']
-const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/patient/', '/_next/', '/favicon', '/logo']
+const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/patient/', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true
