@@ -10,6 +10,7 @@ import { SosButton } from '@/components/patient/sos-button'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { buildDirectionsUrl } from '@/lib/directions'
 
 const PharmacyMap = dynamic(
   () => import('@/components/patient/pharmacy-map'),
@@ -257,7 +258,7 @@ export default function GardePage() {
                         onClick={() => {
                           setSelectedPharmacyId(g.id)
                           if (g.latitude && g.longitude) {
-                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${g.latitude},${g.longitude}`, '_blank')
+                            window.open(buildDirectionsUrl({ destLat: g.latitude, destLng: g.longitude, destName: g.nom, originLat: userLat, originLng: userLng }), '_blank')
                           }
                         }}
                       >

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Siren, Phone, Navigation, Crosshair, Clock, RefreshCw, MapPin, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { buildDirectionsUrl } from '@/lib/directions'
 
 const PharmacyMap = dynamic(
   () => import('@/components/patient/pharmacy-map'),
@@ -245,7 +246,7 @@ export default function UrgencePage() {
                   className="flex-1 h-9 text-xs border-red-300 text-red-700"
                   onClick={() => {
                     if (nearestGarde.latitude && nearestGarde.longitude) {
-                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${nearestGarde.latitude},${nearestGarde.longitude}`, '_blank')
+                      window.open(buildDirectionsUrl({ destLat: nearestGarde.latitude, destLng: nearestGarde.longitude, destName: nearestGarde.nom, originLat: userLat, originLng: userLng }), '_blank')
                     }
                   }}
                 >
@@ -349,7 +350,7 @@ export default function UrgencePage() {
                         onClick={(e) => {
                           e.stopPropagation()
                           if (p.latitude && p.longitude) {
-                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`, '_blank')
+                            window.open(buildDirectionsUrl({ destLat: p.latitude, destLng: p.longitude, destName: p.nom, originLat: userLat, originLng: userLng }), '_blank')
                           }
                         }}
                       >

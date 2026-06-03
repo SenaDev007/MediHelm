@@ -5,6 +5,7 @@ import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl,
 import type { MapRef, MapLayerMouseEvent, LngLatBoundsLike } from 'react-map-gl/mapbox'
 import SuperCluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { buildDirectionsUrl } from '@/lib/directions'
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
@@ -358,7 +359,7 @@ export default function PharmacyMap({
                   Appeler
                 </a>
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${popupInfo.latitude},${popupInfo.longitude}`}
+                  href={buildDirectionsUrl({ destLat: popupInfo.latitude!, destLng: popupInfo.longitude!, destName: popupInfo.nom, originLat: userLatitude, originLng: userLongitude })}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ padding: '4px 10px', background: 'white', color: '#1D9E75', borderRadius: 6, textDecoration: 'none', fontSize: 11, border: '1px solid #1D9E75' }}

@@ -306,6 +306,8 @@ export default function PharmaciesPage() {
                     distance={pharmacy.distance}
                     estGarde={pharmacy.estGarde}
                     medicamentDispo={pharmacy.medicamentDispo}
+                    userLatitude={userLat}
+                    userLongitude={userLng}
                     onSelect={() => setSelectedPharmacyId(
                       selectedPharmacyId === pharmacy.id ? undefined : pharmacy.id
                     )}

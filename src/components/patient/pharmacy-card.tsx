@@ -3,7 +3,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Phone, Clock, Navigation, ShieldCheck } from 'lucide-react'
+import { MapPin, Phone, Navigation, ShieldCheck } from 'lucide-react'
+import { buildDirectionsUrl } from '@/lib/directions'
 
 interface PharmacyCardProps {
   id: string
@@ -16,6 +17,8 @@ interface PharmacyCardProps {
   distance?: number
   estGarde?: boolean
   medicamentDispo?: boolean
+  userLatitude?: number
+  userLongitude?: number
   onSelect?: () => void
 }
 
@@ -30,10 +33,18 @@ export function PharmacyCard({
   distance,
   estGarde = false,
   medicamentDispo,
+  userLatitude,
+  userLongitude,
   onSelect,
 }: PharmacyCardProps) {
   const directionsUrl = latitude && longitude
-    ? `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`
+    ? buildDirectionsUrl({
+        destLat: latitude,
+        destLng: longitude,
+        destName: nom,
+        originLat: userLatitude,
+        originLng: userLongitude,
+      })
     : '#'
 
   return (
@@ -91,7 +102,7 @@ export function PharmacyCard({
             className="flex-1 h-8 text-xs border-primary text-primary hover:bg-teal-50"
             onClick={(e) => {
               e.stopPropagation()
-              window.open(directionsUrl, '_blank')
+              if (directionsUrl !== '#') window.open(directionsUrl, '_blank')
             }}
           >
             <Navigation className="h-3 w-3 mr-1" />
