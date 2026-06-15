@@ -1,0 +1,302 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→L'Infrastructure Pharmaceutique Numérique du Bénin
+     4→POLITIQUE DE PRICING ET MODELE TARIFAIRE  —  VERSION 2.0
+     5→Grille tarifaire · Justifications · Comparaisons · Séquencement de lancement · Projections de revenus
+     6→Document confidentiel — YEHI OR Tech © 2025 — Reproduction interdite
+     7→Sommaire
+     8→1.   Philosophie tarifaire — les principes non négociables
+     9→2.   Analyse du marché et de la capacité de paiement
+    10→3.   Benchmark concurrentiel
+    11→4.   Grille tarifaire v2.0 — Plans MédiHelm Pro
+    12→5.   Justification détaillée des prix par plan
+    13→6.   Options et modules complémentaires
+    14→7.   Modèle tarifaire réseau — HELM NETWORK
+    15→8.   Monétisation espace patient — MédiHelm Patient
+    16→9.   Tarification partenaires institutionnels
+    17→10.  Comparaison v1.0 vs v2.0 — Justification de la hausse
+    18→11.  Séquencement de lancement — Beta, rampe, plein tarif
+    19→12.  Projections de revenus — Scénarios
+    20→13.  Politique commerciale — Remises, conditions, résiliation
+    21→14.  Règles de révision tarifaire
+    22→1. Philosophie Tarifaire — Les Principes Non Négociables
+    23→Ces cinq principes ne sont pas des slogans marketing. Ils sont des décisions stratégiques qui définissent le positionnement de MédiHelm face à AS PHARM — dont le pricing est opaque, négocié au cas par cas, et potentiellement discriminatoire selon la taille de l'officine.
+    24→La transparence tarifaire est elle-même un argument de vente. Quand un pharmacien peut comparer MédiHelm avec un concurrent en 30 secondes sur notre site, et que la comparaison lui est favorable, c'est une conversion sans intervention commerciale.
+    25→2. Analyse du Marché et de la Capacité de Paiement
+    26→2.1 Estimation du CA mensuel moyen d'une officine béninoise
+    27→Il n'existe pas de données publiques officielles sur le chiffre d'affaires des officines pharmaceutiques béninoises. L'estimation ci-dessous est construite par triangulation à partir des données disponibles sur la consommation pharmaceutique en Afrique subsaharienne, du nombre d'officines agréées au Bénin, et des observations terrain.
+    28→Sur cette base, un abonnement MédiHelm représente entre 0,1% et 0,66% du CA mensuel d'une officine, selon le plan et la taille de l'officine. Cette fourchette est universellement considérée comme acceptable pour un logiciel de gestion métier, y compris dans les marchés à faible revenu.
+    29→2.2 Le vrai coût du statu quo pour le pharmacien
+    30→Un pharmacien qui ne dispose pas de MédiHelm supporte des coûts cachés significatifs que le pricing doit mettre en évidence lors de la vente :
+    31→La somme des coûts cachés évitables se situe entre 55 000 et 250 000 FCFA par mois selon la taille de l'officine. L'abonnement MédiHelm (19 900 à 54 900 FCFA) représente entre 8% et 36% des coûts qu'il évite. C'est le ROI à présenter au pharmacien lors de la vente.
+    32→3. Benchmark Concurrentiel
+    33→3.1 Concurrents directs
+    34→3.2 Positionnement prix de MédiHelm
+    35→MédiHelm se positionne délibérément entre deux extrêmes :
+    36→Au-dessus des solutions gratuites (Excel, cahier) — parce que MédiHelm offre une valeur réelle, mesurable, et certifiée.
+    37→En dessous des solutions internationales (Maroc, Algérie, Europe) — parce que MédiHelm est conçu pour le contexte béninois, avec les paiements mobiles locaux, les intégrations DPMED/SoBAPS, et une tarification en FCFA.
+    38→À parité assumée avec AS PHARM sur le bas de gamme — parce que MédiHelm offre plus (espace patient, IA, modules institutionnels) pour un prix comparable ou légèrement supérieur.
+    39→4. Grille Tarifaire v2.0 — Plans MédiHelm Pro
+    40→4.1 Les quatre plans
+    41→4.2 Tableau comparatif détaillé
+    42→5. Justification Détaillée des Prix par Plan
+    43→5.1 HELM SEED — 19 900 FCFA/mois
+    44→Le plan SEED cible les petites officines de quartier, souvent situées hors de Cotonou, avec un volume de transactions inférieur à 150 par mois. Son CA mensuel se situe entre 3 et 7 millions de FCFA.
+    45→À 19 900 FCFA, HELM SEED génère un ROI positif estimé dès le premier mois pour une petite officine. C'est le seuil d'entrée acceptable pour le marché de masse béninois tout en maintenant la rentabilité de YEHI OR Tech sur ce segment.
+    46→5.2 HELM GROW — 34 900 FCFA/mois
+    47→HELM GROW est le plan coeur de cible — le plus vendu en volume. Il cible les officines moyennes de Cotonou, Porto-Novo et Parakou, avec 150 à 500 transactions mensuelles et un CA de 7 à 20 millions de FCFA.
+    48→Le ROI de HELM GROW est particulièrement solide — il se justifie en moins de 5 minutes de conversation avec un pharmacien d'officine moyenne. C'est aussi le plan d'essai gratuit 30 jours, ce qui réduit la résistance à l'adoption.
+    49→5.3 HELM LEAD — 54 900 FCFA/mois
+    50→HELM LEAD cible les grandes officines de Cotonou — Boulevard Saint-Michel, Jonquet, Haie Vive, Cadjehoun, Fidjrossè. Ces officines réalisent plus de 20 millions de FCFA de CA mensuel et emploient plusieurs pharmaciens, caissiers et préparateurs. Pour elles, le logiciel est une nécessité opérationnelle, pas un luxe.
+    51→À 54 900 FCFA, HELM LEAD représente moins de 0,27% du CA d'une officine à 20 millions. Le positionnement premium se justifie par l'accès illimité aux utilisateurs, la certification DPMED complète avec exports automatisés, les prédictions IA avancées, et le support prioritaire avec interlocuteur téléphonique dédié.
+    52→5.4 HELM NETWORK — Sur devis
+    53→Le pricing réseau est volontairement sur devis pour trois raisons : la taille des réseaux varie de 2 à 20+ officines, les plans individuels des officines du réseau peuvent être mixtes (certaines GROW, d'autres LEAD), et l'accord réseau inclut des éléments non standardisables (onboarding multi-sites, formation équipe, SLA personnalisé). Le devis est toujours établi dans les 48 heures suivant la demande.
+    54→6. Options et Modules Complémentaires
+    55→7. Modèle Tarifaire Réseau — HELM NETWORK
+    56→7.1 Principes du pricing réseau
+    57→Le pricing réseau est dégressif : plus le réseau est grand, plus le coût par officine diminue. Ce mécanisme récompense les promoteurs qui font confiance à MédiHelm pour l'ensemble de leur réseau, et crée une incitation forte à centraliser la gestion sur une seule plateforme.
+    58→7.2 Grille dégressive
+    59→7.3 Ce qu'inclut HELM NETWORK en plus des plans individuels
+    60→Dashboard réseau consolidé : CA, stock, RH, alertes — toutes officines en un seul écran.
+    61→Gestion RH multi-sites : base employés centralisée, mutations inter-sites, masse salariale réseau.
+    62→Transferts de stock inter-sites : rééquilibrage automatique sur décision promoteur.
+    63→Commande groupée réseau : une commande UbiPharm pour toutes les officines simultanément.
+    64→Reporting consolidé mensuel : rapport automatique envoyé au promoteur chaque 1er du mois.
+    65→Score de conformité réseau : classement des officines par niveau de conformité DPMED.
+    66→Accès HELM NETWORK Admin : rôle PROMOTEUR avec visibilité totale sur tout le réseau.
+    67→8. Monétisation Espace Patient — MédiHelm Patient
+    68→8.1 Modèle freemium patient
+    69→L'espace patient est entièrement gratuit pour les utilisateurs finaux. Cette décision est stratégique et non négociable : une barrière tarifaire côté patient réduirait l'adoption, diminuerait la valeur de la plateforme pour les pharmaciens, et affaiblirait l'argument de recommandation auprès de la DPMED et de la SoBAPS.
+    70→8.2 Sources de revenus côté patient
+    71→8.3 Projection revenus patient — Année 1
+    72→Le revenu patient est un revenu complémentaire, pas un pilier. Le pilier de revenus de MédiHelm est et reste l'abonnement des pharmacies.
+    73→9. Tarification Partenaires Institutionnels
+    74→9.1 Principe — La gratuité institutionnelle comme investissement
+    75→Les portails institutionnels (DPMED, SoBAPS, ABRP, UbiPharm, Promopharma, Ordre des Pharmaciens) sont proposés gratuitement. Ce n'est pas une concession commerciale — c'est un investissement stratégique calculé. La recommandation d'un seul partenaire institutionnel peut valoir l'acquisition de 50 à 200 officines clientes sans aucun coût commercial direct.
+    76→9.2 Calcul du CAC évité grâce aux partenariats institutionnels
+    77→Sans partenariats institutionnels, le Coût d'Acquisition Client (CAC) de MédiHelm passerait par de la prospection commerciale directe — visite terrain, démonstration, relance. Estimation : 30 000 à 60 000 FCFA par client acquis (temps commercial + transport + matériaux).
+    78→Avec une recommandation DPMED touchant 600 officines, et un taux de conversion estimé à 15%, cela représente 90 clients potentiels à un CAC proche de zéro. La valeur monétaire d'un partenariat DPMED est estimée entre 2,7 et 5,4 millions de FCFA de CAC évité (90 clients × 30 000 à 60 000 FCFA).
+    79→10. Comparaison v1.0 vs v2.0 — Justification de la Hausse
+    80→10.1 Tableau de comparaison
+    81→10.2 Justification de la hausse en 4 arguments
+    82→Argument 1 — La valeur des modules institutionnels est directement monétisable
+    83→Les modules M16 (Pharmacovigilance), M18 (Alertes DPMED), M19 (Conformité) protègent le pharmacien contre des risques légaux réels. Une sanction DPMED pour registre des stupéfiants incomplet peut coûter entre 50 000 et 500 000 FCFA. L'abonnement MédiHelm qui l'évite se rembourse en un seul contrôle.
+    84→Argument 2 — L'intégration grossiste génère des économies mesurables
+    85→Une commande passée via API MédiHelm plutôt que par téléphone économise 15 à 20 minutes par commande. À 10 commandes par mois, c'est 150 à 200 minutes de temps pharmacien économisées — soit 12 500 à 17 000 FCFA de temps à 5 000 FCFA/heure. L'augmentation de 7 000 FCFA entre v1.0 et v2.0 SEED est couverte par cette seule économie.
+    86→Argument 3 — La recommandation institutionnelle augmente la valeur perçue
+    87→Un logiciel recommandé par la DPMED, la SoBAPS et UbiPharm a une valeur perçue plus élevée qu'un logiciel commercialisé seul. La légitimité institutionnelle justifie un positionnement prix premium. Les données marketing montrent qu'une recommandation institutionnelle augmente le prix acceptable de 25 à 40%.
+    88→Argument 4 — La comparaison internationale est favorable
+    89→Les logiciels de pharmacie proches en Afrique du Nord et au Sénégal se négocient entre 150 et 400 USD par mois pour des fonctionnalités inférieures à MédiHelm v2.0. À 34 900 FCFA (~58 USD), HELM GROW est entre 2,5 et 7 fois moins cher que la concurrence internationale comparable — avec un produit spécifiquement conçu pour le Bénin.
+    90→11. Séquencement de Lancement — Beta, Rampe, Plein Tarif
+    91→11.1 Condition préalable au plein tarif
+    92→11.2 Les trois phases tarifaires
+    93→11.3 Protection des early adopters
+    94→Les officines ayant souscrit pendant la phase beta payante (Mois 4-6) conservent leur tarif réduit pendant 6 mois supplémentaires après le passage au plein tarif. Elles sont ensuite migrées au plein tarif avec un préavis de 2 mois. C'est la récompense des pionniers — ceux qui ont fait confiance à MédiHelm avant les recommandations institutionnelles.
+    95→12. Projections de Revenus — Scénarios
+    96→12.1 Hypothèses de base
+    97→12.2 Scénario conservateur — An 1
+    98→12.3 Scénario optimiste — An 1 (avec partenariat UbiPharm actif)
+    99→12.4 Objectif An 2 — avec tous partenariats actifs
+   100→13. Politique Commerciale
+   101→13.1 Remises autorisées
+   102→13.2 Conditions générales d'abonnement
+   103→Essai gratuit 30 jours sur le plan HELM GROW — aucune carte bancaire requise à l'inscription.
+   104→Résiliation libre à tout moment sans préavis pour les abonnements mensuels.
+   105→Résiliation avec préavis de 30 jours pour les abonnements annuels — remboursement prorata des mois restants après déduction des 15% de remise annuelle.
+   106→Migration de plan : libre, sans frais, prise d'effet immédiate avec prorata du mois en cours.
+   107→Suspension de compte pour impayé : avertissement J+5, suspension J+15, résiliation J+30.
+   108→Conservation des données 90 jours après résiliation — export disponible sur demande.
+   109→13.3 Paiements acceptés
+   110→14. Règles de Révision Tarifaire
+   111→14.1 Politique de révision
+   112→Les prix MédiHelm peuvent être révisés une fois par an maximum, avec un préavis de 60 jours notifié par email à tous les abonnés actifs. La révision est plafonnée à +15% par an sauf circonstances extraordinaires (dévaluation du FCFA, inflation >10%, modification réglementaire majeure).
+   113→14.2 Versioning de ce document
+   114→MédiHelm Pricing v2.0  |  YEHI OR Tech © 2025  |  Document confidentiel — Reproduction interdite
+   115→
+   116→--- TABLES ---
+   117→Référence document | MH-PRICING-2025-v2.0
+   118→Version CDC associée | MH-CDC-2025-v2.0
+   119→Responsable | Dawes — Fondateur, YEHI OR Tech
+   120→Date | 2025
+   121→Marché cible | Bénin (phase 1) — Afrique de l'Ouest francophone (phase 2)
+   122→Devise | Franc CFA — XOF
+   123→Statut | Document interne — Confidentiel
+   124→Principe 1 — Transparence totale : tous les prix sont publics, sur le site, sans formulaire de contact.
+   125→Principe 2 — Tous modules dans tous les plans : aucune fonctionnalité verrouillée par palier.
+   126→Principe 3 — La conformité n'est pas un luxe : modules DPMED, pharmacovigilance et stupéfiants inclus dans STEM.
+   127→Principe 4 — Valeur justifiable : chaque centime doit être défendable face au pharmacien.
+   128→Principe 5 — Prévisibilité : le pharmacien ne découvre jamais de surprises sur sa facture.
+   129→Le principe 2 est le différenciateur commercial central : tous les 19 modules — y compris les 4 modules institutionnels M16, M17, M18, M19 — sont inclus dans tous les plans, y compris HELM SEED à 19 900 FCFA/mois. Un pharmacien de petite officine bénéficie exactement des mêmes fonctionnalités de conformité DPMED qu'une grande officine sur HELM LEAD.
+   130→Segment | CA mensuel estimé | Nb officines estimé | Part du CA en logiciel acceptable
+   131→Petite officine (quartier, ville secondaire) | 3 000 000 — 7 000 000 FCFA | ~300 officines (50%) | 0,3 à 0,6% du CA
+   132→Officine moyenne (Cotonou, axes principaux) | 7 000 000 — 20 000 000 FCFA | ~200 officines (33%) | 0,2 à 0,4% du CA
+   133→Grande officine (centre-ville, boulevard) | 20 000 000 — 50 000 000 FCFA | ~80 officines (13%) | 0,1 à 0,3% du CA
+   134→Très grande officine (Jonquet, Haie Vive...) | 50 000 000 FCFA et plus | ~20 officines (4%) | < 0,1% du CA
+   135→Coût caché actuel | Fréquence | Estimation mensuelle
+   136→Temps passé à passer des commandes par téléphone (8-12 commandes/mois × 15-20 min) | Mensuel | 2h à 4h de temps pharmacien — 5 000 à 12 000 FCFA
+   137→Pertes sur médicaments périmés non détectés à temps (1-3% du stock) | Mensuel | 30 000 à 150 000 FCFA selon taille officine
+   138→Ecarts de caisse non détectés (erreurs saisie manuelle) | Mensuel | 5 000 à 25 000 FCFA
+   139→Risque sanction DPMED — registre stupéfiants incomplet | Par inspection | 50 000 à 500 000 FCFA d'amende potentielle
+   140→Ruptures de stock non anticipées — ventes perdues | Mensuel | 15 000 à 60 000 FCFA de CA manqué
+   141→Concurrent | Type | Pricing | Fonctionnalités | Point faible
+   142→AS PHARM (Bénin) | Logiciel installé / SaaS partiel | Non public — négocié | Back-office pharmacie — bon stock et caisse | Zéro espace patient, zéro API grossiste, zéro IA, zéro modules institutionnels
+   143→PharMap (Bénin) | App mobile patient uniquement | Gratuit patient | Géolocalisation, recherche médicaments | Pas de back-office pharmacie — produit incomplet
+   144→Logiciels Maroc/Algérie | SaaS francophone | 150-400 USD/mois (~90 000-240 000 FCFA) | Gestion complète — non adapté Afrique subsaharienne | Prix inadaptés, pas de paiements mobiles locaux, pas d'intégration DPMED Bénin
+   145→Excel / cahier | Manuel | 0 FCFA | Aucune | Risque maximal : erreurs, pertes, non-conformité DPMED
+   146→MédiHelm n'essaie pas de battre AS PHARM sur le prix. Il le bat sur la valeur. Un pharmacien qui paie 19 900 FCFA à MédiHelm obtient 19 modules, une intégration DPMED, une API grossiste, et un espace patient — là où AS PHARM lui vend uniquement un back-office au même prix ou plus cher, sans transparence.
+   147→HELM SEED
+   148→19 900
+   149→FCFA / mois
+   150→16 900 FCFA/mois (annuel)
+   151→Petite officine | HELM GROW
+   152→34 900
+   153→FCFA / mois
+   154→29 500 FCFA/mois (annuel)
+   155→Officine moyenne | HELM LEAD
+   156→54 900
+   157→FCFA / mois
+   158→46 500 FCFA/mois (annuel)
+   159→Grande officine | HELM NETWORK
+   160→Sur devis
+   161→FCFA / mois
+   162→Sur devis FCFA/mois (annuel)
+   163→Réseau 2+ officines
+   164→HELM SEED | HELM GROW | HELM LEAD | HELM NETWORK
+   165→Cible | < 150 tx/mois | 150-500 tx/mois | 500-1 200 tx/mois | Réseau 2+ officines
+   166→Prix mensuel | 19 900 FCFA | 34 900 FCFA | 54 900 FCFA | Sur devis
+   167→Prix annuel (mois) | 16 900 FCFA | 29 500 FCFA | 46 500 FCFA | Négocié
+   168→Economie annuel | -15% | -15% | -15% | Personnalisé
+   169→Equivalence USD (~) | ≈ 33 USD | ≈ 58 USD | ≈ 91 USD | —
+   170→19 modules inclus | Tous | Tous | Tous | Tous + multi-sites
+   171→Modules M16-M19 (institutionnels) | Inclus | Inclus | Inclus | Inclus réseau
+   172→Alertes DPMED (M18) | Inclus | Inclus | Inclus | Inclus réseau
+   173→API grossiste (M17) | 1 grossiste | 2 grossistes | Illimité | Illimité réseau
+   174→Conformité DPMED (M19) | Basique | Complète | Certifiée + exports auto | Réseau certifié
+   175→Utilisateurs | Jusqu'à 3 | Jusqu'à 8 | Illimité | Illimité / site
+   176→Caissiers simultanés | 1 | 3 | Illimité | Illimité / site
+   177→Patients enregistrés | 500 | 5 000 | Illimité | Illimité
+   178→Stockage documents | 2 Go | 10 Go | 50 Go | 100 Go+
+   179→Analytics IA | Hebdomadaire | Quotidien | Quotidien + prédictions | Quotidien + réseau
+   180→Mode offline POS | Inclus | Inclus | Inclus | Inclus
+   181→PWA mobile | Inclus | Inclus | Inclus | Inclus
+   182→Support | Email 72h | Email 24h + chat | Prioritaire + téléphone | Dédié + SLA
+   183→Onboarding | Tutoriels vidéo | Guidé en ligne | Assisté en présentiel | Sur mesure
+   184→Essai gratuit | 30 jours — plan GROW | 30 jours — plan GROW | 30 jours — plan GROW | Démo sur rdv
+   185→Indicateur | Calcul | Valeur
+   186→Part du CA mensuel bas | 19 900 / 3 000 000 | 0,66%
+   187→Part du CA mensuel haut | 19 900 / 7 000 000 | 0,28%
+   188→Gain mensuel estimé anti-pertes périmés | 1% de 3M = | 30 000 FCFA
+   189→Gain mensuel commandes API vs téléphone | 8 commandes × 15 min ÷ 60 × 10 000 FCFA/h | 20 000 FCFA
+   190→ROI mensuel estimé (gains - abonnement) | 50 000 - 19 900 | + 30 100 FCFA net
+   191→Indicateur | Calcul | Valeur
+   192→Part du CA mensuel bas | 34 900 / 7 000 000 | 0,50%
+   193→Part du CA mensuel haut | 34 900 / 20 000 000 | 0,17%
+   194→Gain anti-péremptions (1,5% de 10M) | 150 000 FCFA | 150 000 FCFA
+   195→Gain commandes API | 12 commandes × 20 min | 40 000 FCFA
+   196→Gain Analytics IA (ruptures évitées) | 2 ruptures évitées × 20 000 FCFA CA perdu | 40 000 FCFA
+   197→ROI mensuel estimé | 230 000 - 34 900 | + 195 100 FCFA net
+   198→Option | Prix mensuel | Description | Eligible à partir de
+   199→SMS patients Standard | 4 900 FCFA | Pack 500 SMS/mois — notifications commandes, rappels, alertes DPMED | SEED
+   200→SMS patients Pro | 8 900 FCFA | Pack 2 000 SMS/mois — campagnes + notifications | GROW
+   201→SMS patients Illimité | 14 900 FCFA | SMS illimités — grands réseaux et campagnes intensives | LEAD, NETWORK
+   202→Bilingue FR/EN | 3 000 FCFA | Interface en anglais pour le personnel — utile dans les officines à clientèle expatriée | SEED
+   203→Domaine personnalisé | 2 500 FCFA | votre-pharmacie.medihelm.com — branded pour les patients | GROW
+   204→API accès tiers | 9 900 FCFA | API REST ouverte pour intégration avec logiciels comptables ou ERP tiers | LEAD
+   205→Formation présentielle demi-journée | Sur devis (fixe) | Formation du personnel en officine — 3h — jusqu'à 8 personnes | Tous plans
+   206→Formation présentielle journée | Sur devis (fixe) | Formation complète — 7h — jusqu'à 15 personnes | Tous plans
+   207→Audit de conformité DPMED | Sur devis (annuel) | Revue complète de la conformité DPMED de l'officine par YEHI OR Tech | GROW, LEAD
+   208→Les SMS ne sont pas inclus dans les plans de base car leur consommation varie fortement d'une officine à l'autre. Inclure un pack SMS fixe dans le plan de base surchargerait les petites officines qui envoient peu de SMS. L'option à la carte est la solution la plus équitable.
+   209→Configuration réseau | Coefficient / officine | Exemple calcul | Economie vs tarif individuel
+   210→2-3 officines | × 0,75 du plan individuel | 3 officines GROW : 3 × 34 900 × 0,75 = 78 525 FCFA/mois | - 25%
+   211→4-7 officines | × 0,65 du plan individuel | 5 officines GROW : 5 × 34 900 × 0,65 = 113 425 FCFA/mois | - 35%
+   212→8-15 officines | × 0,55 du plan individuel | 10 officines GROW : 10 × 34 900 × 0,55 = 191 950 FCFA/mois | - 45%
+   213→16+ officines | Négocié — engagement annuel obligatoire | Contact YEHI OR Tech | - 45% à - 55%
+   214→Source | Modèle | Tarif | Condition
+   215→Commission Fedapay — paiement en ligne | 1,5% du montant de la commande | Plafond 500 FCFA / commande | Uniquement sur paiements en ligne (Wave, MTN, Moov, carte) — paiement sur place = 0%
+   216→Fonctionnalités premium patient (futur) | Abonnement optionnel | 2 500 à 4 900 FCFA/mois | Phase 2 — rappels avancés, carte urgence, consultation dossier, renouvellements automatiques
+   217→Publicité pharmacies locales (futur) | CPC ou sponsoring | À définir | Phase 3 — pharmacies sponsorisées dans les résultats de recherche
+   218→Hypothèse | Valeur
+   219→Commandes en ligne par mois (objectif fin an 1) | 500 commandes/mois
+   220→Montant moyen d'une commande | 8 000 FCFA
+   221→Commission MédiHelm (1,5%) | 120 FCFA / commande (plafond non atteint)
+   222→Revenu mensuel commission (fin an 1) | 60 000 FCFA/mois
+   223→Revenu annuel commission (an 1) | ~400 000 FCFA (montée progressive)
+   224→Note | Les revenus patient sont marginaux en an 1 — ils deviennent significatifs à partir d'an 2 avec 2 000+ commandes/mois
+   225→Partenaire | Accès MédiHelm | Tarif | Valeur estimée pour MédiHelm
+   226→DPMED | Portail alertes + pharmacovigilance | Gratuit | Label de conformité + recommandation officielle à 600 officines = acquisition potentielle de 200+ clients
+   227→SoBAPS | Portail confirmations livraisons | Gratuit | Recommandation à toutes les officines privées approvisionnées = accès à 400+ prospects qualifiés
+   228→ABRP | Tableau de bord agrégé anonymisé | Gratuit | Accréditation outil conforme + crédibilité institutionnelle = argument de vente différenciant
+   229→UbiPharm Bénin | Portail commandes + demande agrégée | Gratuit | Recommandation réseau 600 officines + co-marketing = réduction CAC (Coût Acquisition Client)
+   230→Promopharma | Portail commandes + demande agrégée | Gratuit | Même valeur qu'UbiPharm — pression concurrentielle inter-grossistes joue en notre faveur
+   231→Ordre Pharmaciens | Données agrégées anonymisées | Gratuit | Recommandation officielle aux membres = légitimité maximale auprès des pharmaciens
+   232→Plan | Prix v1.0 (mensuel) | Prix v2.0 (mensuel) | Hausse | Justification principale
+   233→Entrée de gamme | 12 900 FCFA | 19 900 FCFA | + 54% | + 4 modules institutionnels M16-M19, API grossiste 1 lien, certification DPMED basique
+   234→Intermédiaire | 22 900 FCFA | 34 900 FCFA | + 52% | API grossiste 2 liens, conformité DPMED complète, portail SoBAPS intégré
+   235→Haut de gamme | 38 900 FCFA | 54 900 FCFA | + 41% | API grossiste illimitée, certification DPMED automatisée, exports réglementaires complets
+   236→Annuel entrée | 10 900 FCFA | 16 900 FCFA | + 55% | Même valeur ajoutée que mensuel
+   237→Annuel intermédiaire | 19 500 FCFA | 29 500 FCFA | + 51% | Même valeur ajoutée que mensuel
+   238→Annuel haut de gamme | 33 000 FCFA | 46 500 FCFA | + 41% | Même valeur ajoutée que mensuel
+   239→CONDITION ABSOLUE : Le pricing v2.0 plein tarif (19 900 / 34 900 / 54 900 FCFA) n'est activé
+   240→que lorsqu'au minimum UN partenariat institutionnel est actif — DPMED ou UbiPharm ou SoBAPS.
+   241→Lancer au plein tarif sans recommandation institutionnelle = surestimation de la valeur perçue = rejet marché.
+   242→Phase | Timing | Tarif SEED | Tarif GROW | Tarif LEAD | Condition de passage
+   243→Phase Beta fermée | Mois 1-3 | Gratuit | Gratuit | Gratuit | 5 officines pilotes sélectionnées — feedback terrain obligatoire
+   244→Phase Lancement beta payante | Mois 4-6 | 13 900 FCFA | 24 500 FCFA | 38 500 FCFA | Démarrage de la commercialisation — avant partenariats actifs
+   245→Phase Plein tarif | Mois 7+ | 19 900 FCFA | 34 900 FCFA | 54 900 FCFA | Dès qu'un partenariat institutionnel (DPMED ou UbiPharm) est signé
+   246→Statut officine | Tarif pendant beta payante | Tarif après plein tarif activé | Durée protection
+   247→Officine beta fermée (pilote gratuit) | 0 FCFA pendant 3 mois | Tarif plein tarif avec - 20% pendant 6 mois | 6 mois post-lancement
+   248→Officine beta payante (mois 4-6) | Tarif réduit - 30% | Maintien tarif réduit pendant 6 mois supplémentaires | 6 mois post-plein tarif
+   249→Officine engagement annuel (tout moment) | - 15% annuel | Maintenu jusqu'à expiration de l'engagement | Durée de l'engagement
+   250→Hypothèse | Valeur | Justification
+   251→Officines béninoises adressables | 400 (sur 600 agréées) | Les 200 restantes sont trop petites ou non équipées smartphone
+   252→Taux de pénétration an 1 | 10-15% | 40-60 officines — objectif conservateur
+   253→Taux de pénétration an 2 | 25-35% | 100-140 officines — avec partenariats actifs
+   254→Mix plans (SEED / GROW / LEAD) | 40% / 45% / 15% | Majorité officines moyennes — peu de très grandes
+   255→Taux annualisation (mensuel vs annuel) | 30% annuel / 70% mensuel | Progressif vers l'annuel dès an 2
+   256→Churn mensuel estimé | 2-3% | Comparable SaaS B2B Afrique — logiciel de conformité = faible churn
+   257→Indicateur | Mois 4-6 (beta) | Mois 7-9 | Mois 10-12 | Total An 1
+   258→Officines abonnées | 5-10 | 25-35 | 40-55 | —
+   259→Revenu mensuel SEED (40%) | ~70 000 FCFA | ~350 000 FCFA | ~440 000 FCFA | ~2,5M FCFA
+   260→Revenu mensuel GROW (45%) | ~110 000 FCFA | ~590 000 FCFA | ~740 000 FCFA | ~4,2M FCFA
+   261→Revenu mensuel LEAD (15%) | ~58 000 FCFA | ~310 000 FCFA | ~412 000 FCFA | ~2,3M FCFA
+   262→Revenu mensuel total | ~240 000 FCFA | ~1 250 000 FCFA | ~1 590 000 FCFA | ~9 M FCFA
+   263→Indicateur | Mois 7-9 | Mois 10-12 | Total An 1 (optimiste)
+   264→Officines abonnées | 50-70 | 80-110 | —
+   265→Revenu mensuel SEED | ~700 000 FCFA | ~1 100 000 FCFA | ~5,4M FCFA
+   266→Revenu mensuel GROW | ~1 180 000 FCFA | ~1 850 000 FCFA | ~9,1M FCFA
+   267→Revenu mensuel LEAD | ~618 000 FCFA | ~824 000 FCFA | ~4,0M FCFA
+   268→Revenu mensuel total | ~2 500 000 FCFA | ~3 800 000 FCFA | ~18,5M FCFA
+   269→Indicateur | Valeur cible An 2
+   270→Officines abonnées Bénin | 150-200
+   271→Revenu mensuel récurrent (MRR) | 5 000 000 — 7 500 000 FCFA/mois
+   272→Revenu annuel récurrent (ARR) | 60 000 000 — 90 000 000 FCFA/an
+   273→Officines HELM NETWORK (promoteurs) | 10-15 réseaux (2-5 officines chacun)
+   274→Revenu commissions patient | 500 000 — 1 000 000 FCFA/mois
+   275→Revenu total estimé An 2 | 65 000 000 — 100 000 000 FCFA
+   276→Type de remise | Taux | Condition | Autorisation requise
+   277→Early adopter beta payante | - 30% pendant 6 mois | Souscription mois 4-6 uniquement | Automatique
+   278→Engagement annuel | - 15% | Paiement annuel en avance | Automatique
+   279→Partenaire DPMED certifié | - 10% supplémentaire | Obtention label conformité DPMED | Automatique
+   280→Introduction grossiste | - 20% trimestre 1 | Recommandation tracée UbiPharm ou Promopharma | Automatique
+   281→Réseau promoteur | - 25% à - 45% | Selon taille réseau (cf. section 7) | Automatique
+   282→Association pharmaciens | - 20% | Adhérent d'une association officielle reconnue | Sur validation YEHI OR Tech
+   283→Remise commerciale ponctuelle | Max - 15% | Cas exceptionnel — négociation directe | Validation fondateur obligatoire
+   284→Mode de paiement | Disponibilité | Frais Fedapay (à la charge du client)
+   285→Wave | Tous plans | 1,5% de la transaction
+   286→MTN Mobile Money | Tous plans | 1,5% de la transaction
+   287→Moov Money | Tous plans | 1,5% de la transaction
+   288→Carte bancaire (Visa, Mastercard) | GROW, LEAD, NETWORK | 2% de la transaction
+   289→Virement bancaire | LEAD, NETWORK annuel uniquement | 0% — paiement direct
+   290→Espèces (bureau YEHI OR Tech) | Tous plans — sur rendez-vous | 0%
+   291→Règle | Détail
+   292→Fréquence maximale | 1 révision tarifaire par an calendaire
+   293→Préavis obligatoire | 60 jours avant entrée en vigueur — notification email + notification in-app
+   294→Plafond de hausse | + 15% maximum par an sauf inflation > 10% ou dévaluation FCFA
+   295→Protection abonnés annuels | Les abonnements annuels en cours ne sont pas affectés jusqu'à leur renouvellement
+   296→Nouveaux modules | Tout nouveau module ajouté à un plan existant est inclus sans surcoût pour les abonnés actifs
+   297→Rétrogradation de plan | Toujours possible — prise d'effet à la prochaine période de facturation
+   298→Garantie de prix | Aucun abonné actif ne se verra appliquer une hausse supérieure à 15% sans accord exprès
+   299→Version | Date | Auteur | Modifications
+   300→v1.0 | 2025 | Dawes / YEHI OR Tech | Plans initiaux STEM/BLOOM/CROWN/NETWORK — fourchette 12 900 à 38 900 FCFA
+   301→v2.0 | 2025 | Dawes / YEHI OR Tech | Refonte complète — nouveaux plans SEED/GROW/LEAD/NETWORK — intégration modules institutionnels M16-M19 — pricing 19 900 à 54 900 FCFA — séquencement lancement — projections revenus
+   302→v3.0 | À définir | YEHI OR Tech | Révision après 12 mois d'exploitation — ajustements basés sur données réelles de conversion et churn

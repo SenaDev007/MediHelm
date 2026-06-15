@@ -1,0 +1,1002 @@
+  3501→--- Page 12/12 ---
+  3502→MédiHelm — Scan Code-barres Médicaments — Cahier des Charges v1.0
+  3503→10. Critères d'Acceptance
+  3504→ID Critère Test
+  3505→Un EAN-13 scanné au POS ajoute le Scanner Doliprane 500mg →
+  3506→CA-01
+  3507→médicament au panier en < 1s apparaît dans le panier
+  3508→Un DataMatrix GS1 scanné à la réception pré- Scanner boîte DataMatrix → lot et
+  3509→CA-02
+  3510→remplit lot + expiration date remplis automatiquement
+  3511→Scanner lot expiré → message
+  3512→CA-03 Un lot périmé scanné au POS est bloqué
+  3513→rouge, pas d'ajout au panier
+  3514→Un lot sous alerte DPMED affiche l'alerte Scanner lot rappelé → alerte
+  3515→CA-04
+  3516→avant toute action DPMED affichée en priorité
+  3517→Brancher lecteur USB, scanner →
+  3518→Le lecteur USB fonctionne sans cliquer sur un
+  3519→CA-05 médicament ajouté sans clic
+  3520→champ
+  3521→préalable
+  3522→Ouvrir POS sur téléphone
+  3523→CA-06 La caméra fonctionne sur Chrome Android Android, activer caméra, scanner
+  3524→→ résultat correct
+  3525→Un code inconnu déclenche la recherche Scanner code fictif → message +
+  3526→CA-07
+  3527→manuelle champ de recherche activé
+  3528→Couper internet, scanner
+  3529→CA-08 Le scan fonctionne en mode offline POS médicament → ajouté au panier
+  3530→SQLite
+  3531→Mesurer temps de réponse sur 50
+  3532→CA-09 L'endpoint POST /scan répond en < 300ms
+  3533→scans consécutifs
+  3534→Scanner médicament absent →
+  3535→Un médicament non référencé propose l'ajout
+  3536→CA-10 proposition d'ajout avec données
+  3537→au catalogue
+  3538→GS1
+  3539→MédiHelm Scan CDC v1.0 | YEHI OR Tech © 2025 | Confidentiel
+  3540→YEHI OR Tech | Confidentiel | Page 12 / 12
+  3541→
+  3542→
+  3543→################################################################################
+  3544→# FILE: MediHelm_Scan_Cursor_v1.0.pdf
+  3545→# PAGES: 9
+  3546→################################################################################
+  3547→--- Page 1/9 ---
+  3548→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3549→Y E H I O R T E C H
+  3550→MédiHelm
+  3551→PROMPT CURSOR — IMPLÉMENTATION SCAN CODE-BARRES v1.0
+  3552→Prompt de production prêt à coller dans Cursor AI
+  3553→Référence
+  3554→MH-SCAN-CURSOR-2025-v1.0
+  3555→Périmètre
+  3556→Scan EAN-13 · DataMatrix GS1 · Caméra PWA · Lecteur USB
+  3557→Modules
+  3558→M01 Stock · M02 POS · M01 Inventaire · M18 Vérification DPMED
+  3559→Priorité
+  3560→HAUTE — À implémenter après backend 16 modules
+  3561→Usage
+  3562→Coller dans Cursor — mode Agent — sélectionner toute la base de code
+  3563→Responsable
+  3564→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+  3565→Document confidentiel — YEHI OR Tech © 2025
+  3566→YEHI OR Tech | Confidentiel | Page 1 / 9
+  3567→
+  3568→--- Page 2/9 ---
+  3569→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3570→Instructions d'utilisation
+  3571→1. Ouvrir Cursor AI dans le workspace MédiHelm (medihelm-api + medihelm-web).
+  3572→2. Mode : Agent (Ctrl+Shift+P → 'Open Agent')
+  3573→3. Sélectionner les dossiers pertinents dans le contexte :
+  3574→- medihelm-api/src/modules/ (modules NestJS existants)
+  3575→- medihelm-api/src/prisma/schema.prisma
+  3576→- medihelm-web/src/components/ (composants React existants)
+  3577→- medihelm-web/src/hooks/
+  3578→4. Coller le prompt complet ci-dessous.
+  3579→5. Laisser l'agent implémenter — valider les migrations Prisma manuellement
+  3580→avec : npx prisma migrate dev --name add_scan_fields
+  3581→Le backend des 16 modules est terminé. Ne pas modifier les modules existants
+  3582→sauf pour ajouter les champs Prisma et les méthodes de scan.
+  3583→Toujours vérifier les migrations avant de les appliquer en base.
+  3584→YEHI OR Tech | Confidentiel | Page 2 / 9
+  3585→
+  3586→--- Page 3/9 ---
+  3587→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3588→PROMPT CURSOR — COPIER TOUT CE QUI SUIT
+  3589→Tu travailles sur MédiHelm Pro — un ERP SaaS pharmaceutique pour officines
+  3590→béninoises (YEHI OR Tech, Parakou, Bénin). Stack : Next.js 14 App Router +
+  3591→NestJS + PostgreSQL + Prisma + Supabase + Tailwind CSS.
+  3592→Le backend des 16 modules est terminé et fonctionnel. Ta mission est
+  3593→d'implémenter le scan de code-barres médicaments de bout en bout.
+  3594→══════════════════════════════════════════════════════════════
+  3595→CONTEXTE MÉTIER
+  3596→══════════════════════════════════════════════════════════════
+  3597→Les médicaments au Bénin portent deux types de codes principaux :
+  3598→- EAN-13 : 13 chiffres — présent sur quasi tous les médicaments importés
+  3599→- DataMatrix GS1 : encode GTIN + lot + date expiration via Application
+  3600→Identifiers : (01)GTIN-14 (10)lot (17)YYMMDD (21)série
+  3601→Le scan intervient dans 4 contextes :
+  3602→1. POS_VENTE : ajout direct au panier avec lot FEFO
+  3603→2. RECEPTION : pré-remplissage formulaire réception lot
+  3604→3. INVENTAIRE : identification lot + saisie quantité réelle
+  3605→4. VERIFICATION : interrogation alerte DPMED sur le lot
+  3606→Deux types de matériel :
+  3607→- Lecteur USB code-barres : envoie les chars comme un clavier,
+  3608→se termine par Enter. Vitesse < 50ms entre caractères.
+  3609→- Caméra smartphone/tablette : via API navigator.mediaDevices
+  3610→══════════════════════════════════════════════════════════════
+  3611→TÂCHE 1 — MIGRATIONS PRISMA
+  3612→══════════════════════════════════════════════════════════════
+  3613→Ajoute ces champs dans schema.prisma :
+  3614→model Medicament {
+  3615→// Ajouter :
+  3616→gtin String? // GTIN-14 GS1
+  3617→codeAMM String? // Numéro AMM DPMED Bénin
+  3618→@@index([pharmacieId, codeBarres])
+  3619→@@index([pharmacieId, gtin])
+  3620→}
+  3621→model Lot {
+  3622→// Ajouter :
+  3623→gtinLot String? // GTIN du lot
+  3624→numeroSerie String? // Série GS1 AI-21
+  3625→rawBarcode String? // Code brut original scanné
+  3626→}
+  3627→Génère la migration : npx prisma migrate dev --name add_scan_fields
+  3628→══════════════════════════════════════════════════════════════
+  3629→YEHI OR Tech | Confidentiel | Page 3 / 9
+  3630→
+  3631→--- Page 4/9 ---
+  3632→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3633→TÂCHE 2 — UTILITAIRE GS1 (PARTAGÉ FRONT + BACK)
+  3634→══════════════════════════════════════════════════════════════
+  3635→Crée utils/gs1Parser.ts (utilisable côté client ET serveur) :
+  3636→export interface GS1Data {
+  3637→gtin? : string;
+  3638→ean13? : string;
+  3639→lot? : string;
+  3640→expiry? : string; // YYMMDD brut
+  3641→expiryDate? : Date;
+  3642→serial? : string;
+  3643→rawCode? : string;
+  3644→}
+  3645→export function parseGS1(raw: string): GS1Data {
+  3646→// 1. EAN-13 : /^\d{13}$/ → gtin = '0' + raw, ean13 = raw
+  3647→// 2. DataMatrix avec parenthèses : (01)xxx(10)yyy via regex
+  3648→// /(\(\d{2,4}\))([^(]*)/g
+  3649→// AI 01 → gtin, AI 10 → lot, AI 17 → expiry, AI 21 → serial
+  3650→// 3. Format compact sans parenthèses : commence par '01' + 14 chiffres
+  3651→// 4. Autres : retourner { rawCode: raw } pour résolution serveur
+  3652→//
+  3653→// Pour AI 17 : YYMMDD, si DD='00' → dernier jour du mois
+  3654→// expiryDate = new Date('20YY-MM-DD')
+  3655→}
+  3656→══════════════════════════════════════════════════════════════
+  3657→TÂCHE 3 — HOOK useBarcodeInput (FRONTEND)
+  3658→══════════════════════════════════════════════════════════════
+  3659→Crée hooks/useBarcodeInput.ts :
+  3660→Écoute window keydown en permanence.
+  3661→Accumule les caractères dans un buffer.
+  3662→Si délai entre deux chars < 50ms → lecteur USB → accumuler.
+  3663→Si délai > 300ms → saisie humaine → vider le buffer.
+  3664→Sur Enter : si buffer.length >= 6 → appeler onBarcode(buffer).
+  3665→Prop 'enabled' pour activer/désactiver selon la page active.
+  3666→interface Options {
+  3667→onBarcode : (code: string) => void
+  3668→minLength? : number // défaut 6
+  3669→speedThreshold? : number // ms défaut 50
+  3670→enabled? : boolean // défaut true
+  3671→}
+  3672→══════════════════════════════════════════════════════════════
+  3673→TÂCHE 4 — COMPOSANT BarcodeScanner (CAMÉRA PWA)
+  3674→══════════════════════════════════════════════════════════════
+  3675→Installation : npm install @zxing/browser @zxing/library
+  3676→Crée components/scan/BarcodeScanner.tsx :
+  3677→- useRef<HTMLVideoElement> pour le flux caméra
+  3678→- BrowserMultiFormatReader de @zxing/browser
+  3679→YEHI OR Tech | Confidentiel | Page 4 / 9
+  3680→
+  3681→--- Page 5/9 ---
+  3682→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3683→- decodeFromConstraints({ video: { facingMode: 'environment' }})
+  3684→- Prop 'active: boolean' — démarre/arrête le scan
+  3685→- Prop 'onScan(raw: string)' — callback quand code détecté
+  3686→- Prop 'onError(err: Error)' — si caméra refusée
+  3687→- Un scan réussi appelle reader.reset() pour arrêter
+  3688→- Overlay teal (cadre de visée) centré sur la vidéo
+  3689→- Ce composant doit être importé avec next/dynamic, ssr: false
+  3690→══════════════════════════════════════════════════════════════
+  3691→TÂCHE 5 — ENDPOINT POST /scan (NESTJS BACKEND)
+  3692→══════════════════════════════════════════════════════════════
+  3693→Crée le module scan/ avec :
+  3694→scan.controller.ts :
+  3695→@Post() @UseGuards(JwtAuthGuard)
+  3696→scan(@Body() dto: ScanDto, @CurrentUser() user: JwtPayload)
+  3697→scan.dto.ts :
+  3698→code: string (IsString, IsNotEmpty)
+  3699→contexte: ContexteScan (IsEnum)
+  3700→enum ContexteScan {
+  3701→POS_VENTE = 'POS_VENTE'
+  3702→RECEPTION = 'RECEPTION'
+  3703→INVENTAIRE = 'INVENTAIRE'
+  3704→VERIFICATION = 'VERIFICATION'
+  3705→}
+  3706→scan-resolver.service.ts — logique complète :
+  3707→async resoudre(rawCode, pharmacieId, contexte):
+  3708→1. parseGS1(rawCode) → gs1Data
+  3709→2. Chercher medicament dans Prisma :
+  3710→WHERE pharmacieId = pharmacieId
+  3711→AND (codeBarres = gs1.ean13 OR gtin = gs1.gtin
+  3712→OR codeBarres = gs1.rawCode)
+  3713→AND actif = true
+  3714→3. Si non trouvé :
+  3715→→ Chercher dans FicheDCI (base nationale) par dci ou gtin
+  3716→→ Si trouvé : { statut: 'NOUVEAU', suggererAjout: true, gs1Data }
+  3717→→ Sinon : { statut: 'INCONNU', rawCode }
+  3718→4. Si lot GS1 fourni (gs1.lot) : vérifier AlerteDPMED :
+  3719→WHERE numerosLotConcernes HAS gs1.lot AND statut = EN_DIFFUSION
+  3720→→ Si trouvé : { statut: 'ALERTE', medicament, lot: gs1.lot, alerte }
+  3721→5. Switch contexte :
+  3722→POS_VENTE :
+  3723→→ Lot.findFirst WHERE medicamentId, pharmacieId (via medicament),
+  3724→quantite > 0, dateExpiration > now()
+  3725→YEHI OR Tech | Confidentiel | Page 5 / 9
+  3726→
+  3727→--- Page 6/9 ---
+  3728→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3729→ORDER BY dateExpiration ASC (FEFO)
+  3730→→ Si aucun lot : { statut: 'RUPTURE', medicament }
+  3731→→ Si périmé (dateExpiration < now) : { statut: 'PERIME', medicament, lot }
+  3732→→ Sinon : { statut: 'TROUVE', medicament, lot, action: 'AJOUTER_PANIER' }
+  3733→RECEPTION :
+  3734→→ { statut: 'TROUVE', medicament, gs1Data, action: 'PREFILL_RECEPTION' }
+  3735→INVENTAIRE :
+  3736→→ Lot.findFirst par numeroLot = gs1.lot si disponible
+  3737→→ Sinon premier lot FEFO
+  3738→→ { statut: 'TROUVE', medicament, lot, action: 'SAISIR_QUANTITE' }
+  3739→VERIFICATION :
+  3740→→ Vérifier AlerteDPMED + statut lot
+  3741→→ { statut: 'TROUVE', medicament, gs1Data, statutDPMED }
+  3742→══════════════════════════════════════════════════════════════
+  3743→TÂCHE 6 — INTÉGRATION POS (FRONTEND)
+  3744→══════════════════════════════════════════════════════════════
+  3745→Dans la page POS existante (M02) :
+  3746→1. Ajouter useBarcodeInput({ onBarcode: handleScan, enabled: true })
+  3747→→ Le hook est actif en permanence sur la page POS
+  3748→2. Ajouter un bouton '  Scanner' qui active le BarcodeScanner
+  3749→→ Importé via next/dynamic avec ssr: false
+  3750→3. Implémenter handleScan(rawCode: string) :
+  3751→→ parseGS1(rawCode) côté client
+  3752→→ POST /api/scan { code: rawCode, contexte: 'POS_VENTE' }
+  3753→→ Switch sur result.statut :
+  3754→TROUVE → ajouterAuPanier(result.medicament, result.lot)
+  3755→ALERTE → afficher AlerteModal (rouge, acquittement obligatoire)
+  3756→si alerte.niveauUrgence === 'URGENCE_IMMEDIATE' : bloquer
+  3757→PERIME → toast rouge 'Lot périmé depuis le JJ/MM/AAAA'
+  3758→RUPTURE → toast orange 'Rupture — NomMedicament'
+  3759→NOUVEAU → drawer 'Ajouter au catalogue ?' avec données GS1
+  3760→INCONNU → toast gris 'Code non reconnu' + focus champ recherche
+  3761→══════════════════════════════════════════════════════════════
+  3762→TÂCHE 7 — INTÉGRATION RÉCEPTION STOCK (FRONTEND)
+  3763→══════════════════════════════════════════════════════════════
+  3764→Dans le formulaire de réception stock (M01) :
+  3765→1. Ajouter bouton '  Scanner la boîte reçue'
+  3766→2. Appeler POST /api/scan { contexte: 'RECEPTION' }
+  3767→3. Sur TROUVE ou NOUVEAU :
+  3768→→ Pré-remplir automatiquement :
+  3769→- Médicament (select) → result.medicament
+  3770→- Numéro lot → result.gs1Data.lot
+  3771→- Date expiration → result.gs1Data.expiryDate
+  3772→- GTIN → result.gs1Data.gtin (champ caché pour stockage)
+  3773→YEHI OR Tech | Confidentiel | Page 6 / 9
+  3774→
+  3775→--- Page 7/9 ---
+  3776→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3777→→ Laisser Quantité et Prix achat à saisir manuellement
+  3778→4. Sur NOUVEAU : proposer création médicament avant la réception
+  3779→══════════════════════════════════════════════════════════════
+  3780→TÂCHE 8 — INTÉGRATION INVENTAIRE (FRONTEND)
+  3781→══════════════════════════════════════════════════════════════
+  3782→Dans l'écran de session d'inventaire (M01 InventaireSession) :
+  3783→1. Ajouter useBarcodeInput({ onBarcode: handleScan })
+  3784→2. Appeler POST /api/scan { contexte: 'INVENTAIRE' }
+  3785→3. Sur TROUVE :
+  3786→→ Afficher : nom médicament, numéro lot, quantité système
+  3787→→ Focus automatique sur champ 'Quantité comptée'
+  3788→→ Après saisie + Enter : PATCH /stock/inventaire/:sessionId/lots/:lotId
+  3789→body: { quantiteReelle: number }
+  3790→→ Réinitialiser pour prochain scan
+  3791→4. Sur INCONNU : afficher 'Lot non référencé — vérifier ou saisir manuellement'
+  3792→══════════════════════════════════════════════════════════════
+  3793→TÂCHE 9 — MODE OFFLINE
+  3794→══════════════════════════════════════════════════════════════
+  3795→Crée scan/scan-offline.service.ts :
+  3796→- Même interface que ScanResolverService
+  3797→- Interroge SQLite (Prisma client SQLite — déjà configuré)
+  3798→- Tables disponibles offline : medicaments, lots
+  3799→- Les alertes DPMED NE sont PAS vérifiées offline (pas de connexion)
+  3800→- Ajouter une note visuelle 'Mode hors ligne — alertes DPMED non vérifiées'
+  3801→Dans le composant POS, sélectionner le service selon navigator.onLine.
+  3802→══════════════════════════════════════════════════════════════
+  3803→CONTRAINTES À RESPECTER ABSOLUMENT
+  3804→══════════════════════════════════════════════════════════════
+  3805→- NE PAS modifier les modules POS, Stock, Patients existants
+  3806→sauf pour y brancher le hook useBarcodeInput et le bouton scan.
+  3807→- POST /scan doit répondre en < 300ms — utiliser les index Prisma.
+  3808→- Le BarcodeScanner DOIT être importé avec next/dynamic, ssr: false
+  3809→(Leaflet et ZXing ne sont pas SSR-compatibles).
+  3810→- Toutes les réponses de POST /scan suivent le même format :
+  3811→{ statut: string, medicament?, lot?, gs1Data?, action?, alerte? }
+  3812→- Le hook useBarcodeInput utilise window.addEventListener — ne pas
+  3813→l'appeler dans un composant Server Component Next.js.
+  3814→- Stocker rawBarcode dans Lot à chaque scan pour audit.
+  3815→- Ne pas créer de dépendance à un service tiers pour la résolution
+  3816→des codes — tout se fait en base Prisma locale.
+  3817→══════════════════════════════════════════════════════════════
+  3818→ORDRE D'IMPLÉMENTATION RECOMMANDÉ
+  3819→══════════════════════════════════════════════════════════════
+  3820→1. utils/gs1Parser.ts + tests unitaires
+  3821→2. Migration Prisma (champs + index)
+  3822→3. hooks/useBarcodeInput.ts
+  3823→YEHI OR Tech | Confidentiel | Page 7 / 9
+  3824→
+  3825→--- Page 8/9 ---
+  3826→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3827→4. components/scan/BarcodeScanner.tsx
+  3828→5. scan/ module NestJS (controller + dto + service)
+  3829→6. Intégration POS (M02)
+  3830→7. Intégration réception stock (M01)
+  3831→8. Intégration inventaire (M01)
+  3832→9. scan-offline.service.ts
+  3833→10. Tests : CA-01 à CA-10 (voir CDC)
+  3834→NOTES COMPLÉMENTAIRES POUR CURSOR
+  3835→Arborescence des fichiers à créer
+  3836→medihelm-api/
+  3837→src/
+  3838→modules/
+  3839→scan/
+  3840→scan.module.ts
+  3841→scan.controller.ts
+  3842→scan.dto.ts
+  3843→scan-resolver.service.ts
+  3844→scan-offline.service.ts
+  3845→utils/
+  3846→gs1Parser.ts
+  3847→prisma/
+  3848→migrations/
+  3849→YYYYMMDD_add_scan_fields/
+  3850→migration.sql
+  3851→medihelm-web/
+  3852→src/
+  3853→hooks/
+  3854→useBarcodeInput.ts
+  3855→components/
+  3856→scan/
+  3857→BarcodeScanner.tsx
+  3858→ScanResultToast.tsx // composant UI feedback
+  3859→AlerteDPMEDModal.tsx // modal alerte rouge
+  3860→Tests unitaires minimaux à écrire
+  3861→// gs1Parser.test.ts
+  3862→describe('parseGS1', () => {
+  3863→test('EAN-13 simple', () => {
+  3864→const r = parseGS1('3560070162439');
+  3865→expect(r.ean13).toBe('3560070162439');
+  3866→expect(r.gtin).toBe('03560070162439');
+  3867→});
+  3868→test('DataMatrix GS1 complet', () => {
+  3869→YEHI OR Tech | Confidentiel | Page 8 / 9
+  3870→
+  3871→--- Page 9/9 ---
+  3872→MédiHelm — Scan Code-barres — Prompt Cursor v1.0
+  3873→const r = parseGS1('(01)03560070162439(10)BN2024-441A(17)260831');
+  3874→expect(r.gtin).toBe('03560070162439');
+  3875→expect(r.lot).toBe('BN2024-441A');
+  3876→expect(r.expiry).toBe('260831');
+  3877→expect(r.expiryDate).toEqual(new Date('2026-08-31'));
+  3878→});
+  3879→test('AI 17 avec DD=00 → dernier jour du mois', () => {
+  3880→const r = parseGS1('(01)xxx(17)260800');
+  3881→expect(r.expiryDate?.getDate()).toBe(31); // 31 août 2026
+  3882→});
+  3883→test('Code inconnu → rawCode préservé', () => {
+  3884→const r = parseGS1('ABC-12345-INTERNAL');
+  3885→expect(r.rawCode).toBe('ABC-12345-INTERNAL');
+  3886→expect(r.gtin).toBeUndefined();
+  3887→});
+  3888→});
+  3889→MédiHelm Scan Cursor Prompt v1.0 | YEHI OR Tech © 2025 | 9 tâches · 4 contextes · 10 critères d'acceptance
+  3890→YEHI OR Tech | Confidentiel | Page 9 / 9
+  3891→
+  3892→
+  3893→################################################################################
+  3894→# FILE: MediHelm_Scan_Specs_v1.0.pdf
+  3895→# PAGES: 18
+  3896→################################################################################
+  3897→--- Page 1/18 ---
+  3898→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  3899→Y E H I O R T E C H
+  3900→MédiHelm
+  3901→SCAN CODE-BARRES MÉDICAMENTS — SPECS v1.0
+  3902→Spécifications Techniques — Backend · Frontend · Prisma · API
+  3903→Référence
+  3904→MH-SCAN-SPECS-2025-v1.0
+  3905→Périmètre
+  3906→Scan EAN-13 · DataMatrix GS1 · Caméra PWA · Lecteur USB
+  3907→Modules
+  3908→M01 Stock · M02 POS · M01 Inventaire · M18 Vérification DPMED
+  3909→Priorité
+  3910→HAUTE — À implémenter après backend 16 modules
+  3911→Dépendances
+  3912→npm: @zxing/browser @zxing/library
+  3913→Responsable
+  3914→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+  3915→Document confidentiel — YEHI OR Tech © 2025
+  3916→YEHI OR Tech | Confidentiel | Page 1 / 18
+  3917→
+  3918→--- Page 2/18 ---
+  3919→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  3920→Sommaire
+  3921→1. Architecture générale du scan
+  3922→2. Parser GS1 — côté client
+  3923→3. Composant BarcodeScanner (caméra PWA)
+  3924→4. Hook useBarcodeInput (lecteur USB)
+  3925→5. Endpoint POST /scan — NestJS
+  3926→6. Service ScanResolverService — logique de résolution
+  3927→7. Intégration POS — M02
+  3928→8. Intégration réception stock — M01
+  3929→9. Intégration inventaire — M01
+  3930→10. Intégration vérification DPMED
+  3931→11. Migrations Prisma — champs code-barres
+  3932→12. Mode offline — SQLite
+  3933→13. Index PostgreSQL — performances
+  3934→YEHI OR Tech | Confidentiel | Page 2 / 18
+  3935→
+  3936→--- Page 3/18 ---
+  3937→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  3938→1. Architecture Générale du Scan
+  3939→// Flux complet d'un scan
+  3940→[Lecteur USB / Caméra]
+  3941→│
+  3942→▼
+  3943→[parseGS1(rawCode)] ← côté CLIENT — instantané
+  3944→Extrait : gtin, lot, expiry, serie
+  3945→│
+  3946→▼
+  3947→POST /v1/scan ← API NestJS
+  3948→{ code, contexte, pharmacieId }
+  3949→│
+  3950→▼
+  3951→[ScanResolverService]
+  3952→1. Chercher par EAN-13 / GTIN dans catalogue officine
+  3953→2. Si non trouvé → base DCI nationale (DPMED)
+  3954→3. Vérifier alertes DPMED sur le lot
+  3955→4. Action selon contexte (POS / RECEPTION / INVENTAIRE / VERIF)
+  3956→│
+  3957→▼
+  3958→{ statut, medicament, lot, action, alerte? }
+  3959→│
+  3960→▼
+  3961→[Frontend] — mise à jour UI selon action
+  3962→YEHI OR Tech | Confidentiel | Page 3 / 18
+  3963→
+  3964→--- Page 4/18 ---
+  3965→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  3966→2. Parser GS1 — Côté Client
+  3967→Le parser GS1 s'exécute côté client (frontend TypeScript) dès la réception du code brut —
+  3968→avant l'appel API. Il permet au frontend d'afficher immédiatement les informations disponibles
+  3969→(lot, expiration) sans attendre la réponse serveur.
+  3970→// utils/gs1Parser.ts
+  3971→export interface GS1Data {
+  3972→gtin? : string; // GTIN-14 — AI 01
+  3973→ean13? : string; // EAN-13 déduit du GTIN
+  3974→lot? : string; // Numéro de lot — AI 10
+  3975→expiry? : string; // YYMMDD brut — AI 17
+  3976→expiryDate? : Date; // Date parsée
+  3977→serial? : string; // Numéro de série — AI 21
+  3978→productionDate?: string;
+  3979→rawCode? : string; // Code brut original
+  3980→}
+  3981→export function parseGS1(raw: string): GS1Data {
+  3982→const result: GS1Data = { rawCode: raw };
+  3983→// ── Cas 1 : EAN-13 simple (13 chiffres purs) ──────────────
+  3984→if (/^\d{13}$/.test(raw)) {
+  3985→result.ean13 = raw;
+  3986→result.gtin = '0' + raw; // EAN-13 → GTIN-14
+  3987→return result;
+  3988→}
+  3989→// ── Cas 2 : DataMatrix GS1 avec parenthèses (01)xxx(10)yyy ─
+  3990→const withParens = [...raw.matchAll(/\((\d{2,4})\)([^(]*)/g)];
+  3991→if (withParens.length > 0) {
+  3992→return extractAI(withParens, result);
+  3993→}
+  3994→// ── Cas 3 : GS1-128 compact sans parenthèses ────────────────
+  3995→// Commence par FNC1 (\x1d) ou directement par AI connu
+  3996→const compact = raw.replace(/^\x1d/, '');
+  3997→if (/^01\d{14}/.test(compact)) {
+  3998→const pairs = compact.matchAll(/(\d{2,4})(.*?)(?=\d{2,4}[^\d]|$)/g);
+  3999→// Parser simplifié — longueurs fixes selon le standard GS1
+  4000→result.gtin = compact.slice(2, 16);
+  4001→result.ean13 = result.gtin.slice(1);
+  4002→if (compact.includes('10')) {
+  4003→const idx = compact.indexOf('10', 16);
+  4004→if (idx !== -1) result.lot = compact.slice(idx+2, idx+22).trim();
+  4005→}
+  4006→if (compact.includes('17')) {
+  4007→const idx = compact.indexOf('17');
+  4008→if (idx !== -1) result.expiry = compact.slice(idx+2, idx+8);
+  4009→}
+  4010→return formatDates(result);
+  4011→}
+  4012→// ── Cas 4 : Code non GS1 (Code 39, Code 128 interne) ────────
+  4013→result.rawCode = raw; // Renvoyer tel quel — résolution côté serveur
+  4014→YEHI OR Tech | Confidentiel | Page 4 / 18
+  4015→
+  4016→--- Page 5/18 ---
+  4017→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4018→return result;
+  4019→}
+  4020→function extractAI(matches: RegExpMatchArray[], r: GS1Data): GS1Data {
+  4021→for (const [, ai, value] of matches) {
+  4022→const v = value.trim();
+  4023→if (ai === '01') { r.gtin = v; r.ean13 = v.slice(1); }
+  4024→if (ai === '10') r.lot = v;
+  4025→if (ai === '17') r.expiry = v;
+  4026→if (ai === '21') r.serial = v;
+  4027→if (ai === '11') r.productionDate = v;
+  4028→}
+  4029→return formatDates(r);
+  4030→}
+  4031→function formatDates(r: GS1Data): GS1Data {
+  4032→if (r.expiry?.length === 6) {
+  4033→const y = '20' + r.expiry.slice(0, 2);
+  4034→const m = r.expiry.slice(2, 4);
+  4035→// AI 17 : jour '00' = dernier jour du mois
+  4036→const d = r.expiry.slice(4, 6) === '00'
+  4037→? new Date(+y, +m, 0).getDate().toString().padStart(2,'0')
+  4038→: r.expiry.slice(4, 6);
+  4039→r.expiryDate = new Date(`${y}-${m}-${d}`);
+  4040→}
+  4041→return r;
+  4042→}
+  4043→YEHI OR Tech | Confidentiel | Page 5 / 18
+  4044→
+  4045→--- Page 6/18 ---
+  4046→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4047→3. Composant BarcodeScanner (Caméra PWA)
+  4048→// components/scan/BarcodeScanner.tsx
+  4049→// Installation : npm install @zxing/browser @zxing/library
+  4050→import { useEffect, useRef, useCallback } from 'react';
+  4051→import { BrowserMultiFormatReader, NotFoundException } from '@zxing/browser';
+  4052→interface Props {
+  4053→onScan : (raw: string) => void;
+  4054→onError? : (err: Error) => void;
+  4055→active : boolean; // contrôlé par le parent
+  4056→}
+  4057→export function BarcodeScanner({ onScan, onError, active }: Props) {
+  4058→const videoRef = useRef<HTMLVideoElement>(null);
+  4059→const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  4060→const startScan = useCallback(async () => {
+  4061→if (!videoRef.current) return;
+  4062→const reader = new BrowserMultiFormatReader();
+  4063→readerRef.current = reader;
+  4064→try {
+  4065→await reader.decodeFromConstraints(
+  4066→{ video: { facingMode: 'environment' } }, // caméra arrière
+  4067→videoRef.current,
+  4068→(result, error) => {
+  4069→if (result) {
+  4070→onScan(result.getText());
+  4071→reader.reset(); // un scan = stop
+  4072→}
+  4073→if (error && !(error instanceof NotFoundException)) {
+  4074→onError?.(error as Error);
+  4075→}
+  4076→}
+  4077→);
+  4078→} catch (e) {
+  4079→// Permission caméra refusée
+  4080→onError?.(e as Error);
+  4081→}
+  4082→}, [onScan, onError]);
+  4083→useEffect(() => {
+  4084→if (active) startScan();
+  4085→else readerRef.current?.reset();
+  4086→return () => { readerRef.current?.reset(); };
+  4087→}, [active, startScan]);
+  4088→return (
+  4089→<div className='relative w-full max-w-sm mx-auto'>
+  4090→<video
+  4091→ref={videoRef}
+  4092→className='w-full rounded-lg'
+  4093→style={{ display: active ? 'block' : 'none' }}
+  4094→/>
+  4095→{/* Cadre de visée teal */}
+  4096→{active && (
+  4097→YEHI OR Tech | Confidentiel | Page 6 / 18
+  4098→
+  4099→--- Page 7/18 ---
+  4100→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4101→<div className='absolute inset-0 flex items-center justify-center'>
+  4102→<div className='w-48 h-32 border-2 border-teal-500 rounded opacity-
+  4103→70' />
+  4104→</div>
+  4105→)}
+  4106→</div>
+  4107→);
+  4108→}
+  4109→YEHI OR Tech | Confidentiel | Page 7 / 18
+  4110→
+  4111→--- Page 8/18 ---
+  4112→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4113→4. Hook useBarcodeInput (Lecteur USB)
+  4114→// hooks/useBarcodeInput.ts
+  4115→// Le lecteur USB se comporte comme un clavier ultra-rapide.
+  4116→// Caractères arrivant en < 50ms = scan. Entrée (\n) = fin du code.
+  4117→import { useEffect, useRef, useCallback } from 'react';
+  4118→interface Options {
+  4119→onBarcode : (code: string) => void;
+  4120→minLength? : number; // défaut : 6
+  4121→speedThreshold? : number; // ms entre chars, défaut : 50
+  4122→enabled? : boolean; // désactivable — défaut : true
+  4123→}
+  4124→export function useBarcodeInput({
+  4125→onBarcode,
+  4126→minLength = 6,
+  4127→speedThreshold = 50,
+  4128→enabled = true,
+  4129→}: Options) {
+  4130→const bufferRef = useRef('');
+  4131→const lastKeyTimeRef = useRef(0);
+  4132→const handleKeyDown = useCallback((e: KeyboardEvent) => {
+  4133→if (!enabled) return;
+  4134→const now = Date.now();
+  4135→const elapsed = now - lastKeyTimeRef.current;
+  4136→lastKeyTimeRef.current = now;
+  4137→// Pause > 300ms = début de saisie humaine → vider le buffer
+  4138→if (elapsed > 300) bufferRef.current = '';
+  4139→if (e.key === 'Enter') {
+  4140→const code = bufferRef.current.trim();
+  4141→bufferRef.current = '';
+  4142→if (code.length >= minLength) {
+  4143→e.preventDefault(); // empêcher soumission de formulaire
+  4144→onBarcode(code);
+  4145→}
+  4146→return;
+  4147→}
+  4148→// Accumuler seulement si vitesse de frappe rapide (lecteur USB)
+  4149→if (elapsed < speedThreshold && e.key.length === 1) {
+  4150→bufferRef.current += e.key;
+  4151→} else if (e.key.length === 1) {
+  4152→// Frappe lente (humain) — reset buffer + premier caractère
+  4153→bufferRef.current = e.key;
+  4154→}
+  4155→}, [enabled, minLength, speedThreshold, onBarcode]);
+  4156→useEffect(() => {
+  4157→window.addEventListener('keydown', handleKeyDown);
+  4158→return () => window.removeEventListener('keydown', handleKeyDown);
+  4159→YEHI OR Tech | Confidentiel | Page 8 / 18
+  4160→
+  4161→--- Page 9/18 ---
+  4162→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4163→}, [handleKeyDown]);
+  4164→}
+  4165→YEHI OR Tech | Confidentiel | Page 9 / 18
+  4166→
+  4167→--- Page 10/18 ---
+  4168→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4169→5. Endpoint POST /scan — NestJS
+  4170→// scan/scan.controller.ts
+  4171→@Controller('scan')
+  4172→@UseGuards(JwtAuthGuard)
+  4173→export class ScanController {
+  4174→constructor(private readonly scanService: ScanResolverService) {}
+  4175→@Post()
+  4176→@HttpCode(200)
+  4177→async scan(
+  4178→@Body() dto: ScanDto,
+  4179→@CurrentUser() user: JwtPayload,
+  4180→) {
+  4181→return this.scanService.resoudre(dto.code, user.pharmacieId, dto.contexte);
+  4182→}
+  4183→}
+  4184→// scan/scan.dto.ts
+  4185→export class ScanDto {
+  4186→@IsString() @IsNotEmpty()
+  4187→code: string;
+  4188→@IsEnum(ContexteScan)
+  4189→contexte: ContexteScan;
+  4190→}
+  4191→export enum ContexteScan {
+  4192→POS_VENTE = 'POS_VENTE',
+  4193→RECEPTION = 'RECEPTION',
+  4194→INVENTAIRE = 'INVENTAIRE',
+  4195→VERIFICATION = 'VERIFICATION',
+  4196→}
+  4197→// Réponses possibles
+  4198→// { statut: 'TROUVE', medicament, lot?, action }
+  4199→// { statut: 'ALERTE', medicament, lot, alerte: AlerteDPMED }
+  4200→// { statut: 'NOUVEAU', gs1Data, suggererAjout: true }
+  4201→// { statut: 'INCONNU', rawCode }
+  4202→// { statut: 'PERIME', medicament, lot } → bloquant au POS
+  4203→// { statut: 'RUPTURE', medicament }
+  4204→YEHI OR Tech | Confidentiel | Page 10 / 18
+  4205→
+  4206→--- Page 11/18 ---
+  4207→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4208→6. Service ScanResolverService — Logique de
+  4209→Résolution
+  4210→// scan/scan-resolver.service.ts
+  4211→@Injectable()
+  4212→export class ScanResolverService {
+  4213→constructor(private readonly prisma: PrismaService) {}
+  4214→async resoudre(rawCode: string, pharmacieId: string, contexte: ContexteScan)
+  4215→{
+  4216→const gs1 = parseGS1(rawCode); // parser GS1 — même logique que frontend
+  4217→// ── Étape 1 : Recherche dans le catalogue de l'officine ──────
+  4218→const medicament = await this.chercherMedicament(gs1, pharmacieId);
+  4219→if (!medicament) {
+  4220→// ── Étape 2 : Base DCI nationale (DPMED) ───────────────────
+  4221→const national = await this.chercherBaseNationale(gs1);
+  4222→if (national) return { statut: 'NOUVEAU', medicament: national,
+  4223→gs1Data: gs1, suggererAjout: true };
+  4224→return { statut: 'INCONNU', rawCode };
+  4225→}
+  4226→// ── Étape 3 : Vérification alerte DPMED sur le lot ─────────
+  4227→if (gs1.lot) {
+  4228→const alerte = await this.verifierAlerteDPMED(gs1.lot);
+  4229→if (alerte) {
+  4230→return { statut: 'ALERTE', medicament, lot: gs1.lot, alerte };
+  4231→}
+  4232→}
+  4233→// ── Étape 4 : Action selon contexte ─────────────────────────
+  4234→switch (contexte) {
+  4235→case ContexteScan.POS_VENTE: {
+  4236→const lot = await this.trouverLotFEFO(medicament.id, pharmacieId);
+  4237→if (!lot) return { statut: 'RUPTURE', medicament };
+  4238→if (this.estPerime(lot)) return { statut: 'PERIME', medicament, lot };
+  4239→return { statut: 'TROUVE', medicament, lot, action: 'AJOUTER_PANIER' };
+  4240→}
+  4241→case ContexteScan.RECEPTION: {
+  4242→return {
+  4243→statut : 'TROUVE',
+  4244→medicament,
+  4245→gs1Data : gs1, // lot + expiry pré-remplis
+  4246→action : 'PREFILL_RECEPTION',
+  4247→};
+  4248→}
+  4249→case ContexteScan.INVENTAIRE: {
+  4250→const lot = gs1.lot
+  4251→? await this.trouverLotParNumero(gs1.lot, medicament.id)
+  4252→: await this.trouverLotFEFO(medicament.id, pharmacieId);
+  4253→YEHI OR Tech | Confidentiel | Page 11 / 18
+  4254→
+  4255→--- Page 12/18 ---
+  4256→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4257→return { statut: 'TROUVE', medicament, lot, action:
+  4258→'SAISIR_QUANTITE' };
+  4259→}
+  4260→case ContexteScan.VERIFICATION: {
+  4261→const statutDPMED = await this.interrogerDPMED(gs1);
+  4262→return { statut: 'TROUVE', medicament, gs1Data: gs1, statutDPMED };
+  4263→}
+  4264→}
+  4265→}
+  4266→// ── Helpers ────────────────────────────────────────────────────
+  4267→private async chercherMedicament(gs1: GS1Data, pharmacieId: string) {
+  4268→return this.prisma.medicament.findFirst({
+  4269→where: {
+  4270→pharmacieId,
+  4271→OR: [
+  4272→{ codeBarres: gs1.ean13 },
+  4273→{ gtin: gs1.gtin },
+  4274→{ codeBarres: gs1.rawCode },
+  4275→],
+  4276→actif: true,
+  4277→},
+  4278→});
+  4279→}
+  4280→private async trouverLotFEFO(medicamentId: string, pharmacieId: string) {
+  4281→return this.prisma.lot.findFirst({
+  4282→where: {
+  4283→medicamentId,
+  4284→medicament: { pharmacieId },
+  4285→quantite: { gt: 0 },
+  4286→dateExpiration: { gt: new Date() },
+  4287→},
+  4288→orderBy: { dateExpiration: 'asc' }, // FEFO
+  4289→});
+  4290→}
+  4291→private estPerime(lot: { dateExpiration: Date }): boolean {
+  4292→return lot.dateExpiration < new Date();
+  4293→}
+  4294→private async verifierAlerteDPMED(numeroLot: string) {
+  4295→return this.prisma.alerteDPMED.findFirst({
+  4296→where: {
+  4297→numerosLotConcernes: { has: numeroLot },
+  4298→statut: 'EN_DIFFUSION',
+  4299→},
+  4300→});
+  4301→}
+  4302→}
+  4303→YEHI OR Tech | Confidentiel | Page 12 / 18
+  4304→
+  4305→--- Page 13/18 ---
+  4306→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4307→7. Intégration POS — M02
+  4308→// components/pos/POSPage.tsx — intégration scan
+  4309→export function POSPage() {
+  4310→const [scannerActif, setScannerActif] = useState(false);
+  4311→const { ajouterAuPanier, setErreur } = usePanier();
+  4312→// Hook lecteur USB — actif en permanence sur la page POS
+  4313→useBarcodeInput({
+  4314→onBarcode: (code) => handleScan(code),
+  4315→enabled: true,
+  4316→});
+  4317→const handleScan = async (rawCode: string) => {
+  4318→const gs1 = parseGS1(rawCode); // parsing immédiat côté client
+  4319→const result = await fetch('/api/scan', {
+  4320→method: 'POST',
+  4321→body: JSON.stringify({ code: rawCode, contexte: 'POS_VENTE' }),
+  4322→}).then(r => r.json());
+  4323→switch (result.statut) {
+  4324→case 'TROUVE':
+  4325→ajouterAuPanier(result.medicament, result.lot);
+  4326→break;
+  4327→case 'ALERTE':
+  4328→// Afficher modal alerte DPMED — bloquant si URGENCE_IMMEDIATE
+  4329→afficherAlerteModal(result.alerte, result.medicament);
+  4330→break;
+  4331→case 'PERIME':
+  4332→setErreur(`Ce lot est périmé depuis le
+  4333→${format(result.lot.dateExpiration)}`);
+  4334→break;
+  4335→case 'RUPTURE':
+  4336→setErreur(`Rupture de stock — ${result.medicament.nomCommercial}`);
+  4337→break;
+  4338→case 'NOUVEAU':
+  4339→afficherPropositionAjout(result.gs1Data);
+  4340→break;
+  4341→case 'INCONNU':
+  4342→setErreur('Code non reconnu — saisie manuelle');
+  4343→break;
+  4344→}
+  4345→};
+  4346→return (
+  4347→<div>
+  4348→{/* Bouton caméra — alternatif au lecteur USB */}
+  4349→<button onClick={() => setScannerActif(true)}>
+  4350→Scanner
+  4351→</button>
+  4352→<BarcodeScanner
+  4353→active={scannerActif}
+  4354→onScan={(code) => { setScannerActif(false); handleScan(code); }}
+  4355→onError={() => setScannerActif(false)}
+  4356→YEHI OR Tech | Confidentiel | Page 13 / 18
+  4357→
+  4358→--- Page 14/18 ---
+  4359→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4360→/>
+  4361→{/* ... reste du POS */}
+  4362→</div>
+  4363→);
+  4364→}
+  4365→YEHI OR Tech | Confidentiel | Page 14 / 18
+  4366→
+  4367→--- Page 15/18 ---
+  4368→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4369→8. Intégration Réception Stock — M01
+  4370→// components/stock/ReceptionForm.tsx
+  4371→export function ReceptionForm() {
+  4372→const [scannerActif, setScannerActif] = useState(false);
+  4373→const [formData, setFormData] = useState({
+  4374→medicamentId: '', gtin: '', numeroLot: '', dateExpiration: '',
+  4375→quantite: 0, prixAchat: 0,
+  4376→});
+  4377→// Lecteur USB actif sur cet écran
+  4378→useBarcodeInput({ onBarcode: handleScan });
+  4379→const handleScan = async (rawCode: string) => {
+  4380→const result = await fetch('/api/scan', {
+  4381→method: 'POST',
+  4382→body: JSON.stringify({ code: rawCode, contexte: 'RECEPTION' }),
+  4383→}).then(r => r.json());
+  4384→if (result.statut === 'TROUVE' || result.statut === 'NOUVEAU') {
+  4385→// Pré-remplissage automatique du formulaire
+  4386→setFormData(prev => ({
+  4387→...prev,
+  4388→medicamentId : result.medicament?.id ?? '',
+  4389→gtin : result.gs1Data?.gtin ?? '',
+  4390→numeroLot : result.gs1Data?.lot ?? '',
+  4391→dateExpiration: result.gs1Data?.expiry ?? '',
+  4392→// quantite et prixAchat restent à saisir manuellement
+  4393→}));
+  4394→}
+  4395→if (result.statut === 'NOUVEAU') {
+  4396→// Proposer création du médicament dans le catalogue
+  4397→setPropositionAjout(result.gs1Data);
+  4398→}
+  4399→};
+  4400→return (
+  4401→<form>
+  4402→<button type='button' onClick={() => setScannerActif(true)}>
+  4403→Scanner la boîte reçue
+  4404→</button>
+  4405→<BarcodeScanner active={scannerActif} onScan={handleScan} />
+  4406→<input value={formData.numeroLot}
+  4407→onChange={e => setFormData(p => ({...p, numeroLot:
+  4408→e.target.value}))}
+  4409→placeholder='Numéro de lot' />
+  4410→<input value={formData.dateExpiration}
+  4411→placeholder='Date expiration' />
+  4412→<input type='number' placeholder='Quantité reçue' />
+  4413→<input type='number' placeholder='Prix achat (FCFA)' />
+  4414→</form>
+  4415→);
+  4416→}
+  4417→YEHI OR Tech | Confidentiel | Page 15 / 18
+  4418→
+  4419→--- Page 16/18 ---
+  4420→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4421→9. Intégration Inventaire — M01
+  4422→// components/stock/InventaireSession.tsx
+  4423→export function InventaireSession({ sessionId }: { sessionId: string }) {
+  4424→const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  4425→const [quantiteReelle, setQuantiteReelle] = useState('');
+  4426→useBarcodeInput({
+  4427→onBarcode: async (rawCode) => {
+  4428→const result = await fetch('/api/scan', {
+  4429→method: 'POST',
+  4430→body: JSON.stringify({ code: rawCode, contexte: 'INVENTAIRE' }),
+  4431→}).then(r => r.json());
+  4432→setScanResult(result);
+  4433→setQuantiteReelle(''); // reset pour ce lot
+  4434→// Focus automatique sur le champ quantité
+  4435→document.getElementById('quantite-input')?.focus();
+  4436→}
+  4437→});
+  4438→const enregistrerQuantite = async () => {
+  4439→await
+  4440→fetch(`/api/stock/inventaire/${sessionId}/lots/${scanResult!.lot.id}`, {
+  4441→method: 'PATCH',
+  4442→body: JSON.stringify({ quantiteReelle: +quantiteReelle }),
+  4443→});
+  4444→setScanResult(null); // prêt pour le prochain scan
+  4445→};
+  4446→return (
+  4447→<div>
+  4448→{scanResult ? (
+  4449→<div>
+  4450→<p>{scanResult.medicament.nomCommercial}</p>
+  4451→<p>Lot : {scanResult.lot.numeroLot}</p>
+  4452→<p>Stock système : {scanResult.lot.quantite}</p>
+  4453→<input id='quantite-input'
+  4454→type='number'
+  4455→value={quantiteReelle}
+  4456→onChange={e => setQuantiteReelle(e.target.value)}
+  4457→placeholder='Quantité comptée'
+  4458→/>
+  4459→<button onClick={enregistrerQuantite}>Valider</button>
+  4460→</div>
+  4461→) : (
+  4462→<p>  Scannez une boîte pour saisir la quantité réelle</p>
+  4463→)}
+  4464→</div>
+  4465→);
+  4466→}
+  4467→YEHI OR Tech | Confidentiel | Page 16 / 18
+  4468→
+  4469→--- Page 17/18 ---
+  4470→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4471→11. Migrations Prisma — Champs Code-barres
+  4472→// prisma/migrations/YYYYMMDD_add_scan_fields/migration.sql
+  4473→-- Patch table medicaments
+  4474→ALTER TABLE medicaments
+  4475→ADD COLUMN IF NOT EXISTS gtin VARCHAR(14),
+  4476→ADD COLUMN IF NOT EXISTS code_amm VARCHAR(50);
+  4477→-- Index composites pour résolution rapide au scan
+  4478→CREATE INDEX IF NOT EXISTS idx_medicaments_codebarres
+  4479→ON medicaments(pharmacie_id, code_barres);
+  4480→CREATE INDEX IF NOT EXISTS idx_medicaments_gtin
+  4481→ON medicaments(pharmacie_id, gtin);
+  4482→-- Patch table lots
+  4483→ALTER TABLE lots
+  4484→ADD COLUMN IF NOT EXISTS gtin_lot VARCHAR(14),
+  4485→ADD COLUMN IF NOT EXISTS numero_serie VARCHAR(50),
+  4486→ADD COLUMN IF NOT EXISTS raw_barcode TEXT;
+  4487→// schema.prisma — ajouts sur les modèles existants
+  4488→model Medicament {
+  4489→// ... champs existants ...
+  4490→codeBarres String? // EAN-13 — existant
+  4491→gtin String? // GTIN-14 GS1 — NOUVEAU
+  4492→codeAMM String? // AMM DPMED Bénin — NOUVEAU
+  4493→@@index([pharmacieId, codeBarres])
+  4494→@@index([pharmacieId, gtin])
+  4495→}
+  4496→model Lot {
+  4497→// ... champs existants ...
+  4498→gtinLot String? // GTIN du lot — NOUVEAU
+  4499→numeroSerie String? // Série GS1 AI-21 — NOUVEAU
+  4500→rawBarcode String? // Code brut scanné — NOUVEAU
+
+[showing lines 3501-4500 of 9240; use offset=4501 with limit to continue reading]

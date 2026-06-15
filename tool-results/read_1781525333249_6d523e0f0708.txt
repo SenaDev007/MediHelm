@@ -1,0 +1,740 @@
+  8501→PHARMACIEN
+  8502→GET /alertes/dpmed/historique Historique alertes traitées DIRECTEUR
+  8503→Système —
+  8504→Webhook réception alerte depuis
+  8505→POST /webhooks/dpmed signature
+  8506→DPMED
+  8507→numérique
+  8508→Portail DPMED — toutes alertes
+  8509→GET /portail/dpmed/alertes DPMED_ADMIN
+  8510→émises
+  8511→Portail DPMED — émettre une
+  8512→POST /portail/dpmed/alertes DPMED_ADMIN
+  8513→alerte
+  8514→Tableau de bord DPMED — taux
+  8515→GET /portail/dpmed/dashboard DPMED_ADMIN
+  8516→acquittement
+  8517→Portail SoBAPS — confirmations SOBAPS_VIEWE
+  8518→GET /portail/sobaps/confirmations
+  8519→réceptions R
+  8520→Portail ABRP — agrégats
+  8521→GET /portail/abrp/dashboard ABRP_VIEWER
+  8522→anonymisés
+  8523→YEHI OR Tech | Confidentiel | Page 13 / 32
+  8524→
+  8525→--- Page 14/32 ---
+  8526→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8527→Méthod Endpoint Description Rôles
+  8528→e
+  8529→Portail grossiste — commandes GROSSISTE_PA
+  8530→GET /portail/grossiste/commandes
+  8531→reçues RTNER
+  8532→4.4 Module M19 — Conformité
+  8533→Méthod Endpoint Description Rôles
+  8534→e
+  8535→GET /conformite/score Score de conformité de l'officine DIRECTEUR
+  8536→GET /conformite/documents Liste documents réglementaires DIRECTEUR
+  8537→Uploader un document
+  8538→POST /conformite/documents DIRECTEUR
+  8539→réglementaire
+  8540→DELET
+  8541→/conformite/documents/:id Supprimer un document DIRECTEUR
+  8542→E
+  8543→Registre stupéfiants — format DIRECTEUR,
+  8544→GET /conformite/exports/stupefiants
+  8545→DPMED PHARMACIEN
+  8546→Registre ordonnances — format DIRECTEUR,
+  8547→GET /conformite/exports/ordonnances
+  8548→DPMED PHARMACIEN
+  8549→PV destructions — format
+  8550→GET /conformite/exports/destructions DIRECTEUR
+  8551→DPMED
+  8552→/conformite/exports/declaration- Déclaration trimestrielle
+  8553→GET DIRECTEUR
+  8554→trimestrielle stupéfiants
+  8555→/conformite/exports/pharmacovigi Rapport PV mensuel — format DIRECTEUR,
+  8556→GET
+  8557→lance-mensuel OMS PHARMACIEN
+  8558→GET /conformite/certification Statut certification DPMED DIRECTEUR
+  8559→/conformite/certification/demande Initier demande de certification
+  8560→POST DIRECTEUR
+  8561→r DPMED
+  8562→YEHI OR Tech | Confidentiel | Page 14 / 32
+  8563→
+  8564→--- Page 15/32 ---
+  8565→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8566→5. Module M16 — Pharmacovigilance : Spécifications
+  8567→Techniques
+  8568→5.1 Vérification qualité lors de la réception de stock
+  8569→// Lors de la réception d'un lot (M03 réception commande)
+  8570→// Le service de veille qualité est appelé automatiquement
+  8571→async verifierLotRecu(numeroLot: string, dci: string) {
+  8572→const alertes = await this.prisma.medicamentSurveillance.findMany({
+  8573→where: {
+  8574→statut: 'ACTIVE',
+  8575→OR: [
+  8576→{ dci: { contains: dci, mode: 'insensitive' } },
+  8577→{ numeroLot: numeroLot }
+  8578→]
+  8579→}
+  8580→});
+  8581→if (alertes.length > 0) {
+  8582→// Bloquer la réception + notifier le pharmacien
+  8583→await this.notifService.alerteReceptionBloquee({
+  8584→pharmacieId, numeroLot, alertes
+  8585→});
+  8586→throw new ConflictException({
+  8587→code: 'MH-QUAL-001',
+  8588→message: 'Lot sous surveillance DPMED — réception bloquée',
+  8589→alertes
+  8590→});
+  8591→}
+  8592→}
+  8593→5.2 Signalement EI — Processus de soumission à la DPMED
+  8594→// Soumission signalement EI à la DPMED
+  8595→async soumettreSignalement(id: string, pharmacieId: string) {
+  8596→const signalement = await this.prisma.signalementEI.findUniqueOrThrow({
+  8597→where: { id }, include: { medicamentSurv: true }
+  8598→});
+  8599→// Construction du payload format DPMED / OMS
+  8600→const payload = {
+  8601→source: 'MediHelm',
+  8602→date: new Date().toISOString(),
+  8603→patient: signalement.patientCode, // pseudonymisé
+  8604→medicament: signalement.dciConcernee,
+  8605→effetIndes: signalement.descriptionEI,
+  8606→gravite: signalement.gravite,
+  8607→action: signalement.actionPrise,
+  8608→pharmacieRef: pharmacieId,
+  8609→};
+  8610→YEHI OR Tech | Confidentiel | Page 15 / 32
+  8611→
+  8612→--- Page 16/32 ---
+  8613→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8614→// Si API DPMED disponible
+  8615→if (this.dpmedGateway.isConnected()) {
+  8616→const ref = await this.dpmedGateway.submitSignalement(payload);
+  8617→await this.prisma.signalementEI.update({
+  8618→where: { id },
+  8619→data: { statutEnvoi: 'ACCUSE_RECEPTION', refDPMED: ref }
+  8620→});
+  8621→} else {
+  8622→// Fallback : génération PDF format DPMED pour envoi manuel
+  8623→const pdf = await this.pdfService.generateSignalement(payload);
+  8624→await this.storageService.save(`signalements/${id}.pdf`, pdf);
+  8625→await this.prisma.signalementEI.update({
+  8626→where: { id },
+  8627→data: { statutEnvoi: 'SOUMIS' }
+  8628→});
+  8629→}
+  8630→}
+  8631→5.3 Vérification d'interactions médicamenteuses
+  8632→// Vérification lors de la délivrance sur ordonnance multi-médicaments
+  8633→async verifierInteractions(dcis: string[]): Promise<Interaction[]> {
+  8634→const interactions: Interaction[] = [];
+  8635→for (let i = 0; i < dcis.length; i++) {
+  8636→for (let j = i + 1; j < dcis.length; j++) {
+  8637→const fiche = await this.prisma.ficheDCI.findUnique({
+  8638→where: { dci: dcis[i] }
+  8639→});
+  8640→if (!fiche) continue;
+  8641→const fiches = fiche.interactions as any[];
+  8642→const inter = fiches.find(x =>
+  8643→x.dci.toLowerCase().includes(dcis[j].toLowerCase())
+  8644→);
+  8645→if (inter && (inter.gravite === 'MAJEURE' || inter.gravite ===
+  8646→'MODEREE')) {
+  8647→interactions.push({
+  8648→dci1: dcis[i], dci2: dcis[j],
+  8649→gravite: inter.gravite,
+  8650→description: inter.description
+  8651→});
+  8652→}
+  8653→}
+  8654→}
+  8655→return interactions; // vide = pas d'interaction connue
+  8656→}
+  8657→YEHI OR Tech | Confidentiel | Page 16 / 32
+  8658→
+  8659→--- Page 17/32 ---
+  8660→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8661→6. Module M17 — Intégrations SoBAPS et Grossistes :
+  8662→Spécifications
+  8663→6.1 Architecture du Grossistes Gateway
+  8664→// NestJS Module: GrossistesGateway
+  8665→@Module({
+  8666→providers: [
+  8667→GrossistesGatewayService,
+  8668→UbiPharmAdapter,
+  8669→PromoPharmAdapter,
+  8670→]
+  8671→})
+  8672→export class GrossistesGatewayModule {}
+  8673→// Interface commune — chaque adaptateur l'implémente
+  8674→interface IGrossisteAdapter {
+  8675→sendCommande(cmd: CommandeGrossiste): Promise<string>; // retourne ref
+  8676→grossiste
+  8677→getConfirmation(ref: string): Promise<ConfirmationGrossiste>;
+  8678→getCatalogue(): Promise<ProduitGrossiste[]>;
+  8679→}
+  8680→// Si l'API d'un grossiste n'est pas disponible :
+  8681→// Fallback EDI — email structuré avec le bon de commande en pièce jointe
+  8682→// Format JSON embarqué dans l'email pour parsing automatique côté grossiste
+  8683→6.2 Transmission d'une commande API
+  8684→// Workflow complet d'une commande via API UbiPharm
+  8685→// 1. Pharmacien valide la commande depuis M03
+  8686→// 2. M03 appelle GrossistesGateway si fournisseur = partenaire API
+  8687→async transmettreCommandeAPI(commandeId: string) {
+  8688→const cmd = await this.prisma.commandeFournisseur.findUniqueOrThrow({
+  8689→where: { id: commandeId }, include: { lignes: true, fournisseur: true }
+  8690→});
+  8691→const grossiste = await this.prisma.partenaireGrossiste.findFirst({
+  8692→where: { nom: { contains: cmd.fournisseur.nom } }
+  8693→});
+  8694→if (!grossiste) return; // pas de partenariat API — flux normal
+  8695→const adapter = this.getAdapter(grossiste.codeGrossiste);
+  8696→const refGrossiste = await adapter.sendCommande({
+  8697→pharmacieRef: cmd.pharmacieId,
+  8698→lignes: cmd.lignes.map(l => ({
+  8699→refGrossiste: l.refGrossiste,
+  8700→dci: l.dci,
+  8701→quantite: l.quantiteCommandee,
+  8702→dateSouhaitee: cmd.dateLivraison
+  8703→}))
+  8704→YEHI OR Tech | Confidentiel | Page 17 / 32
+  8705→
+  8706→--- Page 18/32 ---
+  8707→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8708→});
+  8709→// Enregistrer la commande API avec la référence grossiste
+  8710→await this.prisma.commandeGrossiste.create({
+  8711→data: { pharmacieId: cmd.pharmacieId, grossisteId: grossiste.id,
+  8712→commandeInterne: commandeId, referenceGrossiste: refGrossiste,
+  8713→statut: 'ENVOYEE', payload: cmd }
+  8714→});
+  8715→// Notification pharmacien : commande envoyée automatiquement
+  8716→this.gateway.emit(cmd.pharmacieId, 'commande:api:envoyee', { commandeId,
+  8717→refGrossiste });
+  8718→}
+  8719→6.3 Réception SoBAPS — Réconciliation stock
+  8720→// Réception d'une livraison SoBAPS
+  8721→async enregistrerReceptionSoBAPS(dto: ReceptionSoBAPSDto) {
+  8722→const { pharmacieId, bonLivraisonRef, lignes } = dto;
+  8723→// 1. Mettre à jour le stock pour chaque médicament reçu
+  8724→for (const ligne of lignes) {
+  8725→await this.stockService.ajouterLot({
+  8726→pharmacieId,
+  8727→medicamentId: ligne.medicamentId,
+  8728→numeroLot: ligne.numeroLot,
+  8729→quantite: ligne.quantiteReelle,
+  8730→prixAchat: ligne.prixSoBAPS,
+  8731→dateExpiration: ligne.dateExpiration,
+  8732→fournisseur: 'SoBAPS'
+  8733→});
+  8734→}
+  8735→// 2. Calculer les écarts bon de livraison vs reçu
+  8736→const ecarts = lignes
+  8737→.filter(l => l.quantiteReelle !== l.quantiteBL)
+  8738→.map(l => ({ dci: l.dci, attendu: l.quantiteBL, recu: l.quantiteReelle }));
+  8739→// 3. Enregistrer la confirmation
+  8740→const conf = await this.prisma.confirmationReceptionSoBAPS.create({
+  8741→data: { pharmacieId, bonLivraisonRef,
+  8742→statut: ecarts.length === 0 ? 'CONFORME' : 'AVEC_ECART',
+  8743→ecarts: ecarts.length > 0 ? ecarts : undefined }
+  8744→});
+  8745→// 4. Envoyer webhook à SoBAPS (si partenariat actif)
+  8746→if (this.sobapsGateway.isConnected()) {
+  8747→await this.sobapsGateway.confirmReception({
+  8748→bonLivraisonRef, statut: conf.statut, ecarts
+  8749→});
+  8750→}
+  8751→}
+  8752→YEHI OR Tech | Confidentiel | Page 18 / 32
+  8753→
+  8754→--- Page 19/32 ---
+  8755→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8756→7. Module M18 — Alertes DPMED : Architecture de
+  8757→Diffusion
+  8758→7.1 Queue haute priorité — Architecture BullMQ
+  8759→// Queue dédiée aux alertes — priorité CRITIQUE
+  8760→const alertesQueue = new Queue('alertes-dpmed', {
+  8761→connection: redis,
+  8762→defaultJobOptions: {
+  8763→priority: 1, // priorité maximale
+  8764→attempts: 5, // 5 tentatives en cas d'échec
+  8765→backoff: { type: 'exponential', delay: 2000 },
+  8766→removeOnComplete: false, // garder les logs
+  8767→removeOnFail: false
+  8768→}
+  8769→});
+  8770→// Worker dédié — 20 jobs simultanés (vs 5 pour SMS normaux)
+  8771→const alertesWorker = new Worker('alertes-dpmed', async job => {
+  8772→const { alerteId } = job.data;
+  8773→await this.diffuserAlerteComplete(alerteId);
+  8774→}, { concurrency: 20, connection: redis });
+  8775→7.2 Processus de diffusion d'une alerte DPMED
+  8776→async diffuserAlerteComplete(alerteId: string) {
+  8777→const alerte = await this.prisma.alerteDPMED.findUniqueOrThrow({
+  8778→where: { id: alerteId }
+  8779→});
+  8780→// 1. Vérifier la signature numérique de l'alerte
+  8781→const valid = await this.verifierSignature(alerte.signatureNumerique,
+  8782→alerte);
+  8783→if (!valid) throw new Error('MH-SEC-001: Signature alerte invalide —
+  8784→diffusion annulée');
+  8785→// 2. Identifier les pharmacies concernées
+  8786→// (ayant le lot concerné en stock actif)
+  8787→const pharmaciesConcernees = await this.prisma.$queryRaw`
+  8788→SELECT DISTINCT l.pharmacie_id, array_agg(l.numero_lot) as lots
+  8789→FROM lots l
+  8790→JOIN medicaments m ON l.medicament_id = m.id
+  8791→WHERE l.quantite > 0
+  8792→AND m.dci ILIKE ${alerte.dciConcernee}
+  8793→AND l.numero_lot = ANY(${alerte.numerosLotConcernes})
+  8794→GROUP BY l.pharmacie_id
+  8795→`;
+  8796→// 3. Identifier les patients concernés
+  8797→// (ayant acheté le lot dans les 90 derniers jours)
+  8798→const patientsConcernes = await this.getPatientsConcernes(alerte, 90);
+  8799→YEHI OR Tech | Confidentiel | Page 19 / 32
+  8800→
+  8801→--- Page 20/32 ---
+  8802→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8803→// 4. Diffusion multi-canal aux pharmaciens
+  8804→for (const pharmacie of pharmaciesConcernees) {
+  8805→await this.prisma.diffusionAlerte.create({
+  8806→data: { alerteId, pharmacieId: pharmacie.pharmacie_id,
+  8807→lotsConcernes: pharmacie.lots,
+  8808→canalEnvoi: ['PUSH', 'SMS'] }
+  8809→});
+  8810→await this.notifService.pushAlerteDPMED(pharmacie.pharmacie_id, alerte);
+  8811→await this.smsService.sendAlerteDPMED(pharmacie.pharmacie_id, alerte);
+  8812→}
+  8813→// 5. Diffusion aux patients concernés
+  8814→for (const patient of patientsConcernes) {
+  8815→await this.notifService.pushAlertePatient(patient, alerte);
+  8816→if (patient.telephone) await this.smsService.sendAlertePatient(patient,
+  8817→alerte);
+  8818→}
+  8819→// 6. Mise à jour compteurs
+  8820→await this.prisma.alerteDPMED.update({
+  8821→where: { id: alerteId },
+  8822→data: {
+  8823→statut: 'DIFFUSEE',
+  8824→nbOfficinesNotifiees: pharmaciesConcernees.length,
+  8825→nbPatientsNotifies: patientsConcernes.length
+  8826→}
+  8827→});
+  8828→}
+  8829→7.3 Webhook DPMED — Réception sécurisée
+  8830→// Endpoint de réception des alertes depuis le système DPMED
+  8831→@Post('/webhooks/dpmed')
+  8832→@UseGuards(DPMEDWebhookGuard) // vérifie signature + IP whitelist DPMED
+  8833→async receiveDPMEDAlert(@Body() payload: DPMEDAlertPayload) {
+  8834→// 1. Vérifier la signature numérique DPMED
+  8835→const isValid = this.verifyDPMEDSignature(
+  8836→payload, process.env.DPMED_PUBLIC_KEY
+  8837→);
+  8838→if (!isValid) throw new ForbiddenException('MH-SEC-002: Signature DPMED
+  8839→invalide');
+  8840→// 2. Créer l'alerte en base
+  8841→const alerte = await this.prisma.alerteDPMED.create({ data:
+  8842→{ ...payload } });
+  8843→// 3. Enqueuer immédiatement avec priorité CRITIQUE
+  8844→await this.alertesQueue.add('diffuser', { alerteId: alerte.id }, {
+  8845→priority: 1,
+  8846→delay: 0 // immédiat
+  8847→});
+  8848→YEHI OR Tech | Confidentiel | Page 20 / 32
+  8849→
+  8850→--- Page 21/32 ---
+  8851→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8852→return { received: true, alerteId: alerte.id };
+  8853→}
+  8854→// En l'absence d'API DPMED : saisie manuelle via Admin MédiHelm
+  8855→// + confirmation humaine obligatoire avant mise en queue
+  8856→YEHI OR Tech | Confidentiel | Page 21 / 32
+  8857→
+  8858→--- Page 22/32 ---
+  8859→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8860→8. Module M19 — Conformité Réglementaire :
+  8861→Spécifications
+  8862→8.1 Calcul du score de conformité
+  8863→async calculerScoreConformite(pharmacieId: string): Promise<ScoreConformite> {
+  8864→// 1. Registre stupéfiants (25 pts)
+  8865→// Vérifie que toutes les délivrances de stupéfiants ont un numéro de
+  8866→registre
+  8867→const stupMissing = await this.prisma.vente.count({
+  8868→where: { pharmacieId,
+  8869→lignes: { some: { medicament: { estStupefiant: true } } },
+  8870→ordonnanceId: null // sans ordonnance liée
+  8871→}
+  8872→});
+  8873→const scoreStup = stupMissing === 0 ? 25 : Math.max(0, 25 - stupMissing * 5);
+  8874→// 2. Alertes DPMED traitées < 24h (25 pts)
+  8875→const alertes = await this.prisma.diffusionAlerte.findMany({
+  8876→where: { pharmacieId, dateEnvoi: { gte: subDays(new Date(), 90) } }
+  8877→});
+  8878→const traitees24h = alertes.filter(a =>
+  8879→a.dateAcquittement &&
+  8880→differenceInHours(a.dateAcquittement, a.dateEnvoi) <= 24
+  8881→).length;
+  8882→const scoreAlertes = alertes.length === 0 ? 25
+  8883→: Math.round((traitees24h / alertes.length) * 25);
+  8884→// 3. Documents valides (20 pts)
+  8885→const docsExpires = await this.prisma.documentReglementaire.count({
+  8886→where: { pharmacieId, statut: { in: ['EXPIRE', 'EXPIRE_BIENTOT'] } }
+  8887→});
+  8888→const scoreDocs = docsExpires === 0 ? 20 : Math.max(0, 20 - docsExpires * 5);
+  8889→// 4. Signalements EI soumis (15 pts)
+  8890→const eiNonSoumis = await this.prisma.signalementEI.count({
+  8891→where: { pharmacieId, statutEnvoi: 'EN_ATTENTE',
+  8892→createdAt: { lte: subDays(new Date(), 7) } } // > 7j non soumis
+  8893→});
+  8894→const scoreEI = eiNonSoumis === 0 ? 15 : Math.max(0, 15 - eiNonSoumis * 5);
+  8895→// 5. PV destructions à jour (15 pts)
+  8896→const destructSansVP = await this.prisma.destructionMedicament.count({
+  8897→where: { pharmacieId, pvUrl: null }
+  8898→});
+  8899→const scoreDestr = destructSansVP === 0 ? 15 : Math.max(0, 15 -
+  8900→destructSansVP * 5);
+  8901→const scoreTotal = scoreStup + scoreAlertes + scoreDocs + scoreEI +
+  8902→scoreDestr;
+  8903→return this.prisma.scoreConformite.upsert({
+  8904→where: { pharmacieId },
+  8905→YEHI OR Tech | Confidentiel | Page 22 / 32
+  8906→
+  8907→--- Page 23/32 ---
+  8908→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8909→create: { pharmacieId, scoreTotal, scoreRegistreStup: scoreStup,
+  8910→scoreAlerteDPMED: scoreAlertes, scoreDocuments: scoreDocs,
+  8911→scorePharmacovigi: scoreEI, scoreDestructions: scoreDestr },
+  8912→update: { scoreTotal, scoreRegistreStup: scoreStup,
+  8913→scoreAlerteDPMED: scoreAlertes, scoreDocuments: scoreDocs,
+  8914→scorePharmacovigi: scoreEI, scoreDestructions: scoreDestr,
+  8915→calculatedAt: new Date() }
+  8916→});
+  8917→}
+  8918→8.2 Génération des exports réglementaires
+  8919→Export Format Librairie Contenu clé
+  8920→Date, patient pseudonymisé,
+  8921→PDFKit +
+  8922→Registre stupéfiants PDF signé + Excel médicament, lot, quantité,
+  8923→ExcelJS
+  8924→pharmacien, ordonnance ref
+  8925→Synthèse stupéfiants +
+  8926→PDF format
+  8927→Déclaration trimestrielle PDFKit psychotropes par DCI sur le
+  8928→DPMED
+  8929→trimestre
+  8930→Médicaments, lots,
+  8931→PDF format officiel quantités, motif, date,
+  8932→PV de destruction PDFKit
+  8933→DPMED pharmacien responsable,
+  8934→témoin
+  8935→Rapport pharmacovigilance PDF format Signalements EI du mois,
+  8936→PDFKit
+  8937→mensuel OMS/DPMED gravité, DCI, évolution
+  8938→Stock par DCI au 31/12,
+  8939→Etat de stock annuel Excel ExcelJS
+  8940→valeur CMUP, péremptions
+  8941→YEHI OR Tech | Confidentiel | Page 23 / 32
+  8942→
+  8943→--- Page 24/32 ---
+  8944→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8945→9. Portail Institutionnel — Spécifications Frontend
+  8946→9.1 Architecture du portail
+  8947→Le portail institutionnel est une application Next.js distincte, servie sur
+  8948→institutionnel.medihelm.com. Elle est complètement séparée de app.medihelm.com. Seuls les
+  8949→rôles DPMED_ADMIN, SOBAPS_VIEWER, ABRP_VIEWER et GROSSISTE_PARTNER y ont
+  8950→accès, sur invitation de YEHI OR Tech uniquement.
+  8951→9.2 Interfaces par acteur
+  8952→Acteur Routes Fonctionnalités
+  8953→/ alertes, /alertes/nouvelle,
+  8954→Emission alertes, suivi taux acquittement,
+  8955→DPMED /alertes/:id, /dashboard,
+  8956→consultation signalements EI anonymisés
+  8957→/pharmacovigilance
+  8958→/ livraisons, /livraisons/:id, Confirmations réception, taux conformité,
+  8959→SoBAPS
+  8960→/dashboard écarts signalés par officines
+  8961→/ dashboard, /tensions, Agrégats anonymisés : médicaments en
+  8962→ABRP
+  8963→/carte tension, carte zones sous-approvisionnées
+  8964→UbiPharm / / commandes, /dashboard, Commandes reçues des officines MédiHelm,
+  8965→Promopharma /catalogue tendances agrégées de la demande
+  8966→9.3 Tableau de bord ABRP — Données agrégées anonymisées
+  8967→// Requête agrégée ABRP — aucune donnée individuelle
+  8968→GET /portail/abrp/dashboard
+  8969→// Réponse : agrégats uniquement
+  8970→{
+  8971→medicamentsEnTension: [
+  8972→{ dci: 'Amoxicilline 500mg', nbOfficinesEnRupture: 45, nbOfficinesTotal:
+  8973→120,
+  8974→tauxRupture: 0.375, tendance: 'HAUSSE' }
+  8975→],
+  8976→carteApprovisionnement: [
+  8977→{ departement: 'Littoral', scoreApprovisionnement: 72 },
+  8978→{ departement: 'Alibori', scoreApprovisionnement: 38 } // alerte sous-
+  8979→approvisionnement
+  8980→],
+  8981→top10DciTension: [...],
+  8982→evolutionMensuelle: [...],
+  8983→// JAMAIS : nom d'officine, stock individuel, données patients, CA
+  8984→}
+  8985→YEHI OR Tech | Confidentiel | Page 24 / 32
+  8986→
+  8987→--- Page 25/32 ---
+  8988→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  8989→10. Sécurité Renforcée — mTLS et Données
+  8990→Institutionnelles
+  8991→10.1 Authentification mutuelle mTLS
+  8992→// mTLS entre MédiHelm API et les systèmes institutionnels
+  8993→// Configuration NestJS + Node.js TLS
+  8994→const httpsOptions = {
+  8995→key: fs.readFileSync('certs/medihelm-server.key'),
+  8996→cert: fs.readFileSync('certs/medihelm-server.crt'),
+  8997→ca: fs.readFileSync('certs/dpmed-ca.crt'), // CA du Ministère Santé
+  8998→requestCert: true,
+  8999→rejectUnauthorized: true // rejette si pas de certificat client valide
+  9000→};
+  9001→// Chaque institution dispose de son propre certificat client
+  9002→// émis et révocable par YEHI OR Tech
+  9003→// dpmed.medihelm.com.crt
+  9004→// sobaps.medihelm.com.crt
+  9005→// ubipharm.medihelm.com.crt
+  9006→10.2 Validation de la signature numérique des alertes DPMED
+  9007→// Vérification signature RSA-256 des alertes DPMED
+  9008→async verifyDPMEDSignature(payload: any, signature: string): Promise<boolean> {
+  9009→const publicKey = await this.keyStore.getDPMEDPublicKey();
+  9010→const verify = crypto.createVerify('SHA256');
+  9011→verify.update(JSON.stringify(payload));
+  9012→return verify.verify(publicKey, signature, 'base64');
+  9013→}
+  9014→// En cas d'API DPMED non disponible :
+  9015→// Alerte saisie manuellement par YEHI OR Tech Admin
+  9016→// + double validation par 2 membres de l'équipe YEHI OR Tech
+  9017→// + notification SMS de confirmation envoyée au contact DPMED
+  9018→// avant mise en queue de diffusion
+  9019→10.3 IP Whitelist — Webhooks institutionnels
+  9020→// Guard NestJS — IP whitelist par institution
+  9021→@Injectable()
+  9022→export class InstitutionWebhookGuard implements CanActivate {
+  9023→private whitelists = {
+  9024→dpmed: process.env.DPMED_IP_WHITELIST?.split(',') || [],
+  9025→ubipharm: process.env.UBIPHARM_IP_WHITELIST?.split(',') || [],
+  9026→promopharma: process.env.PROMOPHARMA_IP_WHITELIST?.split(',') || [],
+  9027→sobaps: process.env.SOBAPS_IP_WHITELIST?.split(',') || [],
+  9028→};
+  9029→YEHI OR Tech | Confidentiel | Page 25 / 32
+  9030→
+  9031→--- Page 26/32 ---
+  9032→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9033→canActivate(ctx: ExecutionContext): boolean {
+  9034→const req = ctx.switchToHttp().getRequest();
+  9035→const institution = req.params.institution;
+  9036→const clientIP = req.ip || req.connection.remoteAddress;
+  9037→return this.whitelists[institution]?.includes(clientIP) ?? false;
+  9038→}
+  9039→}
+  9040→YEHI OR Tech | Confidentiel | Page 26 / 32
+  9041→
+  9042→--- Page 27/32 ---
+  9043→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9044→11. Queue de Diffusion d'Alertes — Architecture Haute
+  9045→Priorité
+  9046→11.1 Garantie de livraison < 2 minutes
+  9047→Etape Durée max Action Fallback
+  9048→Réception webhook Validation signature + création Rejet si signature
+  9049→< 1 seconde
+  9050→DPMED AlerteDPMED invalide
+  9051→Mise en queue
+  9052→< 100ms Job créé avec delay = 0 —
+  9053→BullMQ priorité 1
+  9054→Identification Index sur
+  9055→< 10
+  9056→pharmacies Query PostgreSQL sur lots actifs lots.numero_lot +
+  9057→secondes
+  9058→concernées medicaments.dci
+  9059→Identification patients < 10 Query sur lignes_vente + Index sur created_at
+  9060→concernés secondes commandes_patient + medicament_id
+  9061→Envoi push < 30 Firebase FCM batch (jusqu'à 500
+  9062→Retry x3 si FCM error
+  9063→notifications secondes tokens/batch)
+  9064→< 60
+  9065→Envoi SMS AfricasTalking bulk SMS Retry x5 si timeout
+  9066→secondes
+  9067→Pour jusqu'à 600 pharmacies +
+  9068→Total garanti < 2 minutes SLA interne
+  9069→10 000 patients
+  9070→11.2 Gestion des accusés de réception
+  9071→// Le pharmacien acquitte une alerte depuis MédiHelm Pro
+  9072→PATCH /alertes/dpmed/:id/acquitter
+  9073→// Met à jour DiffusionAlerte.dateAcquittement
+  9074→// Incrémente AlerteDPMED.nbOfficinesAcquittees
+  9075→// Notifie le portail DPMED via WebSocket (temps réel)
+  9076→// Si non acquittée après 4h : relance automatique
+  9077→// Si non acquittée après 24h : escalade — email DIRECTEUR + SMS urgence
+  9078→// Si non acquittée après 72h : alerte YEHI OR Tech Admin pour contact direct
+  9079→YEHI OR Tech | Confidentiel | Page 27 / 32
+  9080→
+  9081→--- Page 28/32 ---
+  9082→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9083→12. Analytics IA v2.0 — Domaines Enrichis
+  9084→12.1 Nouveau domaine : Conformité réglementaire
+  9085→// Rapport Analytics IA — Domaine CONFORMITE
+  9086→const rapportConformite = {
+  9087→domaine: 'CONFORMITE',
+  9088→scoreGlobal: scoreConformite.scoreTotal, // recalculé quotidiennement
+  9089→couleur: score >= 75 ? 'VERT' : score >= 50 ? 'AMBER' : 'ROUGE',
+  9090→alertes: [
+  9091→{ type: 'ALERTE_DPMED_NON_TRAITEE', priorite: 'CRITIQUE',
+  9092→message: '2 alertes DPMED en attente depuis > 24h', cta:
+  9093→'/alertes/dpmed' },
+  9094→{ type: 'DOCUMENT_EXPIRE', priorite: 'HAUTE',
+  9095→message: 'Licence exploitation expire dans 28 jours', cta:
+  9096→'/conformite/documents' }
+  9097→],
+  9098→recommandations: [
+  9099→{ titre: 'Soumettre les 3 signalements EI en attente',
+  9100→description: 'Ces signalements ont plus de 7 jours sans envoi DPMED.',
+  9101→impact: 'ELEVE', urgence: 'CETTE_SEMAINE' }
+  9102→],
+  9103→kpis: {
+  9104→scoreConformiteTotal: 68,
+  9105→alertesDPMEDEnAttente: 2,
+  9106→signalementsEIEnAttente: 3,
+  9107→documentsExpirantBientot: 1,
+  9108→certificationDPMED: false
+  9109→}
+  9110→};
+  9111→12.2 Nouveau domaine : Performance intégration grossiste
+  9112→// Rapport Analytics IA — Domaine INTEGRATION_GROSSISTE
+  9113→const rapportGrossiste = {
+  9114→kpis: {
+  9115→commandesViaAPI: 45, // ce mois
+  9116→commandesManuellesMois: 3, // anomalies
+  9117→delaiMoyenConfirm: '4h', // UbiPharm ce mois
+  9118→tauxConfirmation: 0.98, // 98% confirmées
+  9119→economiesEstimees: '~45 min/semaine vs commande tél',
+  9120→alertesStockAutoGenerees: 12,
+  9121→commandesAutoValidees: 10,
+  9122→commandesAutoModifiees: 2
+  9123→},
+  9124→recommandations: [
+  9125→{ titre: 'Activer commande auto pour Amoxicilline 500mg',
+  9126→YEHI OR Tech | Confidentiel | Page 28 / 32
+  9127→
+  9128→--- Page 29/32 ---
+  9129→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9130→description: 'Ce médicament a été en rupture 3 fois ce mois. La commande
+  9131→automatique éviterait ces ruptures.',
+  9132→impact: 'ELEVE', urgence: 'CETTE_SEMAINE' }
+  9133→]
+  9134→};
+  9135→YEHI OR Tech | Confidentiel | Page 29 / 32
+  9136→
+  9137→--- Page 30/32 ---
+  9138→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9139→13. Tests v2.0 — Parcours Institutionnels
+  9140→13.1 Nouveaux parcours E2E critiques
+  9141→ Alerte DPMED complète : envoi webhook DPMED > validation signature > identification
+  9142→pharmacies et patients concernés > diffusion push + SMS < 2 min > acquittement
+  9143→pharmacien > mise à jour portail DPMED.
+  9144→ Commande API grossiste : pharmacien valide commande > transmise API UbiPharm >
+  9145→confirmation webhook UbiPharm > mise à jour statut dans MédiHelm > notification
+  9146→pharmacien.
+  9147→ Signalement EI : pharmacien remplit formulaire > soumission API DPMED > accusé
+  9148→réception > référence DPMED enregistrée > mise à jour score conformité.
+  9149→ Réception SoBAPS avec écart : scan bon livraison > saisie quantités réelles ≠ quantités
+  9150→BL > écart détecté > stock mis à jour du reçu > webhook écart envoyé à SoBAPS.
+  9151→ Score conformité : vérification que le calcul des 5 composantes est correct sur données
+  9152→de test connues.
+  9153→ Portail DPMED : connexion rôle DPMED_ADMIN > émission alerte > consultation taux
+  9154→acquittement temps réel.
+  9155→ Sécurité webhook : envoi webhook DPMED avec signature invalide > rejet 403 > aucune
+  9156→alerte créée.
+  9157→13.2 Tests de sécurité institutionnels
+  9158→Test Vecteur d'attaque Résultat attendu
+  9159→Webhook sans certificat
+  9160→Fausse alerte DPMED HTTP 403 — rejeté avant traitement
+  9161→client valide
+  9162→Signature DPMED Payload modifié après HTTP 403 — vérification signature
+  9163→invalide signature échouée
+  9164→Accès portail DPMED JWT sans rôle
+  9165→HTTP 403 — RolesGuard
+  9166→sans rôle DPMED_ADMIN
+  9167→Injection données
+  9168→Tentative de requête Données agrégées uniquement —
+  9169→pharmacie dans portail
+  9170→données individuelles schéma séparé
+  9171→ABRP
+  9172→IP non whitelistée sur IP inconnue sur POST
+  9173→HTTP 403 — InstitutionWebhookGuard
+  9174→webhook /webhooks/dpmed
+  9175→YEHI OR Tech | Confidentiel | Page 30 / 32
+  9176→
+  9177→--- Page 31/32 ---
+  9178→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9179→14. Déploiement v2.0 — Variables d'Environnement
+  9180→Etendues
+  9181→14.1 Nouvelles variables d'environnement
+  9182→Variable Description Sensible
+  9183→Secret HMAC pour webhooks
+  9184→DPMED_WEBHOOK_SECRET Oui
+  9185→DPMED entrants
+  9186→Clé publique RSA DPMED pour
+  9187→DPMED_PUBLIC_KEY Oui
+  9188→vérification signature alertes
+  9189→URL API DPMED si disponible
+  9190→DPMED_API_URL Non
+  9191→(sinon null = mode manuel)
+  9192→IPs autorisées pour webhooks
+  9193→DPMED_IP_WHITELIST Oui
+  9194→DPMED (CSV)
+  9195→SOBAPS_WEBHOOK_SECRET Secret HMAC webhooks SoBAPS Oui
+  9196→SOBAPS_API_URL URL API SoBAPS Non
+  9197→SOBAPS_IP_WHITELIST IPs autorisées webhooks SoBAPS Oui
+  9198→UBIPHARM_API_URL URL API UbiPharm commandes Non
+  9199→Clé API UbiPharm (stockée
+  9200→UBIPHARM_API_KEY Oui
+  9201→chiffrée)
+  9202→Secret HMAC confirmations
+  9203→UBIPHARM_WEBHOOK_SECRET Oui
+  9204→UbiPharm
+  9205→IPs autorisées webhooks
+  9206→UBIPHARM_IP_WHITELIST Oui
+  9207→UbiPharm
+  9208→URL API Promopharma
+  9209→PROMOPHARMA_API_URL Non
+  9210→commandes
+  9211→Clé API Promopharma (stockée
+  9212→PROMOPHARMA_API_KEY Oui
+  9213→chiffrée)
+  9214→PROMOPHARMA_WEBHOOK_SECR Secret HMAC confirmations
+  9215→Oui
+  9216→ET Promopharma
+  9217→Chemin certificat serveur
+  9218→MTLS_CERT_PATH Oui
+  9219→MédiHelm (mTLS)
+  9220→MTLS_KEY_PATH Chemin clé privée serveur (mTLS) Oui
+  9221→MTLS_CA_PATH Chemin CA institutionnelle (mTLS) Oui
+  9222→URL Redis dédiée queue haute
+  9223→REDIS_ALERTES_QUEUE Oui
+  9224→priorité alertes
+  9225→INSTITUTIONNEL_SUBDOMAIN Sous-domaine portail institutionnel Non
+  9226→14.2 Checklist déploiement v2.0
+  9227→ Migrations Prisma : nouveaux schémas qualite, institutionnel, grossistes créés.
+  9228→YEHI OR Tech | Confidentiel | Page 31 / 32
+  9229→
+  9230→--- Page 32/32 ---
+  9231→MédiHelm — Spécifications Techniques v2.0 — Infrastructure Pharmaceutique Nationale
+  9232→ Index PostgreSQL : lots.numero_lot + medicaments.dci pour recherche alertes < 10 sec.
+  9233→ Certificats mTLS : générés et testés avec les partenaires institutionnels.
+  9234→ Whitelists IP : configurées par environnement (staging + production).
+  9235→ Queue BullMQ alertes : Redis dédié configuré avec priorité 1 et concurrence 20.
+  9236→ Portail institutionnel : déployé sur sous-domaine séparé avec auth distincte.
+  9237→ Test alerte DPMED de bout en bout sur staging avant tout déploiement production.
+  9238→MédiHelm Specs v2.0 | YEHI OR Tech © 2025 | Document confidentiel — Reproduction interdite
+  9239→YEHI OR Tech | Confidentiel | Page 32 / 32
+  9240→

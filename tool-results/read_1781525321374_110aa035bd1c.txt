@@ -1,0 +1,1502 @@
+  4501→}
+  4502→YEHI OR Tech | Confidentiel | Page 17 / 18
+  4503→
+  4504→--- Page 18/18 ---
+  4505→MédiHelm — Scan Code-barres — Spécifications Techniques v1.0
+  4506→12. Mode Offline — SQLite
+  4507→Le scan doit fonctionner en mode offline POS. Les médicaments et lots sont synchronisés
+  4508→dans SQLite au login (et toutes les 5 minutes si connecté). L'endpoint POST /scan a son
+  4509→équivalent local qui interroge SQLite directement — même logique de résolution.
+  4510→// services/scan-offline.service.ts
+  4511→// Même interface que ScanResolverService — mais interroge SQLite
+  4512→export class ScanOfflineService {
+  4513→constructor(private readonly sqliteDb: SQLitePrismaClient) {}
+  4514→async resoudre(rawCode: string, pharmacieId: string, contexte: ContexteScan)
+  4515→{
+  4516→const gs1 = parseGS1(rawCode);
+  4517→const medicament = await this.sqliteDb.medicament.findFirst({
+  4518→where: {
+  4519→pharmacieId,
+  4520→OR: [{ codeBarres: gs1.ean13 }, { gtin: gs1.gtin }],
+  4521→},
+  4522→});
+  4523→if (!medicament) return { statut: 'INCONNU', rawCode };
+  4524→// Même logique FEFO et vérification péremption
+  4525→// Note : les alertes DPMED ne sont PAS vérifiables offline
+  4526→const lot = await this.trouverLotFEFO(medicament.id);
+  4527→if (!lot) return { statut: 'RUPTURE', medicament };
+  4528→return { statut: 'TROUVE', medicament, lot, action: 'AJOUTER_PANIER' };
+  4529→}
+  4530→}
+  4531→// Dans le composant POS — sélection du service selon l'état réseau
+  4532→const scanService = navigator.onLine ? onlineScan : offlineScan;
+  4533→MédiHelm Scan Specs v1.0 | YEHI OR Tech © 2025 | Confidentiel
+  4534→YEHI OR Tech | Confidentiel | Page 18 / 18
+  4535→
+  4536→
+  4537→################################################################################
+  4538→# FILE: MediHelm_Schema_Prisma_v1.0.pdf
+  4539→# PAGES: 55
+  4540→################################################################################
+  4541→--- Page 1/55 ---
+  4542→MédiHelm — Documentation schema.prisma — Référence complète
+  4543→Y E H I O R T E C H
+  4544→MédiHelm
+  4545→DOCUMENTATION SCHEMA.PRISMA — RÉFÉRENCE COMPLÈTE
+  4546→47 modèles · 29 enums · Schéma Pharma + Schéma Grossiste + ORION + Institutionnel
+  4547→Référence
+  4548→MH-SCHEMA-2025-v1.0
+  4549→Specs parent
+  4550→MH-SPECS-2025-v2.0 · MH-GROS-SPECS-2025-v1.0
+  4551→Schémas couverts
+  4552→pharma · grossiste · qualite · institutionnel
+  4553→Stack
+  4554→Prisma ORM · PostgreSQL 15 · Supabase (RLS)
+  4555→Total
+  4556→47 modèles · 29 enums
+  4557→Responsable
+  4558→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+  4559→Document confidentiel — YEHI OR Tech © 2025
+  4560→YEHI OR Tech | Confidentiel | Page 1 / 55
+  4561→
+  4562→--- Page 2/55 ---
+  4563→MédiHelm — Documentation schema.prisma — Référence complète
+  4564→Sommaire
+  4565→1. Configuration Prisma (datasource + generator)
+  4566→2. Enums globaux — Plateforme & Auth
+  4567→3. Schéma PHARMA — MédiHelm Pro
+  4568→3.1 Plateforme & Auth
+  4569→3.2 Stock & Médicaments
+  4570→3.3 Ventes & POS
+  4571→3.4 Patients & Ordonnances
+  4572→3.5 Fournisseurs & Commandes
+  4573→3.6 RH
+  4574→3.7 Finance
+  4575→3.8 Garde & Communication
+  4576→3.9 Documents & Conformité
+  4577→3.10 Commandes Patient
+  4578→3.11 Intégrations Grossiste
+  4579→4. Schéma GROSSISTE — MédiHelm Grossiste
+  4580→5. Schéma ORION — Agent IA
+  4581→6. Schéma INSTITUTIONNEL — DPMED · SoBAPS · Pharmacovigilance
+  4582→7. Index complet des modèles
+  4583→8. Index complet des enums
+  4584→9. Relations entre modèles
+  4585→10. Conventions et règles du schéma
+  4586→YEHI OR Tech | Confidentiel | Page 2 / 55
+  4587→
+  4588→--- Page 3/55 ---
+  4589→MédiHelm — Documentation schema.prisma — Référence complète
+  4590→1. Configuration Prisma
+  4591→// schema.prisma — MédiHelm — YEHI OR Tech
+  4592→// Référence : MH-SCHEMA-2025-v1.0
+  4593→datasource db {
+  4594→provider = "postgresql"
+  4595→url = env("DATABASE_URL")
+  4596→}
+  4597→generator client {
+  4598→provider = "prisma-client-js"
+  4599→}
+  4600→// Mode offline POS — SQLite local
+  4601→generator clientSQLite {
+  4602→provider = "prisma-client-js"
+  4603→output = "./generated/sqlite"
+  4604→}
+  4605→datasource dbSQLite {
+  4606→provider = "sqlite"
+  4607→url = "file:./offline.db"
+  4608→}
+  4609→Row Level Security (RLS) PostgreSQL activée sur toutes les tables métier.
+  4610→Le middleware NestJS injecte le tenant_id via SET app.current_tenant avant chaque requête.
+  4611→Jamais de jointure directe entre les schémas pharma et grossiste — communication via API
+  4612→uniquement.
+  4613→YEHI OR Tech | Confidentiel | Page 3 / 55
+  4614→
+  4615→--- Page 4/55 ---
+  4616→MédiHelm — Documentation schema.prisma — Référence complète
+  4617→2. Enums Globaux — Plateforme & Auth
+  4618→enum PlanType
+  4619→Plans d'abonnement MédiHelm Pro
+  4620→Valeur Signification
+  4621→Plan démarrage — officine individuelle < 50 patients/jour — 19 900
+  4622→SEED
+  4623→FCFA/mois
+  4624→GROW Plan croissance — officine standard — 34 900 FCFA/mois
+  4625→LEAD Plan leader — officine à fort volume — 54 900 FCFA/mois
+  4626→NETWORK Plan réseau — promoteur multi-officines — Sur devis
+  4627→enum RoleType
+  4628→Rôles utilisateurs de la plateforme complète
+  4629→Valeur Signification
+  4630→PLATFORM_ADMIN YEHI OR Tech — accès total à toute la plateforme
+  4631→OWNER Souscripteur du compte — peut être promoteur ou directeur
+  4632→PROMOTEUR Propriétaire réseau multi-officines — lecture consolidée
+  4633→DIRECTEUR Pharmacien titulaire ou responsable d'une officine — accès complet
+  4634→PHARMACIEN Vente + ordonnances + stock + patients
+  4635→CAISSIER POS uniquement — pas d'accès stock ou patients
+  4636→MAGASINIER Stock + réceptions — pas de POS
+  4637→COMPTABLE Finance + caisse — pas de POS
+  4638→STAGIAIRE Lecture seule sur modules autorisés
+  4639→DPMED_ADMIN Accès institutionnel DPMED — alertes et pharmacovigilance
+  4640→SOBAPS_VIEWER Accès institutionnel SoBAPS — confirmations livraisons
+  4641→ABRP_VIEWER Accès institutionnel ABRP
+  4642→GROSSISTE_PARTNER Grossiste partenaire — accès lecture commandes officines
+  4643→GROSSISTE_ADMIN Administrateur espace grossiste
+  4644→GROSSISTE_COMMAND
+  4645→Responsable commandes grossiste
+  4646→ES
+  4647→GROSSISTE_PREPARAT
+  4648→Préparateur entrepôt grossiste
+  4649→EUR
+  4650→GROSSISTE_LIVREUR Livreur grossiste — app mobile
+  4651→GROSSISTE_COMMERC
+  4652→Commercial terrain grossiste
+  4653→IAL
+  4654→GROSSISTE_COMPTAB
+  4655→Comptable grossiste
+  4656→LE
+  4657→YEHI OR Tech | Confidentiel | Page 4 / 55
+  4658→
+  4659→--- Page 5/55 ---
+  4660→MédiHelm — Documentation schema.prisma — Référence complète
+  4661→enum TenantType
+  4662→Types de tenants de la plateforme
+  4663→Valeur Signification
+  4664→PHARMACIE Officine pharmaceutique — MédiHelm Pro
+  4665→GROSSISTE Grossiste répartiteur — MédiHelm Grossiste
+  4666→INSTITUTIONNEL Institution (DPMED, SoBAPS, ABRP) — accès en lecture
+  4667→YEHI OR Tech | Confidentiel | Page 5 / 55
+  4668→
+  4669→--- Page 6/55 ---
+  4670→MédiHelm — Documentation schema.prisma — Référence complète
+  4671→SCHÉMA PHARMA — MédiHelm Pro
+  4672→3.1 Plateforme & Auth
+  4673→model Pharmacie {
+  4674→Tenant principal — chaque officine pharmaceutique est un tenant isolé
+  4675→Champ Type Prisma Contraintes / Description
+  4676→@id @default(uuid()) — Identifiant unique du
+  4677→id String
+  4678→tenant
+  4679→nom String Nom officiel de l'officine
+  4680→@unique — URL-friendly identifier ex:
+  4681→slug String
+  4682→pharmacie-centrale-parakou
+  4683→adresse String Adresse physique complète
+  4684→telephone String Numéro principal
+  4685→email String? Email optionnel
+  4686→latitude Float Coordonnée GPS pour géolocalisation
+  4687→longitude Float Coordonnée GPS pour géolocalisation
+  4688→plan PlanType @default(SEED) — Plan d'abonnement actif
+  4689→planExpireAt DateTime? Date d'expiration du plan — null si actif
+  4690→actif Boolean @default(true) — false = compte suspendu
+  4691→@default(false) — true = pharmacie de garde
+  4692→modeGardeActif Boolean
+  4693→active
+  4694→heureOuverture String @default('08:00') — Format HH:mm WAT
+  4695→heureFermeture String @default('21:00') — Format HH:mm WAT
+  4696→createdAt DateTime @default(now())
+  4697→updatedAt DateTime @updatedAt
+  4698→ Isolation RLS : pharmacie_id injecté dans chaque requête via middleware NestJS.
+  4699→ Le slug est utilisé pour les URLs publiques : medihelm.com/pharmacies/:slug.
+  4700→ modeGardeActif est activé par cron à l'heure de début de garde ou manuellement par le
+  4701→DIRECTEUR.
+  4702→model Utilisateur {
+  4703→Utilisateur lié à un tenant pharmacie
+  4704→YEHI OR Tech | Confidentiel | Page 6 / 55
+  4705→
+  4706→--- Page 7/55 ---
+  4707→MédiHelm — Documentation schema.prisma — Référence complète
+  4708→Champ Type Prisma Contraintes / Description
+  4709→id String @id @default(uuid())
+  4710→Clé étrangère vers Pharmacie — tenant de
+  4711→pharmacieId String
+  4712→rattachement
+  4713→@unique — UID Supabase Auth pour
+  4714→supabaseUid String
+  4715→authentification JWT
+  4716→role RoleType Rôle RBAC de l'utilisateur dans son officine
+  4717→nom String Nom de famille
+  4718→prenom String Prénom
+  4719→telephone String Numéro de téléphone
+  4720→email String? Email optionnel
+  4721→@default(true) — false = compte désactivé sans
+  4722→actif Boolean
+  4723→suppression
+  4724→crееParId String? ID de l'utilisateur qui a créé ce compte
+  4725→createdAt DateTime @default(now())
+  4726→ PLATFORM_ADMIN crée le compte OWNER. OWNER crée DIRECTEUR et
+  4727→PROMOTEUR.
+  4728→ DIRECTEUR crée les rôles opérationnels (PHARMACIEN, CAISSIER, MAGASINIER,
+  4729→COMPTABLE, STAGIAIRE).
+  4730→ supabaseUid est l'identifiant technique Supabase Auth — différent du id MédiHelm.
+  4731→model UtilisateurTenant {
+  4732→Relation many-to-many — OWNER/PROMOTEUR multi-officines
+  4733→Champ Type Prisma Contraintes / Description
+  4734→utilisateurId String Clé étrangère vers Utilisateur
+  4735→pharmacieId String Clé étrangère vers Pharmacie
+  4736→Rôle de cet utilisateur dans cette officine
+  4737→roleSpecifique RoleType
+  4738→spécifique
+  4739→ @@id([utilisateurId, pharmacieId]) — clé composite.
+  4740→ Nécessaire pour les promoteurs gérant plusieurs officines sous un même compte.
+  4741→ Un utilisateur peut avoir DIRECTEUR dans une officine et PROMOTEUR dans une autre.
+  4742→model Promoteur {
+  4743→Propriétaire réseau multi-officines
+  4744→YEHI OR Tech | Confidentiel | Page 7 / 55
+  4745→
+  4746→--- Page 8/55 ---
+  4747→MédiHelm — Documentation schema.prisma — Référence complète
+  4748→Champ Type Prisma Contraintes / Description
+  4749→id String @id @default(uuid())
+  4750→nom String Nom du promoteur ou raison sociale
+  4751→email String @unique — email de contact principal
+  4752→telephone String Numéro de téléphone
+  4753→createdAt DateTime @default(now())
+  4754→PromoPharmacieL
+  4755→pharmacies Relation vers ses officines
+  4756→ink[]
+  4757→model PromoPharmacieLink {
+  4758→Table de jonction Promoteur ↔ Pharmacie
+  4759→Champ Type Prisma Contraintes / Description
+  4760→promoteurId String Clé étrangère vers Promoteur
+  4761→pharmacieId String Clé étrangère vers Pharmacie
+  4762→@default('OWNER') — rôle du promoteur dans
+  4763→role String
+  4764→cette officine
+  4765→createdAt DateTime @default(now())
+  4766→ @@id([promoteurId, pharmacieId]) — clé composite.
+  4767→YEHI OR Tech | Confidentiel | Page 8 / 55
+  4768→
+  4769→--- Page 9/55 ---
+  4770→MédiHelm — Documentation schema.prisma — Référence complète
+  4771→3.2 Stock & Médicaments
+  4772→model Medicament {
+  4773→Référentiel produits de l'officine — un enregistrement par DCI/forme/dosage
+  4774→Champ Type Prisma Contraintes / Description
+  4775→id String @id @default(uuid())
+  4776→pharmacieId String Tenant — clé étrangère vers Pharmacie
+  4777→Dénomination Commune Internationale — nom
+  4778→dci String
+  4779→générique
+  4780→nomCommercial String Nom de marque ex: Doliprane, Amoxil
+  4781→comprime · sirop · injectable · pommade · sachet
+  4782→forme String
+  4783→...
+  4784→dosage String ex: 500mg · 250mg/5ml · 1g
+  4785→codeATC String? Code ATC (Anatomical Therapeutic Chemical)
+  4786→Classe thérapeutique ex: Antibiotique β-
+  4787→classeThera String?
+  4788→lactamine
+  4789→fabricant String? Laboratoire fabricant
+  4790→prixPublic Float Prix de vente public — en FCFA
+  4791→surOrdonnance Boolean @default(false) — true = médicament lista
+  4792→estStupefiant Boolean @default(false) — true = registre obligatoire
+  4793→stockMinimum Int @default(5) — seuil alerte HAUTE
+  4794→stockSecurite Int @default(10) — seuil alerte MOYENNE
+  4795→stockMaximum Int? Seuil surstockage — optionnel
+  4796→codeBarres String? Code-barres EAN-13 ou Data Matrix
+  4797→@default(true) — false = archivé sans
+  4798→actif Boolean
+  4799→suppression
+  4800→createdAt DateTime @default(now())
+  4801→ Le stock disponible n'est PAS stocké ici — il est calculé dynamiquement depuis les Lots.
+  4802→ stockDisponible = SUM(lots.quantite) WHERE dateExpiration > NOW() AND quantite > 0
+  4803→ FEFO : décrémentation prioritaire des lots les plus proches de la date d'expiration.
+  4804→model Lot {
+  4805→Lot physique d'un médicament — tracé par numéro de lot
+  4806→Champ Type Prisma Contraintes / Description
+  4807→id String @id @default(uuid())
+  4808→YEHI OR Tech | Confidentiel | Page 9 / 55
+  4809→
+  4810→--- Page 10/55 ---
+  4811→MédiHelm — Documentation schema.prisma — Référence complète
+  4812→Champ Type Prisma Contraintes / Description
+  4813→medicamentId String Clé étrangère vers Medicament
+  4814→numeroLot String Numéro de lot officiel du fabricant
+  4815→Quantité disponible dans ce lot — décrémentée à
+  4816→quantite Int
+  4817→chaque vente
+  4818→prixAchat Float Prix d'achat unitaire — utilisé pour calcul CMUP
+  4819→Date de péremption — filtrée dans toutes les
+  4820→dateExpiration DateTime
+  4821→requêtes stock
+  4822→dateFabrication DateTime? Date de fabrication — optionnelle
+  4823→Clé étrangère vers Fournisseur — grossiste
+  4824→fournisseurId String?
+  4825→source
+  4826→emplacement String? Position en rayonnage ex: A3-R2-N4
+  4827→createdAt DateTime @default(now())
+  4828→ CMUP recalculé à chaque réception : (ancienStock × ancienCMUP + qtéReçue × prixAchat)
+  4829→/ (ancienStock + qtéReçue).
+  4830→ Un lot avec quantite=0 reste en base pour la traçabilité historique.
+  4831→ Les lots périmés (dateExpiration < NOW()) ne sont jamais servis en vente.
+  4832→model AjustementStock {
+  4833→Traçabilité de chaque modification manuelle du stock
+  4834→Champ Type Prisma Contraintes / Description
+  4835→id String @id @default(uuid())
+  4836→pharmacieId String Tenant
+  4837→medicamentId String Médicament concerné
+  4838→lotId String? Lot concerné — optionnel si ajustement global
+  4839→quantiteAvant Int Quantité avant l'ajustement
+  4840→quantiteApres Int Quantité après l'ajustement
+  4841→Motif obligatoire ex: casse, vol, péremption,
+  4842→motif String
+  4843→correction inventaire
+  4844→Qui a fait l'ajustement — DIRECTEUR ou
+  4845→utilisateurId String
+  4846→MAGASINIER
+  4847→createdAt DateTime @default(now())
+  4848→model InventaireSession {
+  4849→Session d'inventaire physique
+  4850→YEHI OR Tech | Confidentiel | Page 10 / 55
+  4851→
+  4852→--- Page 11/55 ---
+  4853→MédiHelm — Documentation schema.prisma — Référence complète
+  4854→Champ Type Prisma Contraintes / Description
+  4855→id String @id @default(uuid())
+  4856→pharmacieId String Tenant
+  4857→statut String INITIE · EN_COURS · VALIDE · ANNULE
+  4858→initiePar String utilisateurId du DIRECTEUR ou MAGASINIER
+  4859→validePar String? utilisateurId — null tant que non validé
+  4860→dateValidation DateTime? Date de validation de l'inventaire
+  4861→createdAt DateTime @default(now())
+  4862→ Un inventaire crée un snapshot du stock théorique au moment de l'initiation.
+  4863→ La validation calcule les écarts et crée des AjustementStock pour chaque différence.
+  4864→model TransfertStock {
+  4865→Transfert de stock inter-officines (réseau promoteur)
+  4866→Champ Type Prisma Contraintes / Description
+  4867→id String @id @default(uuid())
+  4868→sourcePharmacieId String Officine source
+  4869→destinationPharmac
+  4870→String Officine destination
+  4871→ieId
+  4872→medicamentId String Médicament transféré
+  4873→lotId String? Lot spécifique — null = automatique FEFO
+  4874→quantite Int Quantité transférée
+  4875→statut String EN_TRANSIT · CONFIRME · REFUSE
+  4876→DIRECTEUR destination qui confirme la
+  4877→confirmeParId String?
+  4878→réception
+  4879→createdAt DateTime @default(now())
+  4880→ Le stock source est décrémenté immédiatement à l'initiation.
+  4881→ Le stock destination n'est incrémenté qu'à la confirmation par le DIRECTEUR destination.
+  4882→ Seuls PROMOTEUR et PLATFORM_ADMIN peuvent initier un transfert inter-sites.
+  4883→YEHI OR Tech | Confidentiel | Page 11 / 55
+  4884→
+  4885→--- Page 12/55 ---
+  4886→MédiHelm — Documentation schema.prisma — Référence complète
+  4887→3.3 Ventes & POS
+  4888→enum StatutVente
+  4889→États d'une vente
+  4890→Valeur Signification
+  4891→VALIDEE Vente finalisée et encaissée — état terminal normal
+  4892→ANNULEE Vente annulée avant ou après validation — stock restitué
+  4893→AVOIR Avoir créé sur une vente validée — remboursement partiel ou total
+  4894→PARTIELLEMENT_PAYE
+  4895→Vente validée mais paiement partiel — solde en crédit patient
+  4896→E
+  4897→enum ModePaiement
+  4898→Modes de paiement acceptés
+  4899→Valeur Signification
+  4900→ESPECES Paiement cash en FCFA
+  4901→WAVE Mobile money Wave — intégration Fedapay
+  4902→MTN_MONEY Mobile money MTN — intégration Fedapay
+  4903→MOOV_MONEY Mobile money Moov — intégration Fedapay
+  4904→CARTE Carte bancaire — intégration Fedapay
+  4905→ASSURANCE Tiers payant assurance/mutuelle
+  4906→CREDIT Crédit accordé au patient — débiteur de l'officine
+  4907→enum StatutCaisse
+  4908→États de la caisse journalière
+  4909→Valeur Signification
+  4910→OUVERTE Caisse ouverte — ventes en cours
+  4911→FERMEE Caisse clôturée — rapport de fin de journée validé
+  4912→model Vente {
+  4913→Transaction de vente — une ligne par passage en caisse
+  4914→Champ Type Prisma Contraintes / Description
+  4915→id String @id @default(uuid())
+  4916→pharmacieId String Tenant
+  4917→utilisateurId String Caissier ou pharmacien qui a effectué la vente
+  4918→patientId String? Fiche patient — null si vente anonyme
+  4919→ordonnanceId String? Ordonnance source — null si vente libre
+  4920→YEHI OR Tech | Confidentiel | Page 12 / 55
+  4921→
+  4922→--- Page 13/55 ---
+  4923→MédiHelm — Documentation schema.prisma — Référence complète
+  4924→Champ Type Prisma Contraintes / Description
+  4925→Commande MédiHelm Patient à l'origine — null
+  4926→commandePatId String?
+  4927→si vente directe
+  4928→montantTotal Float Montant total de la vente en FCFA
+  4929→montantPaye Float Montant effectivement encaissé
+  4930→@default(0) — Part prise en charge par
+  4931→montantAssur Float
+  4932→l'assurance
+  4933→statut StatutVente @default(VALIDEE)
+  4934→@unique — Référence unique ex: VTE-
+  4935→reference String
+  4936→20250318-00441
+  4937→null = créée offline, non encore synchronisée au
+  4938→synchedAt DateTime?
+  4939→serveur
+  4940→createdAt DateTime @default(now())
+  4941→ synchedAt = null signifie que la vente a été créée en mode offline SQLite.
+  4942→ La synchronisation batch se fait via POST /ventes/sync au retour de connexion.
+  4943→ Le stock est décrémenté en règle FEFO à la validation de la vente.
+  4944→model LigneVente {
+  4945→Ligne de produit dans une vente
+  4946→Champ Type Prisma Contraintes / Description
+  4947→id String @id @default(uuid())
+  4948→venteId String Clé étrangère vers Vente
+  4949→medicamentId String Médicament vendu
+  4950→lotId String? Lot spécifique utilisé — null = automatique FEFO
+  4951→quantite Int Quantité vendue
+  4952→Prix unitaire au moment de la vente (peut différer
+  4953→prixUnitaire Float
+  4954→du prixPublic si remise)
+  4955→remise Float @default(0) — Remise en FCFA
+  4956→montantLigne Float (prixUnitaire × quantite) - remise
+  4957→model Paiement {
+  4958→Paiement(s) associé(s) à une vente — plusieurs modes possibles
+  4959→Champ Type Prisma Contraintes / Description
+  4960→id String @id @default(uuid())
+  4961→venteId String Clé étrangère vers Vente
+  4962→YEHI OR Tech | Confidentiel | Page 13 / 55
+  4963→
+  4964→--- Page 14/55 ---
+  4965→MédiHelm — Documentation schema.prisma — Référence complète
+  4966→Champ Type Prisma Contraintes / Description
+  4967→mode ModePaiement Mode de paiement utilisé
+  4968→montant Float Montant payé via ce mode
+  4969→Référence externe ex: numéro de transaction
+  4970→reference String?
+  4971→Wave
+  4972→ID transaction Fedapay pour les paiements
+  4973→fedapayTxId String?
+  4974→mobiles
+  4975→createdAt DateTime @default(now())
+  4976→ Une vente peut avoir plusieurs Paiement (paiement mixte espèces + mobile money).
+  4977→model CaisseJournaliere {
+  4978→Caisse ouverte/fermée par journée et par caissier
+  4979→Champ Type Prisma Contraintes / Description
+  4980→id String @id @default(uuid())
+  4981→pharmacieId String Tenant
+  4982→Date de la journée — un enregistrement par jour
+  4983→date DateTime
+  4984→par caissier
+  4985→utilisateurId String Caissier responsable de cette caisse
+  4986→fondOuverture Float Fonds initial mis en caisse à l'ouverture
+  4987→montantVentes Float @default(0) — Cumul des ventes de la journée
+  4988→montantEspeces Float @default(0) — Cumul espèces encaissées
+  4989→montantMobile Float @default(0) — Cumul paiements mobiles
+  4990→@default(0) — Total attendu = fondOuverture +
+  4991→totalTheorique Float
+  4992→montantVentes
+  4993→totalReel Float? Total compté physiquement à la clôture
+  4994→totalReel - totalTheorique — positif = excédent,
+  4995→ecart Float?
+  4996→négatif = manquant
+  4997→statut StatutCaisse @default(OUVERTE)
+  4998→closedAt DateTime? Heure de clôture
+  4999→YEHI OR Tech | Confidentiel | Page 14 / 55
+  5000→
+  5001→--- Page 15/55 ---
+  5002→MédiHelm — Documentation schema.prisma — Référence complète
+  5003→3.4 Patients & Ordonnances
+  5004→enum StatutOrd
+  5005→États d'une ordonnance
+  5006→Valeur Signification
+  5007→EN_ATTENTE Ordonnance reçue — pas encore validée par le pharmacien
+  5008→VALIDEE Ordonnance vérifiée et acceptée
+  5009→PARTIELLEMENT_DELIV
+  5010→Délivrance partielle — certains médicaments manquants
+  5011→REE
+  5012→SOLDEE Tous les médicaments délivrés — ordonnance clôturée
+  5013→EXPIREE Ordonnance non délivrée dans les délais légaux
+  5014→model Patient {
+  5015→Fiche patient de l'officine
+  5016→Champ Type Prisma Contraintes / Description
+  5017→id String @id @default(uuid())
+  5018→Tenant — chaque officine a ses propres fiches
+  5019→pharmacieId String
+  5020→patients
+  5021→nom String Nom de famille
+  5022→prenom String Prénom
+  5023→telephone String Numéro de téléphone — identifiant principal
+  5024→dateNaissance DateTime? Date de naissance — optionnelle
+  5025→groupeSanguin String? Groupe sanguin ex: A+, O-
+  5026→allergies String[] Liste des allergies connues
+  5027→Clé étrangère vers Assurance — mutuelle du
+  5028→assuranceId String?
+  5029→patient
+  5030→numeroAssur String? Numéro d'adhérent assurance
+  5031→soldeCredit Float @default(0) — Crédit actuel consommé
+  5032→@default(0) — Plafond de crédit accordé par le
+  5033→limitCredit Float
+  5034→DIRECTEUR
+  5035→pointsFidelite Int @default(0) — Points programme fidélité
+  5036→Lien vers ComptePatient — null si patient non
+  5037→comptePatId String?
+  5038→inscrit MédiHelm Patient
+  5039→createdAt DateTime @default(now())
+  5040→ Les données patients sont strictement isolées par tenant — RLS obligatoire.
+  5041→ Un patient peut exister dans plusieurs officines sans lien entre les fiches.
+  5042→ comptePatId crée le lien entre la fiche officine et le compte public MédiHelm Patient.
+  5043→YEHI OR Tech | Confidentiel | Page 15 / 55
+  5044→
+  5045→--- Page 16/55 ---
+  5046→MédiHelm — Documentation schema.prisma — Référence complète
+  5047→model Ordonnance {
+  5048→Ordonnance numérisée — scan ou saisie manuelle
+  5049→Champ Type Prisma Contraintes / Description
+  5050→id String @id @default(uuid())
+  5051→pharmacieId String Tenant
+  5052→patientId String Clé étrangère vers Patient
+  5053→medecin String? Nom du médecin prescripteur
+  5054→dateOrdonnance DateTime Date de l'ordonnance
+  5055→photoUrl String? URL Supabase Storage du scan de l'ordonnance
+  5056→statut StatutOrd @default(EN_ATTENTE)
+  5057→@default(false) — true = enregistrement registre
+  5058→estStupefiant Boolean
+  5059→obligatoire
+  5060→Numéro dans le registre des stupéfiants —
+  5061→numeroRegistre String?
+  5062→obligatoire si estStupefiant
+  5063→createdAt DateTime @default(now())
+  5064→model LigneOrdonnance {
+  5065→Médicament prescrit sur l'ordonnance
+  5066→Champ Type Prisma Contraintes / Description
+  5067→id String @id @default(uuid())
+  5068→ordonnanceId String Clé étrangère vers Ordonnance
+  5069→Médicament prescrit — référence au catalogue
+  5070→medicamentId String
+  5071→de l'officine
+  5072→quantitePrescrite Int Quantité prescrite par le médecin
+  5073→quantiteDelivree Int @default(0) — Quantité effectivement délivrée
+  5074→Instructions de prise ex: 1 comprimé matin et soir
+  5075→posologie String?
+  5076→pendant 7 jours
+  5077→model RegistreStupefiant {
+  5078→Registre légal des stupéfiants et psychotropes délivrés
+  5079→Champ Type Prisma Contraintes / Description
+  5080→id String @id @default(uuid())
+  5081→pharmacieId String Tenant
+  5082→YEHI OR Tech | Confidentiel | Page 16 / 55
+  5083→
+  5084→--- Page 17/55 ---
+  5085→MédiHelm — Documentation schema.prisma — Référence complète
+  5086→Champ Type Prisma Contraintes / Description
+  5087→ordonnanceId String Ordonnance source — obligatoire
+  5088→medicamentId String Stupéfiant ou psychotrope délivré
+  5089→patientNom String Nom et prénom complets du patient
+  5090→medecin String Médecin prescripteur
+  5091→dateDelivrance DateTime Date et heure exactes de délivrance
+  5092→quantiteDelivree Int Quantité délivrée
+  5093→pharmacienId String Pharmacien responsable de la délivrance
+  5094→numeroRegistre String Numéro séquentiel officiel du registre
+  5095→signatureUrl String? Scan de la signature si requis
+  5096→ Données exigées par la réglementation DPMED Bénin.
+  5097→ Exportable en PDF format officiel pour inspection DPMED.
+  5098→model ComptePatient {
+  5099→Compte grand public MédiHelm Patient
+  5100→Champ Type Prisma Contraintes / Description
+  5101→id String @id @default(uuid())
+  5102→supabaseUid String @unique — UID Supabase Auth
+  5103→nom String Nom de famille
+  5104→prenom String Prénom
+  5105→telephone String @unique — identifiant principal
+  5106→email String? Email optionnel
+  5107→dateNaissance DateTime? Pour personnalisation des alertes
+  5108→createdAt DateTime @default(now())
+  5109→ Modèle global — pas isolé par pharmacie.
+  5110→ Lié aux fiches Patient des officines via Patient.comptePatId.
+  5111→YEHI OR Tech | Confidentiel | Page 17 / 55
+  5112→
+  5113→--- Page 18/55 ---
+  5114→MédiHelm — Documentation schema.prisma — Référence complète
+  5115→3.5 Fournisseurs & Commandes
+  5116→enum StatutCmd
+  5117→États d'une commande fournisseur
+  5118→Valeur Signification
+  5119→BROUILLON Commande générée — pas encore envoyée au fournisseur
+  5120→ENVOYEE Commande transmise au fournisseur (via cascade canal)
+  5121→CONFIRMEE Fournisseur a confirmé — date de livraison connue
+  5122→EN_LIVRAISON Commande en cours de livraison
+  5123→RECUE Réception enregistrée — stock mis à jour
+  5124→SOLDEE Toutes les lignes livrées et facturées
+  5125→ANNULEE Commande annulée avant livraison
+  5126→enum CanalTransmission
+  5127→Canal de transmission d'une commande grossiste
+  5128→Valeur Signification
+  5129→API_REST API REST directe — disponibilité selon le grossiste
+  5130→Email structuré avec PDF + JSON embarqué — canal principal de
+  5131→EMAIL_EDI
+  5132→lancement
+  5133→WHATSAPP WhatsApp Business API — canal prioritaire Bénin
+  5134→FORM_AUTO Playwright automation sur portail web grossiste
+  5135→PDF_FALLBACK PDF généré + notification manuelle — toujours disponible
+  5136→model Fournisseur {
+  5137→Fournisseur/grossiste référencé par une officine
+  5138→Champ Type Prisma Contraintes / Description
+  5139→id String @id @default(uuid())
+  5140→Tenant — chaque officine gère ses propres
+  5141→pharmacieId String
+  5142→fournisseurs
+  5143→nom String Nom ex: UbiPharm Bénin, Promopharma
+  5144→telephone String? Numéro commercial
+  5145→email String? Email commandes
+  5146→adresse String? Adresse physique
+  5147→delaiLivraison Int @default(3) — Délai moyen en jours ouvrés
+  5148→condPaiement String? Conditions de paiement ex: '30j fin de mois'
+  5149→YEHI OR Tech | Confidentiel | Page 18 / 55
+  5150→
+  5151→--- Page 19/55 ---
+  5152→MédiHelm — Documentation schema.prisma — Référence complète
+  5153→Champ Type Prisma Contraintes / Description
+  5154→Score 0-100 calculé automatiquement par
+  5155→scoreFiabilite Float?
+  5156→ORION
+  5157→actif Boolean @default(true)
+  5158→estMediHelmGrossis @default(false) — true = grossiste sur MédiHelm
+  5159→Boolean
+  5160→te Grossiste
+  5161→grossisteId String? ID du GrossisteTenant si estMediHelmGrossiste
+  5162→ scoreFiabilite = (commandesLivreesAtemps/total)×40 + (sansEcart/total)×35 +
+  5163→(sansRetour/total)×25
+  5164→model CommandeFournisseur {
+  5165→Commande passée à un fournisseur
+  5166→Champ Type Prisma Contraintes / Description
+  5167→id String @id @default(uuid())
+  5168→pharmacieId String Tenant
+  5169→fournisseurId String Fournisseur destinataire
+  5170→reference String @unique — ex: CMD-2025-00441
+  5171→statut StatutCmd @default(BROUILLON)
+  5172→montantTotal Float? Montant estimé ou réel
+  5173→dateCommande DateTime @default(now())
+  5174→dateLivraison DateTime? Date de livraison prévue ou effective
+  5175→notes String? Notes internes
+  5176→CanalTransmissi
+  5177→canalTransmission Canal utilisé pour l'envoi
+  5178→on?
+  5179→model LigneCommande {
+  5180→Ligne produit d'une commande fournisseur
+  5181→Champ Type Prisma Contraintes / Description
+  5182→id String @id @default(uuid())
+  5183→commandeId String Clé étrangère vers CommandeFournisseur
+  5184→medicamentId String Médicament commandé
+  5185→refGrossiste String? Référence catalogue du grossiste
+  5186→quantiteCommandee Int Quantité commandée
+  5187→YEHI OR Tech | Confidentiel | Page 19 / 55
+  5188→
+  5189→--- Page 20/55 ---
+  5190→MédiHelm — Documentation schema.prisma — Référence complète
+  5191→Champ Type Prisma Contraintes / Description
+  5192→Quantité effectivement reçue — null tant que non
+  5193→quantiteRecue Int?
+  5194→reçue
+  5195→Prix unitaire négocié — null si pas encore
+  5196→prixUnitaire Float?
+  5197→confirmé
+  5198→EN_ATTENTE · RECUE · PARTIELLE · ANNUL
+  5199→statut String
+  5200→EE
+  5201→model RetourFournisseur {
+  5202→Retour de marchandises non conformes
+  5203→Champ Type Prisma Contraintes / Description
+  5204→id String @id @default(uuid())
+  5205→pharmacieId String Tenant
+  5206→fournisseurId String Fournisseur concerné
+  5207→commandeId String? Commande d'origine — optionnel
+  5208→Motif du retour ex: périmé à réception, lot rappelé
+  5209→motif String
+  5210→DPMED
+  5211→statut String INITIE · TRANSMIS · ACCEPTE · REMBOURSE
+  5212→model PartenaireGrossiste {
+  5213→Configuration canal de transmission par grossiste — cascade fallback
+  5214→Champ Type Prisma Contraintes / Description
+  5215→id String @id @default(uuid())
+  5216→nom String ex: UbiPharm Bénin
+  5217→codeGrossiste String @unique — code interne ex: UBIPHARMA-BJ
+  5218→CanalTransmissi
+  5219→canalPrincipal Canal prioritaire
+  5220→on
+  5221→CanalTransmissi
+  5222→canalFallback1 Fallback 1 si canal principal échoue
+  5223→on
+  5224→CanalTransmissi
+  5225→canalFallback2 Fallback 2
+  5226→on
+  5227→apiEndpoint String? URL API REST si disponible
+  5228→apiKeyHash String? Clé API chiffrée AES-256
+  5229→emailCommandes String? Email commandes EDI
+  5230→whatsappNumero String? Numéro WhatsApp Business
+  5231→formUrlPortail String? URL portail web pour form automation
+  5232→YEHI OR Tech | Confidentiel | Page 20 / 55
+  5233→
+  5234→--- Page 21/55 ---
+  5235→MédiHelm — Documentation schema.prisma — Référence complète
+  5236→Champ Type Prisma Contraintes / Description
+  5237→nbEchecsConsecutif
+  5238→Int @default(0) — Compteur d'échecs pour alertes
+  5239→s
+  5240→statut String ACTIF · EN_ALERTE · SUSPENDU
+  5241→ Si nbEchecsConsecutifs >= 3 : alerte YEHI OR Tech + bascule automatique canal suivant.
+  5242→model CommandeGrossiste {
+  5243→Commande transmise via MédiHelm Grossiste — suivi transmission
+  5244→Champ Type Prisma Contraintes / Description
+  5245→id String @id @default(uuid())
+  5246→pharmacieId String Officine émettrice
+  5247→grossisteId String PartenaireGrossiste destinataire
+  5248→commandeInterne String ID de la CommandeFournisseur source
+  5249→Référence retournée par le grossiste après
+  5250→referenceGrossiste String?
+  5251→confirmation
+  5252→ENVOYEE · CONFIRMEE · REFUSEE · EN_PR
+  5253→statut String
+  5254→EPARATION · EN_LIVRAISON · LIVREE
+  5255→CanalTransmissi
+  5256→canalUtilise Canal effectivement utilisé pour cet envoi
+  5257→on?
+  5258→Payload envoyé au grossiste — pour audit et re-
+  5259→payload Json
+  5260→tentative
+  5261→reponseGrossiste Json? Réponse brute du grossiste
+  5262→createdAt DateTime @default(now())
+  5263→YEHI OR Tech | Confidentiel | Page 21 / 55
+  5264→
+  5265→--- Page 22/55 ---
+  5266→MédiHelm — Documentation schema.prisma — Référence complète
+  5267→3.6 RH
+  5268→enum TypeContrat
+  5269→Types de contrats de travail
+  5270→Valeur Signification
+  5271→CDI Contrat à Durée Indéterminée
+  5272→CDD Contrat à Durée Déterminée — alerte 30j avant échéance
+  5273→STAGE Stage — durée limitée
+  5274→VACATAIRE Vacataire — travail ponctuel
+  5275→enum TypePointage
+  5276→Types d'événements de pointage
+  5277→Valeur Signification
+  5278→NORMAL Journée normale
+  5279→HEURE_SUP Heures supplémentaires
+  5280→GARDE Nuit de garde
+  5281→ABSENT Absence non justifiée
+  5282→CONGE Congé validé
+  5283→model Employe {
+  5284→Fiche employé de l'officine
+  5285→Champ Type Prisma Contraintes / Description
+  5286→id String @id @default(uuid())
+  5287→pharmacieId String Tenant
+  5288→Lien vers Utilisateur si l'employé a un compte
+  5289→utilisateurId String?
+  5290→MédiHelm
+  5291→nom String Nom de famille
+  5292→prenom String Prénom
+  5293→poste String ex: Pharmacien titulaire, Caissier, Magasinier
+  5294→typeContrat TypeContrat Type de contrat
+  5295→dateEntree DateTime Date d'embauche
+  5296→dateSortie DateTime? Date de départ — null si actif
+  5297→salaireBrut Float Salaire brut mensuel en FCFA
+  5298→@default(0.036) — 3,6% part salariale CNSS
+  5299→tauxCNSS Float
+  5300→Bénin
+  5301→telephone String? Numéro de téléphone
+  5302→YEHI OR Tech | Confidentiel | Page 22 / 55
+  5303→
+  5304→--- Page 23/55 ---
+  5305→MédiHelm — Documentation schema.prisma — Référence complète
+  5306→Champ Type Prisma Contraintes / Description
+  5307→diplomes String[] Liste des diplômes
+  5308→actif Boolean @default(true)
+  5309→ cnss_patronal = salaireBrut × 0.154 (15,4% — charge de l'officine).
+  5310→ netAPayer = salaireBrut - cnss_salarie - IRPP.
+  5311→ IRPP : barème progressif DGI Bénin — vérifier barème actuel avant déploiement.
+  5312→model Pointage {
+  5313→Enregistrement de présence journalier
+  5314→Champ Type Prisma Contraintes / Description
+  5315→id String @id @default(uuid())
+  5316→employeId String Clé étrangère vers Employe
+  5317→datePointage DateTime Date du pointage
+  5318→heureEntree DateTime? Heure d'entrée
+  5319→heureSortie DateTime? Heure de sortie
+  5320→type TypePointage @default(NORMAL)
+  5321→model Conge {
+  5322→Demande et suivi de congés
+  5323→Champ Type Prisma Contraintes / Description
+  5324→id String @id @default(uuid())
+  5325→employeId String Clé étrangère vers Employe
+  5326→dateDebut DateTime Début du congé
+  5327→dateFin DateTime Fin du congé
+  5328→CONGE_ANNUEL · MALADIE · MATERNITE · S
+  5329→type String
+  5330→ANS_SOLDE
+  5331→statut String EN_ATTENTE · VALIDE · REFUSE
+  5332→motif String? Motif de la demande
+  5333→validePar String? utilisateurId du DIRECTEUR ayant validé
+  5334→model BulletinPaie {
+  5335→Bulletin de paie mensuel généré
+  5336→YEHI OR Tech | Confidentiel | Page 23 / 55
+  5337→
+  5338→--- Page 24/55 ---
+  5339→MédiHelm — Documentation schema.prisma — Référence complète
+  5340→Champ Type Prisma Contraintes / Description
+  5341→id String @id @default(uuid())
+  5342→employeId String Clé étrangère vers Employe
+  5343→mois Int Mois ex: 3 pour mars
+  5344→annee Int Année ex: 2025
+  5345→salaireBrut Float Salaire brut de base
+  5346→sursalaire Float Primes et heures supplémentaires
+  5347→cnss_salarie Float Cotisation CNSS salariale
+  5348→irpp Float Impôt sur le Revenu des Personnes Physiques
+  5349→cnss_patronal Float Cotisation CNSS patronale — charge officine
+  5350→netAPayer Float Salaire net à verser
+  5351→pdfUrl String? URL Supabase Storage du PDF bulletin
+  5352→model Planning {
+  5353→Planning de shifts et gardes
+  5354→Champ Type Prisma Contraintes / Description
+  5355→id String @id @default(uuid())
+  5356→pharmacieId String Tenant
+  5357→employeId String Employé concerné
+  5358→dateDebut DateTime Début du shift
+  5359→dateFin DateTime Fin du shift
+  5360→type String NORMAL · GARDE · URGENCE
+  5361→YEHI OR Tech | Confidentiel | Page 24 / 55
+  5362→
+  5363→--- Page 25/55 ---
+  5364→MédiHelm — Documentation schema.prisma — Référence complète
+  5365→3.7 Finance
+  5366→enum CatCharge
+  5367→Catégories de charges de l'officine
+  5368→Valeur Signification
+  5369→LOYER Loyer des locaux
+  5370→ELECTRICITE Factures électricité
+  5371→EAU Factures eau
+  5372→SALAIRES Masse salariale (si non passée via module RH)
+  5373→FOURNITURES Fournitures de bureau et consommables
+  5374→IMPOTS Impôts et taxes
+  5375→AUTRE Autre charge non catégorisée
+  5376→model Charge {
+  5377→Charge de l'officine — dépenses opérationnelles
+  5378→Champ Type Prisma Contraintes / Description
+  5379→id String @id @default(uuid())
+  5380→pharmacieId String Tenant
+  5381→libelle String Description de la charge
+  5382→categorie CatCharge Catégorie SYSCOHADA
+  5383→montant Float Montant en FCFA
+  5384→date DateTime Date de la charge
+  5385→URL du justificatif scanné dans Supabase
+  5386→justificatifUrl String?
+  5387→Storage
+  5388→model Assurance {
+  5389→Mutuelle ou assurance santé pour tiers payant
+  5390→Champ Type Prisma Contraintes / Description
+  5391→id String @id @default(uuid())
+  5392→pharmacieId String Tenant
+  5393→nom String ex: CNSS, RAMU, Mutuelle XYZ
+  5394→code String Code interne de l'assurance
+  5395→tauxRemboursement Float Taux de prise en charge ex: 0.80 = 80%
+  5396→contactEmail String? Email pour envoi des bordereaux
+  5397→YEHI OR Tech | Confidentiel | Page 25 / 55
+  5398→
+  5399→--- Page 26/55 ---
+  5400→MédiHelm — Documentation schema.prisma — Référence complète
+  5401→Champ Type Prisma Contraintes / Description
+  5402→actif Boolean @default(true)
+  5403→model TiersPayant {
+  5404→Prise en charge assurance sur une vente spécifique
+  5405→Champ Type Prisma Contraintes / Description
+  5406→id String @id @default(uuid())
+  5407→venteId String Clé étrangère vers Vente
+  5408→assuranceId String Assurance qui prend en charge
+  5409→partPatient Float Montant payé par le patient
+  5410→partAssurance Float Montant pris en charge par l'assurance
+  5411→numeroPrise String Numéro de prise en charge
+  5412→EN_ATTENTE · TRANSMIS · ACCEPTE · REM
+  5413→statut String
+  5414→BOURSE · REFUSE
+  5415→YEHI OR Tech | Confidentiel | Page 26 / 55
+  5416→
+  5417→--- Page 27/55 ---
+  5418→MédiHelm — Documentation schema.prisma — Référence complète
+  5419→3.8 Garde & Communication
+  5420→model Garde {
+  5421→Planning de pharmacie de garde
+  5422→Champ Type Prisma Contraintes / Description
+  5423→id String @id @default(uuid())
+  5424→pharmacieId String Tenant
+  5425→dateDebut DateTime Début de la garde
+  5426→dateFin DateTime Fin de la garde
+  5427→pharmacienId String Pharmacien responsable de la garde
+  5428→actif Boolean @default(true)
+  5429→rapport String? Rapport de garde saisi à la clôture
+  5430→ Publié en lecture via GET /public/gardes — visible sans authentification.
+  5431→ Cron 19h00 WAT : notification push + SMS à tous les patients de la zone.
+  5432→model Notification {
+  5433→Notification envoyée à un patient ou à l'équipe
+  5434→Champ Type Prisma Contraintes / Description
+  5435→id String @id @default(uuid())
+  5436→pharmacieId String Tenant
+  5437→destinataire String Numéro de téléphone ou email destinataire
+  5438→canal String PUSH · SMS · EMAIL · WHATSAPP
+  5439→message String Contenu du message
+  5440→statut String EN_ATTENTE · ENVOYEE · ECHEC
+  5441→sentAt DateTime? Date d'envoi effectif
+  5442→createdAt DateTime @default(now())
+  5443→model CampagneSMS {
+  5444→Campagne SMS vers les patients de l'officine
+  5445→Champ Type Prisma Contraintes / Description
+  5446→id String @id @default(uuid())
+  5447→pharmacieId String Tenant
+  5448→YEHI OR Tech | Confidentiel | Page 27 / 55
+  5449→
+  5450→--- Page 28/55 ---
+  5451→MédiHelm — Documentation schema.prisma — Référence complète
+  5452→Champ Type Prisma Contraintes / Description
+  5453→titre String Titre interne de la campagne
+  5454→message String Contenu du SMS (max 160 caractères)
+  5455→cible String TOUS · CHRONIQUES · FIDELITE · GARDE
+  5456→statut String BROUILLON · ENVOYEE · TERMINEE
+  5457→nbEnvoyes Int? Nombre de SMS effectivement envoyés
+  5458→createdAt DateTime @default(now())
+  5459→YEHI OR Tech | Confidentiel | Page 28 / 55
+  5460→
+  5461→--- Page 29/55 ---
+  5462→MédiHelm — Documentation schema.prisma — Référence complète
+  5463→3.9 Documents & Conformité
+  5464→enum TypeDocReg
+  5465→Types de documents réglementaires
+  5466→Valeur Signification
+  5467→LICENCE_EXPLOITATIO
+  5468→Licence d'exploitation DPMED — obligatoire
+  5469→N
+  5470→DIPLOME_PHARMACIEN Diplôme du pharmacien titulaire
+  5471→ASSURANCE Assurance responsabilité civile professionnelle
+  5472→AGREMENT_DPMED Agrément DPMED spécifique
+  5473→AUTORISATION_STUPE
+  5474→Autorisation de détention de stupéfiants
+  5475→FIANTS
+  5476→enum StatutDoc
+  5477→États d'un document réglementaire
+  5478→Valeur Signification
+  5479→VALIDE Document valide et à jour
+  5480→EXPIRE_BIENTOT Expiration dans moins de 90 jours — alerte active
+  5481→EXPIRE Document périmé — action urgente requise
+  5482→SUSPENDU Suspendu par l'autorité émettrice
+  5483→model Document {
+  5484→Document officiel avec suivi d'expiration
+  5485→Champ Type Prisma Contraintes / Description
+  5486→id String @id @default(uuid())
+  5487→pharmacieId String Tenant
+  5488→typeDocument TypeDocReg Type de document
+  5489→fileUrl String URL Supabase Storage — chiffré
+  5490→dateEmission DateTime? Date d'émission du document
+  5491→dateExpiration DateTime? Date d'expiration — déclencheur des alertes
+  5492→statut StatutDoc Statut calculé quotidiennement par ORION
+  5493→alertes90j Boolean @default(false) — alerte J-90 déjà envoyée
+  5494→alertes60j Boolean @default(false) — alerte J-60 déjà envoyée
+  5495→alertes30j Boolean @default(false) — alerte J-30 déjà envoyée
+  5496→model PVDestruction {
+  5497→YEHI OR Tech | Confidentiel | Page 29 / 55
+  5498→
+  5499→--- Page 30/55 ---
+  5500→MédiHelm — Documentation schema.prisma — Référence complète
+  5501→Procès-verbal de destruction de médicaments
+  5502→Champ Type Prisma Contraintes / Description
+  5503→id String @id @default(uuid())
+  5504→pharmacieId String Tenant
+  5505→medicamentId String Médicament détruit
+  5506→lotId String Lot détruit
+  5507→quantite Int Quantité détruite
+  5508→motif String ex: périmé, rappel DPMED, non conforme
+  5509→dateDestruction DateTime Date de destruction
+  5510→pharmacienId String Pharmacien responsable
+  5511→pdfUrl String? PDF du PV généré — format DPMED
+  5512→@default(false) — true = déclaration envoyée à
+  5513→declareDPMED Boolean
+  5514→la DPMED
+  5515→YEHI OR Tech | Confidentiel | Page 30 / 55
+  5516→
+  5517→--- Page 31/55 ---
+  5518→MédiHelm — Documentation schema.prisma — Référence complète
+  5519→3.10 Commandes Patient — MédiHelm Patient
+  5520→enum StatutCmdPat
+  5521→États d'une commande patient
+  5522→Valeur Signification
+  5523→RECUE Commande reçue par l'officine — à traiter
+  5524→EN_PREPARATION Pharmacien prépare la commande
+  5525→PRETE Prête à être retirée — notification patient envoyée
+  5526→RECUPEREE Patient a récupéré sa commande — vente créée
+  5527→ANNULEE Commande annulée par le patient ou l'officine
+  5528→model CommandePatient {
+  5529→Commande passée depuis l'espace grand public MédiHelm Patient
+  5530→Champ Type Prisma Contraintes / Description
+  5531→id String @id @default(uuid())
+  5532→pharmacieId String Officine destinataire
+  5533→Compte MédiHelm Patient — null si commande
+  5534→comptePatId String?
+  5535→anonyme
+  5536→nomClient String Nom du client
+  5537→telephone String Numéro de contact
+  5538→statut StatutCmdPat @default(RECUE)
+  5539→Numéro dans la file d'attente virtuelle — attribué
+  5540→numeroPassage Int?
+  5541→à la création
+  5542→modePaiement ModePaiement @default(ESPECES)
+  5543→fedapayTxId String? ID transaction Fedapay si paiement en ligne
+  5544→montantTotal Float Montant total estimé
+  5545→noteClient String? Note du client ex: 'urgence pour mon père'
+  5546→createdAt DateTime @default(now())
+  5547→updatedAt DateTime @updatedAt
+  5548→ Quand statut passe à RECUPEREE : une Vente est automatiquement créée et liée via
+  5549→commandePatId.
+  5550→model LigneCmdPat {
+  5551→Ligne produit d'une commande patient
+  5552→YEHI OR Tech | Confidentiel | Page 31 / 55
+  5553→
+  5554→--- Page 32/55 ---
+  5555→MédiHelm — Documentation schema.prisma — Référence complète
+  5556→Champ Type Prisma Contraintes / Description
+  5557→id String @id @default(uuid())
+  5558→commandeId String Clé étrangère vers CommandePatient
+  5559→medicamentId String Médicament demandé
+  5560→quantite Int Quantité demandée
+  5561→prixUnitaire Float Prix au moment de la commande
+  5562→YEHI OR Tech | Confidentiel | Page 32 / 55
+  5563→
+  5564→--- Page 33/55 ---
+  5565→MédiHelm — Documentation schema.prisma — Référence complète
+  5566→3.11 Intégrations Grossiste — côté MédiHelm Pro
+  5567→Les modèles Fournisseur, CommandeFournisseur, LigneCommande, PartenaireGrossiste et
+  5568→CommandeGrossiste couvrent côté officine la gestion des commandes vers les grossistes avec la
+  5569→cascade de fallback API REST → Email EDI → WhatsApp → Form Automation → PDF. Voir section
+  5570→3.5 pour le détail de ces modèles.
+  5571→YEHI OR Tech | Confidentiel | Page 33 / 55
+  5572→
+  5573→--- Page 34/55 ---
+  5574→MédiHelm — Documentation schema.prisma — Référence complète
+  5575→SCHÉMA GROSSISTE — MédiHelm Grossiste
+  5576→4. Modèles MédiHelm Grossiste
+  5577→enum PlanGrossiste
+  5578→Plans d'abonnement MédiHelm Grossiste
+  5579→Valeur Signification
+  5580→STARTER < 100 officines MédiHelm connectées — 99 900 FCFA/mois
+  5581→BUSINESS 100 à 500 officines — 199 900 FCFA/mois
+  5582→ENTERPRISE 500+ officines — 349 900 FCFA/mois
+  5583→enum StatutProduit
+  5584→États d'un produit dans le catalogue grossiste
+  5585→Valeur Signification
+  5586→DISPONIBLE En stock — commandes acceptées
+  5587→RUPTURE En rupture — commandes refusées
+  5588→EN_COMMANDE Rupture temporaire — réapprovisionnement en cours
+  5589→DISCONTINUE Produit arrêté
+  5590→SOUS_SURVEILLANCE Sous surveillance DPMED — commandes restreintes
+  5591→enum SourceCommande
+  5592→Origine d'une commande reçue par le grossiste
+  5593→Valeur Signification
+  5594→MEDIHELM_PRO Commande automatique depuis une officine MédiHelm Pro
+  5595→SAISIE_MANUELLE Saisie par le responsable commandes ou le commercial
+  5596→APP_COMMERCIAL Saisie depuis l'app mobile commercial terrain
+  5597→EMAIL_EDI Reçue par email EDI — parsée automatiquement
+  5598→enum StatutCmdGros
+  5599→États d'une commande côté grossiste
+  5600→Valeur Signification
+  5601→RECUE Commande reçue — à traiter
+  5602→EN_PREPARATION Picking en cours en entrepôt
+  5603→PRETE Préparée — en attente d'affectation livreur
+  5604→EN_LIVRAISON Livreur en route
+  5605→YEHI OR Tech | Confidentiel | Page 34 / 55
+  5606→
+  5607→--- Page 35/55 ---
+  5608→MédiHelm — Documentation schema.prisma — Référence complète
+  5609→Valeur Signification
+  5610→LIVREE Livrée et confirmée par l'officine
+  5611→PARTIELLEMENT_LIVRE
+  5612→Livraison partielle — reliquat en attente
+  5613→E
+  5614→ANNULEE Annulée avant livraison
+  5615→enum StatutLivraison
+  5616→États d'une livraison grossiste
+  5617→Valeur Signification
+  5618→PLANIFIEE Affectée à un livreur — pas encore démarrée
+  5619→EN_ROUTE Livreur en route
+  5620→LIVREE Livrée et confirmée par signature électronique
+  5621→LITIGE Litige signalé — en attente de résolution
+  5622→ECHEC Livraison échouée — à reprogrammer
+  5623→enum StatutLot
+  5624→États d'un lot en entrepôt grossiste
+  5625→Valeur Signification
+  5626→DISPONIBLE Disponible pour picking
+  5627→QUARANTAINE Bloqué — non conforme ou sous alerte DPMED
+  5628→DETRUIT Détruit — PV de destruction établi
+  5629→RETOUR_LABO Retourné au laboratoire fabricant
+  5630→model GrossisteTenant {
+  5631→Tenant grossiste répartiteur
+  5632→Champ Type Prisma Contraintes / Description
+  5633→id String @id @default(uuid())
+  5634→@unique — référence vers le système
+  5635→tenantId String
+  5636→multitenant
+  5637→nom String ex: UbiPharm Bénin
+  5638→codeGrossiste String @unique — ex: UBIPHARMA-BJ
+  5639→adresse String Adresse entrepôt principal
+  5640→telephone String Numéro contact
+  5641→email String Email principal
+  5642→planGrossiste PlanGrossiste @default(STARTER)
+  5643→YEHI OR Tech | Confidentiel | Page 35 / 55
+  5644→
+  5645→--- Page 36/55 ---
+  5646→MédiHelm — Documentation schema.prisma — Référence complète
+  5647→Champ Type Prisma Contraintes / Description
+  5648→actif Boolean @default(true)
+  5649→model ProduitGrossiste {
+  5650→Produit dans le catalogue du grossiste
+  5651→Champ Type Prisma Contraintes / Description
+  5652→id String @id @default(uuid())
+  5653→grossisteId String Clé étrangère vers GrossisteTenant
+  5654→dci String DCI du médicament
+  5655→nomCommercial String Nom commercial
+  5656→forme String Forme galénique
+  5657→dosage String Dosage
+  5658→fabricant String? Laboratoire
+  5659→codeATC String? Code ATC
+  5660→statut StatutProduit @default(DISPONIBLE)
+  5661→stockActuel Int @default(0) — Stock entrepôt en temps réel
+  5662→stockMinimum Int @default(10) — Seuil alerte rupture imminente
+  5663→updatedAt DateTime @updatedAt
+  5664→ Synchronisé vers les officines MédiHelm Pro via WebSocket à chaque modification.
+  5665→model TarifGrossiste {
+  5666→Tarification multi-niveaux du grossiste
+  5667→Champ Type Prisma Contraintes / Description
+  5668→id String @id @default(uuid())
+  5669→produitId String Produit concerné
+  5670→null = tarif global · UUID = tarif spécifique à une
+  5671→clientId String?
+  5672→officine
+  5673→prixUnitaire Float Prix unitaire en FCFA
+  5674→seuilQteUG Int? Seuil de quantité pour déclencher les UG
+  5675→Nombre d'unités gratuites accordées si seuil
+  5676→nbUG Int?
+  5677→atteint
+  5678→dateDebut DateTime @default(now())
+  5679→dateFin DateTime? null = tarif permanent
+  5680→YEHI OR Tech | Confidentiel | Page 36 / 55
+  5681→
+  5682→--- Page 37/55 ---
+  5683→MédiHelm — Documentation schema.prisma — Référence complète
+  5684→model LotGrossiste {
+  5685→Lot en entrepôt grossiste
+  5686→Champ Type Prisma Contraintes / Description
+  5687→id String @id @default(uuid())
+  5688→grossisteId String Tenant grossiste
+  5689→produitId String Produit concerné
+  5690→numeroLot String Numéro de lot fabricant
+  5691→quantite Int Quantité disponible
+  5692→prixAchat Float Prix d'achat laboratoire
+  5693→dateExpiration DateTime Date péremption
+  5694→emplacement String? Emplacement entrepôt ex: B2-R4-N1
+  5695→statut StatutLot @default(DISPONIBLE)
+  5696→model CommandeGrossiste {
+  5697→Commande entrante d'une officine — côté grossiste
+  5698→Champ Type Prisma Contraintes / Description
+  5699→id String @id @default(uuid())
+  5700→grossisteId String Tenant grossiste
+  5701→officineId String Référence tenant MédiHelm Pro émetteur
+  5702→source SourceCommande Origine de la commande
+  5703→statut StatutCmdGros @default(RECUE)
+  5704→reference String @unique — ex: CMD-MH-2025-00441
+  5705→montantTotal Float? Montant total confirmé
+  5706→dateLivraisonSouha
+  5707→DateTime? Date souhaitée par l'officine
+  5708→itee
+  5709→noteOfficine String? Note du pharmacien
+  5710→createdAt DateTime @default(now())
+  5711→updatedAt DateTime @updatedAt
+  5712→model LigneCmdGros {
+  5713→Ligne produit d'une commande entrante
+  5714→YEHI OR Tech | Confidentiel | Page 37 / 55
+  5715→
+  5716→--- Page 38/55 ---
+  5717→MédiHelm — Documentation schema.prisma — Référence complète
+  5718→Champ Type Prisma Contraintes / Description
+  5719→id String @id @default(uuid())
+  5720→commandeId String Clé étrangère vers CommandeGrossiste
+  5721→produitId String Produit commandé
+  5722→quantiteCommandee Int Quantité demandée par l'officine
+  5723→quantiteConfirmee Int? Quantité confirmée par le grossiste
+  5724→prixUnitaire Float? Prix unitaire du tarif applicable
+  5725→model LivraisonGrossiste {
+  5726→Livraison planifiée et suivi
+  5727→Champ Type Prisma Contraintes / Description
+  5728→id String @id @default(uuid())
+  5729→grossisteId String Tenant grossiste
+  5730→commandeId String @unique — une livraison par commande
+  5731→livreurId String Clé étrangère vers EmployeGrossiste
+  5732→dateLivraison DateTime? Date prévue ou effective
+  5733→statut StatutLivraison @default(PLANIFIEE)
+  5734→signatureUrl String? URL de la signature électronique de l'officine
+  5735→signatureAt DateTime? Horodatage de la signature — non répudiable
+  5736→ecarts Json? Produits refusés ou quantités différentes
+  5737→synchedAt DateTime? null = confirmée offline — à synchroniser
+  5738→ signatureAt + signatureUrl = preuve de livraison non répudiable.
+  5739→ Quand statut LIVREE : le stock de l'officine MédiHelm Pro est mis à jour automatiquement.
+  5740→model ClientOfficine {
+  5741→Fiche client officine chez le grossiste
+  5742→Champ Type Prisma Contraintes / Description
+  5743→id String @id @default(uuid())
+  5744→grossisteId String Tenant grossiste
+  5745→officineId String Référence tenant MédiHelm Pro
+  5746→officineNom String Dénomination de l'officine
+  5747→officineTel String Téléphone contact
+  5748→YEHI OR Tech | Confidentiel | Page 38 / 55
+  5749→
+  5750→--- Page 39/55 ---
+  5751→MédiHelm — Documentation schema.prisma — Référence complète
+  5752→Champ Type Prisma Contraintes / Description
+  5753→plafondCredit Float @default(0) — Plafond de crédit accordé
+  5754→encoursCurrent Float @default(0) — Montant actuel dû
+  5755→condPaiement String @default('30j') — Conditions de paiement
+  5756→@default(false) — true = officine sur MédiHelm
+  5757→estMediHelm Boolean
+  5758→Pro
+  5759→model EmployeGrossiste {
+  5760→Personnel du grossiste
+  5761→Champ Type Prisma Contraintes / Description
+  5762→id String @id @default(uuid())
+  5763→grossisteId String Tenant grossiste
+  5764→nom String Nom
+  5765→prenom String Prénom
+  5766→role RoleGrossiste Rôle dans l'organisation grossiste
+  5767→telephone String Contact
+  5768→actif Boolean @default(true)
+  5769→enum RoleGrossiste
+  5770→Rôles spécifiques au grossiste
+  5771→Valeur Signification
+  5772→ADMIN Administrateur — accès total à l'espace grossiste
+  5773→COMMANDES Responsable des commandes entrantes
+  5774→PREPARATEUR Picking et préparation en entrepôt
+  5775→LIVREUR Livraisons — app mobile dédiée
+  5776→COMMERCIAL Commercial terrain — saisie commandes officines
+  5777→COMPTABLE Comptabilité fournisseurs et clients
+  5778→model CataloguePrix {
+  5779→Catalogue de prix publié vers les officines MédiHelm
+  5780→Champ Type Prisma Contraintes / Description
+  5781→id String @id @default(uuid())
+  5782→grossisteId String Tenant grossiste
+  5783→referenceGros String Référence interne grossiste
+  5784→YEHI OR Tech | Confidentiel | Page 39 / 55
+  5785→
+  5786→--- Page 40/55 ---
+  5787→MédiHelm — Documentation schema.prisma — Référence complète
+  5788→Champ Type Prisma Contraintes / Description
+  5789→dci String DCI du médicament
+  5790→nomCommercial String Nom commercial
+  5791→forme String Forme galénique
+  5792→dosage String Dosage
+  5793→prixAchat Float Prix proposé aux officines
+  5794→disponible Boolean @default(true) — false = en rupture
+  5795→ @@unique([grossisteId, referenceGros]) — contrainte d'unicité.
+  5796→ Synchronisé automatiquement vers les officines MédiHelm Pro partenaires.
+  5797→YEHI OR Tech | Confidentiel | Page 40 / 55
+  5798→
+  5799→--- Page 41/55 ---
+  5800→MédiHelm — Documentation schema.prisma — Référence complète
+  5801→SCHÉMA ORION — Agent IA
+  5802→5. Modèles ORION — Agent IA MédiHelm
+  5803→enum ActionMode
+  5804→Modes d'action de l'agent ORION
+  5805→Valeur Signification
+  5806→AUTONOME ORION exécute seul — notifie après — annulable 30 min
+  5807→APPROBATION ORION propose — attend validation humaine — expire 4h
+  5808→BLOQUEE ORION informe uniquement — jamais d'action
+  5809→enum StatutAction
+  5810→États d'une action ORION
+  5811→Valeur Signification
+  5812→EN_ATTENTE Action créée — en attente d'exécution ou d'approbation
+  5813→EXECUTEE Action exécutée avec succès
+  5814→ANNULEE Annulée dans la fenêtre de 30 minutes par l'utilisateur
+  5815→EXPIREE Approbation non donnée dans les 4 heures
+  5816→REFUSEE Approbation explicitement refusée par l'utilisateur
+  5817→enum DomaineIA
+  5818→Domaines d'analyse et d'action de l'agent ORION
+  5819→Valeur Signification
+  5820→Gestion du stock — ruptures, péremptions, commandes
+  5821→STOCK
+  5822→automatiques
+  5823→VENTES Analyse des ventes — CA, tendances, prévisions
+  5824→PATIENTELE Fidélité, rappels renouvellement, alertes patients
+  5825→PERSONNEL RH — anomalies pointage, contrats, paie
+  5826→FINANCE Caisse, charges, conformité comptable
+  5827→PEREMPTIONS Surveillance et action sur les lots proches de l'expiration
+  5828→RESEAU Analytics multi-officines — PROMOTEUR uniquement
+  5829→CONFORMITE Score DPMED, documents réglementaires, registres
+  5830→INTEGRATION_GROSSI
+  5831→Suivi commandes, score fournisseurs, alertes transmission
+  5832→STE
+  5833→model OrionAction {
+  5834→YEHI OR Tech | Confidentiel | Page 41 / 55
+  5835→
+  5836→--- Page 42/55 ---
+  5837→MédiHelm — Documentation schema.prisma — Référence complète
+  5838→Log de chaque action ORION — autonome ou soumise à approbation
+  5839→Champ Type Prisma Contraintes / Description
+  5840→id String @id @default(uuid())
+  5841→pharmacieId String Tenant concerné (pharmacie ou grossiste)
+  5842→tenantType TenantType PHARMACIE ou GROSSISTE
+  5843→Type d'action ex: COMMANDE_AUTO,
+  5844→type String
+  5845→QUARANTAINE_LOT, BRIEFING
+  5846→mode ActionMode Autonome, Approbation ou Bloquée
+  5847→statut StatutAction @default(EN_ATTENTE)
+  5848→Texte généré par ORION expliquant l'action en
+  5849→description String
+  5850→français
+  5851→Données nécessaires à l'exécution — pour audit
+  5852→payload Json
+  5853→et replay
+  5854→Résultat de l'exécution — null si pas encore
+  5855→resultat Json?
+  5856→exécutée
+  5857→createdAt DateTime @default(now())
+  5858→executedAt DateTime? Date d'exécution effective
+  5859→annuleeAt DateTime? Date d'annulation dans la fenêtre de 30 min
+  5860→annuleeParId String? Utilisateur qui a annulé
+  5861→expireAt DateTime? Pour les APPROBATION — 4h par défaut
+  5862→ Toute action ORION est loggée ici — audit complet disponible au DIRECTEUR et à YEHI
+  5863→OR Tech.
+  5864→ La classification autonome/approbation/bloquée est déterministe (OrionTaxonomie) —
+  5865→jamais via LLM.
+  5866→model OrionConversation {
+  5867→Historique de conversation avec l'agent ORION
+  5868→Champ Type Prisma Contraintes / Description
+  5869→id String @id @default(uuid())
+  5870→pharmacieId String Tenant
+  5871→utilisateurId String Utilisateur qui a initié la conversation
+  5872→Tableau d'objets { role, content, timestamp } —
+  5873→messages Json
+  5874→historique complet
+  5875→createdAt DateTime @default(now())
+  5876→updatedAt DateTime @updatedAt
+  5877→YEHI OR Tech | Confidentiel | Page 42 / 55
+  5878→
+  5879→--- Page 43/55 ---
+  5880→MédiHelm — Documentation schema.prisma — Référence complète
+  5881→ Rétention 90 jours puis suppression automatique.
+  5882→ Les messages incluent les questions de l'utilisateur ET les réponses d'ORION.
+  5883→model OrionBriefing {
+  5884→Briefing quotidien généré par ORION à 06h00 WAT
+  5885→Champ Type Prisma Contraintes / Description
+  5886→id String @id @default(uuid())
+  5887→pharmacieId String Tenant
+  5888→date DateTime Date du briefing — un par jour par officine
+  5889→Texte complet généré par le LLM — synthèse de
+  5890→contenu String
+  5891→la nuit
+  5892→Liste des actions autonomes prises pendant la
+  5893→actionsExecutees Json
+  5894→nuit
+  5895→approbationsEnAtte Liste des approbations en attente au moment du
+  5896→Json
+  5897→nte briefing
+  5898→canalEnvoi String[] Canaux utilisés ex: ['PUSH', 'WHATSAPP']
+  5899→@default(false) — true quand le DIRECTEUR l'a
+  5900→lu Boolean
+  5901→ouvert
+  5902→ Rétention 30 jours puis suppression automatique.
+  5903→ Envoyé par cron à 06h00 WAT — heure paramétrable via ORION_BRIEFING_CRON.
+  5904→model AnalyticsReport {
+  5905→Rapport d'analyse IA par domaine
+  5906→Champ Type Prisma Contraintes / Description
+  5907→id String @id @default(uuid())
+  5908→pharmacieId String Tenant
+  5909→domaine DomaineIA Domaine analysé
+  5910→Score 0-100 — VERT >= 75, AMBER >= 50,
+  5911→scoreGlobal Float
+  5912→ROUGE < 50
+  5913→Tableau d'alertes structurées avec priorité et lien
+  5914→alertes Json
+  5915→d'action
+  5916→Recommandations prioritisées par impact et
+  5917→recommandations Json
+  5918→urgence
+  5919→Prédictions J+7, J+14, J+30 avec indice de
+  5920→predictions Json
+  5921→confiance
+  5922→kpis Json Indicateurs clés du domaine
+  5923→YEHI OR Tech | Confidentiel | Page 43 / 55
+  5924→
+  5925→--- Page 44/55 ---
+  5926→MédiHelm — Documentation schema.prisma — Référence complète
+  5927→Champ Type Prisma Contraintes / Description
+  5928→generatedAt DateTime @default(now())
+  5929→expireAt DateTime generatedAt + 90 jours
+  5930→ @@unique([pharmacieId, domaine]) — un seul rapport actif par domaine par officine.
+  5931→ Généré par BullMQ cron 05h00 WAT ou manuellement (cooldown 30 min).
+  5932→model CronJob {
+  5933→État du cron analytics par officine
+  5934→Champ Type Prisma Contraintes / Description
+  5935→id String @id @default(uuid())
+  5936→pharmacieId String @unique — un seul cron par officine
+  5937→lastRunAt DateTime? Dernière exécution
+  5938→nextRunAt DateTime? Prochaine exécution prévue
+  5939→cooldownUntil DateTime? Blocage après relance manuelle — 30 min
+  5940→statut String IDLE · RUNNING · ERROR
+  5941→YEHI OR Tech | Confidentiel | Page 44 / 55
+  5942→
+  5943→--- Page 45/55 ---
+  5944→MédiHelm — Documentation schema.prisma — Référence complète
+  5945→SCHÉMA INSTITUTIONNEL —
+  5946→DPMED · SoBAPS · Pharmacovigilance
+  5947→6. Modèles Institutionnels
+  5948→enum TypeAlerteDPMED
+  5949→Types d'alertes DPMED
+  5950→Valeur Signification
+  5951→RAPPEL_LOT Rappel d'un lot de médicaments — urgence maximale
+  5952→CONTREFACON Signalement de médicament contrefait
+  5953→AMM_SUSPENDUE Autorisation de Mise sur le Marché suspendue
+  5954→PHARMACOVIGILANCE Alerte de pharmacovigilance — effet indésirable grave
+  5955→INFO_REGLEMENTAIRE Information réglementaire — pas d'urgence
+  5956→enum NiveauUrgence
+  5957→Niveaux d'urgence des alertes DPMED
+  5958→Valeur Signification
+  5959→URGENCE_IMMEDIATE Action immédiate requise — toutes les officines alertées en < 2 min
+  5960→URGENT Action requise dans les 24 heures
+  5961→NORMAL Action dans les 72 heures
+  5962→INFORMATIF Pour information — aucune action urgente
+  5963→model MedicamentSurveillance {
+  5964→Base nationale des médicaments sous surveillance DPMED
+  5965→Champ Type Prisma Contraintes / Description
+  5966→id String @id @default(uuid())
+  5967→dci String DCI du médicament
+  5968→nomCommercial String? Nom commercial si applicable
+  5969→fabricant String? Laboratoire concerné
+  5970→numeroLot String? Numéro de lot spécifique — null si toute la DCI
+  5971→RAPPEL · CONTREFACON · RESTRICTION · S
+  5972→typeSurveillance String
+  5973→URVEILLANCE_RENFORCEE
+  5974→description String Description de la problématique
+  5975→sourceAlerte String ex: DPMED Bénin, OMS, ANSM
+  5976→dateEmission DateTime Date d'émission de la surveillance
+  5977→YEHI OR Tech | Confidentiel | Page 45 / 55
+  5978→
+  5979→--- Page 46/55 ---
+  5980→MédiHelm — Documentation schema.prisma — Référence complète
+  5981→Champ Type Prisma Contraintes / Description
+  5982→niveauRisque String CRITIQUE · ELEVE · MODERE · FAIBLE
+  5983→statut String ACTIVE · ARCHIVEE · LEVEE
+  5984→model SignalementEI {
+  5985→Signalement d'effet indésirable vers la DPMED
+  5986→Champ Type Prisma Contraintes / Description
+  5987→id String @id @default(uuid())
+  5988→pharmacieId String Officine déclarante
+  5989→utilisateurId String Pharmacien déclarant
+  5990→Code anonymisé du patient — pas de données
+  5991→patientCode String
+  5992→nominatives vers DPMED
+  5993→dciConcernee String DCI du médicament suspecté
+  5994→descriptionEI String Description détaillée de l'effet indésirable
+  5995→gravite String FATAL · GRAVE · MODERE · LEGER
+  5996→dateDebut DateTime Date d'apparition de l'EI
+  5997→GUERI · EN_COURS · SEQUELLES · INCONN
+  5998→evolution String?
+  5999→UE
+  6000→actionPrise String? Action thérapeutique prise
+
+[showing lines 4501-6000 of 9240; use offset=6001 with limit to continue reading]

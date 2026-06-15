@@ -1,0 +1,371 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→L'Infrastructure Pharmaceutique Numérique du Bénin
+     4→POLITIQUE DE PRICING, ONBOARDING ET CONDITIONS COMMERCIALES  —  VERSION 2.1
+     5→Abonnements · Frais d'onboarding · Formation · Import données · Conditions · Projections revenus
+     6→Document confidentiel — YEHI OR Tech © 2025 — Reproduction interdite
+     7→Sommaire
+     8→1.   Vue d'ensemble — Structure tarifaire complète
+     9→2.   Philosophie tarifaire — Les 5 principes
+    10→3.   Abonnements mensuels et annuels — Plans MédiHelm Pro
+    11→4.   Frais d'onboarding — Souscription initiale
+    12→5.   Ce que couvre l'onboarding — Détail par plan
+    13→6.   Formation du personnel — Modalités et contenu
+    14→7.   Import des données existantes — Processus
+    15→8.   Options et modules complémentaires
+    16→9.   Modèle tarifaire réseau — HELM NETWORK
+    17→10.  Monétisation espace patient — MédiHelm Patient
+    18→11.  Tarification partenaires institutionnels
+    19→12.  Politique de remises et programme de parrainage
+    20→13.  Conditions générales d'abonnement
+    21→14.  Séquencement de lancement — Beta, rampe, plein tarif
+    22→15.  Projections de revenus — Scénarios
+    23→16.  Règles de révision tarifaire et versioning
+    24→1. Vue d'Ensemble — Structure Tarifaire Complète
+    25→Le modèle économique de MédiHelm repose sur deux composantes distinctes et complémentaires : un abonnement mensuel récurrent (revenu prévisible) et des frais d'onboarding uniques à la souscription (revenu immédiat et couverture des coûts de démarrage).
+    26→1.1 Tableau synoptique complet
+    27→2. Philosophie Tarifaire — Les 5 Principes
+    28→Le principe 4 est la différence fondamentale entre des frais d'onboarding légitimes et une simple taxe d'entrée. MédiHelm facture l'onboarding parce qu'il livre une prestation réelle — configuration, formation, migration de données — pas parce que c'est une pratique de marché. Chaque plan dispose d'un contenu d'onboarding précisément défini et documenté, opposable au client en cas de litige.
+    29→3. Abonnements Mensuels et Annuels — Plans MédiHelm Pro
+    30→3.1 Les quatre plans
+    31→3.2 Contenu identique dans tous les plans
+    32→3.3 Différences techniques par plan
+    33→4. Frais d'Onboarding — Souscription Initiale
+    34→4.1 Définition et justification
+    35→Les frais d'onboarding sont un paiement unique dû à la souscription, avant le début de l'abonnement mensuel. Ils couvrent l'ensemble des prestations de démarrage nécessaires pour qu'une officine soit pleinement opérationnelle sur MédiHelm dans les meilleures conditions.
+    36→Ces frais existent parce que la mise en service d'une officine représente un investissement réel en temps et en ressources de la part de YEHI OR Tech — investissement qui ne serait pas couvert par les premiers mois d'abonnement seuls. Ils garantissent également que chaque officine démarre MédiHelm avec un stock correctement importé, un personnel formé, et une configuration adaptée à sa réalité opérationnelle.
+    37→4.2 Grille des frais d'onboarding
+    38→4.3 Règle du plafond — jamais plus de 2 mois d'abonnement
+    39→Les frais d'onboarding sont calculés pour ne jamais dépasser l'équivalent de 2 mois d'abonnement. Cette règle protège la perception de valeur : un pharmacien qui voit un coût total de démarrage supérieur à 3 mois d'abonnement perçoit l'investissement comme disproportionné et l'adoption chute. Les ratios actuels sont 1,5 / 1,7 / 1,8 mois — tous dans la zone verte.
+    40→4.4 Conditions de paiement et de livraison
+    41→5. Ce que Couvre l'Onboarding — Détail par Plan
+    42→5.1 HELM SEED — Onboarding 29 900 FCFA
+    43→Périmètre de la prestation
+    44→5.2 HELM GROW — Onboarding 59 900 FCFA
+    45→Périmètre de la prestation
+    46→5.3 HELM LEAD — Onboarding 99 900 FCFA
+    47→Périmètre de la prestation
+    48→5.4 HELM NETWORK — Onboarding sur devis
+    49→L'onboarding réseau est construit sur mesure selon le nombre d'officines, leur dispersion géographique, la complexité des données à migrer, et les besoins de formation du promoteur et des directeurs d'officine. Le devis est établi dans les 48 heures suivant la demande. Les composantes habituelles incluent un forfait par officine (basé sur le plan individuel correspondant) plus un forfait réseau couvrant la configuration du dashboard promoteur, la formation de l'équipe de direction, et l'intégration des flux inter-officines.
+    50→6. Formation du Personnel — Modalités et Contenu
+    51→6.1 Deux modalités selon le plan
+    52→6.2 Programme de formation standard
+    53→Module 1 — Prise en main (commun à toutes les formations)
+    54→Navigation dans l'interface MédiHelm — menus, raccourcis, paramètres personnels.
+    55→Gestion des utilisateurs et des rôles — créer un compte caissier, pharmacien, magasinier.
+    56→Paramètres de l'officine — horaires, modes de paiement, configuration de base.
+    57→Module 2 — POS et Caisse (DIRECTEUR, PHARMACIEN, CAISSIER)
+    58→Ouverture et clôture de caisse — procédure quotidienne.
+    59→Vente libre — scan code-barres, recherche médicament, ajout au panier, encaissement.
+    60→Vente sur ordonnance — liaison ordonnance, délivrance partielle, reçu.
+    61→Modes de paiement — espèces, Wave, MTN Money, Moov Money, assurance, crédit patient.
+    62→Reçu thermique et reçu digital — impression et envoi SMS.
+    63→Gestion des avoirs et remboursements.
+    64→Mode hors connexion — comment reconnaître le mode offline et synchroniser.
+    65→Module 3 — Stock (DIRECTEUR, PHARMACIEN, MAGASINIER)
+    66→Consultation du stock — recherche, filtres, alertes actives.
+    67→Réception d'une commande fournisseur — saisie des lots, quantités, dates d'expiration.
+    68→Gestion des alertes — rupture, péremption, surstockage.
+    69→Inventaire physique assisté — procédure mensuelle.
+    70→Transfert de stock inter-officines (NETWORK uniquement).
+    71→Module 4 — Conformité et Alertes DPMED (DIRECTEUR, PHARMACIEN)
+    72→Alertes DPMED — comment les recevoir, les acquitter, documenter l'action prise.
+    73→Registre des stupéfiants — saisie, consultation, génération du registre officiel.
+    74→Signalement d'effet indésirable — formulaire, soumission, suivi.
+    75→Score de conformité — interprétation et actions correctives.
+    76→Module 5 — RH et Finance (DIRECTEUR, COMPTABLE)
+    77→Gestion des employés — fiches, planning, pointage, congés.
+    78→Caisse journalière — ouverture, clôture, réconciliation.
+    79→Tableau de bord financier — CA, marge, charges, export comptable.
+    80→Bulletins de paie — génération mensuelle, calcul CNSS/IRPP.
+    81→Module 6 — Analytics IA (DIRECTEUR)
+    82→Lecture des scores de santé — interprétation des couleurs VERT / AMBER / ROUGE.
+    83→Lecture des prédictions de rupture — comment agir sur les recommandations.
+    84→Rapport de conformité DPMED — comment améliorer son score.
+    85→6.3 Support de formation remis
+    86→À l'issue de chaque formation présentielle, le pharmacien et son équipe reçoivent un support de formation imprimé et numérique comprenant : les procédures quotidiennes essentielles (ouverture caisse, réception livraison, clôture), les raccourcis clavier et gestes tactiles fréquents, les contacts d'urgence YEHI OR Tech, et un QR code vers la bibliothèque de tutoriels vidéo.
+    87→7. Import des Données Existantes — Processus
+    88→7.1 Les trois types de données importées
+    89→7.2 Processus d'import en 4 étapes
+    90→Collecte des données — YEHI OR Tech fournit un modèle Excel standardisé à remplir par l'officine. L'officine dispose de 5 jours ouvrables pour le remettre après souscription.
+    91→Validation — YEHI OR Tech vérifie la qualité des données : doublons, formats incorrects, DCI non reconnues. Un rapport de validation est envoyé à l'officine avec les corrections à apporter.
+    92→Import — L'import est réalisé en base de données. Un fichier de réconciliation est produit montrant chaque ligne importée et son statut (importée / ignorée / corrigée).
+    93→Vérification — Le DIRECTEUR valide l'import en consultant son stock dans MédiHelm et confirme par écrit que les données correspondent à la réalité de son officine.
+    94→7.3 Limites et responsabilités
+    95→YEHI OR Tech importe les données telles qu'elles sont fournies par l'officine, après validation du format. La responsabilité de l'exactitude des données sources (stock réel, historique patients, prix) incombe entièrement à l'officine. En cas d'erreur dans les données sources, un re-import est possible dans les 15 jours de l'onboarding pour un coût de 10 000 FCFA (frais techniques).
+    96→8. Options et Modules Complémentaires
+    97→9. Modèle Tarifaire Réseau — HELM NETWORK
+    98→9.1 Abonnement réseau dégressif
+    99→9.2 Onboarding réseau
+   100→L'onboarding réseau est calculé par officine (sur la base du forfait individuel correspondant) plus un forfait réseau de 50 000 à 150 000 FCFA selon la taille du réseau, couvrant : configuration du dashboard promoteur, formation du promoteur et des directeurs d'officine, intégration des flux inter-sites, et paramétrage des droits multi-niveaux.
+   101→10. Monétisation Espace Patient — MédiHelm Patient
+   102→10.1 Gratuit pour les utilisateurs finaux
+   103→L'espace patient est entièrement gratuit. Cette décision est stratégique — une barrière tarifaire patient réduirait l'adoption et affaiblirait la valeur de la plateforme pour les pharmaciens.
+   104→10.2 Sources de revenus patient
+   105→11. Tarification Partenaires Institutionnels
+   106→12. Politique de Remises et Programme de Parrainage
+   107→12.1 Remises autorisées sur l'abonnement
+   108→12.2 Remises sur les frais d'onboarding
+   109→12.3 Programme de Parrainage — MédiHelm Parrain
+   110→Toute officine abonnée MédiHelm qui recommande et fait souscrire une nouvelle officine bénéficie du programme de parrainage MédiHelm Parrain :
+   111→13. Conditions Générales d'Abonnement
+   112→13.1 Essai gratuit
+   113→Tout pharmacien peut tester MédiHelm gratuitement pendant 30 jours sur le plan HELM GROW, sans carte bancaire requise et sans engagement. L'essai démarre dès la création du compte. Les données saisies pendant l'essai sont conservées si l'officine souscrit à la fin de la période. L'essai ne donne pas accès à la formation présentielle.
+   114→13.2 Souscription et activation
+   115→La souscription est finalisée par le paiement des frais d'onboarding et du premier mois d'abonnement.
+   116→Le compte est activé dans les 24 heures ouvrables suivant la réception du paiement.
+   117→L'onboarding est planifié dans les 5 jours ouvrables suivant l'activation du compte.
+   118→13.3 Abonnement mensuel
+   119→Facturation le même jour chaque mois (date anniversaire de la souscription).
+   120→Paiement automatique via Fedapay si autorisation de débit préalable, sinon notification de paiement J-5.
+   121→Délai de grâce de 7 jours en cas de paiement non reçu — accès maintenu.
+   122→Suspension du compte à J+15 en cas d'impayé — données conservées 90 jours.
+   123→Résiliation automatique et suppression du compte à J+30 — possibilité d'export des données jusqu'à J+29.
+   124→13.4 Abonnement annuel
+   125→Paiement en totalité à la souscription (12 mois d'abonnement avec remise -15%).
+   126→Non remboursable sauf si MédiHelm est inaccessible pendant plus de 72 heures consécutives (cas de force majeure technique).
+   127→Renouvelable automatiquement sauf résiliation notifiée 30 jours avant l'échéance.
+   128→13.5 Résiliation
+   129→Mensuel : résiliation libre à tout moment, sans préavis, sans frais. Prise d'effet à la fin de la période en cours.
+   130→Annuel : résiliation avec préavis de 30 jours. Remboursement des mois restants après déduction de la remise annuelle accordée.
+   131→Les frais d'onboarding ne sont jamais remboursés quelle que soit la date de résiliation.
+   132→13.6 Migration de plan
+   133→Upgrade (SEED → GROW, GROW → LEAD) : libre, sans frais, prise d'effet immédiate. Prorata calculé sur le mois en cours.
+   134→Downgrade (LEAD → GROW, GROW → SEED) : possible avec préavis de 15 jours. Prise d'effet à la prochaine période.
+   135→Un downgrade peut déclencher une réduction des données accessibles (ex. : liste patients tronquée à 500 si downgrade vers SEED).
+   136→13.7 Paiements acceptés
+   137→14. Séquencement de Lancement
+   138→14.1 Condition préalable au plein tarif
+   139→14.2 Les trois phases
+   140→14.3 Protection des early adopters
+   141→15. Projections de Revenus — Scénarios
+   142→15.1 Structure des revenus
+   143→15.2 Impact des frais d'onboarding sur la trésorerie
+   144→Les frais d'onboarding jouent un rôle crucial dans la trésorerie en an 1 : ils génèrent un revenu immédiat à chaque acquisition client, qui couvre les coûts directs de la prestation d'onboarding (déplacement, temps formateur, import données). Cette structure permet à MédiHelm de ne pas être déficitaire sur les premiers mois d'un abonnement, contrairement à un modèle sans frais d'entrée.
+   145→16. Règles de Révision Tarifaire et Versioning
+   146→16.1 Politique de révision
+   147→16.2 Versioning
+   148→MédiHelm Pricing v2.1  |  YEHI OR Tech © 2025  |  Document confidentiel — Reproduction interdite
+   149→
+   150→--- TABLES ---
+   151→Référence document | MH-PRICING-2025-v2.1
+   152→Remplace | MH-PRICING-2025-v2.0
+   153→Modification v2.1 | Ajout : frais d'onboarding, formation, import données, conditions commerciales complètes, programme parrainage
+   154→Responsable | Dawes — Fondateur, YEHI OR Tech
+   155→Date | 2025
+   156→Statut | Document interne — Confidentiel
+   157→COMPOSANTE 1 — Abonnement mensuel récurrent
+   158→Plans HELM SEED / GROW / LEAD / NETWORK
+   159→Payable mensuellement ou annuellement (remise -15%)
+   160→
+   161→COMPOSANTE 2 — Frais d'onboarding (paiement unique à la souscription)
+   162→Installation · Configuration · Formation · Import données · Paramétrage
+   163→Non remboursables — acquis dès le démarrage de la prestation
+   164→
+   165→COMPOSANTE 3 — Commissions (variables)
+   166→1,5% sur paiements en ligne patients via Fedapay (plafond 500 FCFA)
+   167→
+   168→COMPOSANTE 4 — Options complémentaires (modules à la carte)
+   169→SMS, formation supplémentaire, API tiers, domaine personnalisé
+   170→HELM SEED | HELM GROW | HELM LEAD | HELM NETWORK
+   171→Abonnement mensuel | 19 900 FCFA | 34 900 FCFA | 54 900 FCFA | Sur devis
+   172→Abonnement annuel/mois | 16 900 FCFA | 29 500 FCFA | 46 500 FCFA | Sur devis
+   173→Frais d'onboarding | 29 900 FCFA | 59 900 FCFA | 99 900 FCFA | Sur devis
+   174→Ratio onboarding / abonnement | 1,5 mois | 1,7 mois | 1,8 mois | < 2 mois
+   175→Coût total mois 1 (mensuel) | 49 800 FCFA | 94 800 FCFA | 154 800 FCFA | Sur devis
+   176→Coût total mois 1 (annuel) | 230 700 FCFA | 413 900 FCFA | 657 900 FCFA | Sur devis
+   177→Formation incluse | Visio 1h + tutoriels | Présentiel demi-journée | Présentiel journée entière | Multi-sites sur mesure
+   178→Import données inclus | Catalogue médicaments | Complet (stock, patients, fourn.) | Complet + assistance avancée | Complet réseau
+   179→Modules inclus | Tous les 19 | Tous les 19 | Tous les 19 | Tous + multi-sites
+   180→Support inclus | Email 72h | Email 24h + chat | Prioritaire + téléphone | Dédié + SLA
+   181→Principe 1 — Transparence totale : tous les prix publics sur le site, sans formulaire de contact.
+   182→Principe 2 — Tous modules dans tous les plans : aucune fonctionnalité verrouillée par palier.
+   183→Principe 3 — La conformité n'est pas un luxe : modules DPMED inclus dans SEED.
+   184→Principe 4 — L'onboarding est une prestation réelle, pas un droit d'entrée : chaque franc facturé correspond à une heure de travail livrée.
+   185→Principe 5 — Le pharmacien ne doit jamais être surpris : zéro coût caché, zéro frais imprévu.
+   186→Plan | Cible officine | Mensuel | Annuel / mois | Economie annuel | Equiv. USD
+   187→HELM SEED | < 150 tx/mois | 19 900 FCFA | 16 900 FCFA | -15% | ~33 USD
+   188→HELM GROW | 150-500 tx/mois | 34 900 FCFA | 29 500 FCFA | -15% | ~58 USD
+   189→HELM LEAD | 500-1 200 tx/mois | 54 900 FCFA | 46 500 FCFA | -15% | ~91 USD
+   190→HELM NETWORK | Réseau 2+ officines | Sur devis | Sur devis | Dégressif | —
+   191→Tous les 19 modules MédiHelm sont inclus dans chaque plan. Aucune fonctionnalité n'est verrouillée. La différence entre les plans porte uniquement sur les capacités techniques (nombre d'utilisateurs, stockage, API connections) et le niveau de support et d'onboarding.
+   192→Capacité | HELM SEED | HELM GROW | HELM LEAD | HELM NETWORK
+   193→Utilisateurs | Jusqu'à 3 | Jusqu'à 8 | Illimité | Illimité / site
+   194→Caissiers simultanés | 1 | 3 | Illimité | Illimité / site
+   195→Patients enregistrés | 500 | 5 000 | Illimité | Illimité
+   196→Stockage documents | 2 Go | 10 Go | 50 Go | 100 Go+
+   197→Analytics IA | Hebdomadaire | Quotidien | Quotidien + prédictions | Quotidien + réseau
+   198→API grossiste | 1 grossiste | 2 grossistes | Illimité | Illimité réseau
+   199→Conformité DPMED | Basique | Complète | Certifiée + exports auto | Réseau certifié
+   200→Support | Email 72h | Email 24h + chat | Prioritaire + téléphone | Dédié + SLA
+   201→HELM SEED
+   202→29 900
+   203→FCFA (unique)
+   204→• Config compte
+   205→• Tutoriels vidéo
+   206→• 1 session visio 1h
+   207→• Import catalogue méd. | HELM GROW
+   208→59 900
+   209→FCFA (unique)
+   210→• Config complète
+   211→• Import stock + patients
+   212→• Import fournisseurs
+   213→• Formation présentielle ½j
+   214→• Paramétrage personnalisé | HELM LEAD
+   215→99 900
+   216→FCFA (unique)
+   217→• Config avancée
+   218→• Import complet
+   219→• Formation présentielle j. entière
+   220→• Param. avancé assurances
+   221→• 1 mois support prioritaire dédié | HELM NETWORK
+   222→Sur devis
+   223→FCFA (unique)
+   224→• Forfait / officine
+   225→• Coordination réseau
+   226→• Formation multi-sites
+   227→• Intégration promoteur
+   228→• SLA dédié
+   229→Condition | Modalité
+   230→Paiement | En totalité à la souscription — avant le début de l'onboarding
+   231→Remboursabilité | Non remboursable — acquis dès le démarrage de la prestation
+   232→Délai de livraison | Prestation complète dans les 15 jours ouvrables suivant le paiement
+   233→Garantie de livraison | Si YEHI OR Tech ne livre pas dans les 15 jours ouvrables : remboursement intégral des frais d'onboarding
+   234→Report | Possible une fois, dans les 30 jours, sans frais — au-delà : nouvelle souscription
+   235→Modes de paiement acceptés | Wave, MTN Money, Moov Money, carte bancaire, virement, espèces (bureau YEHI OR Tech)
+   236→Important : les frais d'onboarding sont dus même si l'officine bénéficie d'une remise sur l'abonnement (parrainage, recommandation grossiste, etc.). Les remises s'appliquent uniquement à l'abonnement mensuel, sauf exception explicitement mentionnée dans ce document.
+   237→Livrable | Détail | Délai
+   238→Création et configuration du compte | Création du tenant, paramétrage des 3 utilisateurs (DIRECTEUR + 2 rôles), activation des 19 modules, configuration horaires officine, zone de couverture géographique | Jour 1
+   239→Import du catalogue médicaments | Import depuis fichier Excel/CSV fourni par l'officine ou saisie assistée des médicaments les plus courants (jusqu'à 200 références) | Jours 2-3
+   240→Paramétrage des alertes de base | Seuils de stock minimum pour les 20 médicaments les plus courants de l'officine | Jour 3
+   241→Tutoriels vidéo | Accès à la bibliothèque complète de tutoriels MédiHelm (15 vidéos de 5 à 15 min chacune) | Immédiat
+   242→Session de formation visio (1h) | Formation du DIRECTEUR + 1 utilisateur sur les modules POS, Stock et Dashboard — via Google Meet ou WhatsApp | Jour 5-7
+   243→Support de démarrage | Email prioritaire pendant 30 jours post-onboarding | 30 jours
+   244→Livrable | Détail | Délai
+   245→Configuration complète | Création tenant, 8 utilisateurs, tous modules, horaires, zones, modes de paiement, paramétrage caisse | Jours 1-2
+   246→Import stock complet | Import du stock actuel avec quantités, lots et prix d'achat (depuis fichier Excel ou inventaire papier numérisé) — jusqu'à 500 références | Jours 2-4
+   247→Import base patients | Import des patients existants avec nom, téléphone, historique de crédit si disponible — jusqu'à 2 000 patients | Jours 3-4
+   248→Import fournisseurs | Import du référentiel fournisseurs avec contacts et conditions | Jour 4
+   249→Paramétrage personnalisé | Seuils stock par médicament (top 50), alertes péremption, configuration assurances/mutuelles actives (CNSS, RAMU, mutuelles privées) | Jours 4-5
+   250→Formation présentielle demi-journée | 3h en officine — jusqu'à 5 personnes — Modules POS, Stock, Commandes, Dashboard, Alertes — support de formation remis | Jour 7-10
+   251→Vérification post-formation | Appel de suivi 15 jours après la formation — correction des erreurs de prise en main | Jour 22-25
+   252→Support dédié | Email 24h + chat pendant 60 jours post-onboarding | 60 jours
+   253→Livrable | Détail | Délai
+   254→Configuration avancée | Création tenant, utilisateurs illimités configurés, tous modules, intégration Fedapay testée, paramétrage caisse multi-caissier | Jours 1-2
+   255→Import stock complet et assisté | Import stock avec valorisation CMUP calculée, gestion multi-lots, alertes personnalisées — jusqu'à 2 000 références — assistance en présentiel si nécessaire | Jours 2-5
+   256→Import complet données existantes | Stock, patients (illimité), fournisseurs, historique des commandes si disponible, contrats assurances/mutuelles | Jours 3-6
+   257→Paramétrage avancé assurances | Configuration complète des mutuelles et assurances partenaires : CNSS, RAMU, mutuelles privées — taux de remboursement, numéros de prise en charge | Jours 5-7
+   258→Formation présentielle journée entière | 7h en officine — jusqu'à 10 personnes — tous les modules y compris RH, Finance, Analytics IA, Alertes DPMED — support de formation remis | Jour 8-12
+   259→Formation complémentaire si nécessaire | 1 demi-journée supplémentaire offerte si certains rôles n'ont pas pu assister à la formation principale | Jours 20-25
+   260→1 mois de support prioritaire dédié | Interlocuteur téléphonique nommé — réponse garantie < 4h — résolution < 24h | 30 jours
+   261→Audit post-onboarding | Revue complète de la configuration à 30 jours — rapport de recommandations | Jour 35-40
+   262→Modalité | Plans concernés | Format | Durée | Participants max
+   263→Formation en ligne (visio) | HELM SEED | Session Google Meet ou WhatsApp Video | 1 heure | 2 personnes
+   264→Formation présentielle demi-journée | HELM GROW | En officine — par un formateur YEHI OR Tech | 3 heures | 5 personnes
+   265→Formation présentielle journée entière | HELM LEAD | En officine — par un formateur YEHI OR Tech | 7 heures | 10 personnes
+   266→Formation multi-sites sur mesure | HELM NETWORK | Plusieurs officines — planning dédié | Sur devis | Illimité
+   267→Type de données | Format accepté | Traitement | Délai | Plans concernés
+   268→Catalogue médicaments | Excel (.xlsx), CSV, liste manuscrite numérisée | Vérification DCI + correspondance base nationale, création des fiches médicaments | 1-2 jours | Tous plans
+   269→Stock initial avec lots | Excel avec colonnes : DCI, quantité, lot, date expiration, prix achat | Import avec valorisation CMUP calculée automatiquement | 2-3 jours | GROW, LEAD, NETWORK
+   270→Base patients | Excel avec colonnes : nom, prénom, téléphone, solde crédit | Déduplication, validation téléphones, import | 1-2 jours | GROW, LEAD, NETWORK
+   271→Référentiel fournisseurs | Excel ou liste fournie | Import nom, contacts, conditions, historique si disponible | 1 jour | GROW, LEAD, NETWORK
+   272→Historique commandes | Excel si disponible | Import optionnel — enrichit les prédictions Analytics IA dès le départ | 1-2 jours | LEAD, NETWORK
+   273→Option | Prix mensuel | Description | Plans
+   274→SMS patients Standard | 4 900 FCFA | Pack 500 SMS/mois — notifications commandes, rappels, alertes DPMED | Tous
+   275→SMS patients Pro | 8 900 FCFA | Pack 2 000 SMS/mois — campagnes + notifications | Tous
+   276→SMS patients Illimité | 14 900 FCFA | SMS illimités — réseaux et campagnes intensives | LEAD, NETWORK
+   277→Bilingue FR/EN | 3 000 FCFA | Interface en anglais pour le personnel | Tous
+   278→Domaine personnalisé | 2 500 FCFA | votre-pharmacie.medihelm.com | GROW+
+   279→API accès tiers | 9 900 FCFA | API REST pour intégration logiciels comptables ou ERP tiers | LEAD
+   280→Formation supplémentaire | 25 000 FCFA | Demi-journée de formation additionnelle en présentiel | Tous
+   281→Re-import données | 10 000 FCFA | Nouvel import de données (stock, patients) hors onboarding | Tous
+   282→Audit conformité DPMED annuel | Sur devis | Revue complète conformité réglementaire par YEHI OR Tech | GROW+
+   283→Configuration réseau | Coefficient / officine | Exemple | Economie
+   284→2-3 officines | × 0,75 du plan individuel | 3 × GROW × 0,75 = 78 525 FCFA/mois | -25%
+   285→4-7 officines | × 0,65 du plan individuel | 5 × GROW × 0,65 = 113 425 FCFA/mois | -35%
+   286→8-15 officines | × 0,55 du plan individuel | 10 × GROW × 0,55 = 191 950 FCFA/mois | -45%
+   287→16+ officines | Négocié — engagement annuel obligatoire | Contact YEHI OR Tech | -45% à -55%
+   288→Source | Modèle | Tarif | Condition
+   289→Commission Fedapay | 1,5% du montant commande en ligne | Plafond 500 FCFA / commande | Paiements en ligne uniquement — paiement sur place : 0%
+   290→Fonctionnalités premium patient (phase 2) | Abonnement optionnel | 2 500 à 4 900 FCFA/mois | Rappels avancés, carte urgence, renouvellements auto
+   291→Les portails institutionnels (DPMED, SoBAPS, ABRP, UbiPharm, Promopharma, Ordre des Pharmaciens) sont proposés entièrement gratuitement. Ce n'est pas une concession — c'est un investissement stratégique calculé dont le ROI se mesure en acquisitions de clients via les recommandations institutionnelles.
+   292→Partenaire | Accès MédiHelm | Tarif | Contrepartie attendue
+   293→DPMED | Portail alertes + pharmacovigilance | Gratuit | Label conformité officiel + recommandation 600 officines
+   294→SoBAPS SA | Portail confirmations livraisons | Gratuit | Recommandation à toutes les officines approvisionnées
+   295→ABRP | Tableau de bord agrégé anonymisé | Gratuit | Accréditation outil conforme + communication officielle
+   296→UbiPharm Bénin | Portail commandes + demande agrégée | Gratuit | Recommandation réseau 600 officines + co-marketing
+   297→Promopharma | Portail commandes + demande agrégée | Gratuit | Recommandation réseau + co-marketing
+   298→Ordre Pharmaciens | Agrégats anonymisés | Gratuit | Recommandation officielle aux membres
+   299→Type de remise | Taux | Applicable sur | Condition | Autorisation
+   300→Engagement annuel | -15% | Abonnement mensuel uniquement | Paiement annuel en avance | Automatique
+   301→Early adopter beta payante | -30% pendant 6 mois | Abonnement | Souscription mois 4-6 | Automatique
+   302→Introduction grossiste (UbiPharm/Promopharma) | -20% trimestre 1 | Abonnement | Recommandation tracée | Automatique
+   303→Partenaire DPMED certifié | -10% permanent | Abonnement | Obtention label DPMED | Automatique
+   304→Association pharmaciens agréée | -20% | Abonnement | Adhérent association reconnue | Validation YEHI OR Tech
+   305→Réseau promoteur | -25% à -45% | Abonnement | Selon taille réseau | Automatique selon grille
+   306→Remise commerciale ponctuelle | Max -15% | Abonnement | Cas exceptionnel | Validation fondateur obligatoire
+   307→Type de remise | Taux | Condition
+   308→Recommandation tracée UbiPharm ou Promopharma | -30% sur frais onboarding | Recommandation vérifiable par YEHI OR Tech
+   309→Officine beta pilote (phase 1) | Onboarding gratuit | En échange de feedback structuré mensuel pendant 3 mois
+   310→Réseau promoteur 4+ officines | -20% sur forfait onboarding / officine | Engagement réseau signé
+   311→Remise commerciale ponctuelle | Max -20% | Validation fondateur obligatoire
+   312→Bénéfice | Parrain (officine qui recommande) | Filleul (nouvelle officine)
+   313→Réduction onboarding | — | -50% sur les frais d'onboarding
+   314→Crédit abonnement | 1 mois d'abonnement offert (crédité sur la prochaine facture) | —
+   315→Condition | Le filleul doit rester abonné au minimum 3 mois complets | Souscription active requise
+   316→Limite | Illimité — autant de parrainages que d'officines recommandées | Un seul parrain par filleul
+   317→Cumul | Cumulable avec la remise annuelle sur l'abonnement | Cumulable avec remise grossiste
+   318→Exemple concret du programme parrainage :
+   319→La Pharmacie Centrale Cotonou (abonnée HELM GROW) recommande la Pharmacie du Marché.
+   320→
+   321→La Pharmacie du Marché (filleul) souscrit HELM GROW :
+   322→  - Frais d'onboarding : 59 900 FCFA - 50% = 29 950 FCFA
+   323→  - Abonnement : 34 900 FCFA/mois (plein tarif)
+   324→
+   325→La Pharmacie Centrale (parrain) reçoit :
+   326→  - 1 mois d'abonnement offert = 34 900 FCFA crédité
+   327→
+   328→YEHI OR Tech : acquisition d'un nouveau client avec réduction onboarding
+   329→mais gain immédiat d'un abonné payant sans coût commercial direct.
+   330→Mode | Disponibilité | Frais (à la charge du client)
+   331→Wave | Tous plans | 1,5% de la transaction (Fedapay)
+   332→MTN Mobile Money | Tous plans | 1,5% de la transaction (Fedapay)
+   333→Moov Money | Tous plans | 1,5% de la transaction (Fedapay)
+   334→Carte bancaire (Visa, Mastercard) | GROW, LEAD, NETWORK | 2% de la transaction (Fedapay)
+   335→Virement bancaire | LEAD, NETWORK annuel uniquement | 0%
+   336→Espèces (bureau YEHI OR Tech) | Tous plans sur rendez-vous | 0%
+   337→CONDITION ABSOLUE : Le pricing v2.1 plein tarif n'est activé qu'à partir du moment
+   338→où au minimum un partenariat institutionnel est signé et actif (DPMED ou UbiPharm ou SoBAPS).
+   339→Sans recommandation institutionnelle, le plein tarif est perçu comme excessif et freine l'adoption.
+   340→Phase | Timing | Abonnement GROW | Onboarding GROW | Condition
+   341→Beta fermée | Mois 1-3 | Gratuit | Gratuit | 5 officines pilotes — feedback mensuel obligatoire
+   342→Lancement beta payante | Mois 4-6 | 24 500 FCFA (-30%) | 41 930 FCFA (-30%) | Avant partenariats actifs — early adopters
+   343→Plein tarif | Mois 7+ | 34 900 FCFA | 59 900 FCFA | Dès qu'un partenariat institutionnel est actif
+   344→Statut | Pendant la beta | Après passage plein tarif | Durée protection
+   345→Pilote beta gratuite | 0 FCFA / mois — onboarding gratuit | Abonnement plein tarif - 20% pendant 6 mois + onboarding gratuit conservé | 6 mois
+   346→Beta payante (mois 4-6) | - 30% abonnement + - 30% onboarding | Abonnement réduit maintenu 6 mois supplémentaires | 6 mois post-plein tarif
+   347→Engagement annuel (tout moment) | - 15% annuel | Maintenu jusqu'à expiration de l'engagement | Durée engagement
+   348→Source de revenu | An 1 (estimation) | An 2 (estimation) | Nature
+   349→Abonnements pharmacies | 9-18 M FCFA | 60-100 M FCFA | Récurrent mensuel
+   350→Frais d'onboarding | 3-7 M FCFA | 15-30 M FCFA | Unique à l'acquisition
+   351→Commissions patient | ~400 000 FCFA | ~3-5 M FCFA | Variable
+   352→Options complémentaires | ~500 000 FCFA | ~3-8 M FCFA | Récurrent variable
+   353→Total estimé | 13-26 M FCFA | 81-143 M FCFA | —
+   354→Scénario | Officines An 1 | Revenus onboarding An 1 | Revenus abonnements An 1 | Total An 1
+   355→Conservateur (sans partenariat institutionnel) | 40-50 officines | ~2-3 M FCFA | ~9 M FCFA | ~11-12 M FCFA
+   356→Modéré (1 partenariat actif) | 70-90 officines | ~4-5 M FCFA | ~13 M FCFA | ~17-18 M FCFA
+   357→Optimiste (DPMED + UbiPharm actifs) | 100-130 officines | ~6-8 M FCFA | ~18 M FCFA | ~24-26 M FCFA
+   358→Règle | Détail
+   359→Fréquence maximale | 1 révision tarifaire par an calendaire (abonnements + onboarding)
+   360→Préavis obligatoire | 60 jours avant entrée en vigueur — notification email + in-app
+   361→Plafond hausse abonnements | + 15% maximum par an sauf inflation > 10% ou dévaluation FCFA
+   362→Plafond hausse onboarding | + 20% maximum par an — les nouvelles souscriptions seulement
+   363→Protection abonnés annuels | Prix maintenu jusqu'à renouvellement de l'engagement annuel
+   364→Protection early adopters | Tarifs réduits maintenus selon les engagements de la section 14
+   365→Nouveaux modules | Inclus sans surcoût pour les abonnés actifs sur tous les plans
+   366→Garantie de stabilité | Aucune hausse surprise — toujours annoncée 60 jours à l'avance
+   367→Version | Date | Modifications
+   368→v1.0 | 2025 | Plans initiaux STEM/BLOOM/CROWN/NETWORK — 12 900 à 38 900 FCFA — sans frais d'onboarding
+   369→v2.0 | 2025 | Refonte plans SEED/GROW/LEAD/NETWORK — 19 900 à 54 900 FCFA — intégration modules institutionnels M16-M19
+   370→v2.1 | 2025 | Ajout frais d'onboarding (29 900 / 59 900 / 99 900 FCFA), programme parrainage, détail formation et import, projections revenus révisées
+   371→v3.0 | À définir | Révision après 12 mois d'exploitation sur données réelles de conversion et churn

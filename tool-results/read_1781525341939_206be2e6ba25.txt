@@ -1,0 +1,515 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→BIBLIOTHEQUE VISUELLE — PROMPTS GEMINI IMAGEN v1.0
+     4→Landing page · Espace Pro · Espace Patient · 38 images · Mixte photos réalistes et illustrations
+     5→YEHI OR Tech © 2025 — Usage interne exclusif
+     6→Guide d'Utilisation des Prompts
+     7→1.1 Comment utiliser ce document
+     8→Chaque prompt est prêt à être copié-collé directement dans Google Gemini (gemini.google.com) en sélectionnant le modèle Imagen. Les prompts sont rédigés en anglais — la langue la plus performante pour Gemini Imagen. Les commentaires en vert (lignes débutant par //) ne sont pas à inclure dans le prompt.
+     9→1.2 Paramètres de génération recommandés
+    10→1.3 Si le résultat n'est pas satisfaisant
+    11→Ajouter en fin de prompt : 'photorealistic, professional photography, 8K resolution, sharp focus'
+    12→Si le texte dans l'image est mal rendu : supprimer toute mention de texte et ajouter le texte en post-production (Figma, Canva).
+    13→Si les personnages ne semblent pas africains : ajouter 'West African, Beninese, dark skin, natural African features'.
+    14→Si la palette n'est pas respectée : ajouter 'color palette: teal green #1D9E75, dark teal #085041, white, minimal colors'.
+    15→1.4 Post-production recommandée
+    16→Compression : toutes les images doivent être exportées en WebP pour le web (qualité 85%).
+    17→Dimensions finales : hero 1920×1080px, fonctionnalités 800×600px, avatars 400×400px.
+    18→Ajouter les textes, logos et overlays dans Figma ou dans le code Next.js — jamais directement dans l'image générée.
+    19→Harmoniser la luminosité et le contraste de toutes les images dans Lightroom ou GIMP pour une cohérence visuelle sur le site.
+    20→1. Hero — Bannière Principale
+    21→Le hero est la première image que voit un visiteur. Elle doit communiquer immédiatement : confiance, modernité, ancrage africain, santé. La pharmacienne est le personnage central — professionnelle, souriante, maîtresse de son outil numérique.
+    22→IMG-LP-01    Hero principal — Pharmacienne et tablette
+    23→IMG-LP-02    Hero alternatif — Pharmacien et patient satisfait
+    24→IMG-LP-03    Hero mobile — version 3:4 pour mobile first
+    25→2. Sections Fonctionnalités — Landing Page
+    26→IMG-LP-04    Section Géolocalisation — Patient cherche pharmacie
+    27→IMG-LP-05    Section Commande — Patient commande avant passage
+    28→IMG-LP-06    Section Pharmacie de garde — Urgence nocturne
+    29→IMG-LP-07    Section Alertes DPMED — Sécurité médicaments
+    30→IMG-LP-08    Section Conformité DPMED — Inspection pharmacie
+    31→3. Témoignages et Preuves Sociales — Landing Page
+    32→IMG-LP-09    Avatar témoignage 1 — Pharmacienne directrice
+    33→IMG-LP-10    Avatar témoignage 2 — Pharmacien promoteur réseau
+    34→IMG-LP-11    Avatar témoignage 3 — Patient urbain satisfait
+    35→4. Fonds, Textures et Ambiances — Landing Page
+    36→IMG-LP-12    Fond hero — Abstraction teal médical
+    37→IMG-LP-13    Fond section — Carte Bénin stylisée
+    38→IMG-LP-14    Fond section — Texture médicaments abstrait
+    39→IMG-LP-15    Illustration statistique — Chiffres clés Bénin
+    40→IMG-LP-16    Illustration partenaires — Logos institutionnels
+    41→IMG-LP-17    Illustration CTA final — Appel à l'action
+    42→5. Hero et Onboarding — Espace Pharmacien
+    43→IMG-PRO-01    Ecran de connexion — Welcome back pharmacien
+    44→IMG-PRO-02    Onboarding step 1 — Configuration compte
+    45→6. Illustrations Modules — Espace Pharmacien
+    46→IMG-PRO-03    Module Stock — Rayonnage numérique
+    47→IMG-PRO-04    Module POS — Caisse tactile
+    48→IMG-PRO-05    Module RH — Planning équipe
+    49→IMG-PRO-06    Module Finance — Tableau de bord CA
+    50→IMG-PRO-07    Module Alertes DPMED — Notification urgente
+    51→IMG-PRO-08    Module Conformité — Score DPMED vert
+    52→7. Témoignages et Ambiances — Espace Pharmacien
+    53→IMG-PRO-09    Photo équipe — Personnel officine moderne
+    54→IMG-PRO-10    Fond section Pro — Abstraction pharmacie tech
+    55→IMG-PRO-11    Illustration vide — Empty state tableau de bord
+    56→8. Hero — Espace Patient
+    57→IMG-PAT-01    Hero patient — Femme trouve médicament facilement
+    58→IMG-PAT-02    Hero patient mobile — Portrait vertical
+    59→9. Illustrations Fonctionnalités — Espace Patient
+    60→IMG-PAT-03    Recherche médicament — Interface résultats
+    61→IMG-PAT-04    Carte géolocalisée — Pharmacies proches
+    62→IMG-PAT-05    File d'attente virtuelle — Numéro de passage
+    63→IMG-PAT-06    Pharmacie de garde SOS — Urgence nuit
+    64→IMG-PAT-07    Vérification authenticité médicament — Scanner
+    65→10. Témoignages et Ambiances — Espace Patient
+    66→IMG-PAT-08    Avatar témoignage patient 1 — Femme senior
+    67→IMG-PAT-09    Fond espace patient — Marché Cotonou vivant
+    68→IMG-PAT-10    Illustration programme fidélité — Points et récompenses
+    69→Récapitulatif — Index Complet des 38 Images
+    70→Ordre de génération recommandé
+    71→Générer dans cet ordre pour maximiser l'impact visuel à chaque étape du développement :
+    72→Phase 1 — Critique (7 images) : LP-01, LP-12, PAT-01, PAT-04, PRO-04, LP-09, LP-10
+    73→Phase 2 — Haute priorité (17 images) : LP-02 à LP-08, LP-11, LP-15 à LP-17, PRO-03, PRO-06, PRO-07, PRO-09, PAT-02, PAT-05, PAT-06, PAT-08, PAT-09
+    74→Phase 3 — Priorité normale (14 images) : LP-13, LP-14, PRO-01, PRO-02, PRO-05, PRO-08, PRO-10, PRO-11, PAT-03, PAT-07, PAT-10
+    75→MédiHelm Bibliothèque Visuelle v1.0  |  YEHI OR Tech © 2025  |  Usage interne exclusif
+    76→
+    77→--- TABLES ---
+    78→Total images | 38 visuels — Landing (17) · Espace Pro (11) · Espace Patient (10)
+    79→Style global | Mixte : photographies réalistes béninoises + illustrations flat design teal
+    80→Modèle IA | Google Gemini Imagen 3 (ou Imagen 4 si disponible)
+    81→Formats cibles | 16:9 (hero/bannière) · 1:1 (avatars) · 4:3 (fonctionnalités) · 3:4 (mobile)
+    82→Palette obligatoire | Teal principal #1D9E75 · Teal foncé #085041 · Amber #EF9F27 · Blanc #FFFFFF
+    83→Personnages | Personnes noires africaines — contexte Bénin / Afrique de l'Ouest
+    84→Ambiance | Professionnelle, moderne, confiante, lumineuse — jamais anxiogène
+    85→Usage | Document usage interne YEHI OR Tech — Confidentiel
+    86→Paramètre | Valeur recommandée | Pourquoi
+    87→Modèle | Gemini Imagen 3 ou Imagen 4 | Meilleure qualité réaliste et cohérence de style
+    88→Ratio | Selon la colonne FORMAT dans chaque fiche | Adapté à l'usage web cible
+    89→Nombre de générations | 4 par prompt | Sélectionner la meilleure parmi 4 variantes
+    90→Seed | Noter le seed des meilleures images | Pour régénérer avec cohérence si besoin
+    91→Safety | Standard | Les prompts sont conçus pour passer sans blocage
+    92→PARTIE 1 — LANDING PAGE MEDIHELM.COM  (17 images)
+    93→Usage | Hero section — pleine largeur au-dessus de la fold
+    94→Format | 16:9 — 1920×1080px
+    95→Style | Photographie réaliste
+    96→Ton | Professionnel, lumineux, confiant
+    97→// PROMPT LP-01 — Hero principal landing page MédiHelm
+    98→Professional West African female pharmacist, late 30s, wearing a white lab coat
+    99→and a warm smile, standing confidently behind a modern pharmacy counter in Cotonou Benin.
+   100→She is holding a tablet showing a clean teal green dashboard with medication stock charts.
+   101→The pharmacy behind her is bright, modern, well-organized with labeled shelves.
+   102→Warm natural light from large windows. Background slightly blurred (bokeh).
+   103→Color mood: teal green #1D9E75, white, warm skin tones.
+   104→Shot from slightly below eye level. Professional pharmacy photography.
+   105→Ultra-realistic, 8K, sharp focus on face and tablet screen.
+   106→No text on screen. No logos visible.
+   107→Usage | Variante A/B test hero — même position que LP-01
+   108→Format | 16:9 — 1920×1080px
+   109→Style | Photographie réaliste
+   110→// PROMPT LP-02 — Hero alternatif — interaction pharmacien/patient
+   111→West African male pharmacist, 35-45 years old, white lab coat, kind expression,
+   112→handing medication to a young Beninese woman customer across a modern pharmacy counter.
+   113→Both are smiling. The pharmacist glances at a tablet on the counter showing a digital
+   114→prescription interface. Bright, clean modern pharmacy in Cotonou, Benin.
+   115→Warm golden hour light. Color palette: teal green accents, white coats, warm browns.
+   116→Photorealistic, professional, welcoming atmosphere. Ultra-sharp, 8K.
+   117→No text visible on tablet screen.
+   118→Usage | Hero section sur mobile et PWA — vertical
+   119→Format | 3:4 — 900×1200px
+   120→Style | Photographie réaliste
+   121→// PROMPT LP-03 — Hero version portrait/mobile
+   122→Close-up portrait of a confident West African female pharmacist in white lab coat,
+   123→looking directly at camera with a warm professional smile.
+   124→She holds a smartphone showing a green pharmacy app interface (no text visible).
+   125→Modern blurred pharmacy background with teal green accent colors.
+   126→Natural window light. Shallow depth of field.
+   127→Vertical composition 3:4, professional headshot style, photorealistic, 8K.
+   128→Usage | Section 'Trouvez votre médicament' — à droite du texte
+   129→Format | 4:3 — 800×600px
+   130→Style | Mixte : photo réaliste + overlay illustration
+   131→// PROMPT LP-04 — Patient cherche une pharmacie sur smartphone
+   132→Young Beninese man, 25-35 years old, looking intently at his Android smartphone
+   133→on a busy Cotonou street. The phone screen shows a green map interface with pharmacy
+   134→location pins (no readable text). He looks relieved and focused.
+   135→Background: vibrant Cotonou street scene, motorcycles, market, natural daylight.
+   136→Warm African sunlight. Candid street photography style.
+   137→Color accent: green phone screen glow on his face. Photorealistic, 8K.
+   138→Usage | Section 'Commandez avant de vous déplacer' — illustration principale
+   139→Format | 4:3 — 800×600px
+   140→Style | Illustration flat design
+   141→// PROMPT LP-05 — Illustration commande en ligne patient
+   142→Flat design vector illustration. A stylized West African woman sitting comfortably
+   143→at home on a sofa, using a smartphone. A large phone screen shows a pharmacy app
+   144→with a shopping cart and green 'Commander' button. A dotted line connects her phone
+   145→to a stylized pharmacy building in the background.
+   146→Color palette: teal green #1D9E75, white, light cream background, amber #EF9F27 accents.
+   147→Clean minimal flat design, no gradients, modern SaaS illustration style.
+   148→No text in illustration.
+   149→Usage | Section 'Pharmacie de garde' — contexte urgence nocturne
+   150→Format | 4:3 — 800×600px
+   151→Style | Photographie réaliste — nuit
+   152→// PROMPT LP-06 — Pharmacie de garde la nuit
+   153→Nighttime exterior photograph of a modern pharmacy in Cotonou, Benin.
+   154→The pharmacy is open and brightly lit from the inside, warm yellow-green glow
+   155→through large windows. A green illuminated cross sign visible on the facade.
+   156→A Beninese woman in a hurry is approaching the entrance.
+   157→Street is dark but safe-looking. Dramatic contrast between lit pharmacy and dark street.
+   158→Cinematic photography, wide angle, photorealistic, high quality.
+   159→Atmosphere: urgent but reassuring.
+   160→Usage | Section 'Alertes DPMED et sécurité' — illustration
+   161→Format | 4:3 — 800×600px
+   162→Style | Illustration flat design
+   163→// PROMPT LP-07 — Illustration sécurité médicaments et alertes
+   164→Flat design vector illustration. A stylized shield with a green medical cross at center.
+   165→Around the shield: small icons representing a bell (notification), a medication box
+   166→with a checkmark, a smartphone receiving an alert, and a chain linking pharmacies.
+   167→Color palette: teal green #1D9E75, white, amber #EF9F27 for the bell icon.
+   168→Clean, modern, trustworthy design. No text. Minimal flat style.
+   169→Usage | Section 'Conforme aux exigences DPMED' — photo de preuve
+   170→Format | 4:3 — 800×600px
+   171→Style | Photographie réaliste
+   172→// PROMPT LP-08 — Pharmacien génère document réglementaire
+   173→West African male pharmacist, 40s, white lab coat, sitting at a desk in a clean
+   174→modern pharmacy office. He is looking at a laptop screen with a satisfied expression,
+   175→a printed official document on the desk beside him.
+   176→The office is organized, professional, with teal green accent colors in the decor.
+   177→Natural daylight. Professional interior photography.
+   178→Atmosphere: calm, organized, compliant, trustworthy. Photorealistic, 8K.
+   179→Ces portraits doivent être générés en style 'photo de profil LinkedIn' — fond neutre, cadrage buste, expression professionnelle et chaleureuse. Ils serviront de photos de témoignages clients sur la landing page.
+   180→Usage | Photo profil témoignage — Directrice d'officine GROW
+   181→Format | 1:1 — 400×400px — fond uni teal clair
+   182→Style | Portrait professionnel réaliste
+   183→// PROMPT LP-09 — Portrait témoignage pharmacienne directrice
+   184→Professional LinkedIn-style headshot portrait of a West African woman, 45-55 years old.
+   185→She wears a white pharmacist lab coat over a professional blouse.
+   186→Warm confident smile, looking directly at the camera.
+   187→Plain light teal (#E1F5EE) background. Soft studio lighting.
+   188→Square crop 1:1, shoulders and head visible. Natural makeup.
+   189→Photorealistic, professional headshot quality, 4K.
+   190→Usage | Photo profil témoignage — Promoteur réseau 3 officines
+   191→Format | 1:1 — 400×400px — fond uni blanc
+   192→Style | Portrait professionnel réaliste
+   193→// PROMPT LP-10 — Portrait témoignage promoteur / chef d'entreprise
+   194→Professional LinkedIn headshot of a West African man, 50-60 years old, businessman.
+   195→He wears a well-fitted suit with a teal green tie or pocket square accent.
+   196→Confident authoritative smile, direct eye contact.
+   197→Plain white background. Professional studio lighting, slight shadow.
+   198→Square 1:1, head and shoulders. Distinguished, successful business owner look.
+   199→Photorealistic, executive portrait quality, 4K.
+   200→Usage | Photo profil témoignage — Patient MédiHelm Patient
+   201→Format | 1:1 — 400×400px — fond uni gris clair
+   202→Style | Portrait lifestyle réaliste
+   203→// PROMPT LP-11 — Portrait témoignage patient urbain
+   204→Casual lifestyle portrait of a young West African man, 28-35 years old.
+   205→He wears smart casual clothes (button-up shirt). Big genuine smile.
+   206→Holding a smartphone lightly in one hand. Light grey background.
+   207→Square 1:1, relaxed modern feel. Natural light simulation.
+   208→Happy, relieved, satisfied customer expression. Photorealistic, 4K.
+   209→Usage | Fond du hero section — derrière le texte (overlay sombre appliqué par CSS)
+   210→Format | 16:9 — 1920×1080px
+   211→Style | Illustration abstraite
+   212→// PROMPT LP-12 — Fond abstrait médical teal pour hero section
+   213→Abstract medical technology background. Soft flowing teal green (#1D9E75) and dark teal
+   214→gradient waves. Subtle medical icons barely visible: ECG line, molecular structure,
+   215→cross symbol, pill shape — all translucent and abstract.
+   216→Clean professional feel. No text. No people. Horizontal banner format.
+   217→Smooth gradients, soft glow, suitable as website hero background.
+   218→Color palette: teal #1D9E75, dark teal #085041, near-black, white highlights.
+   219→Usage | Fond section géolocalisation — silhouette carte Bénin avec points de pharmacies
+   220→Format | 16:9 — 1600×900px
+   221→Style | Illustration flat design cartographique
+   222→// PROMPT LP-13 — Carte stylisée Bénin avec points de présence
+   223→Stylized flat design map illustration of Benin country silhouette.
+   224→Dark teal (#085041) background. The Benin map outline glows in light teal (#9FE1CB).
+   225→Multiple small glowing dots scattered across the map representing pharmacy locations.
+   226→Cotonou area has the highest density of dots.
+   227→Thin connection lines between some dots. Subtle grid pattern in background.
+   228→Clean tech map style, no text labels. Minimal and modern.
+   229→Usage | Fond section tarifs / plans — texture subtile
+   230→Format | 1:1 — 1200×1200px (tuileable)
+   231→Style | Illustration abstraite subtile
+   232→// PROMPT LP-14 — Texture de fond subtile thème pharmaceutique
+   233→Very subtle, light background texture for a pharmacy SaaS website.
+   234→Tiny repeating pattern of: pill shapes, small crosses, ECG line fragments,
+   235→molecule dots — all extremely faint, almost invisible, in light teal on white.
+   236→Background color: near white #F8FFFE. Pattern elements opacity: 5-8%.
+   237→Seamlessly tileable. Clean, professional, non-distracting. Flat 2D.
+   238→Usage | Section 'Pourquoi MédiHelm' — illustration des statistiques du marché
+   239→Format | 16:9 — 1200×675px
+   240→Style | Illustration flat design infographique
+   241→// PROMPT LP-15 — Illustration statistiques marché pharmaceutique Bénin
+   242→Clean flat design infographic illustration. Three large bold numbers in teal green:
+   243→'600' (pharmacies), '15+' (pharmacies visited before finding medication), '2 min' (alert delay).
+   244→Each number is accompanied by a simple icon: building with cross, walking person, bell.
+   245→Dark teal (#085041) background with light teal (#E1F5EE) elements.
+   246→Modern SaaS dashboard style. Bold typography. No detailed text. Minimal flat design.
+   247→Usage | Section 'Nos partenaires institutionnels' — bandeau logos
+   248→Format | 16:9 — 1600×400px (très large, peu haut)
+   249→Style | Illustration flat design — pastilles neutres
+   250→// PROMPT LP-16 — Bandeau partenaires institutionnels style
+   251→Clean horizontal white banner illustration. Six evenly-spaced placeholder logo boxes
+   252→with subtle teal outlines. Each box contains a simple abstract icon representing:
+   253→a government building (DPMED), a warehouse (SoBAPS), a shield (ABRP),
+   254→a delivery truck (UbiPharm), another truck (Promopharma), a gavel (Ordre).
+   255→All icons in teal green #1D9E75. White background. Minimal flat design.
+   256→No text. Partnership trust signal aesthetic. Professional clean look.
+   257→Usage | Section CTA bas de page — 'Démarrez votre essai gratuit'
+   258→Format | 16:9 — 1920×600px (bandeau large)
+   259→Style | Illustration flat design + dégradé
+   260→// PROMPT LP-17 — Bandeau CTA final landing page
+   261→Wide banner flat design illustration. Dark teal gradient background (#085041 to #1D9E75).
+   262→Left side: stylized modern pharmacy building with teal cross sign, glowing warmly.
+   263→Right side: stylized smartphone showing a green checkmark and dashboard.
+   264→Center: abstract connecting elements (dots, lines) suggesting digital connection.
+   265→Amber (#EF9F27) accent glow around key elements.
+   266→No text. Professional, inviting, action-oriented atmosphere. Flat design, wide format.
+   267→PARTIE 2 — ESPACE PHARMACIEN — MédiHELM PRO  (11 images)
+   268→Usage | Page de connexion (login) — image de fond ou latérale
+   269→Format | 1:1 — 800×800px
+   270→Style | Illustration flat design
+   271→// PROMPT PRO-01 — Illustration page de connexion MédiHelm Pro
+   272→Flat design illustration for a pharmacy management software login page.
+   273→A stylized West African pharmacist figure (gender-neutral, silhouette) standing
+   274→next to a large glowing dashboard screen showing green charts and metrics.
+   275→Subtle pharmacy shelf in background. Teal green color scheme.
+   276→Welcoming, professional, modern SaaS aesthetic. No text. Square format.
+   277→Color palette: teal #1D9E75, dark teal #085041, white, light teal #E1F5EE.
+   278→Usage | Assistant d'onboarding — étape 1 — illustration latérale
+   279→Format | 1:1 — 600×600px
+   280→Style | Illustration flat design
+   281→// PROMPT PRO-02 — Illustration onboarding configuration
+   282→Flat design illustration. A stylized checklist with teal green checkmarks.
+   283→Icons around the list: user account icon, pharmacy building icon, settings gear,
+   284→payment card icon. A progress bar at top showing step 1 of 4.
+   285→Clean white background with teal green (#1D9E75) accents.
+   286→Modern SaaS onboarding style. Friendly, simple, reassuring. No text.
+   287→Usage | Illustration section Module Stock dans la landing Pro ou documentation
+   288→Format | 4:3 — 800×600px
+   289→Style | Mixte photo réaliste + overlay illustration
+   290→// PROMPT PRO-03 — Module gestion du stock pharmaceutique
+   291→West African male pharmacist (magasinier), 30s, scanning a medication box barcode
+   292→with a handheld scanner in a pharmacy stockroom. Well-organized shelves with
+   293→labeled medication boxes. A tablet on a stand nearby shows green inventory charts.
+   294→Professional lighting, organized environment, teal green accent elements in shelving.
+   295→Focused, efficient work atmosphere. Photorealistic, 8K, professional product photography.
+   296→Usage | Illustration section Module POS / Caisse dans landing Pro
+   297→Format | 4:3 — 800×600px
+   298→Style | Photographie réaliste
+   299→// PROMPT PRO-04 — Caissière pharmacie utilise POS tactile
+   300→West African female pharmacy cashier, 25-35 years old, white lab coat,
+   301→operating a modern touchscreen tablet POS system at a pharmacy counter.
+   302→She is processing a sale with a focused professional expression.
+   303→The tablet shows a clean green pharmacy software interface (no readable text).
+   304→Customer hand visible on other side of counter, handing over mobile phone for payment.
+   305→Bright modern pharmacy interior. Photorealistic, professional retail photography, 8K.
+   306→Usage | Illustration section Module RH dans landing Pro
+   307→Format | 4:3 — 800×600px
+   308→Style | Illustration flat design
+   309→// PROMPT PRO-05 — Illustration gestion RH pharmacie
+   310→Flat design illustration. A weekly planning calendar grid with colored blocks
+   311→representing staff shifts. Stylized avatar icons (diverse team) assigned to shifts.
+   312→A small clock icon, a calendar icon, and profile photos as circular avatars.
+   313→Teal green header for the calendar. Amber (#EF9F27) accent for alerts.
+   314→Clean, modern HR software illustration. No readable text on calendar.
+   315→White background, professional SaaS style.
+   316→Usage | Illustration section Module Finance / Analytics dans landing Pro
+   317→Format | 4:3 — 800×600px
+   318→Style | Illustration flat design dashboard
+   319→// PROMPT PRO-06 — Illustration dashboard financier pharmacie
+   320→Flat design illustration of a financial dashboard for a pharmacy.
+   321→Three KPI cards at top: revenue chart (upward trend, teal), margin percentage (green),
+   322→monthly transactions count (number). Below: a line chart showing monthly revenue growth.
+   323→A small pie chart showing payment method distribution (mobile money dominant).
+   324→Dark teal (#085041) header bar. White card backgrounds. Teal and amber data colors.
+   325→Modern analytics dashboard style. No real numbers or text. Clean flat design.
+   326→Usage | Illustration alerte DPMED reçue dans l'interface pharmacien
+   327→Format | 4:3 — 800×600px
+   328→Style | Illustration flat design — ton urgent
+   329→// PROMPT PRO-07 — Alerte DPMED reçue dans interface pharmacien
+   330→Flat design illustration of a pharmacy dashboard notification.
+   331→A prominent alert card with an amber (#EF9F27) warning icon and teal border.
+   332→The card shows: DPMED official seal icon (simplified), a medication box icon
+   333→with an X symbol, a countdown timer icon, and an action button outline.
+   334→Background: muted pharmacy dashboard context. Alert card stands out clearly.
+   335→Urgent but professional tone. No readable text on screen. Modern UI illustration.
+   336→Usage | Illustration score de conformité DPMED — pharmacie bien notée
+   337→Format | 1:1 — 600×600px
+   338→Style | Illustration flat design
+   339→// PROMPT PRO-08 — Score conformité DPMED 100 points
+   340→Flat design illustration. A large circular progress gauge showing 92/100.
+   341→The gauge is filled with teal green (#1D9E75). A green checkmark shield in center.
+   342→Five small icons around the gauge representing compliance categories:
+   343→stupefiant register, documents, DPMED alerts, pharmacovigilance, destructions.
+   344→Each icon has a small green checkmark. Clean white background.
+   345→Achievement, quality, compliance aesthetic. Professional SaaS data viz style. No text.
+   346→Usage | Section témoignage ou page 'Nos clients' — photo d'équipe officine
+   347→Format | 16:9 — 1200×675px
+   348→Style | Photographie réaliste
+   349→// PROMPT PRO-09 — Equipe pharmacie moderne Cotonou
+   350→Group photo of a West African pharmacy team of 3-4 people in Cotonou, Benin.
+   351→Mix of genders, ages 25-50, all wearing white pharmacist lab coats.
+   352→They are smiling and relaxed, standing together in front of organized pharmacy shelves.
+   353→Modern bright pharmacy interior. Natural light. Team spirit atmosphere.
+   354→Authentic African faces. Professional team photography style. Photorealistic, 8K.
+   355→Usage | Fond de la landing page Espace Pro — derrière le hero text
+   356→Format | 16:9 — 1920×1080px
+   357→Style | Abstraction photographique
+   358→// PROMPT PRO-10 — Fond abstrait espace pharmacien professionnel
+   359→Abstract background photograph of a modern pharmacy interior.
+   360→Extreme close-up of medication boxes on organized shelves, dramatically out of focus.
+   361→Colors: warm whites, soft greens, teal accents from product packaging.
+   362→Bokeh effect, very soft and blurred. No readable text on boxes.
+   363→Suitable as full-screen background behind white text overlay.
+   364→Professional, clean, pharmaceutical atmosphere. Photorealistic.
+   365→Usage | Empty state — premier accès au dashboard pharmacien (onboarding)
+   366→Format | 1:1 — 500×500px
+   367→Style | Illustration flat design friendly
+   368→// PROMPT PRO-11 — Empty state premier accès dashboard pharmacien
+   369→Friendly flat design empty state illustration.
+   370→A stylized pharmacist figure (West African silhouette) waving hello.
+   371→Next to the figure: a large empty dashboard frame with three placeholder chart boxes.
+   372→A small arrow pointing from the figure to the dashboard with a '+' icon.
+   373→Teal green color scheme. Friendly, welcoming, encouraging.
+   374→Modern SaaS empty state illustration style. No text. Square format.
+   375→PARTIE 3 — ESPACE PATIENT — MédiHELM PATIENT  (10 images)
+   376→Usage | Hero section espace patient — bannière principale
+   377→Format | 16:9 — 1920×1080px
+   378→Style | Photographie réaliste
+   379→// PROMPT PAT-01 — Hero espace patient MédiHelm
+   380→Young West African mother, 28-38 years old, sitting in a bright modern living room
+   381→in Cotonou, Benin. She is smiling and looking at her Android smartphone.
+   382→The phone screen glows green (pharmacy app interface, no text visible).
+   383→A small child is visible in the background playing, suggesting family care context.
+   384→Warm afternoon light through window. Relaxed, relieved expression.
+   385→Color mood: warm tones, teal green phone glow, bright interior.
+   386→Lifestyle photography, candid feel, photorealistic, 8K.
+   387→Usage | Hero section espace patient — version mobile portrait
+   388→Format | 3:4 — 900×1200px
+   389→Style | Photographie réaliste
+   390→// PROMPT PAT-02 — Hero patient version portrait mobile
+   391→Portrait of a young Beninese man, 25-35 years old, on a busy Cotonou street.
+   392→He holds his smartphone up showing a green map app (no text visible).
+   393→He looks at the camera with a confident relieved smile.
+   394→Colorful Cotonou street in background (blurred bokeh). Bright daylight.
+   395→Vertical 3:4 composition. Modern lifestyle photography. Photorealistic, 8K.
+   396→Usage | Section 'Recherchez votre médicament' — illustration mobile app
+   397→Format | 9:16 — 400×711px (écran smartphone simulé)
+   398→Style | Illustration flat design UI mobile
+   399→// PROMPT PAT-03 — Illustration résultats recherche médicament
+   400→Flat design illustration of a smartphone screen showing a pharmacy search app.
+   401→The screen shows a search results list: 3-4 medication result cards.
+   402→Each card has: a pill icon, a distance badge (0.6 km, 1.2 km, 2.3 km),
+   403→a green 'Disponible' badge, and a pharmacy name placeholder.
+   404→Top: a green search bar with a magnifying glass icon.
+   405→Teal green (#1D9E75) header and accent colors. White cards. Clean mobile UI.
+   406→No readable text except placeholder shapes. Realistic phone frame around the screen.
+   407→Usage | Section géolocalisation — carte avec pins de pharmacies
+   408→Format | 4:3 — 800×600px
+   409→Style | Illustration flat design cartographique
+   410→// PROMPT PAT-04 — Carte géolocalisée pharmacies proches
+   411→Flat design map illustration inspired by OpenStreetMap style.
+   412→Streets in light gray on white background. Teal green map pins marking pharmacy locations.
+   413→One pin is larger and highlighted in teal — the selected pharmacy.
+   414→A blue dot at center representing the user's location.
+   415→Small info popup above the selected pin: pharmacy icon, distance badge, open hours icon.
+   416→Radar circle around user location (subtle teal circle).
+   417→Clean mobile map UI style. No readable street names. Modern and clear.
+   418→Usage | Section 'Évitez la file d'attente' — illustration ticket numérique
+   419→Format | 1:1 — 600×600px
+   420→Style | Illustration flat design
+   421→// PROMPT PAT-05 — File d'attente virtuelle numéro de passage
+   422→Flat design illustration. A large stylized digital ticket/token with number '7'.
+   423→Below the ticket: a visual queue showing 6 small person icons before, all grayed out,
+   424→and 1 highlighted green person icon — the user's turn coming up.
+   425→A smartphone icon with a notification bell in top corner.
+   426→Teal green (#1D9E75) dominant color. White background. Amber accent on the bell.
+   427→Modern, clear, reassuring. Queue management concept. No text. Square format.
+   428→Usage | Section 'Pharmacie de garde' espace patient — urgence nocturne
+   429→Format | 4:3 — 800×600px
+   430→Style | Illustration flat design — nuit
+   431→// PROMPT PAT-06 — Illustration pharmacie de garde urgence nuit
+   432→Flat design illustration. Night scene with dark blue/teal sky.
+   433→A glowing pharmacy building with green cross sign illuminated.
+   434→A dotted path from a small house icon to the pharmacy.
+   435→A smartphone in foreground showing a location pin and clock icon.
+   436→Amber (#EF9F27) glow on the pharmacy cross sign for urgency.
+   437→Stars in sky. Peaceful yet urgent atmosphere. No text. Modern flat style.
+   438→Usage | Section 'Vérifiez vos médicaments' — fonctionnalité anti-contrefaçon
+   439→Format | 4:3 — 800×600px
+   440→Style | Mixte photo + illustration
+   441→// PROMPT PAT-07 — Scanner médicament vérification authenticité
+   442→West African woman's hands holding a smartphone scanning a medication box barcode.
+   443→The phone screen shows a green checkmark and a shield icon (approved / authentic).
+   444→Clean white surface. Close-up product photography style.
+   445→Teal green screen glow on the medication box and hands.
+   446→Concept: medication authenticity verification, trust, safety.
+   447→Photorealistic close-up, soft studio lighting, 8K.
+   448→Usage | Photo profil témoignage patient — femme âgée bénéficiaire
+   449→Format | 1:1 — 400×400px
+   450→Style | Portrait lifestyle réaliste
+   451→// PROMPT PAT-08 — Portrait témoignage patient senior
+   452→Warm lifestyle portrait of a West African woman, 60-70 years old.
+   453→She wears traditional Beninese fabric clothing. Kind, warm smile.
+   454→Light neutral background. Square 1:1 crop. Head and shoulders.
+   455→Grandmother figure — trustworthy, authentic, relatable.
+   456→Natural soft light. Photorealistic lifestyle portrait, 4K.
+   457→Usage | Fond section espace patient — ambiance Cotonou quotidien
+   458→Format | 16:9 — 1920×1080px
+   459→Style | Photographie réaliste — légèrement floutée
+   460→// PROMPT PAT-09 — Fond ambiance Cotonou marché quotidien
+   461→Wide angle photograph of a vibrant everyday street scene in Cotonou, Benin.
+   462→Busy market atmosphere, motorcycles, colorful fabrics, people walking.
+   463→Warm golden afternoon sunlight. Lively West African urban life.
+   464→Slightly blurred/bokeh suitable as website background.
+   465→No individual faces in focus. Vibrant colors: ochre, green, orange, blue.
+   466→Authentic Beninese daily life. Photorealistic, wide angle, 8K.
+   467→Usage | Section programme de fidélité patient — illustration récompenses
+   468→Format | 4:3 — 800×600px
+   469→Style | Illustration flat design gamifiée
+   470→// PROMPT PAT-10 — Programme fidélité patient MédiHelm
+   471→Flat design illustration of a loyalty points program for a pharmacy app.
+   472→A large stylized star/badge in teal green at center with points icon.
+   473→Around it: progress bar showing points accumulated, small gift icon,
+   474→percentage discount badge in amber (#EF9F27), heart icon for health.
+   475→Confetti-style small elements in background. Celebratory, positive.
+   476→Gamification UI illustration style. Teal and amber palette. No text. Square-ish.
+   477→ID | Titre | Page | Style | Format | Priorité
+   478→LP-01 | Hero principal — Pharmacienne et tablette | Landing | Photo | 16:9 | CRITIQUE
+   479→LP-02 | Hero alternatif — Pharmacien et patient | Landing | Photo | 16:9 | Haute
+   480→LP-03 | Hero mobile — version portrait | Landing | Photo | 3:4 | Haute
+   481→LP-04 | Section Géolocalisation — Patient mobile | Landing | Photo | 4:3 | Haute
+   482→LP-05 | Section Commande — Illustration | Landing | Illustration | 4:3 | Haute
+   483→LP-06 | Section Pharmacie de garde — Nuit | Landing | Photo | 4:3 | Haute
+   484→LP-07 | Section Alertes DPMED — Sécurité | Landing | Illustration | 4:3 | Moyenne
+   485→LP-08 | Section Conformité DPMED | Landing | Photo | 4:3 | Moyenne
+   486→LP-09 | Témoignage 1 — Pharmacienne directrice | Landing | Portrait | 1:1 | Haute
+   487→LP-10 | Témoignage 2 — Promoteur réseau | Landing | Portrait | 1:1 | Haute
+   488→LP-11 | Témoignage 3 — Patient urbain | Landing | Portrait | 1:1 | Haute
+   489→LP-12 | Fond hero — Abstraction teal | Landing | Illustration | 16:9 | Haute
+   490→LP-13 | Fond section — Carte Bénin stylisée | Landing | Illustration | 16:9 | Moyenne
+   491→LP-14 | Fond section — Texture médicaments | Landing | Illustration | 1:1 | Moyenne
+   492→LP-15 | Illustration statistiques marché | Landing | Illustration | 16:9 | Haute
+   493→LP-16 | Bandeau partenaires institutionnels | Landing | Illustration | 16:9 large | Haute
+   494→LP-17 | Illustration CTA final | Landing | Illustration | 16:9 large | Haute
+   495→PRO-01 | Ecran connexion — Welcome | Espace Pro | Illustration | 1:1 | Moyenne
+   496→PRO-02 | Onboarding step 1 — Configuration | Espace Pro | Illustration | 1:1 | Moyenne
+   497→PRO-03 | Module Stock — Rayonnage numérique | Espace Pro | Photo | 4:3 | Haute
+   498→PRO-04 | Module POS — Caisse tactile | Espace Pro | Photo | 4:3 | CRITIQUE
+   499→PRO-05 | Module RH — Planning équipe | Espace Pro | Illustration | 4:3 | Moyenne
+   500→PRO-06 | Module Finance — Dashboard CA | Espace Pro | Illustration | 4:3 | Haute
+   501→PRO-07 | Module Alertes DPMED — Notification | Espace Pro | Illustration | 4:3 | Haute
+   502→PRO-08 | Module Conformité — Score DPMED | Espace Pro | Illustration | 1:1 | Moyenne
+   503→PRO-09 | Photo équipe officine moderne | Espace Pro | Photo | 16:9 | Haute
+   504→PRO-10 | Fond section Pro — Abstraction | Espace Pro | Photo | 16:9 | Moyenne
+   505→PRO-11 | Empty state — Premier accès | Espace Pro | Illustration | 1:1 | Basse
+   506→PAT-01 | Hero patient — Femme smartphone | Espace Patient | Photo | 16:9 | CRITIQUE
+   507→PAT-02 | Hero patient mobile — Portrait | Espace Patient | Photo | 3:4 | Haute
+   508→PAT-03 | Recherche médicament — UI mobile | Espace Patient | Illustration | 9:16 | Haute
+   509→PAT-04 | Carte géolocalisée — Pharmacies | Espace Patient | Illustration | 4:3 | CRITIQUE
+   510→PAT-05 | File d'attente virtuelle — Ticket | Espace Patient | Illustration | 1:1 | Haute
+   511→PAT-06 | Pharmacie de garde SOS nuit | Espace Patient | Illustration | 4:3 | Haute
+   512→PAT-07 | Scanner médicament — Vérification | Espace Patient | Photo | 4:3 | Moyenne
+   513→PAT-08 | Témoignage patient — Femme senior | Espace Patient | Portrait | 1:1 | Haute
+   514→PAT-09 | Fond espace patient — Cotonou | Espace Patient | Photo | 16:9 | Haute
+   515→PAT-10 | Fidélité patient — Récompenses | Espace Patient | Illustration | 4:3 | Moyenne

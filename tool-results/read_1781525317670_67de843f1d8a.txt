@@ -1,0 +1,435 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→L'Ecosystème Santé de Confiance
+     4→CAHIER DES CHARGES  -  VERSION 1.0
+     5→Plateforme SaaS multitenant — Gestion pharmaceutique & Ecosystème patient
+     6→Document confidentiel — YEHI OR Tech © 2025 — Reproduction interdite sans autorisation
+     7→1. Présentation Générale du Projet
+     8→1.1 Identité du projet
+     9→Nom du produit : MédiHelm
+    10→Editeur : YEHI OR Tech
+    11→Secteur : Santé — Pharmacie d'officine
+    12→Type : Plateforme SaaS multitenant Web + PWA mobile
+    13→Marchés cibles : Bénin (phase 1) · Afrique de l'Ouest francophone (phase 2)
+    14→Langue principale : Français (English en option)
+    15→Devise : Franc CFA — XOF
+    16→Paiements : Fedapay : Wave, MTN Money, Moov Money, carte bancaire
+    17→1.2 Description synthétique
+    18→MédiHelm est un écosystème SaaS complet dédié au secteur pharmaceutique en Afrique de l'Ouest. Il connecte trois types d'acteurs sur une plateforme unifiée : les patients qui cherchent des médicaments, les pharmacies qui gèrent leur officine, et les promoteurs qui pilotent un réseau de plusieurs pharmacies.
+    19→Contrairement aux solutions existantes qui traitent séparément la gestion back-office (AS PHARM) et la recherche patient (PharMap), MédiHelm intègre les deux faces dans un seul écosystème cohérent, avec une couche analytique IA transversale et un modèle de pricing transparent basé sur la taille de l'officine.
+    20→1.3 Positionnement concurrentiel
+    21→2. Contexte et Opportunité de Marché
+    22→2.1 Etat du marché pharmaceutique au Bénin
+    23→Le Bénin compte environ 600 pharmacies d'officine légalement enregistrées, concentrées à Cotonou, Porto-Novo et Parakou. Le secteur est structurellement sous-digitalisé : la grande majorité des officines fonctionnent encore avec des systèmes de caisse manuels, des cahiers de stock, et aucun outil de pilotage analytique.
+    24→Les problèmes documentés sur le terrain sont les suivants :
+    25→Un patient peut visiter jusqu'à 15 pharmacies différentes avant de trouver un médicament en rupture.
+    26→Les files d'attente en officine peuvent atteindre 30 à 45 minutes aux heures de pointe.
+    27→Les ruptures de stock représentent en moyenne 15 à 25% du portefeuille produit en permanence.
+    28→Les péremptions non détectées génèrent des pertes financières et des risques sanitaires.
+    29→Aucun outil de coordination entre pharmacies d'un même promoteur n'existe localement.
+    30→2.2 Opportunité identifiée
+    31→2.3 Cibles et personas
+    32→3. Objectifs et Vision Produit
+    33→3.1 Vision à 3 ans
+    34→Devenir la plateforme de référence de l'écosystème pharmaceutique en Afrique de l'Ouest francophone, avec 500+ pharmacies abonnées, 100 000+ patients actifs, et une présence dans 5 pays (Bénin, Togo, Côte d'Ivoire, Sénégal, Mali) d'ici fin 2027.
+    35→3.2 Objectifs par phase
+    36→3.3 Principes directeurs
+    37→Fiabilité absolue : une pharmacie ne peut pas se permettre une panne de caisse ou de stock.
+    38→Offline-first : les fonctions critiques fonctionnent sans connexion et synchronisent dès reconnexion.
+    39→Mobile-first : l'interface est conçue pour tablettes Android dès la conception.
+    40→Transparence du pricing : le pharmacien sait exactement ce qu'il paie et ce qu'il obtient.
+    41→IA utile : les alertes et recommandations sont actionnables immédiatement, pas seulement décoratives.
+    42→4. Périmètre Fonctionnel — Vue d'Ensemble
+    43→4.1 Les quatre espaces de la plateforme
+    44→4.2 Modules de l'espace pharmacie — liste exhaustive
+    45→5. Espace Patient — MédiHelm Patient
+    46→5.1 Principes
+    47→L'espace patient est public et accessible sans création de compte obligatoire pour les fonctions de base (recherche, géolocalisation). La création de compte débloque les fonctionnalités avancées. L'interface est optimisée pour Android, disponible en PWA installable.
+    48→5.2 Recherche et Géolocalisation
+    49→F-P01 — Recherche de médicaments
+    50→Recherche par nom commercial, DCI, code ATC, pathologie ou symptôme.
+    51→Moteur avec correction orthographique, suggestions automatiques, historique de recherche.
+    52→Affichage du prix moyen constaté, des formes disponibles, des équivalents génériques.
+    53→Filtre par disponibilité : En stock / Stock limité / Sur commande / Indisponible.
+    54→F-P02 — Géolocalisation des pharmacies
+    55→Carte interactive (OpenStreetMap) affichant les pharmacies dans un rayon paramétrable (500m, 1km, 2km, 5km).
+    56→Chaque pharmacie affiche : nom, distance, horaires, statut ouvert/fermé, note moyenne.
+    57→Filtres : ouvertes maintenant, pharmacies de garde, avec le médicament recherché en stock, notées 4+.
+    58→Vue liste triée par distance ou par disponibilité du médicament recherché.
+    59→Navigation GPS directe via Google Maps ou carte intégrée.
+    60→F-P03 — Pharmacie de garde
+    61→Affichage automatique de la pharmacie de garde du moment, avec localisation et itinéraire.
+    62→Planning hebdomadaire des gardes consultable à l'avance.
+    63→Notification push : rappel de la pharmacie de garde dès 20h chaque soir.
+    64→Bouton SOS urgence : affichage immédiat de la garde la plus proche avec appel direct.
+    65→5.3 Commande et Pré-réservation
+    66→F-P04 — Commande avant passage en pharmacie
+    67→Le patient sélectionne une pharmacie et ajoute des médicaments au panier depuis la plateforme.
+    68→Commande transmise en temps réel au back-office (notification sonore et visuelle côté pharmacie).
+    69→La pharmacie confirme et prépare la commande dans un délai paramétrable (défaut : 30 min).
+    70→File d'attente virtuelle : numéro de passage attribué, évitant l'attente physique.
+    71→Option paiement en ligne (Fedapay) — retrait sans file, comptoir dédié MédiHelm.
+    72→Option paiement sur place — retrait accéléré au comptoir dédié commandes.
+    73→F-P05 — Suivi de commande en temps réel
+    74→Statuts : Reçue > En préparation > Prête > Récupérée / Annulée.
+    75→Notifications push et SMS à chaque changement de statut.
+    76→Annulation libre jusqu'au statut En préparation.
+    77→5.4 Compte Patient
+    78→F-P06 — Profil et dossier de santé simplifié
+    79→Informations personnelles, groupe sanguin, allergies connues.
+    80→Historique complet des achats et commandes, re-commande en un clic.
+    81→Gestion de plusieurs profils familiaux (patient principal + famille à charge).
+    82→F-P07 — Gestion des ordonnances
+    83→Upload photo d'ordonnance depuis le mobile.
+    84→Transmission à la pharmacie choisie avant le passage.
+    85→Suivi des renouvellements avec rappel automatique à date.
+    86→Historique classé par date et médecin prescripteur.
+    87→F-P08 — Notifications et alertes patient
+    88→Rappel de prise de médicament (alarme configurable par le patient).
+    89→Alerte de fin de traitement : notification quand le stock personnel arrive à terme.
+    90→Notification de disponibilité : alerte dès qu'un médicament en rupture redevient disponible.
+    91→Alerte de rappel de lot : diffusion immédiate si un médicament acheté fait l'objet d'un rappel DPMED.
+    92→F-P09 — Programme de fidélité patient
+    93→Points cumulés à chaque commande validée via MédiHelm (paramétrable par la pharmacie).
+    94→Récompenses : réductions, produits offerts, accès prioritaire.
+    95→Classement et badges gamifiés pour encourager l'adoption.
+    96→F-P10 — Fonctionnalités différenciantes supplémentaires
+    97→Comparateur Comparateur de prix entre plusieurs pharmacies proches pour un même médicament.
+    98→Génériques Suggestion automatique des équivalents génériques moins chers disponibles.
+    99→Carte urgence Carte santé d'urgence : QR code patient affichant les informations vitales aux secours.
+   100→Chat conseil Chat pharmacien : messagerie directe pour conseil avant achat (abonnés BLOOM et CROWN).
+   101→Avis vérifiés Evaluation pharmacie : notation et avis vérifiés (achat confirmé requis).
+   102→Offline Mode hors connexion : dernières recherches et pharmacies favorites accessibles sans réseau.
+   103→Vaccination Suivi de vaccination : carnet de vaccination numérique optionnel, rappels automatiques.
+   104→Réseau élargi Médicament introuvable : alerte réseau — si indisponible dans toutes les pharmacies proches, escalade vers grossiste partenaire.
+   105→6. Espace Pharmacie — MédiHelm Pro
+   106→6.1 Rôles et droits — RBAC
+   107→6.2 M01 — Gestion du Stock
+   108→Catalogue et référentiel médicaments
+   109→Base nationale des médicaments enregistrés au Bénin (DCI, nom commercial, forme, dosage, code ATC, classe thérapeutique, fabricant, prix public officiel).
+   110→Import automatique ou manuel du catalogue fournisseur (CSV, Excel, API).
+   111→Gestion médicaments sur ordonnance vs sans ordonnance, parapharmaceutiques, dispositifs médicaux.
+   112→Gestion des stocks
+   113→Stock en temps réel par produit, par lot, par emplacement (rayonnage configurable).
+   114→Gestion multi-lot : numéro de lot, date de fabrication, date de péremption, fournisseur.
+   115→Seuils d'alerte configurables : stock minimum, stock de sécurité, stock maximum.
+   116→Alertes automatiques : rupture imminente, péremption < 90j, < 30j, surstockage.
+   117→Inventaire physique assisté : scan code-barres, comparaison théorique vs réel.
+   118→Valorisation du stock en temps réel (CMUP — Coût Moyen Unitaire Pondéré).
+   119→Rapport de mouvements de stock : entrées, sorties, ajustements, pertes, dons.
+   120→Transfert de stock inter-officines pour les réseaux promoteur.
+   121→6.3 M02 — Point de Vente (POS)
+   122→Interface caisse tactile optimisée tablette Android et écran PC.
+   123→Recherche produit ultra-rapide : scan code-barres, nom, DCI, code interne.
+   124→Vente libre, vente sur ordonnance (liaison M06), vente à crédit (compte patient).
+   125→Gestion des remises : globale, produit, prix fidélité, tarif assurance.
+   126→Multi-modes de paiement sur une même vente : espèces + mobile money + assurance.
+   127→Rendu monnaie automatique avec suggestion de coupures.
+   128→Reçu imprimable (thermique 58mm/80mm) et reçu digital (SMS/email/WhatsApp).
+   129→Gestion des avoirs et remboursements.
+   130→Caisse multi-utilisateur : session individuelle, clôture individuelle.
+   131→Mode hors-ligne : ventes enregistrées localement, synchronisation dès reconnexion.
+   132→Commandes MédiHelm Patient : affichage temps réel, préparation et validation depuis le POS.
+   133→6.4 M03 — Commandes Fournisseurs
+   134→Bons de commande manuels ou automatiques (déclenchés par les alertes stock minimum).
+   135→Envoi du bon de commande par email directement depuis MédiHelm.
+   136→Suivi : Brouillon > Envoyée > Confirmée > En livraison > Reçue > Soldée.
+   137→Réception partielle ou totale avec mise à jour automatique du stock.
+   138→Gestion des écarts à la réception : quantités manquantes, produits non conformes, prix différents.
+   139→Retours fournisseur : bon de retour, suivi, avoir ou remboursement.
+   140→6.5 M04 — Gestion des Fournisseurs
+   141→Référentiel fournisseurs : nom, contacts, zone de couverture, conditions, délais habituels.
+   142→Catalogue produits par fournisseur avec prix d'achat et conditions tarifaires.
+   143→Evaluation fournisseur : taux de service, respect des délais, qualité, score global.
+   144→Comparaison multi-fournisseurs pour un même produit (prix, délai, conditions).
+   145→6.6 M05 — Gestion des Patients
+   146→Fiche patient : identité, contacts, groupe sanguin, allergies, médecin traitant, assurance.
+   147→Historique d'achats et d'ordonnances consultable au moment de la vente.
+   148→Compte de crédit patient : limite configurable, suivi des encours, relance automatique.
+   149→Programme de fidélité : points, paliers, récompenses personnalisables.
+   150→Recherche rapide : nom, téléphone, numéro carte fidélité, scan QR code.
+   151→6.7 M06 — Gestion des Ordonnances
+   152→Numérisation : photo depuis tablette, scanner, ou import depuis MédiHelm Patient.
+   153→Validation pharmacien : contrôle cohérence médicaments/dosage/durée.
+   154→Délivrance partielle sur ordonnance : suivi du restant dû, renouvellement.
+   155→Alertes interactions médicamenteuses sur la base de données DCI.
+   156→Registre des stupéfiants et psychotropes : traçabilité réglementaire complète.
+   157→Archivage numérique des ordonnances (3 ans minimum selon exigences légales).
+   158→6.8 M07 — Gestion du Personnel
+   159→Fiche employé : identité, diplômes, poste, date d'entrée, type de contrat, salaire.
+   160→Planning hebdomadaire : affectation des shifts, gestion des remplacements, vue calendrier.
+   161→Gestion des congés : demande, validation, solde, historique.
+   162→Pointage : badgeage mobile (QR code ou NFC) ou saisie manuelle.
+   163→Calcul automatique des heures travaillées, heures supplémentaires, absences.
+   164→Paie de base : salaire brut, cotisations CNSS, IRPP, net à payer.
+   165→Bulletin de paie généré en PDF.
+   166→Alertes RH : fin de période d'essai, expiration de contrat, renouvellement de diplôme/licence.
+   167→6.9 M08 — Gestion Financière
+   168→Caisse journalière : ouverture, mouvements, clôture, écart détecté.
+   169→Journal des ventes : toutes transactions du jour, filtres multi-critères.
+   170→Tableau de bord financier : CA du jour, CA du mois, CA vs objectif, marge brute.
+   171→Gestion des charges : saisie des dépenses (loyer, électricité, fournitures, salaires, impôts).
+   172→Compte de résultat simplifié mensuel et annuel.
+   173→Rapports TVA : collecte et déductible par période.
+   174→Export comptable : journal Excel/CSV compatible logiciels tiers.
+   175→6.10 M09 — Pharmacie de Garde
+   176→Planning de garde : saisie et publication du calendrier mensuel.
+   177→Diffusion automatique aux patients MédiHelm dès 19h chaque soir de garde.
+   178→Activation du mode garde : tarification nuit automatique, signalétique mise à jour.
+   179→Rapport de garde : récapitulatif des ventes et patients servis pendant la garde.
+   180→6.11 M10 — Médicaments Remboursables / Tiers Payant
+   181→Paramétrage des assurances et mutuelles partenaires (CNSS, RAMU, assurances privées).
+   182→Tiers payant : déduction automatique de la part assurance lors de la vente.
+   183→Facturation assurance : génération des feuilles de soin et bordereaux de remboursement.
+   184→Suivi des remboursements : montants en attente, reçus, relances automatiques.
+   185→6.12 M11 — Retours et Destructions
+   186→Enregistrement des retours patients : motif, produit, lot, remboursement ou échange.
+   187→Gestion des produits périmés : identification, mise en quarantaine, procédure de destruction.
+   188→Procès-verbal de destruction : document officiel généré automatiquement.
+   189→Déclaration DPMED : export des données au format requis par la réglementation béninoise.
+   190→6.13 M12 — Communication Pharmacie-Patient
+   191→Notifications push aux patients ayant commandé ou interagi avec la pharmacie.
+   192→Campagnes SMS groupées : promotions saisonnières, rappels vaccination, alertes santé publique.
+   193→Rappel automatique de renouvellement d'ordonnance pour les patients fidèles.
+   194→Alerte de rappel de lot : diffusion ciblée aux patients ayant acheté le produit concerné.
+   195→6.14 M13 — Gestion Documentaire
+   196→Coffre-fort numérique : upload et archivage des documents officiels (licence d'exploitation, diplômes, contrats).
+   197→Alertes d'expiration : notification 90, 60 et 30 jours avant l'expiration d'un document clé.
+   198→Accès contrôlé par rôle : DIRECTEUR et PROMOTEUR uniquement pour les documents sensibles.
+   199→6.15 M14 — Tableau de Bord Opérationnel
+   200→Vue synthétique temps réel : CA du jour, nombre de ventes, panier moyen, médicaments en alerte.
+   201→Alertes critiques : ruptures, péremptions < 30j, commandes en retard, caisse non clôturée.
+   202→Graphiques : évolution du CA 7/30/90 jours, top 10 médicaments, répartition par mode de paiement.
+   203→Raccourcis : Nouvelle vente, Réception commande, Inventaire rapide, Ajouter employé.
+   204→7. Espace Promoteur Multi-Officines — MédiHelm Network
+   205→7.1 Contexte
+   206→Un promoteur peut posséder ou gérer plusieurs pharmacies distinctes. MédiHelm Network lui offre une vue consolidée de l'ensemble de son réseau sans connexion séparée à chaque officine. C'est le différenciateur majeur face à toute solution concurrente locale.
+   207→7.2 Tableau de bord réseau
+   208→Vue consolidée : CA total réseau, CA par officine, comparaison inter-sites, classement.
+   209→Alertes réseau : ruptures critiques dans une officine, caisse non clôturée, employé absent.
+   210→Carte du réseau : géolocalisation de toutes les officines avec statut temps réel.
+   211→KPIs personnalisables par le promoteur.
+   212→7.3 Gestion du personnel multi-sites
+   213→Base RH centralisée : tous les employés du réseau dans un seul référentiel.
+   214→Mutation inter-sites : transfert d'un employé avec historique complet.
+   215→Planning réseau : vue globale de tous les plannings, détection des sous-effectifs.
+   216→Masse salariale consolidée : total charges RH du réseau par mois.
+   217→Benchmarking RH : ratio employés/CA par officine, productivité comparée.
+   218→7.4 Gestion des stocks multi-sites
+   219→Vue stock consolidée : quantité totale par produit sur l'ensemble du réseau.
+   220→Transfert inter-sites : déplacer un produit d'une officine excédentaire vers une officine en rupture.
+   221→Commande groupée réseau : commander pour plusieurs officines simultanément.
+   222→Analyse des disparités et recommandation de rééquilibrage.
+   223→7.5 Reporting consolidé
+   224→Rapport mensuel réseau : synthèse automatique envoyée par email au promoteur.
+   225→Comparaison officine vs officine : toutes les métriques clés côte à côte.
+   226→Rapport fournisseurs réseau : volumes, montants, délais, top fournisseurs.
+   227→Export Excel/PDF de tous les rapports.
+   228→8. Module Analytics IA — MédiHelm Analytics
+   229→8.1 Positionnement
+   230→MédiHelm Analytics est le moteur d'intelligence artificielle transversal, inspiré d'ORION (Academia Helm). Il analyse les données de l'officine en continu et produit des alertes, scores de santé, recommandations actionnables et prédictions.
+   231→8.2 Domaines d'analyse
+   232→8.3 Fonctionnement
+   233→Calcul quotidien automatique à 05h00 WAT pour le rapport du matin.
+   234→Recalcul manuel disponible avec cooldown de 30 minutes.
+   235→Rapports persistés 90 jours.
+   236→Scores de santé sur 100 points : Vert (75-100), Amber (50-74), Rouge (< 50).
+   237→Recommandations classées par impact estimé et urgence.
+   238→9. Architecture Technique
+   239→9.1 Stack technologique
+   240→9.2 Multitenancy
+   241→Isolation par tenant_id sur toutes les tables avec Row Level Security PostgreSQL. Les promoteurs ont accès à tous leurs tenants via une table de liaison promoteur_pharmacie.
+   242→9.3 Mode offline — POS et Stock
+   243→SQLite local via Prisma pour les modules critiques. Synchronisation dès reconnexion. Indicateur visuel permanent de l'état de connexion et du nombre d'opérations en attente.
+   244→9.4 Sécurité
+   245→TLS 1.3 sur toutes les communications.
+   246→Chiffrement au repos des données sensibles (ordonnances, données patients, finance).
+   247→2FA optionnelle recommandée pour DIRECTEUR et PROMOTEUR.
+   248→Logs d'audit complets : toute action tracée (qui, quoi, quand, depuis quel IP).
+   249→Sauvegarde automatique quotidienne, rétention 90 jours.
+   250→Conformité APDP (Autorité de Protection des Données Personnelles — Bénin).
+   251→10. Sécurité, Conformité et Données
+   252→10.1 Données personnelles
+   253→MédiHelm collecte des données de santé personnelles (historiques achats, ordonnances, allergies). Protections renforcées :
+   254→Consentement explicite du patient à la création de compte.
+   255→Droit à l'oubli : suppression complète sur demande.
+   256→Aucune revente ou partage avec des tiers commerciaux.
+   257→Accès aux données patient strictement limité par RBAC.
+   258→10.2 Conformité réglementaire pharmaceutique
+   259→Registre des stupéfiants et psychotropes : traçabilité conforme aux exigences de la DPMED Bénin.
+   260→Archivage des ordonnances : durée légale respectée (minimum 3 ans).
+   261→Procédures de destruction médicaments périmés : conformes aux circulaires DPMED.
+   262→Export des données réglementaires dans les formats requis par les autorités sanitaires.
+   263→11. Modèle de Pricing — MédiHelm
+   264→11.1 Philosophie tarifaire
+   265→Le pricing est basé sur la taille de l'officine. Tous les plans incluent la totalité des 15 modules — aucune fonctionnalité verrouillée. La différence porte sur la capacité, les limites techniques et le niveau de support.
+   266→11.2 Plans — MédiHelm Pro (Espace Pharmacie)
+   267→11.3 Options complémentaires
+   268→11.4 Espace Patient — Gratuit
+   269→L'espace patient est entièrement gratuit pour les utilisateurs finaux. Monétisation indirecte : commission de 1,5% sur chaque transaction payée en ligne via Fedapay, plafonnée à 500 FCFA par commande. Paiements sur place : pas de commission.
+   270→11.5 Tarification réseau — MédiHelm Network
+   271→11.6 Conditions commerciales
+   272→Essai gratuit 30 jours — accès complet BLOOM, sans carte bancaire requise.
+   273→Migration de plan : libre, sans frais, prise d'effet immédiate (prorata du mois en cours).
+   274→Résiliation : libre à tout moment sans préavis pour les abonnements mensuels.
+   275→Remise partenaires : -20% associations de pharmaciens, -25% groupements d'achat référencés.
+   276→12. Roadmap et Jalons
+   277→13. Contraintes et Risques
+   278→13.1 Contraintes techniques
+   279→Connexion internet instable au Bénin : mode offline des modules critiques non-négociable.
+   280→Parc Android dominant : interface fluide sur Android 8+ avec 2 Go de RAM minimum.
+   281→Electricité variable : le POS doit supporter les coupures sans perte de données.
+   282→13.2 Contraintes réglementaires
+   283→Données patients et ordonnances soumises aux exigences DPMED et APDP Bénin.
+   284→Registre des stupéfiants obligatoire et contrôlé — conformité légale permanente.
+   285→Prix médicaments réglementés : MédiHelm ne permet pas la vente au-dessus du prix public sans validation pharmacien.
+   286→13.3 Risques et mitigations
+   287→14. Glossaire
+   288→MédiHelm CDC v1.0  |  YEHI OR Tech © 2025  |  Document confidentiel
+   289→
+   290→--- TABLES ---
+   291→Maitre d'ouvrage | YEHI OR Tech — Cotonou, Bénin
+   292→Responsable produit | Dawes — Fondateur & Lead Developer
+   293→Référence document | MH-CDC-2025-v1.0
+   294→Date de création | 2025
+   295→Statut | Document de référence — Confidentiel
+   296→Stack technique | Next.js · NestJS · PostgreSQL · Prisma · Supabase · Vercel · Fedapay
+   297→Axe | AS PHARM | PharMap | MédiHelm
+   298→Type de solution | Logiciel back-office | App patient mobile | Ecosystème complet unifié
+   299→Back-office pharmacie | Oui | Non | Oui — exhaustif
+   300→Espace patient intégré | Non | Oui | Oui — intégré
+   301→Géolocalisation temps réel | Non | Oui | Oui — enrichi
+   302→Commande pré-pharmacie | Non | Partiel | Oui — file évitée
+   303→Pharmacie de garde | Non | Oui | Oui + alertes push
+   304→Analytics IA | Non | Non | Oui — module dédié
+   305→Multi-officines promoteur | Non | Non | Oui — espace dédié
+   306→SaaS cloud pur | Non confirmé | Oui | Oui — 100% cloud
+   307→Paiements mobiles locaux | Non confirmé | Partiel | Oui — Fedapay natif
+   308→Pricing transparent | Non public | Gratuit/freemium | Oui — 4 plans clairs
+   309→La fenêtre d'opportunité réside dans l'intégration : aucun acteur local ne propose aujourd'hui une plateforme qui connecte la gestion complète de l'officine, la visibilité patient en temps réel, et le pilotage multi-pharmacies d'un promoteur, dans un seul produit SaaS cloud-natif avec paiements mobiles locaux.
+   310→Persona | Profil | Douleur principale | Valeur MédiHelm
+   311→Patient urbain | 25-55 ans, smartphone Android | Trouver un médicament vite, éviter les files | Recherche, géoloc, commande préalable
+   312→Pharmacien titulaire | 30-55 ans, chef d'entreprise | Gérer stock, caisse, personnel sans outil | ERP complet, alertes, rapports auto
+   313→Caissier/préparateur | 20-35 ans, opérateur quotidien | Fluidité à la vente, éviter les erreurs | POS rapide, scan code, historique
+   314→Promoteur | Investisseur, 2-10 pharmacies | Vue consolidée de son réseau | Dashboard réseau, RH centralisé
+   315→Grossiste/fournisseur | B2B | Référencer ses produits | Catalogue, réception commandes
+   316→Phase | Horizon | Objectifs clés
+   317→Beta fermée | Mois 1-3 | 5 pharmacies pilotes Cotonou, 0 FCFA, feedback terrain intensif
+   318→Lancement Bénin | Mois 4-8 | 50 pharmacies, premiers abonnements, espace patient public
+   319→Croissance Bénin | Mois 9-18 | 200 pharmacies, 50 000 patients actifs, module promoteur complet
+   320→Expansion régionale | Mois 19-36 | 500+ pharmacies, 3 pays, partenariats grossistes, API publique
+   321→Espace | Nom produit | Accès | Canal
+   322→Patient / Grand public | MédiHelm Patient | Public, sans compte obligatoire | Web responsive + PWA
+   323→Pharmacie (opérations) | MédiHelm Pro | Authentifié, RBAC par rôle | Web + PWA tablette/PC
+   324→Promoteur multi-officines | MédiHelm Network | Authentifié, rôle PROMOTEUR | Web dashboard
+   325→Analytics IA | MédiHelm Analytics | Inclus dans Pro et Network | Web, onglet dédié
+   326→Administration plateforme | MédiHelm Admin | YEHI OR Tech uniquement | Web backoffice
+   327→N° | Module | Sous-domaine fonctionnel
+   328→M01 | Gestion du stock | Inventaire, lots, péremptions, alertes, valorisation CMUP
+   329→M02 | Point de Vente (POS) | Caisse, ordonnances, reçus, remises, multi-caissier
+   330→M03 | Gestion des commandes fournisseurs | Bons de commande, réception, retours
+   331→M04 | Gestion des fournisseurs | Référentiel, conditions, historique, évaluation
+   332→M05 | Gestion des patients | Dossier patient, historique, fidélité, compte crédit
+   333→M06 | Gestion des ordonnances | Numérisation, validation, suivi renouvellements, stupéfiants
+   334→M07 | Gestion du personnel | RH, planning, congés, pointage, paie de base
+   335→M08 | Gestion financière | Comptabilité simplifiée, caisse journalière, rapports
+   336→M09 | Pharmacie de garde | Planning, publication, alertes patients, rapport de garde
+   337→M10 | Médicaments remboursables | CNAM/assurance, tiers payant, facturation mutuelles
+   338→M11 | Retours et destructions | SAV, périmés, procès-verbal, déclaration DPMED
+   339→M12 | Communication pharmacie-patient | Notifications push, SMS, campagnes, rappels
+   340→M13 | Gestion documentaire | Licences, diplômes, contrats, alertes expiration
+   341→M14 | Tableau de bord opérationnel | KPIs temps réel, alertes, synthèse journalière
+   342→M15 | Analytics IA | Prédictions, recommandations, rapports automatiques
+   343→Rôle | Périmètre d'accès
+   344→PROMOTEUR | Accès total à toutes les officines du réseau — lecture et écriture
+   345→DIRECTEUR | Accès total à son officine — tous les modules
+   346→PHARMACIEN | Stock, ordonnances, patients, commandes — pas RH ni finance complète
+   347→CAISSIER | POS uniquement — vente, reçus, consultation stock
+   348→MAGASINIER | Stock, réception commandes, inventaire — pas de vente
+   349→COMPTABLE | Finance, rapports, caisse journalière — pas de vente ni stock
+   350→STAGIAIRE | Lecture seule sur les modules autorisés par le DIRECTEUR
+   351→Domaine | Analyses produites | Accès RBAC
+   352→Stock & Approvisionnement | Prédiction de rupture J+7/J+14/J+30, commande optimale, détection surstockage | DIRECTEUR, PHARMACIEN, PROMOTEUR
+   353→Ventes & Revenus | Prévision de CA, tendances, saisonnalité, top produits, paniers par caissier | DIRECTEUR, COMPTABLE, PROMOTEUR
+   354→Patientèle | Segmentation, fidélité, patients perdus, lifetime value | DIRECTEUR, PHARMACIEN
+   355→Personnel | Productivité par employé, corrélation shift/ventes, anomalies de pointage | DIRECTEUR, PROMOTEUR
+   356→Finance | Score santé financière, projection trésorerie, dérive des charges | DIRECTEUR, COMPTABLE, PROMOTEUR
+   357→Péremptions | Score de risque par lot, recommandation de déstockage promotionnel | DIRECTEUR, MAGASINIER
+   358→Réseau promoteur | Classement officines, meilleures pratiques, recommandation mutualisation | PROMOTEUR uniquement
+   359→Couche | Technologie | Rôle
+   360→Frontend | Next.js 14 (App Router) | Interface web responsive + SSR/SSG
+   361→PWA | next-pwa | Installation mobile, mode offline, push notifications
+   362→Backend | NestJS | API REST + WebSocket temps réel
+   363→Base de données | PostgreSQL (Supabase) | Données métier multi-tenant + RLS
+   364→Cache offline | SQLite (Prisma) | POS et stock en mode hors connexion
+   365→ORM | Prisma | Modèles de données, migrations
+   366→Auth | Supabase Auth + JWT | Sessions, RBAC, multi-tenant
+   367→Paiements | Fedapay | Wave, MTN Money, Moov Money, carte
+   368→Stockage | Supabase Storage | Ordonnances, documents, photos
+   369→Email | Resend | Notifications transactionnelles
+   370→SMS | AfricasTalking | Alertes, OTP, rappels patients
+   371→Cartes | OpenStreetMap + Leaflet.js | Géolocalisation, carte pharmacies
+   372→Déploiement | Vercel + Railway | Hosting scalable, CI/CD
+   373→Analytics IA | NestJS + cron + stats | Calculs prédictifs, scoring
+   374→Tous les plans MédiHelm incluent la totalité des 15 modules. Le pharmacien ne découvre jamais une fonctionnalité bloquée. C'est le différenciateur commercial central face à toute concurrence.
+   375→STEM | BLOOM | CROWN | NETWORK
+   376→Cible officine | < 200 transactions/mois | 200-600 tx/mois | 600-1500 tx/mois | Réseau 2+ officines
+   377→Prix mensuel | 12 900 FCFA | 22 900 FCFA | 38 900 FCFA | Sur devis
+   378→Prix annuel (mois) | 10 900 FCFA | 19 500 FCFA | 33 000 FCFA | Sur devis
+   379→Economie annuel | -16% | -15% | -15% | Personnalisé
+   380→Modules inclus | Tous les 15 | Tous les 15 | Tous les 15 | Tous + multi-sites
+   381→Utilisateurs | Jusqu'à 3 | Jusqu'à 8 | Illimité | Illimité / site
+   382→Caissiers simultanés | 1 | 3 | Illimité | Illimité / site
+   383→Patients enregistrés | 500 | 5 000 | Illimité | Illimité
+   384→Stockage documents | 2 Go | 10 Go | 50 Go | 100 Go+
+   385→Analytics IA | Basique (hebdo) | Complet (quotidien) | Complet + prédictions | Complet + réseau
+   386→Support | Email 72h | Email 24h + chat | Prioritaire + tel | Dédié + SLA
+   387→Onboarding | Tutoriels | Guidé en ligne | Assisté présentiel | Sur mesure
+   388→Option | Prix mensuel | Description
+   389→SMS patients | 3 900 FCFA | Pack 500 SMS/mois — campagnes et notifications
+   390→SMS patients XL | 6 900 FCFA | Pack 2 000 SMS/mois
+   391→Bilingue EN/FR | 3 000 FCFA | Interface en anglais pour le personnel
+   392→API accès tiers | 9 900 FCFA | API REST pour intégrations ERP/comptabilité tiers
+   393→Domaine personnalisé | 2 500 FCFA | votre-pharmacie.medihelm.com
+   394→Formation présentielle | Sur devis | Formation du personnel (demi-journée ou journée)
+   395→Réseau | Nombre d'officines | Tarif mensuel
+   396→NETWORK S | 2-3 officines | Prix plan individuel x 0,80 par officine
+   397→NETWORK M | 4-7 officines | Prix plan individuel x 0,70 par officine
+   398→NETWORK L | 8-15 officines | Prix plan individuel x 0,60 par officine
+   399→NETWORK XL | 16+ officines | Négocié — engagement annuel obligatoire
+   400→Phase | Durée | Livraisons principales
+   401→Phase 0 — Fondations | Semaines 1-4 | Architecture multitenant, auth, RBAC, onboarding pharmacie
+   402→Phase 1 — Core POS & Stock | Semaines 5-10 | M01 Stock + M02 POS + M14 Dashboard, mode offline
+   403→Phase 2 — Gestion complète | Semaines 11-18 | M03 à M09 : commandes, fournisseurs, patients, ordonnances, RH, finance, garde
+   404→Phase 3 — Patient & Géoloc | Semaines 19-24 | Espace patient F-P01 à F-P05 : recherche, géoloc, commande, file d'attente
+   405→Phase 4 — Analytics IA | Semaines 25-30 | M15 complet : scoring, prédictions, rapports automatiques
+   406→Phase 5 — Modules avancés | Semaines 31-36 | M10 à M13 : remboursables, destructions, communication, documents
+   407→Phase 6 — Network | Semaines 37-44 | MédiHelm Network : dashboard promoteur, RH multi-sites, stock réseau
+   408→Phase 7 — Patient avancé | Semaines 45-50 | F-P06 à F-P10 : compte patient, fidélité, ordonnances, comparateur
+   409→Beta fermée | Semaines 14-18 | 5 pharmacies pilotes, feedback terrain, corrections
+   410→Lancement public Bénin | Semaine 28 | Go-live espace patient + Pro plans STEM et BLOOM
+   411→Lancement CROWN & Network | Semaine 44 | Plans avancés + espace promoteur complet
+   412→Risque | Probabilité | Impact | Mitigation
+   413→Adoption lente des pharmaciens | Moyenne | Elevé | Beta gratuite 6 mois, onboarding présentiel, ambassadeurs terrain
+   414→Riposte d'AS PHARM | Faible | Moyen | Différenciation : espace patient intégré + IA + pricing transparent
+   415→Problèmes de connectivité | Elevée | Elevé | Offline-first dès Phase 1 — non-négociable
+   416→Réglementation données santé | Faible | Elevé | Conformité APDP dès le départ, consultation juridique avant lancement
+   417→Dispersion vs Academia Helm | Elevée | Elevé | Lancement MédiHelm uniquement après stabilisation Academia Helm v1
+   418→Terme | Définition
+   419→DCI | Dénomination Commune Internationale — nom générique d'un médicament
+   420→DPMED | Direction de la Pharmacie, du Médicament et des Explorations Diagnostiques — Bénin
+   421→APDP | Autorité de Protection des Données Personnelles — Bénin
+   422→POS | Point of Sale — interface de caisse
+   423→RBAC | Role-Based Access Control — contrôle d'accès par rôle
+   424→RLS | Row Level Security — isolation des données au niveau base de données PostgreSQL
+   425→CMUP | Coût Moyen Unitaire Pondéré — méthode de valorisation du stock
+   426→PWA | Progressive Web App — application web installable sur mobile
+   427→WAT | West Africa Time — UTC+1 — fuseau horaire du Bénin
+   428→Tenant | Instance isolée d'une pharmacie sur la plateforme multitenant
+   429→CNSS | Caisse Nationale de Sécurité Sociale — Bénin
+   430→RAMU | Régime d'Assurance Maladie Universelle — Bénin
+   431→Tiers payant | Mécanisme de prise en charge directe de la part assurance sans avance du patient
+   432→MédiHelm Pro | Interface pharmacie — gestion complète de l'officine
+   433→MédiHelm Patient | Interface grand public — recherche, géolocalisation, commande
+   434→MédiHelm Network | Interface promoteur — pilotage multi-officines
+   435→MédiHelm Analytics | Moteur IA transversal — analyses, prédictions, recommandations

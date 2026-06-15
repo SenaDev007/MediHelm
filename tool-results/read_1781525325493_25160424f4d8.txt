@@ -1,0 +1,1502 @@
+  6001→statutEnvoi String BROUILLON · SOUMIS · CONFIRME_DPMED
+  6002→refDPMED String? Référence DPMED reçue après soumission
+  6003→createdAt DateTime @default(now())
+  6004→model FicheDCI {
+  6005→Base de données DCI nationale — interactions et contre-indications
+  6006→Champ Type Prisma Contraintes / Description
+  6007→id String @id @default(uuid())
+  6008→dci String @unique — DCI du médicament
+  6009→classeThera String Classe thérapeutique
+  6010→mecanismeAction String Mécanisme d'action pharmacologique
+  6011→indicationsPrincip
+  6012→String Indications thérapeutiques principales
+  6013→ales
+  6014→posologie String Posologie standard adulte
+  6015→contreIndications String Contre-indications absolues et relatives
+  6016→YEHI OR Tech | Confidentiel | Page 46 / 55
+  6017→
+  6018→--- Page 47/55 ---
+  6019→MédiHelm — Documentation schema.prisma — Référence complète
+  6020→Champ Type Prisma Contraintes / Description
+  6021→Tableau d'interactions médicamenteuses
+  6022→interactions Json
+  6023→structurées
+  6024→effetsIndesirables Json Effets indésirables classés par fréquence
+  6025→conservation String Conditions de conservation
+  6026→Source ex: 'DPMED Bénin 2025-03' ou 'OMS
+  6027→sourceVersion String
+  6028→2024'
+  6029→model AlerteDPMED {
+  6030→Alerte officielle émise par la DPMED — diffusée à toutes les officines
+  6031→Champ Type Prisma Contraintes / Description
+  6032→id String @id @default(uuid())
+  6033→referenceOfficiell @unique — Référence DPMED ex: DPMED-BJ-
+  6034→String
+  6035→e 2025-0012
+  6036→titre String Titre de l'alerte
+  6037→typeAlerte TypeAlerteDPMED Type
+  6038→niveauUrgence NiveauUrgence Niveau d'urgence
+  6039→dciConcernee String? DCI concernée — null si alerte générale
+  6040→numerosLotConcerne
+  6041→String[] Numéros de lots concernés
+  6042→s
+  6043→signatureNumerique String Signature DPMED pour authenticité
+  6044→dateEmissionDPMED DateTime Date d'émission par la DPMED
+  6045→statut String EN_DIFFUSION · DIFFUSEE · ARCHIVEE
+  6046→nbOfficinesNotifie
+  6047→Int @default(0)
+  6048→es
+  6049→nbOfficinesAcquitt
+  6050→Int @default(0)
+  6051→ees
+  6052→nbPatientsNotifies Int @default(0)
+  6053→model DiffusionAlerte {
+  6054→Diffusion d'une alerte DPMED vers une officine spécifique
+  6055→Champ Type Prisma Contraintes / Description
+  6056→id String @id @default(uuid())
+  6057→alerteId String Clé étrangère vers AlerteDPMED
+  6058→pharmacieId String Officine destinataire
+  6059→lotsConcernes String[] Lots de cette officine concernés par l'alerte
+  6060→YEHI OR Tech | Confidentiel | Page 47 / 55
+  6061→
+  6062→--- Page 48/55 ---
+  6063→MédiHelm — Documentation schema.prisma — Référence complète
+  6064→Champ Type Prisma Contraintes / Description
+  6065→canalEnvoi String[] Canaux utilisés ex: ['PUSH', 'SMS']
+  6066→dateEnvoi DateTime Date d'envoi de la notification
+  6067→dateAcquittement DateTime? null = non acquitté par l'officine
+  6068→actionPrise String? Action déclarée par l'officine
+  6069→model ConfirmationReceptionSoBAPS {
+  6070→Confirmation de réception d'une livraison SoBAPS
+  6071→Champ Type Prisma Contraintes / Description
+  6072→id String @id @default(uuid())
+  6073→pharmacieId String Officine réceptrice
+  6074→bonLivraisonRef String Référence du bon de livraison SoBAPS
+  6075→statut String EN_ATTENTE · CONFIRME · LITIGE
+  6076→ecarts Json? Écarts constatés à la réception
+  6077→@default(false) — true = confirmation envoyée à
+  6078→webhookSent Boolean
+  6079→SoBAPS
+  6080→model ScoreConformite {
+  6081→Score de conformité DPMED de l'officine — calculé quotidiennement
+  6082→Champ Type Prisma Contraintes / Description
+  6083→id String @id @default(uuid())
+  6084→pharmacieId String @unique — un seul score par officine
+  6085→scoreTotal Float Score global 0-100
+  6086→scoreRegistreStup Float Composante registre des stupéfiants
+  6087→scoreAlerteDPMED Float Composante acquittement alertes DPMED
+  6088→Composante validité des documents
+  6089→scoreDocuments Float
+  6090→réglementaires
+  6091→scorePharmacovigi Float Composante signalements EI
+  6092→scoreDestructions Float Composante PV destructions
+  6093→@default(false) — true si score > 95 pendant 6
+  6094→certificationDPMED Boolean
+  6095→mois
+  6096→dateCertification DateTime? Date d'obtention de la certification
+  6097→updatedAt DateTime @updatedAt
+  6098→YEHI OR Tech | Confidentiel | Page 48 / 55
+  6099→
+  6100→--- Page 49/55 ---
+  6101→MédiHelm — Documentation schema.prisma — Référence complète
+  6102→7. Index Complet des Modèles
+  6103→Modèle Schéma Module(s) Relations clés
+  6104→→ Utilisateur, Medicament, Vente,
+  6105→Pharmacie pharma Plateforme
+  6106→Patient, Employe...
+  6107→Utilisateur pharma Plateforme → Pharmacie (N:1)
+  6108→UtilisateurTenant pharma Plateforme N:N Utilisateur ↔ Pharmacie
+  6109→Promoteur pharma Plateforme → PromoPharmacieLink
+  6110→PromoPharmacieLink pharma Plateforme N:N Promoteur ↔ Pharmacie
+  6111→Medicament pharma M01 Stock → Pharmacie, Lot, LigneVente
+  6112→Lot pharma M01 Stock → Medicament, Fournisseur
+  6113→AjustementStock pharma M01 Stock → Pharmacie, Medicament, Lot
+  6114→InventaireSession pharma M01 Stock → Pharmacie
+  6115→→ Pharmacie (source + dest),
+  6116→TransfertStock pharma M01 Stock
+  6117→Medicament
+  6118→→ Pharmacie, Utilisateur, Patient,
+  6119→Vente pharma M02 POS
+  6120→Ordonnance
+  6121→LigneVente pharma M02 POS → Vente, Medicament, Lot
+  6122→Paiement pharma M02 POS → Vente
+  6123→CaisseJournaliere pharma M02 POS → Pharmacie, Utilisateur
+  6124→Patient pharma M05 → Pharmacie, ComptePatient
+  6125→Ordonnance pharma M06 → Patient, LigneOrdonnance
+  6126→LigneOrdonnance pharma M06 → Ordonnance, Medicament
+  6127→→ Pharmacie, Ordonnance,
+  6128→RegistreStupefiant pharma M06
+  6129→Medicament
+  6130→ComptePatient pharma M05/Patient Global — pas de tenant
+  6131→→ Pharmacie,
+  6132→Fournisseur pharma M03
+  6133→CommandeFournisseur, Lot
+  6134→→ Pharmacie, Fournisseur,
+  6135→CommandeFournisseur pharma M03
+  6136→LigneCommande
+  6137→→ CommandeFournisseur,
+  6138→LigneCommande pharma M03
+  6139→Medicament
+  6140→RetourFournisseur pharma M03 → Pharmacie, Fournisseur
+  6141→PartenaireGrossiste pharma M17 Global — config cascade fallback
+  6142→CommandeGrossiste pharma M17 → Pharmacie, PartenaireGrossiste
+  6143→Employe pharma M07 RH → Pharmacie, Utilisateur
+  6144→Pointage pharma M07 RH → Employe
+  6145→Conge pharma M07 RH → Employe
+  6146→YEHI OR Tech | Confidentiel | Page 49 / 55
+  6147→
+  6148→--- Page 50/55 ---
+  6149→MédiHelm — Documentation schema.prisma — Référence complète
+  6150→Modèle Schéma Module(s) Relations clés
+  6151→BulletinPaie pharma M07 RH → Employe
+  6152→Planning pharma M07 RH → Pharmacie, Employe
+  6153→Charge pharma M08 Finance → Pharmacie
+  6154→Assurance pharma M10 → Pharmacie
+  6155→TiersPayant pharma M10 → Vente, Assurance
+  6156→→ Pharmacie, Utilisateur
+  6157→Garde pharma M09
+  6158→(pharmacien)
+  6159→Notification pharma M12 → Pharmacie
+  6160→CampagneSMS pharma M12 → Pharmacie
+  6161→Document pharma M13 → Pharmacie
+  6162→PVDestruction pharma M13 → Pharmacie, Medicament, Lot
+  6163→CommandePatient pharma Patient → Pharmacie, ComptePatient
+  6164→LigneCmdPat pharma Patient → CommandePatient, Medicament
+  6165→GrossisteTenant grossiste G01 Tenant grossiste
+  6166→ProduitGrossiste grossiste G01 → GrossisteTenant
+  6167→TarifGrossiste grossiste G01 → ProduitGrossiste
+  6168→LotGrossiste grossiste G02 → GrossisteTenant, ProduitGrossiste
+  6169→CommandeGrossiste
+  6170→grossiste G03 → GrossisteTenant
+  6171→(grossiste)
+  6172→→ CommandeGrossiste,
+  6173→LigneCmdGros grossiste G03
+  6174→ProduitGrossiste
+  6175→→ GrossisteTenant,
+  6176→LivraisonGrossiste grossiste G05 CommandeGrossiste,
+  6177→EmployeGrossiste
+  6178→ClientOfficine grossiste G07 → GrossisteTenant
+  6179→EmployeGrossiste grossiste G08 → GrossisteTenant
+  6180→CataloguePrix grossiste G01 → GrossisteTenant
+  6181→OrionAction orion ORION → Pharmacie/Grossiste
+  6182→OrionConversation orion ORION → Pharmacie, Utilisateur
+  6183→OrionBriefing orion ORION → Pharmacie
+  6184→AnalyticsReport orion M15 → Pharmacie
+  6185→CronJob orion M15 → Pharmacie
+  6186→MedicamentSurveillanc
+  6187→institutionnel M18 Global DPMED
+  6188→e
+  6189→SignalementEI institutionnel M16 → Pharmacie
+  6190→FicheDCI institutionnel M16 Global
+  6191→YEHI OR Tech | Confidentiel | Page 50 / 55
+  6192→
+  6193→--- Page 51/55 ---
+  6194→MédiHelm — Documentation schema.prisma — Référence complète
+  6195→Modèle Schéma Module(s) Relations clés
+  6196→AlerteDPMED institutionnel M18 → DiffusionAlerte
+  6197→DiffusionAlerte institutionnel M18 → AlerteDPMED, Pharmacie
+  6198→ConfirmationReception
+  6199→institutionnel M17 → Pharmacie
+  6200→SoBAPS
+  6201→ScoreConformite institutionnel M19 → Pharmacie (@unique)
+  6202→AuditLog pharma Audit → Pharmacie, Utilisateur
+  6203→YEHI OR Tech | Confidentiel | Page 51 / 55
+  6204→
+  6205→--- Page 52/55 ---
+  6206→MédiHelm — Documentation schema.prisma — Référence complète
+  6207→8. Index Complet des Enums
+  6208→Enum Valeurs Utilisé par
+  6209→PlanType SEED GROW LEAD NETWORK Pharmacie.plan
+  6210→Utilisateur.role,
+  6211→RoleType 19 valeurs UtilisateurTenant.roleSpecifiqu
+  6212→e
+  6213→PHARMACIE GROSSISTE
+  6214→TenantType OrionAction.tenantType
+  6215→INSTITUTIONNEL
+  6216→VALIDEE ANNULEE AVOIR
+  6217→StatutVente Vente.statut
+  6218→PARTIELLEMENT_PAYEE
+  6219→ESPECES WAVE MTN_MONEY Paiement.mode,
+  6220→ModePaiement MOOV_MONEY CARTE CommandePatient.modePaiem
+  6221→ASSURANCE CREDIT ent
+  6222→StatutCaisse OUVERTE FERMEE CaisseJournaliere.statut
+  6223→EN_ATTENTE VALIDEE
+  6224→StatutOrd PARTIELLEMENT_DELIVREE Ordonnance.statut
+  6225→SOLDEE EXPIREE
+  6226→BROUILLON ENVOYEE
+  6227→StatutCmd CONFIRMEE EN_LIVRAISON CommandeFournisseur.statut
+  6228→RECUE SOLDEE ANNULEE
+  6229→API_REST EMAIL_EDI WHATSAPP PartenaireGrossiste,
+  6230→CanalTransmission
+  6231→FORM_AUTO PDF_FALLBACK CommandeGrossiste
+  6232→TypeContrat CDI CDD STAGE VACATAIRE Employe.typeContrat
+  6233→NORMAL HEURE_SUP GARDE
+  6234→TypePointage Pointage.type
+  6235→ABSENT CONGE
+  6236→LOYER ELECTRICITE EAU
+  6237→CatCharge SALAIRES FOURNITURES IMPOTS Charge.categorie
+  6238→AUTRE
+  6239→TypeDocReg 5 valeurs Document.typeDocument
+  6240→VALIDE EXPIRE_BIENTOT EXPIRE
+  6241→StatutDoc Document.statut
+  6242→SUSPENDU
+  6243→RECUE EN_PREPARATION PRETE
+  6244→StatutCmdPat CommandePatient.statut
+  6245→RECUPEREE ANNULEE
+  6246→PlanGrossiste STARTER BUSINESS ENTERPRISE GrossisteTenant.planGrossiste
+  6247→DISPONIBLE RUPTURE
+  6248→StatutProduit EN_COMMANDE DISCONTINUE ProduitGrossiste.statut
+  6249→SOUS_SURVEILLANCE
+  6250→MEDIHELM_PRO
+  6251→SourceCommande SAISIE_MANUELLE CommandeGrossiste.source
+  6252→APP_COMMERCIAL EMAIL_EDI
+  6253→StatutCmdGros 7 valeurs CommandeGrossiste.statut
+  6254→PLANIFIEE EN_ROUTE LIVREE
+  6255→StatutLivraison LivraisonGrossiste.statut
+  6256→LITIGE ECHEC
+  6257→YEHI OR Tech | Confidentiel | Page 52 / 55
+  6258→
+  6259→--- Page 53/55 ---
+  6260→MédiHelm — Documentation schema.prisma — Référence complète
+  6261→Enum Valeurs Utilisé par
+  6262→DISPONIBLE QUARANTAINE
+  6263→StatutLot LotGrossiste.statut
+  6264→DETRUIT RETOUR_LABO
+  6265→ADMIN COMMANDES
+  6266→RoleGrossiste PREPARATEUR LIVREUR EmployeGrossiste.role
+  6267→COMMERCIAL COMPTABLE
+  6268→AUTONOME APPROBATION
+  6269→ActionMode OrionAction.mode
+  6270→BLOQUEE
+  6271→EN_ATTENTE EXECUTEE
+  6272→StatutAction OrionAction.statut
+  6273→ANNULEE EXPIREE REFUSEE
+  6274→AnalyticsReport.domaine,
+  6275→DomaineIA 9 valeurs
+  6276→OrionAction.type
+  6277→TypeAlerteDPMED 5 valeurs AlerteDPMED.typeAlerte
+  6278→NiveauUrgence 4 valeurs AlerteDPMED.niveauUrgence
+  6279→YEHI OR Tech | Confidentiel | Page 53 / 55
+  6280→
+  6281→--- Page 54/55 ---
+  6282→MédiHelm — Documentation schema.prisma — Référence complète
+  6283→10. Conventions et Règles du Schéma
+  6284→10.1 Identifiants
+  6285→ Tous les ids sont des UUID v4 générés par @default(uuid()) — pas d'auto-increment.
+  6286→ Pas d'exposé des ids internes dans les URLs publiques — utiliser le slug ou la reference.
+  6287→ supabaseUid est l'identifiant Supabase Auth — distinct du id MédiHelm.
+  6288→10.2 Isolation multitenant
+  6289→ pharmacieId est présent sur TOUTES les tables métier du schéma pharma sans exception.
+  6290→ RLS PostgreSQL activée sur toutes les tables : USING (pharmacie_id =
+  6291→current_setting('app.current_tenant')::uuid).
+  6292→ Aucune jointure directe entre les schémas pharma et grossiste — communication via API
+  6293→uniquement.
+  6294→ Les données patients ne sont JAMAIS transmises au grossiste — ni nominatives, ni
+  6295→agrégées.
+  6296→10.3 Soft delete
+  6297→ Pas de suppression physique pour les données métier — actif = false.
+  6298→ Exception : OrionConversation (90j) et OrionBriefing (30j) — suppression automatique par
+  6299→cron.
+  6300→ Les lots avec quantite = 0 restent en base pour la traçabilité FEFO et l'audit.
+  6301→10.4 Champs obligatoires
+  6302→ createdAt : toutes les tables. updatedAt : tables fréquemment modifiées.
+  6303→ pharmacieId : toutes les tables du schéma pharma.
+  6304→ grossisteId : toutes les tables du schéma grossiste.
+  6305→10.5 Stockage des fichiers
+  6306→ Aucun fichier stocké en base — uniquement des URLs Supabase Storage.
+  6307→ Buckets : ordonnances (privé/chiffré), documents (privé/chiffré), medicaments-photos
+  6308→(public), bulletins-paie (privé/chiffré), pv-destruction (privé/chiffré).
+  6309→10.6 Index PostgreSQL critiques
+  6310→-- Recherche médicaments (requête la plus fréquente)
+  6311→CREATE INDEX idx_medicaments_pharmacie ON medicaments(pharmacie_id);
+  6312→CREATE INDEX idx_medicaments_dci ON medicaments(dci);
+  6313→CREATE INDEX idx_medicaments_nom ON medicaments(nom_commercial);
+  6314→-- Gestion des lots et péremptions
+  6315→YEHI OR Tech | Confidentiel | Page 54 / 55
+  6316→
+  6317→--- Page 55/55 ---
+  6318→MédiHelm — Documentation schema.prisma — Référence complète
+  6319→CREATE INDEX idx_lots_expiration ON lots(date_expiration);
+  6320→CREATE INDEX idx_lots_medicament ON lots(medicament_id);
+  6321→-- Ventes par période
+  6322→CREATE INDEX idx_ventes_pharmacie_date ON ventes(pharmacie_id, created_at);
+  6323→-- Géolocalisation pharmacies (PostGIS recommandé en production)
+  6324→CREATE INDEX idx_pharmacies_geo ON pharmacies
+  6325→USING GIST(ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
+  6326→-- Commandes patient en cours
+  6327→CREATE INDEX idx_cmd_pat_pharmacie_statut ON commandes_patient(pharmacie_id,
+  6328→statut);
+  6329→-- OrionAction par tenant
+  6330→CREATE INDEX idx_orion_action_pharmacie ON orion_actions(pharmacie_id,
+  6331→created_at);
+  6332→MédiHelm schema.prisma v1.0 | YEHI OR Tech © 2025 | 47 modèles · 29 enums | Confidentiel
+  6333→YEHI OR Tech | Confidentiel | Page 55 / 55
+  6334→
+  6335→
+  6336→################################################################################
+  6337→# FILE: MediHelm_SitePublic_CDC_v1.0.pdf
+  6338→# PAGES: 16
+  6339→################################################################################
+  6340→--- Page 1/16 ---
+  6341→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6342→Y E H I O R T E C H
+  6343→MédiHelm
+  6344→medihelm.com — Site Public
+  6345→CAHIER DES CHARGES — VERSION 1.0
+  6346→Landing · Espace Patient · Garde · Vérification Médicament
+  6347→Référence
+  6348→MH-PUBLIC-CDC-2025-v1.0
+  6349→Périmètre
+  6350→medihelm.com — Landing · Espace Patient · Garde · Vérification médicament
+  6351→Produits liés
+  6352→MédiHelm Pro (app.medihelm.com) · MédiHelm Grossiste
+  6353→Stack
+  6354→Next.js 14 · Tailwind CSS · Supabase · Fedapay · OpenStreetMap + Leaflet
+  6355→Responsable
+  6356→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+  6357→Document confidentiel — YEHI OR Tech © 2025
+  6358→YEHI OR Tech | Confidentiel | Page 1 / 16
+  6359→
+  6360→--- Page 2/16 ---
+  6361→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6362→Sommaire
+  6363→1. Vision et positionnement
+  6364→2. Personas utilisateurs
+  6365→3. Espace 1 — Landing page medihelm.com
+  6366→4. Espace 2 — Recherche et géolocalisation médicaments
+  6367→5. Espace 3 — Commande en ligne et suivi
+  6368→6. Espace 4 — Compte patient
+  6369→7. Espace 5 — Pharmacie de garde (SOS nocturne)
+  6370→8. Espace 6 — Vérification authenticité médicament
+  6371→9. Programme de fidélité
+  6372→10. Notifications et alertes patient
+  6373→11. Accessibilité et performance
+  6374→12. Roadmap
+  6375→YEHI OR Tech | Confidentiel | Page 2 / 16
+  6376→
+  6377→--- Page 3/16 ---
+  6378→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6379→1. Vision et Positionnement
+  6380→medihelm.com est le point de contact entre MédiHelm et le grand public béninois.
+  6381→Ce n'est pas une pharmacie en ligne. C'est un service de localisation, d'information
+  6382→et de commande anticipée — le patient commande, l'officine prépare, le patient retire.
+  6383→Principe fondamental : MédiHelm.com ne vend pas de médicaments.
+  6384→Il connecte les patients aux pharmacies qui vendent — en temps réel, géolocalisé,
+  6385→avec transparence des stocks et des prix.
+  6386→1.1 Les 4 promesses du site public
+  6387→ Trouver : en moins de 30 secondes, savoir quelle pharmacie proche a le médicament
+  6388→cherché et à quel prix.
+  6389→ Commander : réserver avant de se déplacer — numéro de passage dans la file
+  6390→d'attente virtuelle.
+  6391→ Sécuriser : vérifier l'authenticité d'un médicament acheté et être alerté si un lot est
+  6392→rappelé.
+  6393→ Être guidé la nuit : trouver la pharmacie de garde la plus proche en cas d'urgence
+  6394→nocturne.
+  6395→1.2 Ce que le site public n'est PAS
+  6396→ Une pharmacie en ligne — pas de livraison à domicile (hors partenariat futur).
+  6397→ Un service de conseil médical — toujours renvoi vers le pharmacien ou le médecin.
+  6398→ Un outil de comparaison de prix agressif — les prix sont indicatifs, le pharmacien
+  6399→reste maître.
+  6400→YEHI OR Tech | Confidentiel | Page 3 / 16
+  6401→
+  6402→--- Page 4/16 ---
+  6403→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6404→2. Personas Utilisateurs
+  6405→Persona Profil Douleur principale Ce qu'il attend de
+  6406→MédiHelm.com
+  6407→Savoir
+  6408→25-45 ans, Cotonou ou Court de pharmacie en immédiatement
+  6409→Parakou, smartphone pharmacie pour trouver quelle pharmacie
+  6410→La mère de famille
+  6411→Android, données un médicament pour son proche a le
+  6412→limitées enfant médicament, le
+  6413→prix, les horaires
+  6414→Commander avant
+  6415→Doit renouveler son de venir, avoir son
+  6416→45-65 ans, diabète ou
+  6417→Le patient ordonnance tous les numéro de
+  6418→HTA, traitement
+  6419→chronique mois — perd du temps passage,
+  6420→mensuel récurrent
+  6421→en file d'attente renouvellement
+  6422→facilité
+  6423→Pas de temps pour Commander
+  6424→25-40 ans, actif, attendre en pharmacie depuis le bureau,
+  6425→Le citoyen pressé
+  6426→connecé pendant sa pause récupérer en 5
+  6427→déjeuner minutes sans file
+  6428→Trouver la
+  6429→pharmacie de
+  6430→Cherche une pharmacie
+  6431→Tout profil, urgence garde la plus
+  6432→Le patient la nuit ouverte à 2h du matin
+  6433→réelle proche avec son
+  6434→pour son enfant fiévreux
+  6435→numéro de
+  6436→téléphone
+  6437→A entendu parler de Scanner ou saisir
+  6438→Le méfiant du faux 35-55 ans, lucide sur médicaments contrefaits le numéro de lot
+  6439→médicament la contrefaçon — veut vérifier ce qu'il pour vérifier
+  6440→achète l'authenticité
+  6441→YEHI OR Tech | Confidentiel | Page 4 / 16
+  6442→
+  6443→--- Page 5/16 ---
+  6444→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6445→3. Espace 1 — Landing Page medihelm.com
+  6446→3.1 Objectif
+  6447→La landing page est la première impression. Elle doit communiquer en 5 secondes : MédiHelm
+  6448→c'est quoi, pourquoi c'est utile, et comment l'utiliser. La barre de recherche est le CTA principal
+  6449→— visible immédiatement, sans scroll.
+  6450→3.2 Sections de la landing page
+  6451→Section Contenu Priorité
+  6452→Logo + tagline + barre de recherche
+  6453→Hero Critique
+  6454→médicament + géolocalisation automatique
+  6455→Illustration : trouver un médicament en 30
+  6456→Valeur 1 — Trouver Haute
+  6457→secondes — stats béninoises
+  6458→Illustration : commander avant de se
+  6459→Valeur 2 — Commander Haute
+  6460→déplacer — file d'attente virtuelle
+  6461→Illustration : pharmacie de garde SOS
+  6462→Valeur 3 — Garde Haute
+  6463→nocturne
+  6464→Illustration : scanner un médicament pour
+  6465→Valeur 4 — Vérifier Moyenne
+  6466→vérifier son authenticité
+  6467→Carte interactive des officines MédiHelm à
+  6468→Pharmacies partenaires Haute
+  6469→Parakou puis Bénin
+  6470→3 témoignages patients + 2 témoignages
+  6471→Témoignages Moyenne
+  6472→pharmaciens
+  6473→Appel à l'action Section distincte — 'Votre pharmacie n'est
+  6474→Haute
+  6475→pharmacien pas sur MédiHelm ? Rejoignez-nous'
+  6476→Liens légaux, contact, réseaux sociaux,
+  6477→Footer Standard
+  6478→mention DPMED
+  6479→3.3 Barre de recherche hero
+  6480→C'est l'élément le plus important de toute la landing page. Elle doit être immédiatement visible,
+  6481→simple, et fonctionnelle même sans compte.
+  6482→ Champ texte : 'Rechercher un médicament...' avec autocomplétion sur la base DCI +
+  6483→noms commerciaux.
+  6484→ Géolocalisation automatique : 'Utiliser ma position' — demande permission
+  6485→navigateur.
+  6486→ Rayon : sélecteur 500m / 1km / 2km / 5km — par défaut 2km.
+  6487→ Résultats : affichage immédiat — pharmacies proches avec stock disponible, prix,
+  6488→distance, horaires.
+  6489→YEHI OR Tech | Confidentiel | Page 5 / 16
+  6490→
+  6491→--- Page 6/16 ---
+  6492→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6493→ Sans compte : résultats accessibles — le compte patient n'est requis que pour
+  6494→commander.
+  6495→3.4 Section pharmacies partenaires
+  6496→Carte Leaflet + OpenStreetMap centrée sur Parakou au lancement. Pins verts = pharmacies
+  6497→MédiHelm actives. Pins gris = pharmacies non encore partenaires. Click sur un pin : fiche
+  6498→rapide avec horaires, téléphone, bouton 'Voir les médicaments disponibles'.
+  6499→YEHI OR Tech | Confidentiel | Page 6 / 16
+  6500→
+  6501→--- Page 7/16 ---
+  6502→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6503→4. Espace 2 — Recherche et Géolocalisation
+  6504→Médicaments
+  6505→4.1 Page de résultats de recherche
+  6506→Accessible depuis la barre de recherche de la landing page ou directement via /recherche.
+  6507→Vue double : liste à gauche, carte à droite (desktop) ou onglets Liste/Carte (mobile).
+  6508→Fonctionnalité Description Priorité
+  6509→Stock reflète l'état réel du système
+  6510→Résultats en temps réel MédiHelm Pro de chaque officine Critique
+  6511→partenaire
+  6512→Disponible maintenant · Prix
+  6513→Filtres croissant · Distance · Ouvert Haute
+  6514→maintenant · Garde active
+  6515→Tri Distance (défaut) · Prix · Note officine Haute
+  6516→Nom officine, distance, prix, badge 'En
+  6517→Fiche résultat stock' / 'Rupture', horaires du jour, Critique
+  6518→bouton Commander
+  6519→Pins colorés : vert = en stock, orange =
+  6520→Vue carte Haute
+  6521→stock faible, gris = rupture
+  6522→Slider 500m → 10km — recalcul
+  6523→Rayon ajustable Moyenne
+  6524→instantané
+  6525→Message encourageant + suggestion
+  6526→Résultat vide pharmacies proches même sans ce Haute
+  6527→médicament
+  6528→Suggestion de DCI similaires + option
+  6529→Médicament non trouvé Moyenne
+  6530→'Alertez-moi quand disponible'
+  6531→4.2 Fiche pharmacie
+  6532→Page dédiée /pharmacies/:slug — accessible depuis les résultats de recherche ou depuis la
+  6533→carte.
+  6534→ Informations générales : nom, adresse, téléphone, horaires semaine + weekend,
+  6535→coordonnées GPS.
+  6536→ Badge garde : si la pharmacie est de garde ce soir — affiché en évidence.
+  6537→ Catalogue disponible : liste des médicaments en stock avec prix — filtrables.
+  6538→ Bouton Commander : redirige vers la commande pré-remplie pour cette pharmacie.
+  6539→ Avis patients : note globale + commentaires (modérés).
+  6540→ Itinéraire : lien vers Google Maps / OpenStreetMap avec la pharmacie comme
+  6541→destination.
+  6542→YEHI OR Tech | Confidentiel | Page 7 / 16
+  6543→
+  6544→--- Page 8/16 ---
+  6545→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6546→5. Espace 3 — Commande en Ligne et Suivi
+  6547→5.1 Flux de commande
+  6548→Étape Action patient Action système Auth requise
+  6549→Sélectionner
+  6550→Vérification stock en temps
+  6551→1. Panier médicament(s) depuis Non
+  6552→réel
+  6553→les résultats
+  6554→Confirmer ou changer
+  6555→2. Choix
+  6556→la pharmacie Calcul numéro de passage Non
+  6557→pharmacie
+  6558→destinataire
+  6559→Saisir nom + téléphone
+  6560→3. (sans compte) ou Attribution numéro de
+  6561→Non (optionnel)
+  6562→Identification connexion compte passage virtuel
+  6563→patient
+  6564→Choisir : payer sur
+  6565→Si paiement en ligne :
+  6566→4. Paiement place OU payer Non
+  6567→transaction Fedapay initiée
+  6568→maintenant (Fedapay)
+  6569→5. Affichage numéro de Notification push à la
+  6570→—
+  6571→Confirmation passage + QR code pharmacie (MédiHelm Pro)
+  6572→WebSocket : statuts RECUE
+  6573→Page de suivi temps JWT Patient ou
+  6574→6. Suivi → EN_PREPARATION →
+  6575→réel /commande/:id token anonyme
+  6576→PRETE
+  6577→Le patient se présente Pharmacien valide la remise
+  6578→7. Retrait avec son numéro ou — vente créée dans —
+  6579→QR code MédiHelm Pro
+  6580→5.2 File d'attente virtuelle
+  6581→À chaque commande confirmée, le patient reçoit un numéro de passage dans la file d'attente
+  6582→de cette officine pour le jour en cours. Ce numéro est visible dans la confirmation et sur la
+  6583→page de suivi. Le patient sait combien de personnes sont devant lui.
+  6584→ Numéro de passage : séquentiel par officine par jour — commence à 1 chaque
+  6585→matin.
+  6586→ Temps estimé : calculé sur la base du rythme de traitement des commandes de
+  6587→l'officine (configurable par le DIRECTEUR).
+  6588→ Notification push : 'Votre commande est prête — vous êtes le suivant'.
+  6589→5.3 Paiement
+  6590→ Payer sur place : commande réservée — pas de débit. Annulable jusqu'à la
+  6591→préparation.
+  6592→ Payer maintenant : Fedapay — Wave, MTN Money, Moov Money. Commande
+  6593→prioritaire dans la file.
+  6594→YEHI OR Tech | Confidentiel | Page 8 / 16
+  6595→
+  6596→--- Page 9/16 ---
+  6597→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6598→ Annulation : gratuite avant statut EN_PREPARATION. Remboursement automatique
+  6599→si paiement Fedapay.
+  6600→YEHI OR Tech | Confidentiel | Page 9 / 16
+  6601→
+  6602→--- Page 10/16 ---
+  6603→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6604→6. Espace 4 — Compte Patient
+  6605→6.1 Création de compte
+  6606→La création de compte n'est jamais bloquante. On peut commander sans compte. Le compte
+  6607→apporte : historique, ordonnances sauvegardées, alertes personnalisées, programme de
+  6608→fidélité.
+  6609→ Inscription : téléphone (OTP SMS AfricasTalking) ou email.
+  6610→ Profil minimal : nom, prénom, téléphone, date de naissance (optionnelle).
+  6611→ Pas de mot de passe à mémoriser : connexion par OTP à chaque session.
+  6612→6.2 Fonctionnalités du compte patient
+  6613→Fonctionnalité Description Priorité
+  6614→Liste de toutes les commandes passées
+  6615→Historique commandes Haute
+  6616→avec statut et reçu
+  6617→Upload photo + stockage sécurisé —
+  6618→Ordonnances sauvegardées Haute
+  6619→partageable avec l'officine
+  6620→Marquer ses officines habituelles —
+  6621→Pharmacies favorites Moyenne
+  6622→recherche priorisée
+  6623→'Avertissez-moi quand ce médicament
+  6624→Alertes médicaments Haute
+  6625→est disponible à proximité'
+  6626→Points cumulés, niveau, récompenses
+  6627→Programme fidélité Moyenne
+  6628→disponibles
+  6629→Allergies connues — avertissement
+  6630→Profil santé Moyenne
+  6631→automatique lors de la commande
+  6632→Numéro d'adhérent — affiché
+  6633→Assurance Basse
+  6634→automatiquement lors de la commande
+  6635→Paramétrage des alertes (garde,
+  6636→Notifications Moyenne
+  6637→disponibilité, renouvellement)
+  6638→6.3 Ordonnances numériques
+  6639→Le patient peut uploader une photo de son ordonnance depuis son compte. L'ordonnance est
+  6640→transmise à l'officine choisie. Le pharmacien la valide dans MédiHelm Pro. Le patient reçoit
+  6641→une notification quand les médicaments sont prêts. Les ordonnances stupéfiants ne peuvent
+  6642→pas être envoyées numériquement — le patient doit se présenter avec l'original.
+  6643→YEHI OR Tech | Confidentiel | Page 10 / 16
+  6644→
+  6645→--- Page 11/16 ---
+  6646→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6647→7. Espace 5 — Pharmacie de Garde (SOS Nocturne)
+  6648→7.1 La page de garde
+  6649→La page /garde est la page la plus critique du site public. Un patient qui cherche une pharmacie
+  6650→de garde à 2h du matin est souvent dans une situation d'urgence réelle. L'expérience doit être
+  6651→immédiate, sans friction, lisible même sur un téléphone avec une batterie à 5%.
+  6652→La page /garde doit fonctionner sans JavaScript si possible.
+  6653→Elle doit charger en moins de 2 secondes sur une connexion 3G béninoise.
+  6654→Elle doit afficher le numéro de téléphone de la pharmacie de garde en GRAND, cliquable.
+  6655→7.2 Contenu affiché
+  6656→ Localisation automatique : 'Pharmacies de garde près de moi maintenant'.
+  6657→ Liste des pharmacies de garde : nom, adresse, distance, téléphone cliquable (call
+  6658→direct), horaires de garde.
+  6659→ Carte : pins des pharmacies de garde actives — visible sans interaction.
+  6660→ SOS button : bouton rouge proéminent 'Appeler la pharmacie de garde la plus
+  6661→proche' — call direct sans saisie.
+  6662→ Planning hebdomadaire : qui est de garde demain, après-demain — pour anticiper.
+  6663→ Notification opt-in : 'Recevoir une notification chaque soir avec la pharmacie de
+  6664→garde de votre zone'.
+  6665→7.3 Notification quotidienne 19h00
+  6666→Chaque soir à 19h00 WAT, MédiHelm envoie automatiquement une notification push (si
+  6667→l'utilisateur a accepté) ou un SMS aux patients de chaque zone indiquant la pharmacie de
+  6668→garde du soir. Ce service est 100% gratuit pour les patients.
+  6669→YEHI OR Tech | Confidentiel | Page 11 / 16
+  6670→
+  6671→--- Page 12/16 ---
+  6672→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6673→8. Espace 6 — Vérification Authenticité Médicament
+  6674→8.1 Problème adressé
+  6675→La contrefaçon de médicaments est une réalité en Afrique de l'Ouest. Des patients achètent
+  6676→des médicaments qui ne sont pas ce qu'ils prétendent être. MédiHelm offre un service de
+  6677→vérification rapide qui interroge la base nationale des médicaments agréés DPMED.
+  6678→8.2 Fonctionnalités
+  6679→ Vérification par numéro de lot : le patient saisit ou scanne le code-barres/QR code
+  6680→sur la boîte.
+  6681→ Résultat immédiat : vert = médicament enregistré, orange = informations
+  6682→incomplètes, rouge = alerte ou non trouvé.
+  6683→ Informations affichées : DCI, nom commercial, fabricant, date d'expiration, statut
+  6684→DPMED.
+  6685→ Alerte rappel de lot : si le lot est sous alerte DPMED active — affichage en urgence
+  6686→avec instructions.
+  6687→ Signalement : le patient peut signaler un médicament suspect directement depuis la
+  6688→page.
+  6689→8.3 Ce que la vérification ne garantit PAS
+  6690→La vérification confirme que le numéro de lot existe dans la base DPMED.
+  6691→Elle ne garantit pas que le médicament dans la boîte correspond au numéro de lot.
+  6692→En cas de doute, toujours consulter le pharmacien ou contacter la DPMED directement.
+  6693→Ce message d'avertissement est affiché systématiquement après chaque vérification.
+  6694→YEHI OR Tech | Confidentiel | Page 12 / 16
+  6695→
+  6696→--- Page 13/16 ---
+  6697→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6698→9. Programme de Fidélité
+  6699→9.1 Principe
+  6700→Le programme de fidélité est un système de points commun à toutes les officines MédiHelm.
+  6701→Chaque commande passée via MédiHelm Patient génère des points. Les points sont
+  6702→convertibles en remises ou en services (renouvellement d'ordonnance prioritaire, notification
+  6703→anticipée de disponibilité).
+  6704→Action Points gagnés Note
+  6705→Première commande 50 points Bonus bienvenue
+  6706→Chaque commande 1 point par 100
+  6707→Arrondi à l'inférieur
+  6708→complétée FCFA dépensés
+  6709→Commande avec
+  6710→paiement en ligne Bonus +10 points Incitation au paiement digital
+  6711→Fedapay
+  6712→Parrainage d'un ami Créditables après la première commande du
+  6713→100 points
+  6714→(premier achat) filleul
+  6715→Profil 100% complété 20 points Bonus unique
+  6716→Avis laissé sur une
+  6717→10 points Max 1 par officine par mois
+  6718→officine
+  6719→9.2 Niveaux et récompenses
+  6720→Niveau Seuil Avantages
+  6721→Vert 0 - 499 points Accès standard
+  6722→File d'attente prioritaire · Alertes anticipées
+  6723→Argent 500 - 1999 points
+  6724→disponibilité
+  6725→Remise 2% sur commandes · Renouvellement
+  6726→Or 2000 - 4999 points
+  6727→ordonnance prioritaire
+  6728→Remise 5% · Support client prioritaire · Accès beta
+  6729→Platine 5000+ points
+  6730→nouvelles fonctionnalités
+  6731→YEHI OR Tech | Confidentiel | Page 13 / 16
+  6732→
+  6733→--- Page 14/16 ---
+  6734→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6735→10. Notifications et Alertes Patient
+  6736→Type de notification Canal Déclencheur Opt-in requis
+  6737→Push + Pharmacien accepte la
+  6738→Commande confirmée Non — toujours
+  6739→SMS commande
+  6740→Push + Statut PRETE dans
+  6741→Commande prête Non — toujours
+  6742→SMS MédiHelm Pro
+  6743→Stock mis à jour pour un
+  6744→Médicament disponible Push Oui
+  6745→médicament en alerte
+  6746→Push ou Cron 19h00 WAT
+  6747→Pharmacie de garde ce soir Oui
+  6748→SMS quotidien
+  6749→J+30 après dernière
+  6750→Rappel renouvellement
+  6751→Push délivrance ordinance Oui
+  6752→ordonnance
+  6753→chronique
+  6754→Push + Alerte DPMED sur lot
+  6755→Rappel de lot DPMED Non — toujours
+  6756→SMS acheté
+  6757→Après chaque
+  6758→Points fidélité crédités Push Oui
+  6759→commande complétée
+  6760→YEHI OR Tech | Confidentiel | Page 14 / 16
+  6761→
+  6762→--- Page 15/16 ---
+  6763→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6764→11. Accessibilité et Performance
+  6765→11.1 Cibles de performance
+  6766→Métrique Cible Contexte
+  6767→LCP (Largest Contentful
+  6768→< 2.5s sur 3G Réseau mobile béninois standard
+  6769→Paint)
+  6770→TTI (Time to Interactive) < 4s sur 3G Page garde en priorité
+  6771→Score Lighthouse
+  6772→> 85 Testé sur connexion 3G simulée
+  6773→Performance
+  6774→Score Lighthouse
+  6775→> 90 WCAG 2.1 niveau AA
+  6776→Accessibilité
+  6777→Fonctionnel même sur données mobiles
+  6778→Taille page garde < 100KB gzippé
+  6779→limitées
+  6780→Disponibilité 99.5% / mois Critique — la garde n'attend pas
+  6781→11.2 PWA — Progressive Web App
+  6782→ Installation sur l'écran d'accueil Android : bouton 'Ajouter à l'écran d'accueil' suggéré
+  6783→après 2 visites.
+  6784→ Mode offline partiel : la dernière liste de pharmacies de garde consultée reste
+  6785→accessible sans réseau.
+  6786→ Notifications push native : fonctionnelles même sans que l'app soit ouverte.
+  6787→ Icône et splash screen : identité MédiHelm — teal + blanc.
+  6788→11.3 Langue
+  6789→ Français : langue principale — toutes les interfaces.
+  6790→ Fon et Yoruba : traduction des informations essentielles (garde, urgence) — phase 2.
+  6791→YEHI OR Tech | Confidentiel | Page 15 / 16
+  6792→
+  6793→--- Page 16/16 ---
+  6794→MédiHelm — Site Public medihelm.com — Cahier des Charges v1.0
+  6795→12. Roadmap
+  6796→Phase Timing Livrables
+  6797→Phase 1 — Landing page + recherche géolocalisée + fiche pharmacie +
+  6798→S1-S8
+  6799→Fondations page garde
+  6800→Phase 2 — Commande sans compte + file d'attente + suivi temps réel +
+  6801→S9-S16
+  6802→Commande Fedapay
+  6803→Phase 3 —
+  6804→Compte S17-S22 Inscription OTP + historique + ordonnances + alertes
+  6805→patient
+  6806→Phase 4 —
+  6807→S23-S26 Programme fidélité + niveaux + récompenses
+  6808→Fidélité
+  6809→Phase 5 —
+  6810→S27-S30 Vérification authenticité médicament + signalement
+  6811→Vérification
+  6812→Phase 6 —
+  6813→S31-S34 Notifications push + installation écran d'accueil + offline garde
+  6814→PWA
+  6815→MédiHelm Site Public CDC v1.0 | YEHI OR Tech © 2025 | Confidentiel
+  6816→YEHI OR Tech | Confidentiel | Page 16 / 16
+  6817→
+  6818→
+  6819→################################################################################
+  6820→# FILE: MediHelm_SitePublic_Cursor_v1.0.pdf
+  6821→# PAGES: 22
+  6822→################################################################################
+  6823→--- Page 1/22 ---
+  6824→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  6825→Y E H I O R T E C H
+  6826→MédiHelm
+  6827→medihelm.com — Site Public
+  6828→PROMPT CURSOR — IMPLÉMENTATION COMPLÈTE v1.0
+  6829→6 espaces · 11 pages · 25 endpoints · Programme fidélité · OTP · WebSocket · Fedapay · Leaflet
+  6830→Référence
+  6831→MH-PUBLIC-CURSOR-2025-v1.0
+  6832→CDC source
+  6833→MH-PUBLIC-CDC-2025-v1.0
+  6834→Specs source
+  6835→MH-PUBLIC-SPECS-2025-v1.0
+  6836→Repo cible
+  6837→medihelm-public/ — projet Next.js 14 distinct de medihelm-web/
+  6838→API backend
+  6839→api.medihelm.com/v1/public — endpoints publics NestJS déjà implémentés
+  6840→Responsable
+  6841→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+  6842→Document confidentiel — YEHI OR Tech © 2025
+  6843→YEHI OR Tech | Confidentiel | Page 1 / 22
+  6844→
+  6845→--- Page 2/22 ---
+  6846→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  6847→Instructions avant de coller le prompt
+  6848→Ce prompt est destiné à Cursor en mode AGENT.
+  6849→1. Créer un nouveau projet Next.js 14 : npx create-next-app@latest medihelm-public
+  6850→Options : TypeScript ✓ · Tailwind CSS ✓ · App Router ✓ · src/ ✗
+  6851→2. Ouvrir le dossier medihelm-public/ dans Cursor.
+  6852→3. Mode Cursor : AGENT (pas Chat, pas Edit — Agent).
+  6853→4. Contexte à sélectionner : tout le dossier medihelm-public/
+  6854→+ les fichiers types de l'API si disponibles (dto, response types).
+  6855→5. Coller le prompt complet dans l'agent — laisser implémenter phase par phase.
+  6856→6. Après chaque phase : npm run build → zéro erreur TypeScript avant de continuer.
+  6857→IMPORTANT : Ce projet est DISTINCT de medihelm-web/ (l'app pro des pharmaciens).
+  6858→Il partage la même API backend (api.medihelm.com) mais c'est un repo séparé.
+  6859→Aucune auth obligatoire — le patient peut tout utiliser sans compte.
+  6860→YEHI OR Tech | Confidentiel | Page 2 / 22
+  6861→
+  6862→--- Page 3/22 ---
+  6863→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  6864→PROMPT CURSOR — COPIER TOUT CE QUI SUIT
+  6865→Tu travailles sur medihelm.com — le site public grand public de MédiHelm
+  6866→(YEHI OR Tech, Parakou, Bénin). C'est un site Next.js 14 App Router DISTINCT
+  6867→de l'application pharmacien (medihelm-web/).
+  6868→Stack : Next.js 14 App Router · TypeScript · Tailwind CSS · Leaflet ·
+  6869→Socket.io-client · Fedapay SDK · @zxing/browser · sonner · lucide-react.
+  6870→API backend : https://api.medihelm.com/v1/public — déjà implémentée.
+  6871→CORS autorisé depuis medihelm.com et sous-domaines.
+  6872→PRINCIPE FONDAMENTAL :
+  6873→medihelm.com ne vend PAS de médicaments. Il connecte les patients
+  6874→aux pharmacies en temps réel, géolocalisé, avec transparence stocks/prix.
+  6875→Le patient commande → la pharmacie prépare → le patient retire.
+  6876→══════════════════════════════════════════════════════════════
+  6877→PHASE 0 — FONDATIONS (faire en premier)
+  6878→══════════════════════════════════════════════════════════════
+  6879→TÂCHE 0.1 — Dépendances
+  6880→npm install leaflet react-leaflet @types/leaflet
+  6881→npm install socket.io-client
+  6882→npm install sonner lucide-react date-fns
+  6883→npm install @zxing/browser @zxing/library
+  6884→npm install react-hook-form @hookform/resolvers zod
+  6885→TÂCHE 0.2 — Tailwind config
+  6886→Étendre tailwind.config.ts avec la palette MédiHelm :
+  6887→colors: {
+  6888→mh: {
+  6889→teal: { 50:'#E1F5EE', 500:'#1D9E75', 700:'#0F6E56', 900:'#085041' },
+  6890→amber: { 50:'#FAEEDA', 500:'#EF9F27', 700:'#854F0B' },
+  6891→red: { 50:'#FCEBEB', 500:'#E24B4A' },
+  6892→green: { 50:'#E8F5EE', 500:'#1B6B3A' },
+  6893→gray: { 50:'#F5F5F4', 400:'#888780', 700:'#5F5E5A', 900:'#1A1A1A' },
+  6894→}
+  6895→}
+  6896→borderRadius: { mh:'8px', 'mh-lg':'12px' }
+  6897→TÂCHE 0.3 — Structure des dossiers
+  6898→Créer l'arborescence suivante :
+  6899→app/
+  6900→(public)/
+  6901→layout.tsx // Layout public — header nav + footer
+  6902→page.tsx // / — landing page
+  6903→recherche/page.tsx // /recherche
+  6904→pharmacies/[slug]/page.tsx
+  6905→garde/page.tsx
+  6906→verification/page.tsx
+  6907→(patient)/
+  6908→YEHI OR Tech | Confidentiel | Page 3 / 22
+  6909→
+  6910→--- Page 4/22 ---
+  6911→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  6912→layout.tsx // Layout patient — header + nav compte
+  6913→commande/page.tsx
+  6914→commande/[id]/page.tsx
+  6915→compte/page.tsx
+  6916→compte/ordonnances/page.tsx
+  6917→compte/fidelite/page.tsx
+  6918→(pharmacien)/
+  6919→rejoindre/page.tsx
+  6920→components/
+  6921→ui/ // Button, Badge, Card, Input, Modal, Toast
+  6922→layout/ // Header, Footer, NavBar
+  6923→search/ // SearchBar, SearchResults, MedicamentCard
+  6924→map/ // PharmaciesMap, GardeMap
+  6925→commande/ // Panier, SuiviCommande, FileAttente
+  6926→garde/ // GardeCard, SOSButton, GardePlanning
+  6927→patient/ // CompteNav, HistoriqueList, OrdonnanceCard
+  6928→verification/ // ScanInput, VerifResult, AlerteRappel
+  6929→fidelite/ // FideliteCard, NiveauBadge, PointsHistory
+  6930→lib/
+  6931→apiClient.ts // fetch wrapper avec baseURL
+  6932→formatters.ts // formatMontant, formatDate, formatDistance
+  6933→gs1Parser.ts // parseGS1 pour le scan vérification
+  6934→toast.ts // success/error/warning/info avec couleurs MédiHelm
+  6935→auth.ts // gestion token patient (localStorage)
+  6936→hooks/
+  6937→useGeoLocation.ts // navigator.geolocation avec fallback
+  6938→usePatientAuth.ts // vérification JWT patient
+  6939→useBarcodeInput.ts // lecteur USB (si nécessaire)
+  6940→types/
+  6941→api.types.ts // types des réponses API
+  6942→TÂCHE 0.4 — Variables d'environnement
+  6943→.env.local :
+  6944→NEXT_PUBLIC_API_URL=https://api.medihelm.com
+  6945→NEXT_PUBLIC_MAPBOX_NOT_USED=true // On utilise OpenStreetMap
+  6946→TÂCHE 0.5 — Utilitaires de base
+  6947→lib/apiClient.ts :
+  6948→const BASE = process.env.NEXT_PUBLIC_API_URL + '/v1/public';
+  6949→export async function publicFetch<T>(path, init?): Promise<T>
+  6950→→ GET par défaut, header Content-Type JSON
+  6951→→ Lève Error avec message API si !res.ok
+  6952→export async function patientFetch<T>(path, init?): Promise<T>
+  6953→→ Comme publicFetch mais injecte Authorization: Bearer {token}
+  6954→→ Token lu depuis localStorage('mh-patient-token')
+  6955→→ Si 401 → clearToken() + redirect /compte
+  6956→lib/formatters.ts :
+  6957→formatMontant(n: number): string → '1 500 FCFA' (espace milliers)
+  6958→formatDistance(m: number): string → '680 m' ou '1,2 km'
+  6959→formatDate(d: string|Date): string→ 'JJ/MM/AAAA' (locale fr-BJ)
+  6960→formatHeure(d: string|Date): string→ 'HH:mm'
+  6961→TÂCHE 0.6 — Composants UI de base
+  6962→YEHI OR Tech | Confidentiel | Page 4 / 22
+  6963→
+  6964→--- Page 5/22 ---
+  6965→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  6966→components/ui/Button.tsx
+  6967→Variantes : primary (bg mh-teal-500) | secondary | danger | ghost
+  6968→Tailles : sm | md | lg
+  6969→Prop loading → spinner inline
+  6970→components/ui/Badge.tsx
+  6971→Couleurs : success | warning | danger | info | neutral
+  6972→Prop dot → point coloré avant le texte
+  6973→components/ui/Card.tsx
+  6974→Props : title?, action?, padding?
+  6975→Style : bg-white rounded-mh shadow-sm border border-mh-gray-100
+  6976→components/ui/Input.tsx
+  6977→Focus ring : ring-mh-teal-500
+  6978→État erreur : border-mh-red-500
+  6979→components/ui/Modal.tsx
+  6980→Overlay noir 40% opacité
+  6981→Fermeture : clic overlay + touche Échap
+  6982→Tailles : sm | md | lg
+  6983→lib/toast.ts via sonner :
+  6984→success → vert mh-green-500
+  6985→error → rouge mh-red-500
+  6986→warning → amber mh-amber-500
+  6987→info → teal mh-teal-500
+  6988→TÂCHE 0.7 — Layout public (Header + Footer)
+  6989→components/layout/Header.tsx
+  6990→Logo MédiHelm (teal) + tagline 'L'Ecosystème Santé de Confiance'
+  6991→Navigation : Rechercher | Pharmacies | Garde | Vérifier
+  6992→Bouton connexion compte patient (icône utilisateur)
+  6993→Responsive : hamburger menu sur mobile
+  6994→components/layout/Footer.tsx
+  6995→Logo + tagline
+  6996→Liens : À propos | Contact | Rejoindre MédiHelm | Pharmaciens
+  6997→Mention : 'Données alimentées par les pharmacies partenaires MédiHelm'
+  6998→Mention DPMED : 'Pour toute urgence médicale, appelez le 15'
+  6999→Réseaux sociaux (icônes Lucide)
+  7000→Copyright YEHI OR Tech
+  7001→YEHI OR Tech | Confidentiel | Page 5 / 22
+  7002→
+  7003→--- Page 6/22 ---
+  7004→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7005→══════════════════════════════════════════════════════════════
+  7006→PHASE 1 — LANDING PAGE /
+  7007→══════════════════════════════════════════════════════════════
+  7008→Rendu : SSG + revalidate toutes les heures (ISR).
+  7009→Performance cible : LCP < 2.5s sur 3G béninois.
+  7010→La landing page est divisée en 8 sections dans l'ordre suivant :
+  7011→SECTION 1 — HERO (critique, visible sans scroll)
+  7012→Fond : gradient teal-900 → teal-700
+  7013→Titre principal grand : 'Trouvez votre médicament',
+  7014→'à Parakou et au Bénin'
+  7015→Sous-titre : 'Quelle pharmacie proche a ce médicament ?',
+  7016→'En stock. Au bon prix. Maintenant.'
+  7017→Composant SearchBar centré (voir Phase 2 pour le détail)
+  7018→Texte sous la barre : '+ de X pharmacies partenaires · Gratuit · Sans
+  7019→inscription'
+  7020→Image droite (desktop) : illustration pharmacienne béninoise avec smartphone
+  7021→(placeholder coloré en attendant les visuels Gemini)
+  7022→SECTION 2 — 4 VALEURS (cards horizontales ou grille 2×2 mobile)
+  7023→Card 1 : '⏱ 30 secondes' + 'Trouvez quel médicament est disponible
+  7024→près de chez vous et à quel prix'
+  7025→Card 2 : '⏱ Commander' + 'Réservez avant de vous déplacer.
+  7026→Votre numéro de passage vous attend.'
+  7027→Card 3 : '⏱ Pharmacie de garde' + 'Urgence nocturne ?
+  7028→Trouvez la pharmacie de garde en 1 clic.'
+  7029→Card 4 : '⏱ Vérifier' + 'Scannez votre médicament pour vérifier
+  7030→son authenticité et détecter les rappels DPMED.'
+  7031→Style cards : fond blanc, icône teal, bordure gauche teal-500
+  7032→SECTION 3 — CARTE DES PHARMACIES PARTENAIRES
+  7033→Titre : 'Pharmacies MédiHelm à Parakou'
+  7034→Carte Leaflet + OpenStreetMap — centrée sur Parakou (9.3372, 2.6283)
+  7035→GET /pharmacies?lat=9.3372&lng=2.6283&rayon=10000
+  7036→Pins verts pour pharmacies MédiHelm actives
+  7037→Popup au clic : nom, adresse, téléphone, badge 'Ouvert/Fermé'
+  7038→Note : Leaflet importé avec next/dynamic, ssr:false (obligatoire)
+  7039→CTA sous la carte : 'Voir toutes les pharmacies →'
+  7040→SECTION 4 — COMMENT ÇA MARCHE (3 étapes)
+  7041→Étape 1 → Icône loupe → 'Cherchez votre médicament'
+  7042→Étape 2 → Icône pin carte → 'Choisissez une pharmacie proche'
+  7043→Étape 3 → Icône sac → 'Commandez et venez retirer'
+  7044→Design : ligne horizontale avec cercles numérotés en teal
+  7045→SECTION 5 — TÉMOIGNAGES
+  7046→3 cards témoignages patients
+  7047→Format : avatar placeholder + nom + ville + étoiles + texte court
+  7048→Exemple contenus :
+  7049→'J'ai trouvé l'Amoxicilline pour mon enfant en 2 minutes.' — Fatima,
+  7050→Parakou
+  7051→'Plus besoin de faire le tour des pharmacies.' — Kofi, Cotonou
+  7052→'La pharmacie de garde m'a sauvé la nuit.' — Moussa, Parakou
+  7053→SECTION 6 — APPEL À L'ACTION PHARMACIENS
+  7054→Fond teal-900
+  7055→YEHI OR Tech | Confidentiel | Page 6 / 22
+  7056→
+  7057→--- Page 7/22 ---
+  7058→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7059→Titre : 'Votre pharmacie n'est pas encore sur MédiHelm ?'
+  7060→Texte : 'Rejoignez les officines de Parakou et rendez-vous visible
+  7061→par des milliers de patients. Gratuit pendant 3 mois.'
+  7062→Bouton blanc → /rejoindre
+  7063→SECTION 7 — FAQ ACCORDION (4 questions)
+  7064→Q1 : Est-ce gratuit pour les patients ?
+  7065→R : Oui, totalement gratuit. Aucune inscription requise pour chercher.
+  7066→Q2 : Les stocks sont-ils mis à jour en temps réel ?
+  7067→R : Oui, directement depuis le logiciel de caisse MédiHelm des pharmacies.
+  7068→Q3 : Puis-je commander sans créer un compte ?
+  7069→R : Oui. Le compte patient offre l'historique, les ordonnances sauvegardées
+  7070→et le programme de fidélité, mais n'est pas obligatoire.
+  7071→Q4 : Que faire si mon médicament n'est pas disponible ?
+  7072→R : Activez une alerte — vous serez notifié par SMS quand il sera
+  7073→disponible.
+  7074→SECTION 8 — FOOTER
+  7075→(voir composant Footer — Tâche 0.7)
+  7076→SEO landing page :
+  7077→title: 'MédiHelm — Trouvez votre médicament à Parakou et au Bénin'
+  7078→description: 'Trouvez en 30 secondes quelle pharmacie proche a votre
+  7079→médicament. En stock, au bon prix. Commandez sans vous déplacer.'
+  7080→og:image: /og-image.png (créer une image placeholder 1200×630)
+  7081→Schema.org MedicalOrganization + WebSite avec SearchAction
+  7082→YEHI OR Tech | Confidentiel | Page 7 / 22
+  7083→
+  7084→--- Page 8/22 ---
+  7085→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7086→══════════════════════════════════════════════════════════════
+  7087→PHASE 2 — RECHERCHE GÉOLOCALISÉE /recherche
+  7088→══════════════════════════════════════════════════════════════
+  7089→Rendu : CSR (client-side — résultats en temps réel).
+  7090→COMPOSANT SearchBar (partagé landing + /recherche) :
+  7091→Input texte : placeholder 'DCI, nom commercial...'
+  7092→Autocomplétion :
+  7093→GET /medicaments/autocomplete?q={query} — déclenché à 2 caractères
+  7094→Debounce 300ms — liste déroulante max 10 résultats
+  7095→Clic sur suggestion → déclencher la recherche complète
+  7096→Bouton géolocalisation : icône pin + 'Ma position'
+  7097→→ navigator.geolocation.getCurrentPosition()
+  7098→→ Si refusé : champ adresse textuelle en fallback
+  7099→Sélecteur rayon : 500m | 1km | 2km (défaut) | 5km
+  7100→Le composant sur la landing page est en mode hero (grand, centré)
+  7101→Sur /recherche il est en mode compact (ligne horizontale en haut)
+  7102→PAGE /recherche :
+  7103→Appel API : GET /medicaments/search
+  7104→params: q, lat, lng, rayon, disponible=true (défaut), orderBy=distance
+  7105→Layout desktop : liste résultats (60%) | carte Leaflet (40%) côte à côte
+  7106→Layout mobile : onglets 'Liste' / 'Carte'
+  7107→FILTRES (panneau latéral ou chips en haut) :
+  7108→Toggle 'En stock uniquement' (défaut ON)
+  7109→Tri : Distance (défaut) | Prix croissant | Note
+  7110→Filtre 'Ouvert maintenant'
+  7111→Filtre 'Pharmacie de garde'
+  7112→CARTE RÉSULTATS (Leaflet next/dynamic ssr:false) :
+  7113→Fond OpenStreetMap
+  7114→Pin vert = médicament en stock
+  7115→Pin orange = stock faible (quantite <= 5)
+  7116→Pin gris = médicament absent dans cette pharmacie
+  7117→Pin rouge étoile = pharmacie de garde active
+  7118→Clic pin = popup : nom, distance, stock, prix, bouton 'Commander'
+  7119→Centrage automatique sur la position de l'utilisateur
+  7120→CARD RÉSULTAT (MedicamentCard) :
+  7121→Nom du médicament (DCI + nom commercial + dosage)
+  7122→Nom pharmacie + adresse + distance formatée
+  7123→Badge 'En stock' vert | 'Stock faible' amber | 'Rupture' rouge
+  7124→Prix en FCFA
+  7125→Horaires du jour : 'Ouvert jusqu'à 21h00' ou 'Fermé — ouvre à 8h00'
+  7126→Badge 'De garde' si modeGardeActif = true
+  7127→Bouton 'Commander' → /commande?pharmacieId=X&medicamentId=Y
+  7128→Bouton 'Voir la pharmacie' → /pharmacies/:slug
+  7129→ÉTAT VIDE :
+  7130→Si aucun résultat dans le rayon choisi :
+  7131→→ Message : 'Aucune pharmacie partenaire n'a ce médicament dans un rayon de
+  7132→X km'
+  7133→→ Suggestion : augmenter le rayon
+  7134→→ Bouton : 'M'alerter quand disponible' → modal saisie téléphone
+  7135→PAGE /pharmacies/:slug :
+  7136→YEHI OR Tech | Confidentiel | Page 8 / 22
+  7137→
+  7138→--- Page 9/22 ---
+  7139→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7140→Rendu SSR (revalidate 10min)
+  7141→GET /pharmacies/:slug
+  7142→En-tête : nom, adresse, téléphone cliquable, horaires semaine
+  7143→Badge 'De garde' rouge si modeGardeActif
+  7144→Carte mini Leaflet centrée sur la pharmacie
+  7145→Lien Google Maps / OpenStreetMap itinéraire
+  7146→Section médicaments disponibles :
+  7147→GET /pharmacies/:slug/medicaments?disponible=true
+  7148→Liste avec prix et stock
+  7149→Input recherche filtrant côté client
+  7150→Bouton 'Commander ici' → /commande?pharmacieId=X
+  7151→SEO : title '{NomPharmacie} — MédiHelm Bénin'
+  7152→description '{NomPharmacie}, {adresse}. Médicaments disponibles.'
+  7153→Schema.org Pharmacy avec geo + telephone + openingHours
+  7154→YEHI OR Tech | Confidentiel | Page 9 / 22
+  7155→
+  7156→--- Page 10/22 ---
+  7157→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7158→══════════════════════════════════════════════════════════════
+  7159→PHASE 3 — PHARMACIE DE GARDE /garde
+  7160→══════════════════════════════════════════════════════════════
+  7161→Rendu : SSR avec revalidate TOUTES LES 5 MINUTES (critique urgence).
+  7162→Performance cible : page fonctionnelle SANS JavaScript si possible.
+  7163→Taille cible : < 100KB gzippé — réseau mobile limité.
+  7164→RÈGLE ABSOLUE POUR CETTE PAGE :
+  7165→Le numéro de téléphone doit être affiché EN GRAND et cliquable
+  7166→(tag <a href='tel:...'>) — une personne avec 5% de batterie à 3h du
+  7167→matin doit pouvoir appeler en 1 tap sans chercher.
+  7168→APPELS API :
+  7169→GET /gardes?lat={lat}&lng={lng} → gardes actives maintenant
+  7170→GET /gardes/planning?lat={lat}&lng={lng}&jours=7 → planning semaine
+  7171→Si géolocalisation refusée : utiliser coordonnées Parakou par défaut
+  7172→STRUCTURE DE LA PAGE :
+  7173→Section 1 — URGENCE ACTIVE (si garde(s) en cours)
+  7174→Fond rouge mh-red-50 + bordure mh-red-500
+  7175→Titre : '⏱ Pharmacie de garde ce soir' (grand, visible)
+  7176→Pour chaque pharmacie de garde actuelle :
+  7177→Nom pharmacie (font-bold text-2xl)
+  7178→Adresse
+  7179→Distance si géoloc disponible
+  7180→BOUTON SOS : fond rouge plein, texte blanc, hauteur min 56px
+  7181→'Appeler — +229 97 00 00 00'
+  7182→<a href='tel:+22997000000'>
+  7183→Pas de modal de confirmation — urgence = 0 friction
+  7184→Lien itinéraire OpenStreetMap
+  7185→Section 2 — CARTE GARDE
+  7186→Leaflet (next/dynamic ssr:false) — pins rouges gardes actives
+  7187→Pins verts = pharmacies non de garde (pour contexte)
+  7188→Section 3 — PLANNING 7 JOURS
+  7189→Tableau simple : Jour | Pharmacie | Horaires | Téléphone
+  7190→Ligne d'aujourd'hui en surbrillance teal
+  7191→Téléphone cliquable sur chaque ligne
+  7192→Section 4 — OPT-IN NOTIFICATION GARDE
+  7193→'Recevoir une notification chaque soir avec la pharmacie de garde'
+  7194→Input téléphone + bouton 'M'abonner'
+  7195→→ POST /patients/me/alertes avec type='GARDE' et zone géographique
+  7196→Note: Si pas de compte → proposer inscription légère (OTP)
+  7197→Section 5 — SI AUCUNE GARDE ACTIVE (nuit calme)
+  7198→Message : 'Aucune pharmacie de garde actuellement dans votre zone'
+  7199→Liste des pharmacies proches ouvertes (GET /pharmacies?lat=&lng=&rayon=5000)
+  7200→Numéro SAMU Bénin : 15
+  7201→SEO : title 'Pharmacie de garde Parakou — MédiHelm'
+  7202→Structured data LocalBusiness pour chaque pharmacie de garde
+  7203→YEHI OR Tech | Confidentiel | Page 10 / 22
+  7204→
+  7205→--- Page 11/22 ---
+  7206→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7207→══════════════════════════════════════════════════════════════
+  7208→PHASE 4 — COMMANDE EN LIGNE /commande et /commande/:id
+  7209→══════════════════════════════════════════════════════════════
+  7210→Auth : optionnelle — commande possible sans compte.
+  7211→Token anonyme stocké localStorage('mh-commande-token') pour le suivi.
+  7212→PAGE /commande :
+  7213→3 étapes visuelles : [1. Médicaments] [2. Pharmacie] [3. Identification]
+  7214→Étape 1 — Médicaments
+  7215→Liste des médicaments sélectionnés (depuis /recherche ou depuis l'URL)
+  7216→URL params : ?pharmacieId=X&medicamentId=Y (pré-rempli depuis /recherche)
+  7217→Possibilité d'ajouter d'autres médicaments via SearchBar intégré
+  7218→Chaque ligne : nom, quantité (input +/-), prix unitaire, sous-total
+  7219→Total en bas en FCFA
+  7220→Bouton 'Continuer →'
+  7221→Étape 2 — Pharmacie
+  7222→Si pharmacie déjà sélectionnée (depuis URL) : afficher sa fiche récap
+  7223→Sinon : liste des pharmacies ayant ces médicaments en stock
+  7224→Card pharmacie : nom, adresse, distance, badge 'En stock', badge 'De garde'
+  7225→Estimation de préparation : 'Prêt dans environ {X} minutes'
+  7226→(basée sur GET /commandes/:id/suivi position dans la file)
+  7227→Bouton 'Choisir cette pharmacie'
+  7228→Étape 3 — Identification
+  7229→Option A (sans compte) :
+  7230→Champs : Nom prénom + Téléphone
+  7231→Mode paiement : 'Payer sur place' (défaut) | 'Payer maintenant (Wave/MTN)'
+  7232→Option B (avec compte) :
+  7233→Bouton 'Me connecter' → OTP SMS → pré-remplissage auto
+  7234→Bouton 'Confirmer ma commande'
+  7235→Validation commande :
+  7236→POST /commandes
+  7237→Body : { pharmacieId, lignes:[{medicamentId,quantite}], nomClient,
+  7238→telephone, modePaiement }
+  7239→Si paiement en ligne : initier transaction Fedapay
+  7240→→ redirect vers page paiement Fedapay
+  7241→→ webhook Fedapay confirme → créer commande
+  7242→Si payer sur place : commande créée directement
+  7243→onSuccess :
+  7244→Stocker commandeId + token anonyme dans localStorage
+  7245→Redirect /commande/:id
+  7246→PAGE /commande/:id — SUIVI TEMPS RÉEL :
+  7247→GET /commandes/:id → détail initial
+  7248→WebSocket : io(NEXT_PUBLIC_API_URL, {auth:{token:commandeToken}})
+  7249→socket.emit('commande:suivre', { commandeId })
+  7250→Écouter : commande:status → maj statut
+  7251→commande:prete → notification forte + vibration
+  7252→file:position → mise à jour position file
+  7253→Affichage selon statut :
+  7254→RECUE : '⏱ Votre commande est bien reçue'
+  7255→Badge numéro de passage (grand, visible)
+  7256→Estimation : 'Prêt dans environ X minutes'
+  7257→YEHI OR Tech | Confidentiel | Page 11 / 22
+  7258→
+  7259→--- Page 12/22 ---
+  7260→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7261→EN_PREPARATION: '⏱ Votre commande est en cours de préparation'
+  7262→PRETE : '✅ Votre commande est PRÊTE !' (fond vert, grand)
+  7263→'Présentez-vous au comptoir avec ce numéro : [NUMÉRO]'
+  7264→QR code (numéro de passage encodé)
+  7265→RECUPEREE : '⏱ Commande récupérée. Merci !'
+  7266→ANNULEE : '❌ Commande annulée'
+  7267→Informations pharmacie : nom, adresse, téléphone cliquable, carte mini
+  7268→Bouton 'Annuler ma commande' (visible si statut RECUE ou EN_PREPARATION)
+  7269→→ PATCH /commandes/:id/annuler + confirmation modal
+  7270→YEHI OR Tech | Confidentiel | Page 12 / 22
+  7271→
+  7272→--- Page 13/22 ---
+  7273→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7274→══════════════════════════════════════════════════════════════
+  7275→PHASE 5 — COMPTE PATIENT /compte
+  7276→══════════════════════════════════════════════════════════════
+  7277→Auth : JWT Patient obligatoire sur toutes les pages /compte/*.
+  7278→Authentification : OTP SMS via AfricasTalking — PAS de mot de passe.
+  7279→FLUX OTP COMPLET :
+  7280→1. Patient saisit son numéro : +229XXXXXXXX
+  7281→POST /patients/register → envoi SMS OTP 6 chiffres
+  7282→2. Patient saisit l'OTP reçu
+  7283→POST /patients/verify-otp → retourne JWT (30 jours) + profil
+  7284→3. Stocker token : localStorage('mh-patient-token')
+  7285→4. Redirect vers /compte (ou page précédente)
+  7286→Créer :
+  7287→/compte/login/page.tsx — formulaire téléphone + OTP (2 étapes)
+  7288→lib/auth.ts — getToken(), setToken(), clearToken(), isLoggedIn()
+  7289→hooks/usePatientAuth.ts — { user, isLoggedIn, logout }
+  7290→→ lit le token, le décode (sans vérif signature — juste lecture payload)
+  7291→→ si expiré : redirect /compte/login
+  7292→LAYOUT COMPTE (/compte) :
+  7293→Navigation latérale (desktop) ou onglets bas (mobile) :
+  7294→Mon profil | Mes commandes | Ordonnances | Fidélité | Déconnexion
+  7295→PAGE /compte — TABLEAU DE BORD PATIENT :
+  7296→GET /patients/me
+  7297→Afficher : Bonjour {prenom} ! + niveau fidélité (Vert/Argent/Or/Platine)
+  7298→4 StatCards :
+  7299→Commandes totales | Ordonnances sauvegardées | Points fidélité | Niveau
+  7300→Dernières commandes (3 max) avec statut + lien suivi
+  7301→CTA 'Commander un médicament' → /recherche
+  7302→PAGE /compte — HISTORIQUE COMMANDES :
+  7303→GET /patients/me/commandes
+  7304→Liste de toutes les commandes avec :
+  7305→Date | Pharmacie | Médicaments | Montant | Statut (badge coloré)
+  7306→Clic → lien /commande/:id pour revoir le suivi
+  7307→Pagination 20 par page
+  7308→PAGE /compte/ordonnances :
+  7309→GET /patients/me/ordonnances
+  7310→Liste des ordonnances sauvegardées :
+  7311→Miniature photo | Médecin | Date | Statut (en attente/validée/soldée)
+  7312→Bouton 'Ajouter une ordonnance' :
+  7313→→ input file (photo) ou capture caméra
+  7314→→ POST /patients/me/ordonnances (multipart/form-data)
+  7315→→ Preview avant envoi + confirmation
+  7316→Note importante : 'Les ordonnances de stupéfiants doivent être
+  7317→présentées en original à la pharmacie.'
+  7318→PAGE /compte/fidelite :
+  7319→GET /patients/me/fidelite
+  7320→Jauge circulaire du niveau actuel (SVG ou Recharts RadialBarChart)
+  7321→4 niveaux avec seuils et avantages :
+  7322→Vert (0-499 pts) → accès standard
+  7323→Argent (500-1999 pts) → file prioritaire · alertes anticipées
+  7324→YEHI OR Tech | Confidentiel | Page 13 / 22
+  7325→
+  7326→--- Page 14/22 ---
+  7327→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7328→Or (2000-4999 pts)→ remise 2% · renouvellement prioritaire
+  7329→Platine (5000+ pts) → remise 5% · support prioritaire
+  7330→Historique des points (tableau : date, action, points gagnés)
+  7331→Comment gagner des points (accordion) :
+  7332→Commande complétée → 1 pt / 100 FCFA
+  7333→Paiement en ligne → bonus +10 pts
+  7334→Parrainage → 100 pts
+  7335→Profil complété → 20 pts (une fois)
+  7336→Avis pharmacie → 10 pts (max 1/mois/officine)
+  7337→YEHI OR Tech | Confidentiel | Page 14 / 22
+  7338→
+  7339→--- Page 15/22 ---
+  7340→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7341→══════════════════════════════════════════════════════════════
+  7342→PHASE 6 — VÉRIFICATION MÉDICAMENT /verification
+  7343→══════════════════════════════════════════════════════════════
+  7344→Auth : aucune. Page entièrement publique.
+  7345→Rendu : CSR.
+  7346→OBJECTIF DE LA PAGE :
+  7347→Permettre à quiconque (patient, pharmacien, agent de santé) de vérifier
+  7348→si un médicament est authentique et si son lot est sous alerte DPMED.
+  7349→DEUX MODES DE SAISIE :
+  7350→Mode 1 — Saisie manuelle
+  7351→Input : 'Numéro de lot (ex: BN2024-441A)' ou 'Code-barres'
+  7352→Bouton 'Vérifier'
+  7353→Mode 2 — Scan caméra
+  7354→Bouton '⏱ Scanner la boîte'
+  7355→→ BarcodeScanner (next/dynamic, ssr:false)
+  7356→→ parseGS1(rawCode) → extraire lot, gtin, expiry
+  7357→→ Remplir auto le champ lot + déclencher la vérification
+  7358→APPEL API :
+  7359→GET /medicaments/verification?lot={numeroLot}
+  7360→ou GET /medicaments/verification?barcode={rawCode}
+  7361→AFFICHAGE DU RÉSULTAT selon statut :
+  7362→statut VALIDE :
+  7363→Fond mh-green-50 + icône bouclier vert ✅
+  7364→'Médicament enregistré — aucune alerte active'
+  7365→Détails : DCI, nom commercial, fabricant, lot, date expiration, AMM
+  7366→Note obligatoire : 'Cette vérification confirme que le numéro de
+  7367→lot existe dans la base DPMED. Elle ne garantit pas la conformité
+  7368→physique du contenu de la boîte.'
+  7369→statut SOUS_ALERTE :
+  7370→Fond mh-red-50 + icône alarme rouge ⏱
+  7371→'⚠️ ALERTE DPMED ACTIVE — Ne pas utiliser ce médicament'
+  7372→Afficher le contenu complet de l'AlerteDPMED :
+  7373→Type alerte | Niveau urgence | Date émission | Description
+  7374→Instructions au patient
+  7375→Bouton 'Contacter votre pharmacie' → <a href='tel:...'>
+  7376→statut NON_TROUVE :
+  7377→Fond mh-amber-50 + icône point d'interrogation ⏱
+  7378→'Numéro de lot non trouvé dans la base DPMED'
+  7379→'Ce médicament n'est peut-être pas enregistré au Bénin'
+  7380→Bouton 'Signaler un médicament suspect' → formulaire simple
+  7381→(nom, lot, lieu d'achat, téléphone) → POST /medicaments/signalement
+  7382→statut RETIRE :
+  7383→Fond mh-red-50 + icône X rouge
+  7384→'Ce lot a été retiré du marché'
+  7385→Détails du retrait
+  7386→YEHI OR Tech | Confidentiel | Page 15 / 22
+  7387→
+  7388→--- Page 16/22 ---
+  7389→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7390→FORMULAIRE DE SIGNALEMENT :
+  7391→Modal : Description du problème + lieu d'achat + téléphone de contact
+  7392→POST /medicaments/signalement (endpoint à créer côté API si absent)
+  7393→Message de confirmation : 'Votre signalement a été transmis à la DPMED'
+  7394→YEHI OR Tech | Confidentiel | Page 16 / 22
+  7395→
+  7396→--- Page 17/22 ---
+  7397→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7398→══════════════════════════════════════════════════════════════
+  7399→PHASE 7 — PAGE PHARMACIENS /rejoindre
+  7400→══════════════════════════════════════════════════════════════
+  7401→Rendu : SSG (statique).
+  7402→Objectif : convaincre les pharmaciens de Parakou d'activer MédiHelm.
+  7403→STRUCTURE :
+  7404→Section Hero :
+  7405→Fond teal-900
+  7406→Titre : 'Votre officine visible par des milliers de patients'
+  7407→Sous-titre : 'Rejoignez MédiHelm — Gratuit pendant 3 mois'
+  7408→Bouton blanc : 'Demander une démonstration'
+  7409→Section Bénéfices (3 cards) :
+  7410→Card 1 : ⏱ 'Soyez visible sur la carte' — 'Apparaissez dans les
+  7411→résultats quand un patient cherche votre médicament à proximité'
+  7412→Card 2 : ⏱ 'Commandes anticipées' — 'Vos patients commandent avant
+  7413→de venir. La file d'attente se fluidifie.'
+  7414→Card 3 : ⏱ 'Garde nocturne' — 'Votre numéro affiché en grand
+  7415→sur la page garde de nuit.'
+  7416→Section Chiffres :
+  7417→'0 FCFA d'activation' | 'Inclus dans MédiHelm Pro' | '15 min pour démarrer'
+  7418→Section Formulaire de contact :
+  7419→Champs : Nom du pharmacien | Nom de la pharmacie | Téléphone | Ville
+  7420→Bouton : 'Envoyer ma demande'
+  7421→Action : POST /public/partenariat (ou simple mailto: en fallback)
+  7422→Message succès : 'Notre équipe vous contacte dans les 24h !'
+  7423→Footer identique au reste du site
+  7424→══════════════════════════════════════════════════════════════
+  7425→PHASE 8 — PWA + SEO + PERFORMANCE
+  7426→══════════════════════════════════════════════════════════════
+  7427→TÂCHE 8.1 — PWA (Progressive Web App)
+  7428→next-pwa ou manifest.json manuel
+  7429→manifest.json :
+  7430→name: 'MédiHelm'
+  7431→short_name: 'MédiHelm'
+  7432→theme_color: '#1D9E75'
+  7433→background_color: '#085041'
+  7434→display: 'standalone'
+  7435→start_url: '/'
+  7436→icons: [192px, 512px] — fond teal + croix pharmacie blanche
+  7437→Service Worker : cache de la page /garde en offline
+  7438→(seule page dont le cache offline est justifié — urgence nocturne)
+  7439→TÂCHE 8.2 — SEO global
+  7440→app/layout.tsx — metadata de base :
+  7441→title template : '%s | MédiHelm Bénin'
+  7442→description par défaut
+  7443→og:image global
+  7444→locale: fr_BJ
+  7445→YEHI OR Tech | Confidentiel | Page 17 / 22
+  7446→
+  7447→--- Page 18/22 ---
+  7448→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7449→canonical URL
+  7450→robots.txt : autoriser tout sauf /compte/* et /commande/*
+  7451→sitemap.xml généré dynamiquement (pages + pharmacies partenaires)
+  7452→TÂCHE 8.3 — Performance
+  7453→Image optimization : next/image sur toutes les images
+  7454→Leaflet : import dynamique avec ssr:false OBLIGATOIRE partout
+  7455→BarcodeScanner : import dynamique avec ssr:false
+  7456→Fonts : Inter via next/font/google (évite le CLS)
+  7457→Loading states : skeleton sur tous les fetch asynchrones
+  7458→Debounce 300ms sur tous les inputs de recherche
+  7459→Pagination : 20 résultats par défaut sur toutes les listes
+  7460→TÂCHE 8.4 — Accessibilité
+  7461→Tous les boutons ont aria-label si pas de texte visible
+  7462→Contrastes WCAG AA sur tous les textes
+  7463→Le bouton SOS /garde : taille min 56px × 200px
+  7464→Focus visible sur tous les éléments interactifs
+  7465→Page /garde fonctionne SANS JavaScript (contenu important en SSR pur)
+  7466→YEHI OR Tech | Confidentiel | Page 18 / 22
+  7467→
+  7468→--- Page 19/22 ---
+  7469→MédiHelm — Prompt Cursor Site Public medihelm.com v1.0
+  7470→══════════════════════════════════════════════════════════════
+  7471→CONTRAINTES GLOBALES — À RESPECTER DANS TOUTES LES PHASES
+  7472→══════════════════════════════════════════════════════════════
+  7473→LEAFLET — OBLIGATOIRE :
+  7474→Tous les composants Leaflet (PharmaciesMap, GardeMap) DOIVENT être
+  7475→importés avec next/dynamic({ ssr: false }).
+  7476→Jamais d'import statique Leaflet — le build cassera en SSR.
+  7477→Exemple :
+  7478→const PharmaciesMap = dynamic(() => import('../map/PharmaciesMap'),
+  7479→{ ssr: false, loading: () => <div>Chargement carte...</div> });
+  7480→BARCODESCANNER — OBLIGATOIRE :
+  7481→Même règle — next/dynamic ssr:false.
+  7482→LOCALES BÉNIN :
+  7483→Toutes les dates : JJ/MM/AAAA avec date-fns locale fr
+  7484→Tous les montants : FCFA avec espace milliers (pas de virgule décimale)
+  7485→Numéros de téléphone : +229 XX XX XX XX
+  7486→Heure : WAT (UTC+1) — ne pas faire de conversion automatique
+  7487→Pas de centimes — tout en FCFA entiers
+  7488→MOBILE-FIRST :
+  7489→L'utilisateur type est sur Android avec données mobiles limitées.
+  7490→Chaque page doit être fonctionnelle en 3G (< 200KB JS initial).
+  7491→Tailles de tap : minimum 44px × 44px sur tous les boutons.
+  7492→Le texte des boutons principaux : minimum 16px.
+  7493→La page /garde : minimum 14px pour toutes les informations critiques.
+  7494→AUTHENTIFICATION :
+  7495→Aucune page publique ne bloque un utilisateur non connecté.
+  7496→Les pages /compte/* redirigent vers /compte/login si pas de token.
+  7497→Le token patient est stocké localStorage('mh-patient-token').
+  7498→Pas de cookie HttpOnly côté client pour le site public
+  7499→(différent de medihelm-web/ qui utilise des cookies HttpOnly).
+  7500→DESIGN :
+
+[showing lines 6001-7500 of 9240; use offset=7501 with limit to continue reading]
