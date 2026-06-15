@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>MediHelm - Plan d'Action Conformite</title>
+<style>
+  @page { size: A4; margin: 0; }
+  @media screen {
+    html { background: #f2f2f1; }
+    .page { transform: scale(0.6); transform-origin: top center; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 210mm; height: 297mm; background: #f2f2f1; }
+  .page {
+    width: 210mm; height: 297mm; position: relative;
+    overflow: hidden; background: #f2f2f1;
+  }
+  /* Layer 0: background */
+  .bg-fill { position: absolute; inset: 0; background: #f2f2f1; z-index: 0; }
+  /* Layer 1: decorative - clipped */
+  .decor-line-v {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: #ccc5af; z-index: 1; opacity: 0.5;
+  }
+  .decor-line-h {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: #ccc5af; z-index: 1; opacity: 0.5;
+  }
+  .accent-block {
+    position: absolute; left: 0; top: 0; width: 12mm; height: 100%;
+    background: #4f4939; z-index: 1;
+  }
+  /* Layer 2: structural lines */
+  .struct-line {
+    position: absolute; height: 2px; background: #1e7693; z-index: 2;
+  }
+  /* Layer 3: text */
+  .kicker {
+    position: absolute; top: 18%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 11pt; font-weight: 400; letter-spacing: 4pt;
+    color: #7e7c74; text-transform: uppercase; z-index: 3;
+  }
+  .hero-title {
+    position: absolute; top: 24%; left: 18%; right: 12%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 38pt; font-weight: 900; line-height: 1.15;
+    color: #1a1a18; z-index: 3;
+  }
+  .subtitle {
+    position: absolute; top: 48%; left: 18%; right: 15%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 14pt; font-weight: 400; line-height: 1.6;
+    color: #4f4939; z-index: 3;
+  }
+  .summary-block {
+    position: absolute; top: 58%; left: 18%; right: 20%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 10.5pt; font-weight: 400; line-height: 1.7;
+    color: #7e7c74; z-index: 3;
+    border-left: 2px solid #1e7693; padding-left: 12pt;
+  }
+  .meta-block {
+    position: absolute; bottom: 14%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 10pt; color: #7e7c74; line-height: 1.8; z-index: 3;
+  }
+  .footer-line {
+    position: absolute; bottom: 8%; left: 18%; right: 12%;
+    height: 1px; background: #ccc5af; z-index: 2;
+  }
+  .footer {
+    position: absolute; bottom: 5%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 8pt; letter-spacing: 2pt; color: #7e7c74;
+    text-transform: uppercase; z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Layer 0 -->
+  <div class="bg-fill"></div>
+  <!-- Layer 1: decorative -->
+  <div class="accent-block"></div>
+  <div class="decor-line-v" style="left: 16%;"></div>
+  <div class="decor-line-h" style="top: 15%;"></div>
+  <!-- Layer 2: structural -->
+  <div class="struct-line" style="top: 22%; left: 18%; width: 60mm;"></div>
+  <!-- Layer 3: text -->
+  <div class="kicker">YEHI OR Tech &mdash; Dawes</div>
+  <div class="hero-title">M&eacute;diHelm<br>Plan d&rsquo;Action<br>Conformit&eacute;</div>
+  <div class="subtitle">Feuille de route compl&egrave;te pour aligner le codebase<br>sur la documentation de r&eacute;f&eacute;rence MH-CDC-2025-v2.0</div>
+  <div class="summary-block">
+    Analyse exhaustive des &eacute;carts entre le code actuel et la documentation.
+    8 phases d&rsquo;ex&eacute;cution, 44 semaines, couvrant la migration monorepo,
+    le backend NestJS, le mode offline, la s&eacute;curisation, les 19 modules
+    fonctionnels et les int&eacute;grations institutionnelles.
+  </div>
+  <div class="meta-block">
+    R&eacute;f&eacute;rence : MH-ACTION-2025-001<br>
+    Version : 1.0 &mdash; Juin 2025<br>
+    Classification : Confidentiel &mdash; Usage interne
+  </div>
+  <div class="footer-line"></div>
+  <div class="footer">Cotonou, R&eacute;publique du B&eacute;nin</div>
+</div>
+</body>
+</html>
