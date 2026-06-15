@@ -1,18 +1,18 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
-    const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
+    const pharmacieId = user.pharmacieId
+    const { id } = await params
 
     const patient = await db.patient.findFirst({
       where: { id, pharmacieId },
@@ -89,13 +89,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { id } = await params
     const body = await request.json()
-    const { pharmacieId } = body
-
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
 
     // Verify patient belongs to this pharmacie
     const existing = await db.patient.findFirst({
@@ -147,13 +147,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { id } = await params
     const body = await request.json()
-    const { pharmacieId } = body
-
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
 
     const existing = await db.patient.findFirst({
       where: { id, pharmacieId },

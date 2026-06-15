@@ -1,15 +1,16 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
-    const periode = searchParams.get('periode') || '7j'
+    const authResult = await requireAuth(request, 'M14_DASHBOARD', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
+    const pharmacieId = user.pharmacieId
+    const { searchParams } = new URL(request.url)
+    const periode = searchParams.get('periode') || '7j'
 
     const days = periode === '30j' ? 30 : periode === '14j' ? 14 : 7
     const periodStart = new Date()

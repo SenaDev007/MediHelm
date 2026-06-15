@@ -1,7 +1,8 @@
 'use client'
 
 import { BottomNav } from '@/components/patient/bottom-nav'
-import { Bell, Menu, X, Shield } from 'lucide-react'
+import { Bell, Menu, X } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -40,9 +41,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               {menuOpen ? <X className="h-5 w-5 text-gray-900" /> : <Menu className="h-5 w-5 text-gray-900" />}
             </button>
             <Link href="/patient" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
-              </div>
+              <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={32} height={32} className="shrink-0" />
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-teal-800 leading-tight">MédiHelm</span>
                 <span className="text-[10px] text-primary font-medium leading-tight">Patient • Gratuit</span>
@@ -79,9 +78,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             >
               <div className="p-4 border-b border-teal-200">
                 <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                    <Shield className="h-6 w-6 text-white" />
-                  </div>
+                  <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={32} height={32} className="shrink-0" />
                   <div>
                     <p className="font-bold text-teal-800">MédiHelm Patient</p>
                     <p className="text-xs text-primary">100% Gratuit</p>

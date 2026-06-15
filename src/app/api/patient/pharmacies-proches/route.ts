@@ -27,28 +27,62 @@ export async function GET(request: NextRequest) {
     let medicamentPrix: Record<string, number> = {}
 
     if (medicamentId) {
-      // Find all medications with this ID that are active, include their lots
-      const meds = await db.medicament.findMany({
-        where: { id: medicamentId, actif: true },
-        select: {
-          pharmacieId: true,
-          prixPublic: true,
-          lots: {
-            where: {
-              quantite: { gt: 0 },
-              dateExpiration: { gt: new Date() },
-            },
-            select: { id: true },
-          },
-        },
+      // Step 1: Look up the DCI of the given medication
+      const sourceMed = await db.medicament.findUnique({
+        where: { id: medicamentId },
+        select: { dci: true, nomCommercial: true },
       })
 
-      pharmacyIdsWithMed = new Set<string>()
-      for (const med of meds) {
-        // Only include pharmacies that have active lots with stock
-        if (med.lots.length > 0) {
-          pharmacyIdsWithMed.add(med.pharmacieId)
-          medicamentPrix[med.pharmacieId] = med.prixPublic
+      if (sourceMed?.dci) {
+        // Step 2: Find ALL medications with the same DCI across all pharmacies
+        const meds = await db.medicament.findMany({
+          where: { dci: sourceMed.dci, actif: true },
+          select: {
+            id: true,
+            pharmacieId: true,
+            prixPublic: true,
+            lots: {
+              where: {
+                quantite: { gt: 0 },
+                dateExpiration: { gt: new Date() },
+              },
+              select: { id: true },
+            },
+          },
+        })
+
+        pharmacyIdsWithMed = new Set<string>()
+        for (const med of meds) {
+          if (med.lots.length > 0) {
+            pharmacyIdsWithMed.add(med.pharmacieId)
+            if (medicamentPrix[med.pharmacieId] === undefined || med.prixPublic < medicamentPrix[med.pharmacieId]) {
+              medicamentPrix[med.pharmacieId] = med.prixPublic
+            }
+          }
+        }
+      } else {
+        // Fallback: no DCI found, search by exact ID
+        const meds = await db.medicament.findMany({
+          where: { id: medicamentId, actif: true },
+          select: {
+            pharmacieId: true,
+            prixPublic: true,
+            lots: {
+              where: {
+                quantite: { gt: 0 },
+                dateExpiration: { gt: new Date() },
+              },
+              select: { id: true },
+            },
+          },
+        })
+
+        pharmacyIdsWithMed = new Set<string>()
+        for (const med of meds) {
+          if (med.lots.length > 0) {
+            pharmacyIdsWithMed.add(med.pharmacieId)
+            medicamentPrix[med.pharmacieId] = med.prixPublic
+          }
         }
       }
     }

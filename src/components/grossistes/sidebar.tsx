@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
@@ -9,7 +10,6 @@ import {
   Package,
   BarChart3,
   Settings,
-  Shield,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -62,9 +62,7 @@ export function GrossisteSidebar() {
           "flex items-center gap-3 px-4 py-5 border-b border-sidebar-border",
           collapsed && "justify-center px-2"
         )}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
-            <Shield className="h-5 w-5" />
-          </div>
+          <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={36} height={36} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col">
               <span className="font-bold text-sm text-sidebar-foreground leading-tight">MédiHelm</span>

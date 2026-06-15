@@ -368,6 +368,7 @@ model Utilisateur {
   sessionsCaisse   SessionCaisse[]
   patients         Patient[]
   tickets          Ticket[]
+  notifications    Notification[]
 }
 
 model UtilisateurTenant {
@@ -1204,6 +1205,8 @@ model Notification {
   lue       Boolean  @default(false)
   lien      String?
   createdAt DateTime @default(now())
+
+  utilisateur Utilisateur @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, lue])
 }

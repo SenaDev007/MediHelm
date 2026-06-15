@@ -12,12 +12,15 @@ export const ROLES = {
   PHARMACIEN: 'PHARMACIEN',
   CAISSIER: 'CAISSIER',
   MAGASINIER: 'MAGASINIER',
+  COMPTABLE: 'COMPTABLE',
+  STAGIAIRE: 'STAGIAIRE',
   PROMOTEUR: 'PROMOTEUR',
   DPMED_ADMIN: 'DPMED_ADMIN',
   SOBAPS_VIEWER: 'SOBAPS_VIEWER',
   ABRP_VIEWER: 'ABRP_VIEWER',
   GROSSISTE_PARTNER: 'GROSSISTE_PARTNER',
   PLATFORM_ADMIN: 'PLATFORM_ADMIN',
+  PATIENT: 'PATIENT',
 } as const
 
 export type RoleKey = keyof typeof ROLES
@@ -305,6 +308,75 @@ const ROLE_PERMISSIONS: Record<string, PermissionSet> = {
     M19_CONFORMITE: { read: false, write: false, delete: false },
   },
 
+  // COMPTABLE — Accès finance, analytics, documents comptables
+  [ROLES.COMPTABLE]: {
+    M01_STOCK: { read: true, write: false, delete: false },
+    M02_POS: { read: true, write: false, delete: false },
+    M03_COMMANDES: { read: true, write: false, delete: false },
+    M04_FOURNISSEURS: { read: true, write: false, delete: false },
+    M05_PATIENTS: { read: false, write: false, delete: false },
+    M06_ORDONNANCES: { read: true, write: false, delete: false },
+    M07_RH: { read: true, write: false, delete: false },
+    M08_FINANCE: { read: true, write: true, delete: false },
+    M09_GARDE: { read: false, write: false, delete: false },
+    M10_REMBOURSABLES: { read: true, write: true, delete: false },
+    M11_RETOURS: { read: true, write: false, delete: false },
+    M12_COMMUNICATION: { read: false, write: false, delete: false },
+    M13_DOCUMENTS: { read: true, write: true, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M15_ANALYTICS: { read: true, write: true, delete: false },
+    M16_PHARMACOVIGILANCE: { read: false, write: false, delete: false },
+    M17_GROSSISTES: { read: false, write: false, delete: false },
+    M18_ALERTES_DPMED: { read: false, write: false, delete: false },
+    M19_CONFORMITE: { read: true, write: false, delete: false },
+  },
+
+  // STAGIAIRE — Accès limité en lecture, pas d'écriture sur les modules critiques
+  [ROLES.STAGIAIRE]: {
+    M01_STOCK: { read: true, write: false, delete: false },
+    M02_POS: { read: true, write: true, delete: false },
+    M03_COMMANDES: { read: true, write: false, delete: false },
+    M04_FOURNISSEURS: { read: true, write: false, delete: false },
+    M05_PATIENTS: { read: true, write: false, delete: false },
+    M06_ORDONNANCES: { read: true, write: false, delete: false },
+    M07_RH: { read: false, write: false, delete: false },
+    M08_FINANCE: { read: false, write: false, delete: false },
+    M09_GARDE: { read: true, write: false, delete: false },
+    M10_REMBOURSABLES: { read: true, write: false, delete: false },
+    M11_RETOURS: { read: false, write: false, delete: false },
+    M12_COMMUNICATION: { read: false, write: false, delete: false },
+    M13_DOCUMENTS: { read: true, write: false, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M15_ANALYTICS: { read: false, write: false, delete: false },
+    M16_PHARMACOVIGILANCE: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: false, write: false, delete: false },
+    M18_ALERTES_DPMED: { read: true, write: false, delete: false },
+    M19_CONFORMITE: { read: true, write: false, delete: false },
+  },
+
+  // PATIENT — Accès limité au portail patient (recherche, pharmacies, rappels)
+  [ROLES.PATIENT]: {
+    M01_STOCK: { read: false, write: false, delete: false },
+    M02_POS: { read: false, write: false, delete: false },
+    M03_COMMANDES: { read: true, write: true, delete: false },
+    M04_FOURNISSEURS: { read: false, write: false, delete: false },
+    M05_PATIENTS: { read: true, write: true, delete: false },
+    M06_ORDONNANCES: { read: true, write: false, delete: false },
+    M07_RH: { read: false, write: false, delete: false },
+    M08_FINANCE: { read: false, write: false, delete: false },
+    M09_GARDE: { read: true, write: false, delete: false },
+    M10_REMBOURSABLES: { read: true, write: false, delete: false },
+    M11_RETOURS: { read: false, write: false, delete: false },
+    M12_COMMUNICATION: { read: false, write: false, delete: false },
+    M13_DOCUMENTS: { read: true, write: false, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M15_ANALYTICS: { read: false, write: false, delete: false },
+    M16_PHARMACOVIGILANCE: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: false, write: false, delete: false },
+    M18_ALERTES_DPMED: { read: true, write: false, delete: false },
+    M19_CONFORMITE: { read: false, write: false, delete: false },
+  },
+
   // PLATFORM_ADMIN — Super-admin plateforme (accès total y compris suppression)
   [ROLES.PLATFORM_ADMIN]: {
     M01_STOCK: { read: true, write: true, delete: true },
@@ -344,6 +416,8 @@ export const PHARMACIE_ROLES: string[] = [
   ROLES.PHARMACIEN,
   ROLES.CAISSIER,
   ROLES.MAGASINIER,
+  ROLES.COMPTABLE,
+  ROLES.STAGIAIRE,
   ROLES.PROMOTEUR,
 ]
 

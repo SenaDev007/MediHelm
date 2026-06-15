@@ -1,11 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { id } = await params
     const session = await db.sessionCaisse.findUnique({
       where: { id },
@@ -44,6 +48,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'write')
+    if (authResult instanceof Response) return authResult
+
     const { id } = await params
     const body = await request.json()
 

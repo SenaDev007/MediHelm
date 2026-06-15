@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
-  Shield, User, Mail, Phone, Lock, Eye, EyeOff,
+  User, Mail, Phone, Lock, Eye, EyeOff,
   AlertCircle, Loader2, ArrowLeft, Check, X
 } from 'lucide-react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface ValidationErrors {
@@ -171,9 +172,7 @@ export default function InscriptionPage() {
           <>
             {/* Logo & Header */}
             <div className="text-center mb-5">
-              <div className="w-14 h-14 rounded-2xl bg-primary mx-auto flex items-center justify-center mb-3">
-                <Shield className="h-8 w-8 text-white" />
-              </div>
+              <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={56} height={56} className="mx-auto mb-3" />
               <h1 className="text-xl font-bold text-teal-800">Créer un compte</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Rejoignez MédiHelm Patient gratuitement

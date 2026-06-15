@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
-  Shield,
   AlertTriangle,
   Activity,
   CheckCircle2,
@@ -85,9 +85,7 @@ export function InstitutionSidebar({ role, onRoleChange }: InstitutionSidebarPro
     <div className="flex h-full flex-col bg-teal-800 text-white">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-teal-600">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-400">
-          <Shield className="h-5 w-5 text-white" />
-        </div>
+        <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={40} height={40} className="shrink-0" />
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-bold truncate">MédiHelm</h2>
           <p className="text-xs text-teal-200 truncate">Portail Institutionnel</p>
