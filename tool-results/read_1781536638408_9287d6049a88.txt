@@ -1,0 +1,1389 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { KpiCard } from '@/components/pro/kpi-card'
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     6→import { Button } from '@/components/ui/button'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Skeleton } from '@/components/ui/skeleton'
+    11→import { ScrollArea } from '@/components/ui/scroll-area'
+    12→import { Separator } from '@/components/ui/separator'
+    13→import {
+    14→  Dialog,
+    15→  DialogContent,
+    16→  DialogDescription,
+    17→  DialogFooter,
+    18→  DialogHeader,
+    19→  DialogTitle,
+    20→} from '@/components/ui/dialog'
+    21→import {
+    22→  Select,
+    23→  SelectContent,
+    24→  SelectItem,
+    25→  SelectTrigger,
+    26→  SelectValue,
+    27→} from '@/components/ui/select'
+    28→import {
+    29→  Table,
+    30→  TableBody,
+    31→  TableCell,
+    32→  TableHead,
+    33→  TableHeader,
+    34→  TableRow,
+    35→} from '@/components/ui/table'
+    36→import {
+    37→  Sheet,
+    38→  SheetContent,
+    39→  SheetHeader,
+    40→  SheetTitle,
+    41→} from '@/components/ui/sheet'
+    42→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    43→import { Checkbox } from '@/components/ui/checkbox'
+    44→import {
+    45→  Package,
+    46→  AlertTriangle,
+    47→  Clock,
+    48→  XCircle,
+    49→  Plus,
+    50→  Search,
+    51→  ChevronLeft,
+    52→  ChevronRight,
+    53→  ArrowUpDown,
+    54→  Eye,
+    55→  Pencil,
+    56→  Trash2,
+    57→  ArrowRightLeft,
+    58→  Filter,
+    59→  CheckCircle2,
+    60→  ToggleLeft,
+    61→  ToggleRight,
+    62→} from 'lucide-react'
+    63→import { useEffect, useState, useCallback, useMemo } from 'react'
+    64→import { toast } from 'sonner'
+    65→
+    66→// === Types ===
+    67→
+    68→interface Lot {
+    69→  id: string
+    70→  medicamentId: string
+    71→  pharmacieId: string
+    72→  numeroLot: string
+    73→  quantite: number
+    74→  quantiteInitiale: number
+    75→  prixAchat: number
+    76→  dateExpiration: string
+    77→  dateReception: string
+    78→  createdAt: string
+    79→}
+    80→
+    81→interface Medicament {
+    82→  id: string
+    83→  pharmacieId: string
+    84→  dci: string
+    85→  nomCommercial: string
+    86→  forme: string
+    87→  dosage: string
+    88→  prixPublic: number
+    89→  prixAvantRemise: number | null
+    90→  surOrdonnance: boolean
+    91→  estStupefiant: boolean
+    92→  stockMinimum: number
+    93→  stockSecurite: number
+    94→  codeBarres: string | null
+    95→  categorieAtc: string | null
+    96→  actif: boolean
+    97→  lots: Lot[]
+    98→  createdAt: string
+    99→  updatedAt: string
+   100→}
+   101→
+   102→interface AlerteStock {
+   103→  id: string
+   104→  pharmacieId: string
+   105→  medicamentId: string
+   106→  lotId: string | null
+   107→  type: 'RUPTURE' | 'SEUIL_MINIMUM' | 'PEREMPTION_PROCHE' | 'SURSTOCK'
+   108→  message: string
+   109→  traitee: boolean
+   110→  traiteePar: string | null
+   111→  traiteeLe: string | null
+   112→  createdAt: string
+   113→  medicament: { nomCommercial: string; dci: string }
+   114→}
+   115→
+   116→interface MedicamentsResponse {
+   117→  data: Medicament[]
+   118→  total: number
+   119→  page: number
+   120→  pageSize: number
+   121→  totalPages: number
+   122→}
+   123→
+   124→// === Helpers ===
+   125→
+   126→function formatFCFA(amount: number) {
+   127→  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+   128→}
+   129→
+   130→function formatDate(dateStr: string) {
+   131→  return new Date(dateStr).toLocaleDateString('fr-FR', {
+   132→    day: '2-digit',
+   133→    month: '2-digit',
+   134→    year: 'numeric',
+   135→  })
+   136→}
+   137→
+   138→function daysUntil(dateStr: string): number {
+   139→  const now = new Date()
+   140→  const target = new Date(dateStr)
+   141→  const diff = target.getTime() - now.getTime()
+   142→  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+   143→}
+   144→
+   145→function getStockTotal(medicament: Medicament): number {
+   146→  return medicament.lots.reduce((sum, lot) => sum + lot.quantite, 0)
+   147→}
+   148→
+   149→type StockStatus = 'OK' | 'ALERTE' | 'RUPTURE'
+   150→
+   151→function getStockStatus(medicament: Medicament): StockStatus {
+   152→  const total = getStockTotal(medicament)
+   153→  if (total === 0) return 'RUPTURE'
+   154→  if (total <= medicament.stockMinimum) return 'ALERTE'
+   155→  return 'OK'
+   156→}
+   157→
+   158→function getStatusBadge(status: StockStatus) {
+   159→  switch (status) {
+   160→    case 'OK':
+   161→      return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-xs">OK</Badge>
+   162→    case 'ALERTE':
+   163→      return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 text-xs">Alerte</Badge>
+   164→    case 'RUPTURE':
+   165→      return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0 text-xs">Rupture</Badge>
+   166→  }
+   167→}
+   168→
+   169→function getDaysRemainingBadge(days: number) {
+   170→  if (days <= 0) {
+   171→    return <Badge variant="destructive" className="text-xs">Expiré</Badge>
+   172→  }
+   173→  if (days < 30) {
+   174→    return <Badge variant="destructive" className="text-xs">{days}j</Badge>
+   175→  }
+   176→  if (days < 60) {
+   177→    return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-xs">{days}j</Badge>
+   178→  }
+   179→  if (days <= 90) {
+   180→    return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 text-xs">{days}j</Badge>
+   181→  }
+   182→  return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0 text-xs">{days}j</Badge>
+   183→}
+   184→
+   185→function getAlertTypeBadge(type: string) {
+   186→  switch (type) {
+   187→    case 'RUPTURE':
+   188→      return <Badge variant="destructive" className="text-xs">Rupture</Badge>
+   189→    case 'SEUIL_MINIMUM':
+   190→      return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 text-xs">Seuil min.</Badge>
+   191→    case 'PEREMPTION_PROCHE':
+   192→      return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0 text-xs">Péremption</Badge>
+   193→    case 'SURSTOCK':
+   194→      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 text-xs">Surstock</Badge>
+   195→    default:
+   196→      return <Badge variant="outline" className="text-xs">{type}</Badge>
+   197→  }
+   198→}
+   199→
+   200→const FORMES_GALENIQUES = [
+   201→  'COMPRIME', 'GELULE', 'SIROP', 'INJECTION', 'POMMADE',
+   202→  'GOUTTES', 'SUPPOSITOIRE', 'INHALATEUR', 'SOLUTION', 'POUDRE', 'AUTRE'
+   203→]
+   204→
+   205→const FORMES_LABELS: Record<string, string> = {
+   206→  COMPRIME: 'Comprimé',
+   207→  GELULE: 'Gélule',
+   208→  SIROP: 'Sirop',
+   209→  INJECTION: 'Injection',
+   210→  POMMADE: 'Pommade',
+   211→  GOUTTES: 'Gouttes',
+   212→  SUPPOSITOIRE: 'Suppositoire',
+   213→  INHALATEUR: 'Inhalateur',
+   214→  SOLUTION: 'Solution',
+   215→  POUDRE: 'Poudre',
+   216→  AUTRE: 'Autre',
+   217→}
+   218→
+   219→const CATEGORIES_ATC = ['A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V']
+   220→
+   221→// === Main Component ===
+   222→
+   223→export default function StockPage() {
+   224→  const { pharmacie, user } = useAuth()
+   225→  const pharmacieId = pharmacie?.id
+   226→
+   227→  // Data state
+   228→  const [medicaments, setMedicaments] = useState<Medicament[]>([])
+   229→  const [totalMedicaments, setTotalMedicaments] = useState(0)
+   230→  const [alertes, setAlertes] = useState<AlerteStock[]>([])
+   231→  const [loading, setLoading] = useState(true)
+   232→  const [alertesLoading, setAlertesLoading] = useState(true)
+   233→
+   234→  // Table state
+   235→  const [page, setPage] = useState(1)
+   236→  const [pageSize] = useState(20)
+   237→  const [totalPages, setTotalPages] = useState(1)
+   238→  const [search, setSearch] = useState('')
+   239→  const [formeFilter, setFormeFilter] = useState('all')
+   240→  const [sortBy, setSortBy] = useState('nomCommercial')
+   241→  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+   242→
+   243→  // Detail/Dialog state
+   244→  const [selectedMedicament, setSelectedMedicament] = useState<Medicament | null>(null)
+   245→  const [detailOpen, setDetailOpen] = useState(false)
+   246→  const [addMedicamentOpen, setAddMedicamentOpen] = useState(false)
+   247→  const [addLotOpen, setAddLotOpen] = useState(false)
+   248→  const [mouvementOpen, setMouvementOpen] = useState(false)
+   249→  const [mouvementMedicament, setMouvementMedicament] = useState<Medicament | null>(null)
+   250→
+   251→  // Form state
+   252→  const [medicamentForm, setMedicamentForm] = useState({
+   253→    dci: '',
+   254→    nomCommercial: '',
+   255→    forme: 'COMPRIME',
+   256→    dosage: '',
+   257→    prixPublic: '',
+   258→    prixAvantRemise: '',
+   259→    surOrdonnance: false,
+   260→    estStupefiant: false,
+   261→    stockMinimum: '5',
+   262→    stockSecurite: '10',
+   263→    codeBarres: '',
+   264→    categorieAtc: '',
+   265→  })
+   266→  const [lotForm, setLotForm] = useState({
+   267→    medicamentId: '',
+   268→    numeroLot: '',
+   269→    quantite: '',
+   270→    quantiteInitiale: '',
+   271→    prixAchat: '',
+   272→    dateExpiration: '',
+   273→  })
+   274→  const [mouvementForm, setMouvementForm] = useState({
+   275→    medicamentId: '',
+   276→    lotId: '',
+   277→    type: 'ENTREE' as string,
+   278→    quantite: '',
+   279→    prixUnitaire: '',
+   280→    motif: '',
+   281→    reference: '',
+   282→  })
+   283→
+   284→  // Fetch medicaments
+   285→  const fetchMedicaments = useCallback(async () => {
+   286→    if (!pharmacieId) return
+   287→    try {
+   288→      const params = new URLSearchParams({
+   289→        pharmacieId,
+   290→        page: page.toString(),
+   291→        pageSize: pageSize.toString(),
+   292→        sortBy,
+   293→        sortOrder,
+   294→      })
+   295→      if (search) params.set('search', search)
+   296→      if (formeFilter && formeFilter !== 'all') params.set('forme', formeFilter)
+   297→
+   298→      const res = await fetch(`/api/medicaments?${params}`)
+   299→      if (res.ok) {
+   300→        const json: MedicamentsResponse = await res.json()
+   301→        setMedicaments(json.data || [])
+   302→        setTotalMedicaments(json.total || 0)
+   303→        setTotalPages(json.totalPages || 1)
+   304→      }
+   305→    } catch {
+   306→      toast.error('Erreur lors du chargement des médicaments')
+   307→    } finally {
+   308→      setLoading(false)
+   309→    }
+   310→  }, [pharmacieId, page, pageSize, sortBy, sortOrder, search, formeFilter])
+   311→
+   312→  // Fetch alertes
+   313→  const fetchAlertes = useCallback(async () => {
+   314→    if (!pharmacieId) return
+   315→    try {
+   316→      const res = await fetch(`/api/stocks/alertes?pharmacieId=${pharmacieId}`)
+   317→      if (res.ok) {
+   318→        const data = await res.json()
+   319→        setAlertes(Array.isArray(data) ? data : [])
+   320→      }
+   321→    } catch {
+   322→      // silent
+   323→    } finally {
+   324→      setAlertesLoading(false)
+   325→    }
+   326→  }, [pharmacieId])
+   327→
+   328→  useEffect(() => {
+   329→    fetchMedicaments()
+   330→  }, [fetchMedicaments])
+   331→
+   332→  useEffect(() => {
+   333→    fetchAlertes()
+   334→  }, [fetchAlertes])
+   335→
+   336→  // Reset page when search/filter changes
+   337→  useEffect(() => {
+   338→    setPage(1)
+   339→  }, [search, formeFilter])
+   340→
+   341→  // Computed stats
+   342→  const stats = useMemo(() => {
+   343→    const allMeds = medicaments
+   344→    const totalProducts = totalMedicaments
+   345→    const stockAlerts = alertes.filter(a => !a.traitee && (a.type === 'SEUIL_MINIMUM' || a.type === 'SURSTOCK')).length
+   346→    const expiringSoon = alertes.filter(a => !a.traitee && a.type === 'PEREMPTION_PROCHE').length
+   347→    const outOfStock = alertes.filter(a => !a.traitee && a.type === 'RUPTURE').length
+   348→
+   349→    // Also compute from loaded data for more accuracy
+   350→    const outOfStockFromData = allMeds.filter(m => getStockStatus(m) === 'RUPTURE').length
+   351→    const alertFromData = allMeds.filter(m => getStockStatus(m) === 'ALERTE').length
+   352→
+   353→    return {
+   354→      totalProducts,
+   355→      stockAlerts: Math.max(stockAlerts, alertFromData),
+   356→      expiringSoon,
+   357→      outOfStock: Math.max(outOfStock, outOfStockFromData),
+   358→    }
+   359→  }, [medicaments, alertes, totalMedicaments])
+   360→
+   361→  // Sort handler
+   362→  function handleSort(column: string) {
+   363→    if (sortBy === column) {
+   364→      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+   365→    } else {
+   366→      setSortBy(column)
+   367→      setSortOrder('asc')
+   368→    }
+   369→  }
+   370→
+   371→  // Add medicament
+   372→  async function handleAddMedicament() {
+   373→    if (!pharmacieId) return
+   374→    try {
+   375→      const body: Record<string, unknown> = {
+   376→        pharmacieId,
+   377→        dci: medicamentForm.dci,
+   378→        nomCommercial: medicamentForm.nomCommercial,
+   379→        forme: medicamentForm.forme,
+   380→        dosage: medicamentForm.dosage,
+   381→        prixPublic: parseFloat(medicamentForm.prixPublic) || 0,
+   382→        surOrdonnance: medicamentForm.surOrdonnance,
+   383→        estStupefiant: medicamentForm.estStupefiant,
+   384→        stockMinimum: parseInt(medicamentForm.stockMinimum) || 5,
+   385→        stockSecurite: parseInt(medicamentForm.stockSecurite) || 10,
+   386→        actif: true,
+   387→      }
+   388→      if (medicamentForm.prixAvantRemise) body.prixAvantRemise = parseFloat(medicamentForm.prixAvantRemise)
+   389→      if (medicamentForm.codeBarres) body.codeBarres = medicamentForm.codeBarres
+   390→      if (medicamentForm.categorieAtc) body.categorieAtc = medicamentForm.categorieAtc
+   391→
+   392→      const res = await fetch('/api/medicaments', {
+   393→        method: 'POST',
+   394→        headers: { 'Content-Type': 'application/json' },
+   395→        body: JSON.stringify(body),
+   396→      })
+   397→      if (res.ok) {
+   398→        toast.success('Médicament ajouté avec succès')
+   399→        setAddMedicamentOpen(false)
+   400→        resetMedicamentForm()
+   401→        fetchMedicaments()
+   402→      } else {
+   403→        const err = await res.json()
+   404→        toast.error(err.error || 'Erreur lors de l\'ajout')
+   405→      }
+   406→    } catch {
+   407→      toast.error('Erreur lors de l\'ajout du médicament')
+   408→    }
+   409→  }
+   410→
+   411→  // Add lot
+   412→  async function handleAddLot() {
+   413→    if (!pharmacieId) return
+   414→    try {
+   415→      const res = await fetch('/api/stocks/lots', {
+   416→        method: 'POST',
+   417→        headers: { 'Content-Type': 'application/json' },
+   418→        body: JSON.stringify({
+   419→          pharmacieId,
+   420→          medicamentId: lotForm.medicamentId,
+   421→          numeroLot: lotForm.numeroLot,
+   422→          quantite: parseInt(lotForm.quantite) || 0,
+   423→          quantiteInitiale: parseInt(lotForm.quantiteInitiale) || 0,
+   424→          prixAchat: parseFloat(lotForm.prixAchat) || 0,
+   425→          dateExpiration: lotForm.dateExpiration,
+   426→        }),
+   427→      })
+   428→      if (res.ok) {
+   429→        toast.success('Lot ajouté avec succès')
+   430→        setAddLotOpen(false)
+   431→        resetLotForm()
+   432→        fetchMedicaments()
+   433→        if (selectedMedicament?.id === lotForm.medicamentId) {
+   434→          // Refresh selected medicament lots
+   435→          const medRes = await fetch(`/api/medicaments?pharmacieId=${pharmacieId}&search=${selectedMedicament.nomCommercial}`)
+   436→          if (medRes.ok) {
+   437→            const json: MedicamentsResponse = await medRes.json()
+   438→            const updated = json.data?.find((m: Medicament) => m.id === lotForm.medicamentId)
+   439→            if (updated) setSelectedMedicament(updated)
+   440→          }
+   441→        }
+   442→      } else {
+   443→        const err = await res.json()
+   444→        toast.error(err.error || 'Erreur lors de l\'ajout du lot')
+   445→      }
+   446→    } catch {
+   447→      toast.error('Erreur lors de l\'ajout du lot')
+   448→    }
+   449→  }
+   450→
+   451→  // Add mouvement
+   452→  async function handleAddMouvement() {
+   453→    if (!pharmacieId) return
+   454→    try {
+   455→      const body: Record<string, unknown> = {
+   456→        pharmacieId,
+   457→        medicamentId: mouvementForm.medicamentId,
+   458→        type: mouvementForm.type,
+   459→        quantite: parseInt(mouvementForm.quantite) || 0,
+   460→      }
+   461→      if (mouvementForm.lotId) body.lotId = mouvementForm.lotId
+   462→      if (mouvementForm.prixUnitaire) body.prixUnitaire = parseFloat(mouvementForm.prixUnitaire)
+   463→      if (mouvementForm.motif) body.motif = mouvementForm.motif
+   464→      if (mouvementForm.reference) body.reference = mouvementForm.reference
+   465→      if (user?.id) body.utilisateurId = user.id
+   466→
+   467→      const res = await fetch('/api/stocks/mouvements', {
+   468→        method: 'POST',
+   469→        headers: { 'Content-Type': 'application/json' },
+   470→        body: JSON.stringify(body),
+   471→      })
+   472→      if (res.ok) {
+   473→        toast.success('Mouvement enregistré avec succès')
+   474→        setMouvementOpen(false)
+   475→        resetMouvementForm()
+   476→        fetchMedicaments()
+   477→        fetchAlertes()
+   478→      } else {
+   479→        const err = await res.json()
+   480→        toast.error(err.error || 'Erreur lors de l\'enregistrement')
+   481→      }
+   482→    } catch {
+   483→      toast.error('Erreur lors de l\'enregistrement du mouvement')
+   484→    }
+   485→  }
+   486→
+   487→  // Mark alerte as resolved
+   488→  async function handleResolveAlerte(id: string) {
+   489→    try {
+   490→      const res = await fetch('/api/stocks/alertes', {
+   491→        method: 'PATCH',
+   492→        headers: { 'Content-Type': 'application/json' },
+   493→        body: JSON.stringify({ id, traiteePar: user?.id }),
+   494→      })
+   495→      if (res.ok) {
+   496→        toast.success('Alerte marquée comme traitée')
+   497→        fetchAlertes()
+   498→      } else {
+   499→        toast.error('Erreur lors du traitement de l\'alerte')
+   500→      }
+   501→    } catch {
+   502→      toast.error('Erreur lors du traitement de l\'alerte')
+   503→    }
+   504→  }
+   505→
+   506→  // Form resetters
+   507→  function resetMedicamentForm() {
+   508→    setMedicamentForm({
+   509→      dci: '', nomCommercial: '', forme: 'COMPRIME', dosage: '',
+   510→      prixPublic: '', prixAvantRemise: '', surOrdonnance: false,
+   511→      estStupefiant: false, stockMinimum: '5', stockSecurite: '10',
+   512→      codeBarres: '', categorieAtc: '',
+   513→    })
+   514→  }
+   515→
+   516→  function resetLotForm() {
+   517→    setLotForm({ medicamentId: '', numeroLot: '', quantite: '', quantiteInitiale: '', prixAchat: '', dateExpiration: '' })
+   518→  }
+   519→
+   520→  function resetMouvementForm() {
+   521→    setMouvementForm({ medicamentId: '', lotId: '', type: 'ENTREE', quantite: '', prixUnitaire: '', motif: '', reference: '' })
+   522→  }
+   523→
+   524→  // Open add lot for specific medicament
+   525→  function openAddLot(med: Medicament) {
+   526→    setLotForm(prev => ({ ...prev, medicamentId: med.id }))
+   527→    setAddLotOpen(true)
+   528→  }
+   529→
+   530→  // Open mouvement for specific medicament
+   531→  function openMouvement(med: Medicament) {
+   532→    setMouvementMedicament(med)
+   533→    setMouvementForm(prev => ({ ...prev, medicamentId: med.id, lotId: '' }))
+   534→    setMouvementOpen(true)
+   535→  }
+   536→
+   537→  // Active alertes (not treated)
+   538→  const activeAlertes = alertes.filter(a => !a.traitee)
+   539→
+   540→  if (loading) {
+   541→    return (
+   542→      <div className="space-y-6">
+   543→        <div>
+   544→          <Skeleton className="h-8 w-48 mb-2" />
+   545→          <Skeleton className="h-4 w-64" />
+   546→        </div>
+   547→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   548→          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
+   549→        </div>
+   550→        <Skeleton className="h-96" />
+   551→      </div>
+   552→    )
+   553→  }
+   554→
+   555→  return (
+   556→    <div className="space-y-6">
+   557→      {/* Header */}
+   558→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   559→        <div>
+   560→          <h1 className="text-2xl font-bold tracking-tight">Gestion du Stock</h1>
+   561→          <p className="text-sm text-muted-foreground">
+   562→            Suivez vos médicaments, lots et alertes de stock
+   563→          </p>
+   564→        </div>
+   565→        <div className="flex gap-2">
+   566→          <Button variant="outline" size="sm" onClick={() => openAddLot(selectedMedicament || medicaments[0])} disabled={medicaments.length === 0}>
+   567→            <Plus className="w-4 h-4 mr-1" /> Lot
+   568→          </Button>
+   569→          <Button variant="outline" size="sm" onClick={() => { if (medicaments.length > 0) openMouvement(medicaments[0]) }} disabled={medicaments.length === 0}>
+   570→            <ArrowRightLeft className="w-4 h-4 mr-1" /> Mouvement
+   571→          </Button>
+   572→          <Button size="sm" className="bg-[#1D9E75] hover:bg-[#1D9E75]/90" onClick={() => { resetMedicamentForm(); setAddMedicamentOpen(true) }}>
+   573→            <Plus className="w-4 h-4 mr-1" /> Médicament
+   574→          </Button>
+   575→        </div>
+   576→      </div>
+   577→
+   578→      {/* KPI Cards */}
+   579→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   580→        <KpiCard
+   581→          title="Total produits"
+   582→          value={stats.totalProducts}
+   583→          icon={Package}
+   584→          variant="default"
+   585→          subtitle="médicaments en catalogue"
+   586→        />
+   587→        <KpiCard
+   588→          title="Alertes stock"
+   589→          value={stats.stockAlerts}
+   590→          icon={AlertTriangle}
+   591→          variant={stats.stockAlerts > 0 ? 'warning' : 'default'}
+   592→          subtitle="sous seuil minimum"
+   593→        />
+   594→        <KpiCard
+   595→          title="Péremption proche"
+   596→          value={stats.expiringSoon}
+   597→          icon={Clock}
+   598→          variant={stats.expiringSoon > 0 ? 'warning' : 'default'}
+   599→          subtitle="expirent sous 90 jours"
+   600→        />
+   601→        <KpiCard
+   602→          title="Rupture de stock"
+   603→          value={stats.outOfStock}
+   604→          icon={XCircle}
+   605→          variant={stats.outOfStock > 0 ? 'danger' : 'default'}
+   606→          subtitle="produits indisponibles"
+   607→        />
+   608→      </div>
+   609→
+   610→      {/* Main content tabs */}
+   611→      <Tabs defaultValue="stock" className="space-y-4">
+   612→        <TabsList>
+   613→          <TabsTrigger value="stock">Inventaire</TabsTrigger>
+   614→          <TabsTrigger value="alertes">
+   615→            Alertes {activeAlertes.length > 0 && (
+   616→              <Badge variant="destructive" className="ml-1.5 text-[10px] h-5 min-w-[20px] flex items-center justify-center">
+   617→                {activeAlertes.length}
+   618→              </Badge>
+   619→            )}
+   620→          </TabsTrigger>
+   621→        </TabsList>
+   622→
+   623→        {/* === INVENTAIRE TAB === */}
+   624→        <TabsContent value="stock" className="space-y-4">
+   625→          {/* Search & Filters */}
+   626→          <Card>
+   627→            <CardContent className="p-4">
+   628→              <div className="flex flex-col sm:flex-row gap-3">
+   629→                <div className="relative flex-1">
+   630→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   631→                  <Input
+   632→                    placeholder="Rechercher par nom, DCI, dosage..."
+   633→                    value={search}
+   634→                    onChange={(e) => setSearch(e.target.value)}
+   635→                    className="pl-9"
+   636→                  />
+   637→                </div>
+   638→                <Select value={formeFilter} onValueChange={setFormeFilter}>
+   639→                  <SelectTrigger className="w-full sm:w-48">
+   640→                    <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+   641→                    <SelectValue placeholder="Forme" />
+   642→                  </SelectTrigger>
+   643→                  <SelectContent>
+   644→                    <SelectItem value="all">Toutes les formes</SelectItem>
+   645→                    {FORMES_GALENIQUES.map(f => (
+   646→                      <SelectItem key={f} value={f}>{FORMES_LABELS[f]}</SelectItem>
+   647→                    ))}
+   648→                  </SelectContent>
+   649→                </Select>
+   650→              </div>
+   651→            </CardContent>
+   652→          </Card>
+   653→
+   654→          {/* Medication Table */}
+   655→          <Card>
+   656→            <CardContent className="p-0">
+   657→              <div className="overflow-x-auto">
+   658→                <Table>
+   659→                  <TableHeader>
+   660→                    <TableRow>
+   661→                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort('nomCommercial')}>
+   662→                        <div className="flex items-center gap-1">
+   663→                          Nom commercial
+   664→                          <ArrowUpDown className="h-3 w-3" />
+   665→                        </div>
+   666→                      </TableHead>
+   667→                      <TableHead className="cursor-pointer select-none hidden md:table-cell" onClick={() => handleSort('dci')}>
+   668→                        <div className="flex items-center gap-1">
+   669→                          DCI
+   670→                          <ArrowUpDown className="h-3 w-3" />
+   671→                        </div>
+   672→                      </TableHead>
+   673→                      <TableHead className="hidden lg:table-cell">Forme</TableHead>
+   674→                      <TableHead className="hidden lg:table-cell">Dosage</TableHead>
+   675→                      <TableHead className="cursor-pointer select-none text-right" onClick={() => handleSort('prixPublic')}>
+   676→                        <div className="flex items-center justify-end gap-1">
+   677→                          Prix public
+   678→                          <ArrowUpDown className="h-3 w-3" />
+   679→                        </div>
+   680→                      </TableHead>
+   681→                      <TableHead className="text-center">Stock</TableHead>
+   682→                      <TableHead className="text-center hidden sm:table-cell">Min.</TableHead>
+   683→                      <TableHead className="text-center">Statut</TableHead>
+   684→                      <TableHead className="text-right">Actions</TableHead>
+   685→                    </TableRow>
+   686→                  </TableHeader>
+   687→                  <TableBody>
+   688→                    {medicaments.length === 0 ? (
+   689→                      <TableRow>
+   690→                        <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+   691→                          <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
+   692→                          <p>Aucun médicament trouvé</p>
+   693→                          <p className="text-xs mt-1">Ajoutez un médicament ou modifiez vos filtres</p>
+   694→                        </TableCell>
+   695→                      </TableRow>
+   696→                    ) : (
+   697→                      medicaments.map((med) => {
+   698→                        const stockTotal = getStockTotal(med)
+   699→                        const status = getStockStatus(med)
+   700→                        return (
+   701→                          <TableRow
+   702→                            key={med.id}
+   703→                            className="cursor-pointer hover:bg-muted/50"
+   704→                            onClick={() => { setSelectedMedicament(med); setDetailOpen(true) }}
+   705→                          >
+   706→                            <TableCell className="font-medium">
+   707→                              <div>
+   708→                                <span>{med.nomCommercial}</span>
+   709→                                {med.estStupefiant && (
+   710→                                  <Badge variant="outline" className="ml-1.5 text-[9px] text-red-600 border-red-200 bg-red-50">Stup.</Badge>
+   711→                                )}
+   712→                                {med.surOrdonnance && (
+   713→                                  <Badge variant="outline" className="ml-1 text-[9px] text-blue-600 border-blue-200 bg-blue-50">R.O.</Badge>
+   714→                                )}
+   715→                              </div>
+   716→                              <span className="text-xs text-muted-foreground md:hidden">{med.dci}</span>
+   717→                            </TableCell>
+   718→                            <TableCell className="hidden md:table-cell text-sm text-muted-foreground">{med.dci}</TableCell>
+   719→                            <TableCell className="hidden lg:table-cell text-sm">{FORMES_LABELS[med.forme] || med.forme}</TableCell>
+   720→                            <TableCell className="hidden lg:table-cell text-sm">{med.dosage}</TableCell>
+   721→                            <TableCell className="text-right text-sm">{formatFCFA(med.prixPublic)}</TableCell>
+   722→                            <TableCell className="text-center">
+   723→                              <span className={`text-sm font-semibold ${
+   724→                                status === 'RUPTURE' ? 'text-red-600' :
+   725→                                status === 'ALERTE' ? 'text-amber-600' :
+   726→                                'text-foreground'
+   727→                              }`}>
+   728→                                {stockTotal}
+   729→                              </span>
+   730→                            </TableCell>
+   731→                            <TableCell className="text-center hidden sm:table-cell text-sm text-muted-foreground">{med.stockMinimum}</TableCell>
+   732→                            <TableCell className="text-center">{getStatusBadge(status)}</TableCell>
+   733→                            <TableCell className="text-right">
+   734→                              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   735→                                <Button
+   736→                                  variant="ghost"
+   737→                                  size="icon"
+   738→                                  className="h-7 w-7"
+   739→                                  onClick={() => { setSelectedMedicament(med); setDetailOpen(true) }}
+   740→                                  title="Voir les lots"
+   741→                                >
+   742→                                  <Eye className="h-3.5 w-3.5" />
+   743→                                </Button>
+   744→                                <Button
+   745→                                  variant="ghost"
+   746→                                  size="icon"
+   747→                                  className="h-7 w-7"
+   748→                                  onClick={() => openMouvement(med)}
+   749→                                  title="Mouvement de stock"
+   750→                                >
+   751→                                  <ArrowRightLeft className="h-3.5 w-3.5" />
+   752→                                </Button>
+   753→                                <Button
+   754→                                  variant="ghost"
+   755→                                  size="icon"
+   756→                                  className="h-7 w-7"
+   757→                                  onClick={() => openAddLot(med)}
+   758→                                  title="Ajouter un lot"
+   759→                                >
+   760→                                  <Plus className="h-3.5 w-3.5" />
+   761→                                </Button>
+   762→                              </div>
+   763→                            </TableCell>
+   764→                          </TableRow>
+   765→                        )
+   766→                      })
+   767→                    )}
+   768→                  </TableBody>
+   769→                </Table>
+   770→              </div>
+   771→
+   772→              {/* Pagination */}
+   773→              {totalPages > 1 && (
+   774→                <div className="flex items-center justify-between px-4 py-3 border-t">
+   775→                  <span className="text-sm text-muted-foreground">
+   776→                    {totalMedicaments} produit{totalMedicaments > 1 ? 's' : ''} • Page {page}/{totalPages}
+   777→                  </span>
+   778→                  <div className="flex items-center gap-2">
+   779→                    <Button
+   780→                      variant="outline"
+   781→                      size="sm"
+   782→                      onClick={() => setPage(p => Math.max(1, p - 1))}
+   783→                      disabled={page === 1}
+   784→                    >
+   785→                      <ChevronLeft className="h-4 w-4" />
+   786→                    </Button>
+   787→                    <Button
+   788→                      variant="outline"
+   789→                      size="sm"
+   790→                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+   791→                      disabled={page === totalPages}
+   792→                    >
+   793→                      <ChevronRight className="h-4 w-4" />
+   794→                    </Button>
+   795→                  </div>
+   796→                </div>
+   797→              )}
+   798→            </CardContent>
+   799→          </Card>
+   800→        </TabsContent>
+   801→
+   802→        {/* === ALERTES TAB === */}
+   803→        <TabsContent value="alertes" className="space-y-4">
+   804→          <Card>
+   805→            <CardHeader className="pb-2">
+   806→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   807→                <AlertTriangle className="w-4 h-4 text-amber-500" />
+   808→                Alertes de stock actives
+   809→              </CardTitle>
+   810→            </CardHeader>
+   811→            <CardContent>
+   812→              {alertesLoading ? (
+   813→                <div className="space-y-3">
+   814→                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}
+   815→                </div>
+   816→              ) : activeAlertes.length === 0 ? (
+   817→                <div className="text-center py-12 text-muted-foreground">
+   818→                  <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
+   819→                  <p>Aucune alerte active</p>
+   820→                  <p className="text-xs mt-1">Tout semble en ordre ✅</p>
+   821→                </div>
+   822→              ) : (
+   823→                <ScrollArea className="max-h-96">
+   824→                  <div className="space-y-2">
+   825→                    {activeAlertes.map((alerte) => (
+   826→                      <div
+   827→                        key={alerte.id}
+   828→                        className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+   829→                      >
+   830→                        <div className="flex items-start gap-3">
+   831→                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
+   832→                            alerte.type === 'RUPTURE' ? 'bg-red-100 text-red-600' :
+   833→                            alerte.type === 'PEREMPTION_PROCHE' ? 'bg-orange-100 text-orange-600' :
+   834→                            alerte.type === 'SEUIL_MINIMUM' ? 'bg-amber-100 text-amber-600' :
+   835→                            'bg-blue-100 text-blue-600'
+   836→                          }`}>
+   837→                            {alerte.type === 'RUPTURE' ? <XCircle className="w-4 h-4" /> :
+   838→                             alerte.type === 'PEREMPTION_PROCHE' ? <Clock className="w-4 h-4" /> :
+   839→                             <AlertTriangle className="w-4 h-4" />}
+   840→                          </div>
+   841→                          <div className="min-w-0">
+   842→                            <div className="flex items-center gap-2 flex-wrap">
+   843→                              <span className="text-sm font-medium">{alerte.medicament?.nomCommercial}</span>
+   844→                              {getAlertTypeBadge(alerte.type)}
+   845→                            </div>
+   846→                            <p className="text-xs text-muted-foreground mt-0.5">{alerte.message}</p>
+   847→                            <span className="text-[10px] text-muted-foreground">
+   848→                              {formatDate(alerte.createdAt)}
+   849→                            </span>
+   850→                          </div>
+   851→                        </div>
+   852→                        <Button
+   853→                          variant="ghost"
+   854→                          size="sm"
+   855→                          className="shrink-0 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+   856→                          onClick={() => handleResolveAlerte(alerte.id)}
+   857→                        >
+   858→                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+   859→                          Traiter
+   860→                        </Button>
+   861→                      </div>
+   862→                    ))}
+   863→                  </div>
+   864→                </ScrollArea>
+   865→              )}
+   866→            </CardContent>
+   867→          </Card>
+   868→        </TabsContent>
+   869→      </Tabs>
+   870→
+   871→      {/* === MEDICAMENT DETAIL SHEET (Lots) === */}
+   872→      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+   873→        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+   874→          <SheetHeader>
+   875→            <SheetTitle className="flex items-center gap-2">
+   876→              <Package className="w-5 h-5 text-[#1D9E75]" />
+   877→              {selectedMedicament?.nomCommercial}
+   878→            </SheetTitle>
+   879→          </SheetHeader>
+   880→          {selectedMedicament && (
+   881→            <div className="mt-6 space-y-6">
+   882→              {/* Medication info */}
+   883→              <div className="grid grid-cols-2 gap-3">
+   884→                <div>
+   885→                  <span className="text-xs text-muted-foreground">DCI</span>
+   886→                  <p className="text-sm font-medium">{selectedMedicament.dci}</p>
+   887→                </div>
+   888→                <div>
+   889→                  <span className="text-xs text-muted-foreground">Forme</span>
+   890→                  <p className="text-sm font-medium">{FORMES_LABELS[selectedMedicament.forme] || selectedMedicament.forme}</p>
+   891→                </div>
+   892→                <div>
+   893→                  <span className="text-xs text-muted-foreground">Dosage</span>
+   894→                  <p className="text-sm font-medium">{selectedMedicament.dosage}</p>
+   895→                </div>
+   896→                <div>
+   897→                  <span className="text-xs text-muted-foreground">Prix public</span>
+   898→                  <p className="text-sm font-medium">{formatFCFA(selectedMedicament.prixPublic)}</p>
+   899→                </div>
+   900→                <div>
+   901→                  <span className="text-xs text-muted-foreground">Stock total</span>
+   902→                  <p className={`text-sm font-bold ${getStockStatus(selectedMedicament) === 'RUPTURE' ? 'text-red-600' : getStockStatus(selectedMedicament) === 'ALERTE' ? 'text-amber-600' : 'text-emerald-600'}`}>
+   903→                    {getStockTotal(selectedMedicament)} unités
+   904→                  </p>
+   905→                </div>
+   906→                <div>
+   907→                  <span className="text-xs text-muted-foreground">Seuil minimum</span>
+   908→                  <p className="text-sm font-medium">{selectedMedicament.stockMinimum}</p>
+   909→                </div>
+   910→                <div>
+   911→                  <span className="text-xs text-muted-foreground">Seuil sécurité</span>
+   912→                  <p className="text-sm font-medium">{selectedMedicament.stockSecurite}</p>
+   913→                </div>
+   914→                <div>
+   915→                  <span className="text-xs text-muted-foreground">Statut</span>
+   916→                  <div className="mt-0.5">{getStatusBadge(getStockStatus(selectedMedicament))}</div>
+   917→                </div>
+   918→              </div>
+   919→
+   920→              <Separator />
+   921→
+   922→              {/* Lots */}
+   923→              <div>
+   924→                <div className="flex items-center justify-between mb-3">
+   925→                  <h3 className="text-sm font-semibold">Lots ({selectedMedicament.lots.length})</h3>
+   926→                  <Button
+   927→                    size="sm"
+   928→                    variant="outline"
+   929→                    className="text-xs"
+   930→                    onClick={() => openAddLot(selectedMedicament)}
+   931→                  >
+   932→                    <Plus className="w-3 h-3 mr-1" /> Ajouter un lot
+   933→                  </Button>
+   934→                </div>
+   935→
+   936→                {selectedMedicament.lots.length === 0 ? (
+   937→                  <div className="text-center py-8 text-muted-foreground border rounded-lg">
+   938→                    <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+   939→                    <p className="text-sm">Aucun lot enregistré</p>
+   940→                  </div>
+   941→                ) : (
+   942→                  <ScrollArea className="max-h-96">
+   943→                    <div className="space-y-2">
+   944→                      {selectedMedicament.lots.map((lot) => {
+   945→                        const days = daysUntil(lot.dateExpiration)
+   946→                        return (
+   947→                          <div
+   948→                            key={lot.id}
+   949→                            className="p-3 rounded-lg border bg-card space-y-2"
+   950→                          >
+   951→                            <div className="flex items-center justify-between">
+   952→                              <span className="text-sm font-semibold">Lot {lot.numeroLot}</span>
+   953→                              {getDaysRemainingBadge(days)}
+   954→                            </div>
+   955→                            <div className="grid grid-cols-2 gap-2 text-xs">
+   956→                              <div>
+   957→                                <span className="text-muted-foreground">Quantité restante</span>
+   958→                                <p className={`font-medium ${lot.quantite === 0 ? 'text-red-600' : ''}`}>
+   959→                                  {lot.quantite} / {lot.quantiteInitiale}
+   960→                                </p>
+   961→                              </div>
+   962→                              <div>
+   963→                                <span className="text-muted-foreground">Prix d&apos;achat</span>
+   964→                                <p className="font-medium">{formatFCFA(lot.prixAchat)}</p>
+   965→                              </div>
+   966→                              <div>
+   967→                                <span className="text-muted-foreground">Date expiration</span>
+   968→                                <p className="font-medium">{formatDate(lot.dateExpiration)}</p>
+   969→                              </div>
+   970→                              <div>
+   971→                                <span className="text-muted-foreground">Date réception</span>
+   972→                                <p className="font-medium">{formatDate(lot.dateReception)}</p>
+   973→                              </div>
+   974→                            </div>
+   975→                            {/* Progress bar */}
+   976→                            <div className="w-full bg-muted rounded-full h-1.5">
+   977→                              <div
+   978→                                className={`h-1.5 rounded-full ${
+   979→                                  lot.quantite === 0 ? 'bg-red-400' :
+   980→                                  lot.quantite / lot.quantiteInitiale < 0.3 ? 'bg-amber-400' :
+   981→                                  'bg-emerald-400'
+   982→                                }`}
+   983→                                style={{ width: `${Math.min(100, (lot.quantite / lot.quantiteInitiale) * 100)}%` }}
+   984→                              />
+   985→                            </div>
+   986→                          </div>
+   987→                        )
+   988→                      })}
+   989→                    </div>
+   990→                  </ScrollArea>
+   991→                )}
+   992→              </div>
+   993→
+   994→              {/* Actions */}
+   995→              <div className="flex gap-2">
+   996→                <Button
+   997→                  className="flex-1 bg-[#1D9E75] hover:bg-[#1D9E75]/90"
+   998→                  size="sm"
+   999→                  onClick={() => { openMouvement(selectedMedicament); setDetailOpen(false) }}
+  1000→                >
+  1001→                  <ArrowRightLeft className="w-4 h-4 mr-1" /> Mouvement
+  1002→                </Button>
+  1003→                <Button
+  1004→                  variant="outline"
+  1005→                  size="sm"
+  1006→                  className="flex-1"
+  1007→                  onClick={() => { openAddLot(selectedMedicament); setDetailOpen(false) }}
+  1008→                >
+  1009→                  <Plus className="w-4 h-4 mr-1" /> Nouveau lot
+  1010→                </Button>
+  1011→              </div>
+  1012→            </div>
+  1013→          )}
+  1014→        </SheetContent>
+  1015→      </Sheet>
+  1016→
+  1017→      {/* === ADD MEDICAMENT DIALOG === */}
+  1018→      <Dialog open={addMedicamentOpen} onOpenChange={setAddMedicamentOpen}>
+  1019→        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+  1020→          <DialogHeader>
+  1021→            <DialogTitle>Ajouter un médicament</DialogTitle>
+  1022→            <DialogDescription>
+  1023→              Renseignez les informations du nouveau médicament
+  1024→            </DialogDescription>
+  1025→          </DialogHeader>
+  1026→          <div className="grid gap-4 py-4">
+  1027→            <div className="grid grid-cols-2 gap-4">
+  1028→              <div className="space-y-2">
+  1029→                <Label htmlFor="nomCommercial">Nom commercial *</Label>
+  1030→                <Input
+  1031→                  id="nomCommercial"
+  1032→                  value={medicamentForm.nomCommercial}
+  1033→                  onChange={(e) => setMedicamentForm(f => ({ ...f, nomCommercial: e.target.value }))}
+  1034→                  placeholder="Ex: Doliprane"
+  1035→                />
+  1036→              </div>
+  1037→              <div className="space-y-2">
+  1038→                <Label htmlFor="dci">DCI *</Label>
+  1039→                <Input
+  1040→                  id="dci"
+  1041→                  value={medicamentForm.dci}
+  1042→                  onChange={(e) => setMedicamentForm(f => ({ ...f, dci: e.target.value }))}
+  1043→                  placeholder="Ex: Paracétamol"
+  1044→                />
+  1045→              </div>
+  1046→            </div>
+  1047→            <div className="grid grid-cols-2 gap-4">
+  1048→              <div className="space-y-2">
+  1049→                <Label htmlFor="forme">Forme galénique *</Label>
+  1050→                <Select value={medicamentForm.forme} onValueChange={(v) => setMedicamentForm(f => ({ ...f, forme: v }))}>
+  1051→                  <SelectTrigger id="forme">
+  1052→                    <SelectValue />
+  1053→                  </SelectTrigger>
+  1054→                  <SelectContent>
+  1055→                    {FORMES_GALENIQUES.map(f => (
+  1056→                      <SelectItem key={f} value={f}>{FORMES_LABELS[f]}</SelectItem>
+  1057→                    ))}
+  1058→                  </SelectContent>
+  1059→                </Select>
+  1060→              </div>
+  1061→              <div className="space-y-2">
+  1062→                <Label htmlFor="dosage">Dosage *</Label>
+  1063→                <Input
+  1064→                  id="dosage"
+  1065→                  value={medicamentForm.dosage}
+  1066→                  onChange={(e) => setMedicamentForm(f => ({ ...f, dosage: e.target.value }))}
+  1067→                  placeholder="Ex: 500mg"
+  1068→                />
+  1069→              </div>
+  1070→            </div>
+  1071→            <div className="grid grid-cols-2 gap-4">
+  1072→              <div className="space-y-2">
+  1073→                <Label htmlFor="prixPublic">Prix public (FCFA) *</Label>
+  1074→                <Input
+  1075→                  id="prixPublic"
+  1076→                  type="number"
+  1077→                  value={medicamentForm.prixPublic}
+  1078→                  onChange={(e) => setMedicamentForm(f => ({ ...f, prixPublic: e.target.value }))}
+  1079→                  placeholder="0"
+  1080→                />
+  1081→              </div>
+  1082→              <div className="space-y-2">
+  1083→                <Label htmlFor="prixAvantRemise">Prix avant remise</Label>
+  1084→                <Input
+  1085→                  id="prixAvantRemise"
+  1086→                  type="number"
+  1087→                  value={medicamentForm.prixAvantRemise}
+  1088→                  onChange={(e) => setMedicamentForm(f => ({ ...f, prixAvantRemise: e.target.value }))}
+  1089→                  placeholder="Optionnel"
+  1090→                />
+  1091→              </div>
+  1092→            </div>
+  1093→            <div className="grid grid-cols-2 gap-4">
+  1094→              <div className="space-y-2">
+  1095→                <Label htmlFor="stockMinimum">Stock minimum</Label>
+  1096→                <Input
+  1097→                  id="stockMinimum"
+  1098→                  type="number"
+  1099→                  value={medicamentForm.stockMinimum}
+  1100→                  onChange={(e) => setMedicamentForm(f => ({ ...f, stockMinimum: e.target.value }))}
+  1101→                />
+  1102→              </div>
+  1103→              <div className="space-y-2">
+  1104→                <Label htmlFor="stockSecurite">Stock de sécurité</Label>
+  1105→                <Input
+  1106→                  id="stockSecurite"
+  1107→                  type="number"
+  1108→                  value={medicamentForm.stockSecurite}
+  1109→                  onChange={(e) => setMedicamentForm(f => ({ ...f, stockSecurite: e.target.value }))}
+  1110→                />
+  1111→              </div>
+  1112→            </div>
+  1113→            <div className="grid grid-cols-2 gap-4">
+  1114→              <div className="space-y-2">
+  1115→                <Label htmlFor="codeBarres">Code-barres</Label>
+  1116→                <Input
+  1117→                  id="codeBarres"
+  1118→                  value={medicamentForm.codeBarres}
+  1119→                  onChange={(e) => setMedicamentForm(f => ({ ...f, codeBarres: e.target.value }))}
+  1120→                  placeholder="Optionnel"
+  1121→                />
+  1122→              </div>
+  1123→              <div className="space-y-2">
+  1124→                <Label htmlFor="categorieAtc">Catégorie ATC</Label>
+  1125→                <Select value={medicamentForm.categorieAtc || '_none'} onValueChange={(v) => setMedicamentForm(f => ({ ...f, categorieAtc: v === '_none' ? '' : v }))}>
+  1126→                  <SelectTrigger id="categorieAtc">
+  1127→                    <SelectValue placeholder="Sélectionner" />
+  1128→                  </SelectTrigger>
+  1129→                  <SelectContent>
+  1130→                    <SelectItem value="_none">Aucune</SelectItem>
+  1131→                    {CATEGORIES_ATC.map(c => (
+  1132→                      <SelectItem key={c} value={c}>Catégorie {c}</SelectItem>
+  1133→                    ))}
+  1134→                  </SelectContent>
+  1135→                </Select>
+  1136→              </div>
+  1137→            </div>
+  1138→            <div className="flex gap-6">
+  1139→              <div className="flex items-center space-x-2">
+  1140→                <Checkbox
+  1141→                  id="surOrdonnance"
+  1142→                  checked={medicamentForm.surOrdonnance}
+  1143→                  onCheckedChange={(checked) => setMedicamentForm(f => ({ ...f, surOrdonnance: !!checked }))}
+  1144→                />
+  1145→                <Label htmlFor="surOrdonnance" className="text-sm font-normal">Sur ordonnance</Label>
+  1146→              </div>
+  1147→              <div className="flex items-center space-x-2">
+  1148→                <Checkbox
+  1149→                  id="estStupefiant"
+  1150→                  checked={medicamentForm.estStupefiant}
+  1151→                  onCheckedChange={(checked) => setMedicamentForm(f => ({ ...f, estStupefiant: !!checked }))}
+  1152→                />
+  1153→                <Label htmlFor="estStupefiant" className="text-sm font-normal">Stupéfiant</Label>
+  1154→              </div>
+  1155→            </div>
+  1156→          </div>
+  1157→          <DialogFooter>
+  1158→            <Button variant="outline" onClick={() => setAddMedicamentOpen(false)}>Annuler</Button>
+  1159→            <Button
+  1160→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90"
+  1161→              onClick={handleAddMedicament}
+  1162→              disabled={!medicamentForm.nomCommercial || !medicamentForm.dci || !medicamentForm.dosage || !medicamentForm.prixPublic}
+  1163→            >
+  1164→              Ajouter
+  1165→            </Button>
+  1166→          </DialogFooter>
+  1167→        </DialogContent>
+  1168→      </Dialog>
+  1169→
+  1170→      {/* === ADD LOT DIALOG === */}
+  1171→      <Dialog open={addLotOpen} onOpenChange={setAddLotOpen}>
+  1172→        <DialogContent className="sm:max-w-md">
+  1173→          <DialogHeader>
+  1174→            <DialogTitle>Ajouter un lot</DialogTitle>
+  1175→            <DialogDescription>
+  1176→              Enregistrez un nouveau lot pour un médicament
+  1177→            </DialogDescription>
+  1178→          </DialogHeader>
+  1179→          <div className="grid gap-4 py-4">
+  1180→            <div className="space-y-2">
+  1181→              <Label htmlFor="lotMedicament">Médicament *</Label>
+  1182→              <Select
+  1183→                value={lotForm.medicamentId}
+  1184→                onValueChange={(v) => setLotForm(f => ({ ...f, medicamentId: v }))}
+  1185→              >
+  1186→                <SelectTrigger id="lotMedicament">
+  1187→                  <SelectValue placeholder="Sélectionner un médicament" />
+  1188→                </SelectTrigger>
+  1189→                <SelectContent>
+  1190→                  {medicaments.map(m => (
+  1191→                    <SelectItem key={m.id} value={m.id}>{m.nomCommercial} — {m.dci}</SelectItem>
+  1192→                  ))}
+  1193→                </SelectContent>
+  1194→              </Select>
+  1195→            </div>
+  1196→            <div className="space-y-2">
+  1197→              <Label htmlFor="numeroLot">Numéro de lot *</Label>
+  1198→              <Input
+  1199→                id="numeroLot"
+  1200→                value={lotForm.numeroLot}
+  1201→                onChange={(e) => setLotForm(f => ({ ...f, numeroLot: e.target.value }))}
+  1202→                placeholder="Ex: LOT2025-001"
+  1203→              />
+  1204→            </div>
+  1205→            <div className="grid grid-cols-2 gap-4">
+  1206→              <div className="space-y-2">
+  1207→                <Label htmlFor="quantiteInitiale">Quantité initiale *</Label>
+  1208→                <Input
+  1209→                  id="quantiteInitiale"
+  1210→                  type="number"
+  1211→                  value={lotForm.quantiteInitiale}
+  1212→                  onChange={(e) => setLotForm(f => ({ ...f, quantiteInitiale: e.target.value, quantite: e.target.value }))}
+  1213→                  placeholder="0"
+  1214→                />
+  1215→              </div>
+  1216→              <div className="space-y-2">
+  1217→                <Label htmlFor="quantiteLot">Quantité actuelle</Label>
+  1218→                <Input
+  1219→                  id="quantiteLot"
+  1220→                  type="number"
+  1221→                  value={lotForm.quantite}
+  1222→                  onChange={(e) => setLotForm(f => ({ ...f, quantite: e.target.value }))}
+  1223→                  placeholder="Identique à l'initiale"
+  1224→                />
+  1225→              </div>
+  1226→            </div>
+  1227→            <div className="grid grid-cols-2 gap-4">
+  1228→              <div className="space-y-2">
+  1229→                <Label htmlFor="prixAchat">Prix d&apos;achat (FCFA) *</Label>
+  1230→                <Input
+  1231→                  id="prixAchat"
+  1232→                  type="number"
+  1233→                  value={lotForm.prixAchat}
+  1234→                  onChange={(e) => setLotForm(f => ({ ...f, prixAchat: e.target.value }))}
+  1235→                  placeholder="0"
+  1236→                />
+  1237→              </div>
+  1238→              <div className="space-y-2">
+  1239→                <Label htmlFor="dateExpiration">Date d&apos;expiration *</Label>
+  1240→                <Input
+  1241→                  id="dateExpiration"
+  1242→                  type="date"
+  1243→                  value={lotForm.dateExpiration}
+  1244→                  onChange={(e) => setLotForm(f => ({ ...f, dateExpiration: e.target.value }))}
+  1245→                />
+  1246→              </div>
+  1247→            </div>
+  1248→          </div>
+  1249→          <DialogFooter>
+  1250→            <Button variant="outline" onClick={() => setAddLotOpen(false)}>Annuler</Button>
+  1251→            <Button
+  1252→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90"
+  1253→              onClick={handleAddLot}
+  1254→              disabled={!lotForm.medicamentId || !lotForm.numeroLot || !lotForm.quantiteInitiale || !lotForm.prixAchat || !lotForm.dateExpiration}
+  1255→            >
+  1256→              Ajouter le lot
+  1257→            </Button>
+  1258→          </DialogFooter>
+  1259→        </DialogContent>
+  1260→      </Dialog>
+  1261→
+  1262→      {/* === STOCK MOUVEMENT DIALOG === */}
+  1263→      <Dialog open={mouvementOpen} onOpenChange={setMouvementOpen}>
+  1264→        <DialogContent className="sm:max-w-md">
+  1265→          <DialogHeader>
+  1266→            <DialogTitle>Enregistrer un mouvement</DialogTitle>
+  1267→            <DialogDescription>
+  1268→              {mouvementMedicament
+  1269→                ? `Mouvement pour ${mouvementMedicament.nomCommercial} — ${mouvementMedicament.dci}`
+  1270→                : 'Enregistrez une entrée, sortie ou ajustement de stock'
+  1271→              }
+  1272→            </DialogDescription>
+  1273→          </DialogHeader>
+  1274→          <div className="grid gap-4 py-4">
+  1275→            {!mouvementMedicament && (
+  1276→              <div className="space-y-2">
+  1277→                <Label htmlFor="mvtMedicament">Médicament *</Label>
+  1278→                <Select
+  1279→                  value={mouvementForm.medicamentId}
+  1280→                  onValueChange={(v) => setMouvementForm(f => ({ ...f, medicamentId: v, lotId: '' }))}
+  1281→                >
+  1282→                  <SelectTrigger id="mvtMedicament">
+  1283→                    <SelectValue placeholder="Sélectionner un médicament" />
+  1284→                  </SelectTrigger>
+  1285→                  <SelectContent>
+  1286→                    {medicaments.map(m => (
+  1287→                      <SelectItem key={m.id} value={m.id}>{m.nomCommercial} — {m.dci}</SelectItem>
+  1288→                    ))}
+  1289→                  </SelectContent>
+  1290→                </Select>
+  1291→              </div>
+  1292→            )}
+  1293→            <div className="grid grid-cols-2 gap-4">
+  1294→              <div className="space-y-2">
+  1295→                <Label htmlFor="mvtType">Type de mouvement *</Label>
+  1296→                <Select
+  1297→                  value={mouvementForm.type}
+  1298→                  onValueChange={(v) => setMouvementForm(f => ({ ...f, type: v }))}
+  1299→                >
+  1300→                  <SelectTrigger id="mvtType">
+  1301→                    <SelectValue />
+  1302→                  </SelectTrigger>
+  1303→                  <SelectContent>
+  1304→                    <SelectItem value="ENTREE">Entrée</SelectItem>
+  1305→                    <SelectItem value="SORTIE">Sortie</SelectItem>
+  1306→                    <SelectItem value="AJUSTEMENT">Ajustement</SelectItem>
+  1307→                    <SelectItem value="DESTRUCTION">Destruction</SelectItem>
+  1308→                  </SelectContent>
+  1309→                </Select>
+  1310→              </div>
+  1311→              <div className="space-y-2">
+  1312→                <Label htmlFor="mvtQuantite">
+  1313→                  {mouvementForm.type === 'AJUSTEMENT' ? 'Nouvelle quantité' : 'Quantité'} *
+  1314→                </Label>
+  1315→                <Input
+  1316→                  id="mvtQuantite"
+  1317→                  type="number"
+  1318→                  value={mouvementForm.quantite}
+  1319→                  onChange={(e) => setMouvementForm(f => ({ ...f, quantite: e.target.value }))}
+  1320→                  placeholder="0"
+  1321→                />
+  1322→              </div>
+  1323→            </div>
+  1324→            <div className="space-y-2">
+  1325→              <Label htmlFor="mvtLot">Lot concerné</Label>
+  1326→              <Select
+  1327→                value={mouvementForm.lotId || '_none'}
+  1328→                onValueChange={(v) => setMouvementForm(f => ({ ...f, lotId: v === '_none' ? '' : v }))}
+  1329→              >
+  1330→                <SelectTrigger id="mvtLot">
+  1331→                  <SelectValue placeholder="Sélectionner un lot (optionnel)" />
+  1332→                </SelectTrigger>
+  1333→                <SelectContent>
+  1334→                  <SelectItem value="_none">Aucun lot</SelectItem>
+  1335→                  {(mouvementMedicament?.lots || medicaments.find(m => m.id === mouvementForm.medicamentId)?.lots || []).map(lot => (
+  1336→                    <SelectItem key={lot.id} value={lot.id}>
+  1337→                      Lot {lot.numeroLot} — {lot.quantite} dispo. — Exp. {formatDate(lot.dateExpiration)}
+  1338→                    </SelectItem>
+  1339→                  ))}
+  1340→                </SelectContent>
+  1341→              </Select>
+  1342→            </div>
+  1343→            <div className="grid grid-cols-2 gap-4">
+  1344→              <div className="space-y-2">
+  1345→                <Label htmlFor="mvtPrix">Prix unitaire (FCFA)</Label>
+  1346→                <Input
+  1347→                  id="mvtPrix"
+  1348→                  type="number"
+  1349→                  value={mouvementForm.prixUnitaire}
+  1350→                  onChange={(e) => setMouvementForm(f => ({ ...f, prixUnitaire: e.target.value }))}
+  1351→                  placeholder="Optionnel"
+  1352→                />
+  1353→              </div>
+  1354→              <div className="space-y-2">
+  1355→                <Label htmlFor="mvtReference">Référence</Label>
+  1356→                <Input
+  1357→                  id="mvtReference"
+  1358→                  value={mouvementForm.reference}
+  1359→                  onChange={(e) => setMouvementForm(f => ({ ...f, reference: e.target.value }))}
+  1360→                  placeholder="Ex: BC-2025-001"
+  1361→                />
+  1362→              </div>
+  1363→            </div>
+  1364→            <div className="space-y-2">
+  1365→              <Label htmlFor="mvtMotif">Motif</Label>
+  1366→              <Input
+  1367→                id="mvtMotif"
+  1368→                value={mouvementForm.motif}
+  1369→                onChange={(e) => setMouvementForm(f => ({ ...f, motif: e.target.value }))}
+  1370→                placeholder="Raison du mouvement"
+  1371→              />
+  1372→            </div>
+  1373→          </div>
+  1374→          <DialogFooter>
+  1375→            <Button variant="outline" onClick={() => setMouvementOpen(false)}>Annuler</Button>
+  1376→            <Button
+  1377→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90"
+  1378→              onClick={handleAddMouvement}
+  1379→              disabled={!mouvementForm.medicamentId || !mouvementForm.type || !mouvementForm.quantite}
+  1380→            >
+  1381→              Enregistrer
+  1382→            </Button>
+  1383→          </DialogFooter>
+  1384→        </DialogContent>
+  1385→      </Dialog>
+  1386→    </div>
+  1387→  )
+  1388→}
+  1389→

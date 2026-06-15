@@ -1,0 +1,1388 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useCallback, useMemo } from 'react'
+     4→import { useAuth } from '@/app/pro/auth-context'
+     5→import {
+     6→  Card, CardContent, CardHeader, CardTitle,
+     7→} from '@/components/ui/card'
+     8→import {
+     9→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    10→} from '@/components/ui/dialog'
+    11→import {
+    12→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    13→} from '@/components/ui/select'
+    14→import {
+    15→  Badge,
+    16→} from '@/components/ui/badge'
+    17→import {
+    18→  Button,
+    19→} from '@/components/ui/button'
+    20→import {
+    21→  Input,
+    22→} from '@/components/ui/input'
+    23→import {
+    24→  Label,
+    25→} from '@/components/ui/label'
+    26→import {
+    27→  Separator,
+    28→} from '@/components/ui/separator'
+    29→import {
+    30→  ScrollArea,
+    31→} from '@/components/ui/scroll-area'
+    32→import {
+    33→  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+    34→} from '@/components/ui/tooltip'
+    35→import {
+    36→  Calculator, ShoppingCart, DollarSign, CreditCard, Search, Plus, Trash2,
+    37→  Minus, X, Package, User, Lock, Unlock, Clock, TrendingUp,
+    38→  AlertCircle, CheckCircle2, Banknote, Wallet, Smartphone, ChevronDown,
+    39→  ChevronUp, Receipt, CircleDot,
+    40→} from 'lucide-react'
+    41→import { toast } from 'sonner'
+    42→
+    43→// ============================================================
+    44→// Types
+    45→// ============================================================
+    46→
+    47→type StatutCaisse = 'OUVERTE' | 'FERMEE' | 'EN_CLOTURE'
+    48→type ModePaiement = 'ESPECES' | 'WAVE' | 'MTN_MONEY' | 'MOOV_MONEY' | 'CARTE_BANCAIRE' | 'CHEQUE' | 'CREDIT' | 'ASSURANCE'
+    49→
+    50→interface Caisse {
+    51→  id: string
+    52→  pharmacieId: string
+    53→  nom: string
+    54→  actif: boolean
+    55→  sessions?: SessionCaisse[]
+    56→}
+    57→
+    58→interface SessionCaisse {
+    59→  id: string
+    60→  pharmacieId: string
+    61→  caisseId: string
+    62→  utilisateurId: string
+    63→  statut: StatutCaisse
+    64→  soldeOuverture: number
+    65→  soldeCloture: number | null
+    66→  ecart: number | null
+    67→  ouvertLe: string
+    68→  fermeLe: string | null
+    69→  caisse?: { id: string; nom: string }
+    70→  utilisateur?: { id: string; nom: string; prenom: string }
+    71→  ventes?: VenteSimple[]
+    72→}
+    73→
+    74→interface VenteSimple {
+    75→  id: string
+    76→  reference: string
+    77→  montantTotal: number
+    78→  montantPaye: number
+    79→  statut: string
+    80→  modePaiement: ModePaiement
+    81→  createdAt: string
+    82→  patient?: { id: string; nom: string; prenom: string } | null
+    83→}
+    84→
+    85→interface Medicament {
+    86→  id: string
+    87→  nomCommercial: string
+    88→  dci: string
+    89→  forme: string
+    90→  dosage: string
+    91→  prixPublic: number
+    92→  surOrdonnance: boolean
+    93→  codeBarres?: string | null
+    94→  lots?: Array<{ id: string; quantite: number; dateExpiration: string }>
+    95→}
+    96→
+    97→interface Patient {
+    98→  id: string
+    99→  nom: string
+   100→  prenom: string
+   101→  telephone: string
+   102→  email?: string | null
+   103→  numeroAssurance?: string | null
+   104→  assurance?: string | null
+   105→}
+   106→
+   107→interface CartItem {
+   108→  medicamentId: string
+   109→  nomCommercial: string
+   110→  dci: string
+   111→  prixUnitaire: number
+   112→  quantite: number
+   113→  remise: number
+   114→}
+   115→
+   116→interface SplitPaiement {
+   117→  id: string
+   118→  mode: ModePaiement
+   119→  montant: number
+   120→  reference: string
+   121→}
+   122→
+   123→// ============================================================
+   124→// Helpers
+   125→// ============================================================
+   126→
+   127→const formatFCFA = (amount: number) =>
+   128→  new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+   129→
+   130→const formatDateTime = (dateStr: string) => {
+   131→  const d = new Date(dateStr)
+   132→  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+   133→    ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+   134→}
+   135→
+   136→const MODE_PAIEMENT_LABELS: Record<ModePaiement, string> = {
+   137→  ESPECES: 'Espèces',
+   138→  WAVE: 'Wave',
+   139→  MTN_MONEY: 'MTN Money',
+   140→  MOOV_MONEY: 'Moov Money',
+   141→  CARTE_BANCAIRE: 'Carte bancaire',
+   142→  CHEQUE: 'Chèque',
+   143→  CREDIT: 'Crédit',
+   144→  ASSURANCE: 'Assurance',
+   145→}
+   146→
+   147→const MODE_PAIEMENT_ICONS: Record<ModePaiement, React.ReactNode> = {
+   148→  ESPECES: <Banknote className="h-4 w-4" />,
+   149→  WAVE: <Smartphone className="h-4 w-4" />,
+   150→  MTN_MONEY: <Smartphone className="h-4 w-4" />,
+   151→  MOOV_MONEY: <Smartphone className="h-4 w-4" />,
+   152→  CARTE_BANCAIRE: <CreditCard className="h-4 w-4" />,
+   153→  CHEQUE: <Wallet className="h-4 w-4" />,
+   154→  CREDIT: <Clock className="h-4 w-4" />,
+   155→  ASSURANCE: <Shield className="h-4 w-4" />,
+   156→}
+   157→
+   158→const MODE_PAIEMENT_COLORS: Record<ModePaiement, string> = {
+   159→  ESPECES: 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200',
+   160→  WAVE: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+   161→  MTN_MONEY: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+   162→  MOOV_MONEY: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100',
+   163→  CARTE_BANCAIRE: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+   164→  CHEQUE: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+   165→  CREDIT: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
+   166→  ASSURANCE: 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100',
+   167→}
+   168→
+   169→// Shield icon for Assurance
+   170→function Shield({ className }: { className?: string }) {
+   171→  return (
+   172→    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+   173→      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+   174→    </svg>
+   175→  )
+   176→}
+   177→
+   178→// ============================================================
+   179→// Main Page Component
+   180→// ============================================================
+   181→
+   182→export default function CaissePage() {
+   183→  const { pharmacie, user } = useAuth()
+   184→  const pharmacieId = pharmacie?.id || ''
+   185→  const utilisateurId = user?.id || ''
+   186→
+   187→  // Session state
+   188→  const [activeSession, setActiveSession] = useState<SessionCaisse | null>(null)
+   189→  const [caisses, setCaisses] = useState<Caisse[]>([])
+   190→  const [sessionLoading, setSessionLoading] = useState(true)
+   191→
+   192→  // Open register dialog
+   193→  const [openDialogOpen, setOpenDialogOpen] = useState(false)
+   194→  const [selectedCaisseId, setSelectedCaisseId] = useState('')
+   195→  const [soldeOuverture, setSoldeOuverture] = useState('')
+   196→  const [openingSession, setOpeningSession] = useState(false)
+   197→
+   198→  // Close register dialog
+   199→  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
+   200→  const [soldeCloture, setSoldeCloture] = useState('')
+   201→  const [closingSession, setClosingSession] = useState(false)
+   202→
+   203→  // POS state
+   204→  const [cart, setCart] = useState<CartItem[]>([])
+   205→  const [medSearch, setMedSearch] = useState('')
+   206→  const [medicaments, setMedicaments] = useState<Medicament[]>([])
+   207→  const [medSearchLoading, setMedSearchLoading] = useState(false)
+   208→  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
+   209→  const [patients, setPatients] = useState<Patient[]>([])
+   210→  const [patientSearch, setPatientSearch] = useState('')
+   211→  const [showNewPatient, setShowNewPatient] = useState(false)
+   212→  const [newPatient, setNewPatient] = useState({ nom: '', prenom: '', telephone: '' })
+   213→  const [posGlobalRemise, setPosGlobalRemise] = useState(0)
+   214→
+   215→  // Payment state
+   216→  const [splitPaiements, setSplitPaiements] = useState<SplitPaiement[]>([
+   217→    { id: '1', mode: 'ESPECES', montant: 0, reference: '' },
+   218→  ])
+   219→  const [showSplitPayment, setShowSplitPayment] = useState(false)
+   220→  const [submitting, setSubmitting] = useState(false)
+   221→
+   222→  // Recent transactions
+   223→  const [recentVentes, setRecentVentes] = useState<VenteSimple[]>([])
+   224→
+   225→  // ============================================================
+   226→  // Fetch active session & caisses
+   227→  // ============================================================
+   228→
+   229→  const fetchSessionData = useCallback(async () => {
+   230→    if (!pharmacieId) return
+   231→    setSessionLoading(true)
+   232→    try {
+   233→      const [sessionRes, caissesRes] = await Promise.all([
+   234→        fetch(`/api/sessions-caisse?pharmacieId=${pharmacieId}&statut=OUVERTE`),
+   235→        fetch(`/api/caisses?pharmacieId=${pharmacieId}`),
+   236→      ])
+   237→
+   238→      if (sessionRes.ok) {
+   239→        const sessions: SessionCaisse[] = await sessionRes.json()
+   240→        if (sessions.length > 0) {
+   241→          setActiveSession(sessions[0])
+   242→          setRecentVentes(sessions[0].ventes || [])
+   243→        } else {
+   244→          setActiveSession(null)
+   245→          setRecentVentes([])
+   246→        }
+   247→      }
+   248→
+   249→      if (caissesRes.ok) {
+   250→        setCaisses(await caissesRes.json())
+   251→      }
+   252→    } catch {
+   253→      toast.error('Erreur lors du chargement de la caisse')
+   254→    } finally {
+   255→      setSessionLoading(false)
+   256→    }
+   257→  }, [pharmacieId])
+   258→
+   259→  useEffect(() => {
+   260→    fetchSessionData()
+   261→  }, [fetchSessionData])
+   262→
+   263→  // ============================================================
+   264→  // Fetch medicaments for POS search
+   265→  // ============================================================
+   266→
+   267→  const fetchMedicaments = useCallback(async () => {
+   268→    if (!pharmacieId || !medSearch) {
+   269→      setMedicaments([])
+   270→      return
+   271→    }
+   272→    setMedSearchLoading(true)
+   273→    try {
+   274→      const res = await fetch(`/api/medicaments?pharmacieId=${pharmacieId}&search=${encodeURIComponent(medSearch)}&pageSize=10`)
+   275→      if (res.ok) {
+   276→        const data = await res.json()
+   277→        setMedicaments(data.data || data || [])
+   278→      }
+   279→    } catch {
+   280→      // silent
+   281→    } finally {
+   282→      setMedSearchLoading(false)
+   283→    }
+   284→  }, [pharmacieId, medSearch])
+   285→
+   286→  useEffect(() => {
+   287→    const timeout = setTimeout(fetchMedicaments, 300)
+   288→    return () => clearTimeout(timeout)
+   289→  }, [fetchMedicaments])
+   290→
+   291→  // ============================================================
+   292→  // Fetch patients for POS
+   293→  // ============================================================
+   294→
+   295→  const fetchPatients = useCallback(async () => {
+   296→    if (!pharmacieId) return
+   297→    try {
+   298→      const params = new URLSearchParams({ pharmacieId })
+   299→      if (patientSearch) params.set('search', patientSearch)
+   300→      const res = await fetch(`/api/patients?${params}`)
+   301→      if (res.ok) setPatients(await res.json())
+   302→    } catch {
+   303→      // silent
+   304→    }
+   305→  }, [pharmacieId, patientSearch])
+   306→
+   307→  useEffect(() => {
+   308→    const timeout = setTimeout(fetchPatients, 300)
+   309→    return () => clearTimeout(timeout)
+   310→  }, [fetchPatients])
+   311→
+   312→  // ============================================================
+   313→  // Cart calculations
+   314→  // ============================================================
+   315→
+   316→  const cartSubtotal = useMemo(() => {
+   317→    return cart.reduce((sum, item) => sum + (item.prixUnitaire * item.quantite - item.remise), 0)
+   318→  }, [cart])
+   319→
+   320→  const cartTotal = useMemo(() => {
+   321→    return Math.max(0, cartSubtotal - posGlobalRemise)
+   322→  }, [cartSubtotal, posGlobalRemise])
+   323→
+   324→  const totalPaidAmount = useMemo(() => {
+   325→    return splitPaiements.reduce((sum, p) => sum + p.montant, 0)
+   326→  }, [splitPaiements])
+   327→
+   328→  const remainingAmount = useMemo(() => {
+   329→    return Math.max(0, cartTotal - totalPaidAmount)
+   330→  }, [cartTotal, totalPaidAmount])
+   331→
+   332→  // ============================================================
+   333→  // Cart actions
+   334→  // ============================================================
+   335→
+   336→  const addToCart = (med: Medicament) => {
+   337→    setCart(prev => {
+   338→      const existing = prev.find(i => i.medicamentId === med.id)
+   339→      if (existing) {
+   340→        return prev.map(i =>
+   341→          i.medicamentId === med.id
+   342→            ? { ...i, quantite: i.quantite + 1 }
+   343→            : i
+   344→        )
+   345→      }
+   346→      return [...prev, {
+   347→        medicamentId: med.id,
+   348→        nomCommercial: med.nomCommercial,
+   349→        dci: med.dci,
+   350→        prixUnitaire: med.prixPublic,
+   351→        quantite: 1,
+   352→        remise: 0,
+   353→      }]
+   354→    })
+   355→    toast.success(`${med.nomCommercial} ajouté`)
+   356→  }
+   357→
+   358→  const removeFromCart = (medicamentId: string) => {
+   359→    setCart(prev => prev.filter(i => i.medicamentId !== medicamentId))
+   360→  }
+   361→
+   362→  const updateCartItem = (medicamentId: string, field: 'quantite' | 'remise', value: number) => {
+   363→    setCart(prev => prev.map(i =>
+   364→      i.medicamentId === medicamentId
+   365→        ? { ...i, [field]: Math.max(0, value) }
+   366→        : i
+   367→    ))
+   368→  }
+   369→
+   370→  const clearCart = () => {
+   371→    setCart([])
+   372→    setPosGlobalRemise(0)
+   373→    setSelectedPatientId('')
+   374→    setSplitPaiements([{ id: '1', mode: 'ESPECES', montant: 0, reference: '' }])
+   375→    setShowSplitPayment(false)
+   376→  }
+   377→
+   378→  // ============================================================
+   379→  // Open register
+   380→  // ============================================================
+   381→
+   382→  const handleOpenRegister = async () => {
+   383→    if (!selectedCaisseId) {
+   384→      toast.error('Sélectionnez une caisse')
+   385→      return
+   386→    }
+   387→    setOpeningSession(true)
+   388→    try {
+   389→      const res = await fetch('/api/sessions-caisse', {
+   390→        method: 'POST',
+   391→        headers: { 'Content-Type': 'application/json' },
+   392→        body: JSON.stringify({
+   393→          pharmacieId,
+   394→          caisseId: selectedCaisseId,
+   395→          utilisateurId,
+   396→          soldeOuverture: parseFloat(soldeOuverture) || 0,
+   397→        }),
+   398→      })
+   399→      if (!res.ok) {
+   400→        const err = await res.json()
+   401→        throw new Error(err.error || 'Erreur')
+   402→      }
+   403→      const session = await res.json()
+   404→      setActiveSession(session)
+   405→      setOpenDialogOpen(false)
+   406→      setSelectedCaisseId('')
+   407→      setSoldeOuverture('')
+   408→      toast.success('Caisse ouverte avec succès')
+   409→    } catch (err) {
+   410→      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'ouverture')
+   411→    } finally {
+   412→      setOpeningSession(false)
+   413→    }
+   414→  }
+   415→
+   416→  // ============================================================
+   417→  // Close register
+   418→  // ============================================================
+   419→
+   420→  const handleCloseRegister = async () => {
+   421→    if (!activeSession) return
+   422→    setClosingSession(true)
+   423→    try {
+   424→      const res = await fetch(`/api/sessions-caisse/${activeSession.id}`, {
+   425→        method: 'PATCH',
+   426→        headers: { 'Content-Type': 'application/json' },
+   427→        body: JSON.stringify({
+   428→          action: 'cloturer',
+   429→          soldeCloture: parseFloat(soldeCloture) || 0,
+   430→        }),
+   431→      })
+   432→      if (!res.ok) {
+   433→        const err = await res.json()
+   434→        throw new Error(err.error || 'Erreur')
+   435→      }
+   436→      toast.success('Caisse clôturée avec succès')
+   437→      setCloseDialogOpen(false)
+   438→      setSoldeCloture('')
+   439→      setActiveSession(null)
+   440→      setRecentVentes([])
+   441→      clearCart()
+   442→    } catch (err) {
+   443→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la clôture')
+   444→    } finally {
+   445→      setClosingSession(false)
+   446→    }
+   447→  }
+   448→
+   449→  // ============================================================
+   450→  // Submit sale (POS)
+   451→  // ============================================================
+   452→
+   453→  const handleSubmitSale = async () => {
+   454→    if (cart.length === 0) {
+   455→      toast.error('Ajoutez au moins un médicament')
+   456→      return
+   457→    }
+   458→    if (remainingAmount > 0 && !showSplitPayment) {
+   459→      toast.error('Le montant payé est insuffisant')
+   460→      return
+   461→    }
+   462→    if (showSplitPayment && remainingAmount > 0) {
+   463→      toast.error(`Il reste ${formatFCFA(remainingAmount)} à payer`)
+   464→      return
+   465→    }
+   466→
+   467→    setSubmitting(true)
+   468→    try {
+   469→      // Build payments
+   470→      const paiementData = showSplitPayment
+   471→        ? splitPaiements.filter(p => p.montant > 0).map(p => ({
+   472→          montant: p.montant,
+   473→          mode: p.mode,
+   474→          reference: p.reference || null,
+   475→        }))
+   476→        : [{ montant: cartTotal, mode: splitPaiements[0]?.mode || 'ESPECES' as ModePaiement }]
+   477→
+   478→      const res = await fetch('/api/ventes', {
+   479→        method: 'POST',
+   480→        headers: { 'Content-Type': 'application/json' },
+   481→        body: JSON.stringify({
+   482→          pharmacieId,
+   483→          patientId: selectedPatientId || null,
+   484→          sessionId: activeSession?.id || null,
+   485→          utilisateurId,
+   486→          remise: posGlobalRemise,
+   487→          lignes: cart.map(item => ({
+   488→            medicamentId: item.medicamentId,
+   489→            quantite: item.quantite,
+   490→            prixUnitaire: item.prixUnitaire,
+   491→            remise: item.remise,
+   492→          })),
+   493→          paiements: paiementData,
+   494→        }),
+   495→      })
+   496→
+   497→      if (!res.ok) {
+   498→        const err = await res.json()
+   499→        throw new Error(err.error || 'Erreur')
+   500→      }
+   501→
+   502→      const vente = await res.json()
+   503→      toast.success(`Vente ${vente.reference} enregistrée`)
+   504→
+   505→      // Add to recent transactions
+   506→      const newVente: VenteSimple = {
+   507→        id: vente.id,
+   508→        reference: vente.reference,
+   509→        montantTotal: vente.montantTotal,
+   510→        montantPaye: vente.montantPaye,
+   511→        statut: vente.statut,
+   512→        modePaiement: vente.modePaiement,
+   513→        createdAt: vente.createdAt,
+   514→        patient: vente.patient ? { id: vente.patient.id, nom: vente.patient.nom, prenom: vente.patient.prenom } : null,
+   515→      }
+   516→      setRecentVentes(prev => [newVente, ...prev].slice(0, 10))
+   517→
+   518→      // Reset POS
+   519→      clearCart()
+   520→    } catch (err) {
+   521→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création de la vente')
+   522→    } finally {
+   523→      setSubmitting(false)
+   524→    }
+   525→  }
+   526→
+   527→  // ============================================================
+   528→  // Create patient from POS
+   529→  // ============================================================
+   530→
+   531→  const handleCreatePatient = async () => {
+   532→    if (!newPatient.nom || !newPatient.prenom) {
+   533→      toast.error('Nom et prénom sont requis')
+   534→      return
+   535→    }
+   536→    try {
+   537→      const res = await fetch('/api/patients', {
+   538→        method: 'POST',
+   539→        headers: { 'Content-Type': 'application/json' },
+   540→        body: JSON.stringify({ pharmacieId, ...newPatient }),
+   541→      })
+   542→      if (!res.ok) throw new Error('Erreur')
+   543→      const patient = await res.json()
+   544→      setSelectedPatientId(patient.id)
+   545→      setPatients(prev => [...prev, patient])
+   546→      setShowNewPatient(false)
+   547→      setNewPatient({ nom: '', prenom: '', telephone: '' })
+   548→      toast.success('Patient créé avec succès')
+   549→    } catch {
+   550→      toast.error('Erreur lors de la création du patient')
+   551→    }
+   552→  }
+   553→
+   554→  // ============================================================
+   555→  // Split payment helpers
+   556→  // ============================================================
+   557→
+   558→  const addSplitPaiement = () => {
+   559→    const id = String(Date.now())
+   560→    setSplitPaiements(prev => [...prev, { id, mode: 'ESPECES', montant: 0, reference: '' }])
+   561→  }
+   562→
+   563→  const removeSplitPaiement = (id: string) => {
+   564→    setSplitPaiements(prev => prev.filter(p => p.id !== id).length > 0 ? prev.filter(p => p.id !== id) : prev)
+   565→  }
+   566→
+   567→  const updateSplitPaiement = (id: string, field: 'mode' | 'montant' | 'reference', value: string | number) => {
+   568→    setSplitPaiements(prev => prev.map(p =>
+   569→      p.id === id ? { ...p, [field]: value } : p
+   570→    ))
+   571→  }
+   572→
+   573→  const autoFillRemaining = (id: string) => {
+   574→    const otherTotal = splitPaiements.filter(p => p.id !== id).reduce((sum, p) => sum + p.montant, 0)
+   575→    const remaining = Math.max(0, cartTotal - otherTotal)
+   576→    updateSplitPaiement(id, 'montant', remaining)
+   577→  }
+   578→
+   579→  // ============================================================
+   580→  // Keyboard shortcuts
+   581→  // ============================================================
+   582→
+   583→  useEffect(() => {
+   584→    const handleKeyDown = (e: KeyboardEvent) => {
+   585→      if (!activeSession) return
+   586→      if (e.key === 'F2') {
+   587→        e.preventDefault()
+   588→        document.getElementById('med-search-input')?.focus()
+   589→      } else if (e.key === 'F4') {
+   590→        e.preventDefault()
+   591→        if (cart.length > 0) handleSubmitSale()
+   592→      } else if (e.key === 'Escape') {
+   593→        clearCart()
+   594→      }
+   595→    }
+   596→    window.addEventListener('keydown', handleKeyDown)
+   597→    return () => window.removeEventListener('keydown', handleKeyDown)
+   598→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   599→  }, [activeSession, cart])
+   600→
+   601→  // ============================================================
+   602→  // Session stats
+   603→  // ============================================================
+   604→
+   605→  const sessionVentesTotal = useMemo(() => {
+   606→    return recentVentes
+   607→      .filter(v => v.statut === 'VALIDEE' || v.statut === 'EN_COURS')
+   608→      .reduce((sum, v) => sum + v.montantTotal, 0)
+   609→  }, [recentVentes])
+   610→
+   611→  // ============================================================
+   612→  // Close dialog: calculate expected
+   613→  // ============================================================
+   614→
+   615→  const expectedBalance = useMemo(() => {
+   616→    if (!activeSession) return 0
+   617→    return activeSession.soldeOuverture + sessionVentesTotal
+   618→  }, [activeSession, sessionVentesTotal])
+   619→
+   620→  const ecart = useMemo(() => {
+   621→    const cloture = parseFloat(soldeCloture) || 0
+   622→    return cloture - expectedBalance
+   623→  }, [soldeCloture, expectedBalance])
+   624→
+   625→  // ============================================================
+   626→  // Render: Loading
+   627→  // ============================================================
+   628→
+   629→  if (sessionLoading) {
+   630→    return (
+   631→      <div className="flex items-center justify-center h-[60vh]">
+   632→        <div className="flex flex-col items-center gap-3">
+   633→          <div className="h-10 w-10 rounded-xl bg-[#1D9E75] flex items-center justify-center animate-pulse">
+   634→            <Calculator className="h-5 w-5 text-white" />
+   635→          </div>
+   636→          <span className="text-sm text-muted-foreground">Chargement de la caisse...</span>
+   637→        </div>
+   638→      </div>
+   639→    )
+   640→  }
+   641→
+   642→  // ============================================================
+   643→  // Render: No active session
+   644→  // ============================================================
+   645→
+   646→  if (!activeSession) {
+   647→    return (
+   648→      <TooltipProvider>
+   649→        <div className="space-y-6">
+   650→          {/* Header */}
+   651→          <div>
+   652→            <h1 className="text-2xl font-bold tracking-tight">Caisse</h1>
+   653→            <p className="text-muted-foreground text-sm">Gestion de la caisse et point de vente</p>
+   654→          </div>
+   655→
+   656→          {/* Closed state */}
+   657→          <Card className="max-w-lg mx-auto">
+   658→            <CardContent className="p-8 text-center">
+   659→              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+   660→                <Lock className="h-8 w-8 text-muted-foreground" />
+   661→              </div>
+   662→              <h2 className="text-xl font-semibold mb-2">Aucune caisse ouverte</h2>
+   663→              <p className="text-muted-foreground text-sm mb-6">
+   664→                Ouvrez une session de caisse pour commencer à encaisser des ventes.
+   665→              </p>
+   666→              <Button
+   667→                onClick={() => setOpenDialogOpen(true)}
+   668→                className="bg-[#1D9E75] hover:bg-[#178a65] text-white gap-2 px-8"
+   669→              >
+   670→                <Unlock className="h-4 w-4" />
+   671→                Ouvrir la caisse
+   672→              </Button>
+   673→            </CardContent>
+   674→          </Card>
+   675→
+   676→          {/* Open Register Dialog */}
+   677→          <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
+   678→            <DialogContent className="sm:max-w-md">
+   679→              <DialogHeader>
+   680→                <DialogTitle className="flex items-center gap-2">
+   681→                  <Unlock className="h-5 w-5 text-[#1D9E75]" />
+   682→                  Ouvrir la caisse
+   683→                </DialogTitle>
+   684→              </DialogHeader>
+   685→              <div className="space-y-4 py-2">
+   686→                <div className="space-y-2">
+   687→                  <Label>Caisse</Label>
+   688→                  <Select value={selectedCaisseId} onValueChange={setSelectedCaisseId}>
+   689→                    <SelectTrigger>
+   690→                      <SelectValue placeholder="Sélectionnez une caisse" />
+   691→                    </SelectTrigger>
+   692→                    <SelectContent>
+   693→                      {caisses.filter(c => c.actif).map(c => {
+   694→                        const hasOpenSession = c.sessions && c.sessions.length > 0
+   695→                        return (
+   696→                          <SelectItem key={c.id} value={c.id} disabled={hasOpenSession}>
+   697→                            {c.nom} {hasOpenSession ? '(déjà ouverte)' : ''}
+   698→                          </SelectItem>
+   699→                        )
+   700→                      })}
+   701→                    </SelectContent>
+   702→                  </Select>
+   703→                  {caisses.filter(c => c.actif).length === 0 && (
+   704→                    <p className="text-xs text-destructive">Aucune caisse configurée. Créez-en une dans les paramètres.</p>
+   705→                  )}
+   706→                </div>
+   707→                <div className="space-y-2">
+   708→                  <Label>Solde d&apos;ouverture (FCFA)</Label>
+   709→                  <Input
+   710→                    type="number"
+   711→                    placeholder="0"
+   712→                    value={soldeOuverture}
+   713→                    onChange={e => setSoldeOuverture(e.target.value)}
+   714→                  />
+   715→                  <p className="text-xs text-muted-foreground">Montant en espèces dans le tiroir au démarrage</p>
+   716→                </div>
+   717→                <div className="space-y-2">
+   718→                  <Label>Opérateur</Label>
+   719→                  <Input
+   720→                    value={user ? `${user.prenom} ${user.nom}` : ''}
+   721→                    disabled
+   722→                  />
+   723→                </div>
+   724→              </div>
+   725→              <DialogFooter>
+   726→                <Button variant="outline" onClick={() => setOpenDialogOpen(false)}>Annuler</Button>
+   727→                <Button
+   728→                  onClick={handleOpenRegister}
+   729→                  disabled={openingSession || !selectedCaisseId}
+   730→                  className="bg-[#1D9E75] hover:bg-[#178a65] text-white"
+   731→                >
+   732→                  {openingSession ? 'Ouverture...' : 'Ouvrir la caisse'}
+   733→                </Button>
+   734→              </DialogFooter>
+   735→            </DialogContent>
+   736→          </Dialog>
+   737→        </div>
+   738→      </TooltipProvider>
+   739→    )
+   740→  }
+   741→
+   742→  // ============================================================
+   743→  // Render: Active session — POS Interface
+   744→  // ============================================================
+   745→
+   746→  return (
+   747→    <TooltipProvider>
+   748→      <div className="space-y-4">
+   749→        {/* Header bar with session info */}
+   750→        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   751→          <div>
+   752→            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   753→              <Calculator className="h-6 w-6 text-[#1D9E75]" />
+   754→              Caisse — {activeSession.caisse?.nom || 'Principale'}
+   755→            </h1>
+   756→            <p className="text-muted-foreground text-sm flex items-center gap-2 mt-1">
+   757→              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+   758→                <CircleDot className="h-3 w-3 mr-1" />
+   759→                Session ouverte
+   760→              </Badge>
+   761→              <span>Ouverte le {formatDateTime(activeSession.ouvertLe)}</span>
+   762→              <span>par {activeSession.utilisateur?.prenom} {activeSession.utilisateur?.nom}</span>
+   763→            </p>
+   764→          </div>
+   765→          <Button
+   766→            variant="outline"
+   767→            onClick={() => setCloseDialogOpen(true)}
+   768→            className="gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+   769→          >
+   770→            <Lock className="h-4 w-4" />
+   771→            Clôturer la caisse
+   772→          </Button>
+   773→        </div>
+   774→
+   775→        {/* Session KPIs */}
+   776→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   777→          <Card className="border-l-4 border-l-[#1D9E75]">
+   778→            <CardContent className="p-3 sm:p-4">
+   779→              <div className="flex items-center justify-between">
+   780→                <div>
+   781→                  <p className="text-xs text-muted-foreground">Solde d&apos;ouverture</p>
+   782→                  <p className="text-base sm:text-lg font-bold mt-0.5">{formatFCFA(activeSession.soldeOuverture)}</p>
+   783→                </div>
+   784→                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+   785→                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-[#1D9E75]" />
+   786→                </div>
+   787→              </div>
+   788→            </CardContent>
+   789→          </Card>
+   790→          <Card className="border-l-4 border-l-emerald-500">
+   791→            <CardContent className="p-3 sm:p-4">
+   792→              <div className="flex items-center justify-between">
+   793→                <div>
+   794→                  <p className="text-xs text-muted-foreground">Total ventes</p>
+   795→                  <p className="text-base sm:text-lg font-bold mt-0.5">{formatFCFA(sessionVentesTotal)}</p>
+   796→                </div>
+   797→                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+   798→                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+   799→                </div>
+   800→              </div>
+   801→            </CardContent>
+   802→          </Card>
+   803→          <Card className="border-l-4 border-l-amber-500">
+   804→            <CardContent className="p-3 sm:p-4">
+   805→              <div className="flex items-center justify-between">
+   806→                <div>
+   807→                  <p className="text-xs text-muted-foreground">Nb. ventes</p>
+   808→                  <p className="text-base sm:text-lg font-bold mt-0.5">{recentVentes.length}</p>
+   809→                </div>
+   810→                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-amber-50 flex items-center justify-center">
+   811→                  <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+   812→                </div>
+   813→              </div>
+   814→            </CardContent>
+   815→          </Card>
+   816→          <Card className="border-l-4 border-l-blue-500">
+   817→            <CardContent className="p-3 sm:p-4">
+   818→              <div className="flex items-center justify-between">
+   819→                <div>
+   820→                  <p className="text-xs text-muted-foreground">Solde attendu</p>
+   821→                  <p className="text-base sm:text-lg font-bold mt-0.5">{formatFCFA(expectedBalance)}</p>
+   822→                </div>
+   823→                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-blue-50 flex items-center justify-center">
+   824→                  <Calculator className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+   825→                </div>
+   826→              </div>
+   827→            </CardContent>
+   828→          </Card>
+   829→        </div>
+   830→
+   831→        {/* Main POS Layout: Search+Cart | Payment+Recent */}
+   832→        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+   833→          {/* LEFT: Search + Cart (3 cols) */}
+   834→          <div className="lg:col-span-3 space-y-4">
+   835→            {/* Medication Search */}
+   836→            <Card>
+   837→              <CardContent className="p-4">
+   838→                <div className="flex items-center gap-2">
+   839→                  <div className="relative flex-1">
+   840→                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   841→                    <Input
+   842→                      id="med-search-input"
+   843→                      placeholder="Rechercher un médicament (nom, DCI, code-barres)... [F2]"
+   844→                      className="pl-10"
+   845→                      value={medSearch}
+   846→                      onChange={e => setMedSearch(e.target.value)}
+   847→                    />
+   848→                  </div>
+   849→                </div>
+   850→
+   851→                {/* Search results dropdown */}
+   852→                {medSearch && medicaments.length > 0 && (
+   853→                  <div className="mt-2 border rounded-lg overflow-hidden">
+   854→                    <ScrollArea className="max-h-48">
+   855→                      <div className="divide-y">
+   856→                        {medicaments.map(med => (
+   857→                          <button
+   858→                            key={med.id}
+   859→                            className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors text-left"
+   860→                            onClick={() => { addToCart(med); setMedSearch(''); setMedicaments([]) }}
+   861→                          >
+   862→                            <div className="flex-1 min-w-0">
+   863→                              <p className="font-medium text-sm truncate">{med.nomCommercial}</p>
+   864→                              <p className="text-xs text-muted-foreground truncate">{med.dci} — {med.dosage}</p>
+   865→                            </div>
+   866→                            <div className="ml-3 flex items-center gap-2">
+   867→                              <span className="text-sm font-semibold whitespace-nowrap">{formatFCFA(med.prixPublic)}</span>
+   868→                              <Plus className="h-4 w-4 text-[#1D9E75]" />
+   869→                            </div>
+   870→                          </button>
+   871→                        ))}
+   872→                      </div>
+   873→                    </ScrollArea>
+   874→                  </div>
+   875→                )}
+   876→                {medSearch && medSearchLoading && (
+   877→                  <div className="mt-2 text-center text-sm text-muted-foreground py-3">Recherche en cours...</div>
+   878→                )}
+   879→                {medSearch && !medSearchLoading && medicaments.length === 0 && (
+   880→                  <div className="mt-2 text-center text-sm text-muted-foreground py-3">Aucun médicament trouvé</div>
+   881→                )}
+   882→              </CardContent>
+   883→            </Card>
+   884→
+   885→            {/* Cart */}
+   886→            <Card>
+   887→              <CardHeader className="pb-3 pt-4 px-4">
+   888→                <div className="flex items-center justify-between">
+   889→                  <CardTitle className="text-base flex items-center gap-2">
+   890→                    <ShoppingCart className="h-4 w-4 text-[#1D9E75]" />
+   891→                    Panier
+   892→                    {cart.length > 0 && (
+   893→                      <Badge variant="secondary" className="bg-[#1D9E75]/10 text-[#1D9E75] text-xs">
+   894→                        {cart.length} article{cart.length > 1 ? 's' : ''}
+   895→                      </Badge>
+   896→                    )}
+   897→                  </CardTitle>
+   898→                  {cart.length > 0 && (
+   899→                    <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive h-8 gap-1">
+   900→                      <X className="h-3 w-3" /> Vider [Esc]
+   901→                    </Button>
+   902→                  )}
+   903→                </div>
+   904→              </CardHeader>
+   905→              <CardContent className="px-4 pb-4">
+   906→                {cart.length === 0 ? (
+   907→                  <div className="text-center py-8 text-muted-foreground">
+   908→                    <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
+   909→                    <p className="text-sm">Panier vide</p>
+   910→                    <p className="text-xs mt-1">Recherchez un médicament pour l&apos;ajouter</p>
+   911→                  </div>
+   912→                ) : (
+   913→                  <div className="space-y-2">
+   914→                    {/* Cart items */}
+   915→                    <ScrollArea className="max-h-72">
+   916→                      <div className="space-y-2">
+   917→                        {cart.map(item => (
+   918→                          <div key={item.medicamentId} className="flex items-start gap-2 p-2 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+   919→                            <div className="flex-1 min-w-0">
+   920→                              <p className="font-medium text-sm truncate">{item.nomCommercial}</p>
+   921→                              <p className="text-xs text-muted-foreground truncate">{item.dci}</p>
+   922→                              <div className="flex items-center gap-3 mt-1.5">
+   923→                                {/* Qty controls */}
+   924→                                <div className="flex items-center gap-1">
+   925→                                  <Button
+   926→                                    variant="outline"
+   927→                                    size="icon"
+   928→                                    className="h-6 w-6"
+   929→                                    onClick={() => updateCartItem(item.medicamentId, 'quantite', item.quantite - 1)}
+   930→                                    disabled={item.quantite <= 1}
+   931→                                  >
+   932→                                    <Minus className="h-3 w-3" />
+   933→                                  </Button>
+   934→                                  <Input
+   935→                                    type="number"
+   936→                                    className="h-6 w-12 text-center text-xs p-0 border-0"
+   937→                                    value={item.quantite}
+   938→                                    onChange={e => updateCartItem(item.medicamentId, 'quantite', parseInt(e.target.value) || 1)}
+   939→                                    min={1}
+   940→                                  />
+   941→                                  <Button
+   942→                                    variant="outline"
+   943→                                    size="icon"
+   944→                                    className="h-6 w-6"
+   945→                                    onClick={() => updateCartItem(item.medicamentId, 'quantite', item.quantite + 1)}
+   946→                                  >
+   947→                                    <Plus className="h-3 w-3" />
+   948→                                  </Button>
+   949→                                </div>
+   950→                                {/* Unit price */}
+   951→                                <span className="text-xs text-muted-foreground">
+   952→                                  × {formatFCFA(item.prixUnitaire)}
+   953→                                </span>
+   954→                                {/* Remise per line */}
+   955→                                <div className="flex items-center gap-1">
+   956→                                  <span className="text-xs text-muted-foreground">Rem:</span>
+   957→                                  <Input
+   958→                                    type="number"
+   959→                                    className="h-6 w-16 text-xs p-1 text-right"
+   960→                                    value={item.remise || ''}
+   961→                                    placeholder="0"
+   962→                                    onChange={e => updateCartItem(item.medicamentId, 'remise', parseFloat(e.target.value) || 0)}
+   963→                                  />
+   964→                                </div>
+   965→                              </div>
+   966→                            </div>
+   967→                            {/* Line total + remove */}
+   968→                            <div className="flex flex-col items-end gap-1">
+   969→                              <span className="font-semibold text-sm">
+   970→                                {formatFCFA(item.prixUnitaire * item.quantite - item.remise)}
+   971→                              </span>
+   972→                              <Button
+   973→                                variant="ghost"
+   974→                                size="icon"
+   975→                                className="h-6 w-6 text-destructive hover:text-destructive"
+   976→                                onClick={() => removeFromCart(item.medicamentId)}
+   977→                              >
+   978→                                <Trash2 className="h-3 w-3" />
+   979→                              </Button>
+   980→                            </div>
+   981→                          </div>
+   982→                        ))}
+   983→                      </div>
+   984→                    </ScrollArea>
+   985→
+   986→                    <Separator />
+   987→
+   988→                    {/* Totals */}
+   989→                    <div className="space-y-1.5">
+   990→                      <div className="flex justify-between text-sm">
+   991→                        <span className="text-muted-foreground">Sous-total</span>
+   992→                        <span>{formatFCFA(cartSubtotal)}</span>
+   993→                      </div>
+   994→                      <div className="flex items-center justify-between text-sm">
+   995→                        <span className="text-muted-foreground">Remise globale</span>
+   996→                        <Input
+   997→                          type="number"
+   998→                          className="h-7 w-28 text-xs text-right p-1"
+   999→                          value={posGlobalRemise || ''}
+  1000→                          placeholder="0"
+  1001→                          onChange={e => setPosGlobalRemise(parseFloat(e.target.value) || 0)}
+  1002→                        />
+  1003→                      </div>
+  1004→                      <Separator />
+  1005→                      <div className="flex justify-between text-lg font-bold">
+  1006→                        <span>Total</span>
+  1007→                        <span className="text-[#1D9E75]">{formatFCFA(cartTotal)}</span>
+  1008→                      </div>
+  1009→                    </div>
+  1010→                  </div>
+  1011→                )}
+  1012→              </CardContent>
+  1013→            </Card>
+  1014→          </div>
+  1015→
+  1016→          {/* RIGHT: Patient + Payment + Recent (2 cols) */}
+  1017→          <div className="lg:col-span-2 space-y-4">
+  1018→            {/* Patient Selection */}
+  1019→            <Card>
+  1020→              <CardHeader className="pb-3 pt-4 px-4">
+  1021→                <CardTitle className="text-base flex items-center gap-2">
+  1022→                  <User className="h-4 w-4 text-[#1D9E75]" />
+  1023→                  Patient
+  1024→                </CardTitle>
+  1025→              </CardHeader>
+  1026→              <CardContent className="px-4 pb-4">
+  1027→                <div className="space-y-3">
+  1028→                  <div className="flex gap-2">
+  1029→                    <div className="relative flex-1">
+  1030→                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1031→                      <Input
+  1032→                        placeholder="Rechercher un patient..."
+  1033→                        className="pl-9 text-sm h-9"
+  1034→                        value={patientSearch}
+  1035→                        onChange={e => setPatientSearch(e.target.value)}
+  1036→                      />
+  1037→                    </div>
+  1038→                    <Tooltip>
+  1039→                      <TooltipTrigger asChild>
+  1040→                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setShowNewPatient(true)}>
+  1041→                          <Plus className="h-4 w-4" />
+  1042→                        </Button>
+  1043→                      </TooltipTrigger>
+  1044→                      <TooltipContent>Nouveau patient</TooltipContent>
+  1045→                    </Tooltip>
+  1046→                  </div>
+  1047→
+  1048→                  {selectedPatientId && (
+  1049→                    <div className="flex items-center justify-between p-2 rounded-lg border bg-emerald-50/50 border-emerald-200">
+  1050→                      <span className="text-sm font-medium text-emerald-700">
+  1051→                        {patients.find(p => p.id === selectedPatientId)
+  1052→                          ? `${patients.find(p => p.id === selectedPatientId)!.prenom} ${patients.find(p => p.id === selectedPatientId)!.nom}`
+  1053→                          : 'Patient sélectionné'}
+  1054→                      </span>
+  1055→                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedPatientId('')}>
+  1056→                        <X className="h-3 w-3" />
+  1057→                      </Button>
+  1058→                    </div>
+  1059→                  )}
+  1060→
+  1061→                  {!selectedPatientId && patients.length > 0 && (
+  1062→                    <ScrollArea className="max-h-32">
+  1063→                      <div className="space-y-1">
+  1064→                        {patients.slice(0, 5).map(p => (
+  1065→                          <button
+  1066→                            key={p.id}
+  1067→                            className="w-full text-left p-2 rounded hover:bg-muted/50 text-sm transition-colors"
+  1068→                            onClick={() => setSelectedPatientId(p.id)}
+  1069→                          >
+  1070→                            <span className="font-medium">{p.prenom} {p.nom}</span>
+  1071→                            {p.telephone && <span className="text-muted-foreground ml-2 text-xs">{p.telephone}</span>}
+  1072→                          </button>
+  1073→                        ))}
+  1074→                      </div>
+  1075→                    </ScrollArea>
+  1076→                  )}
+  1077→
+  1078→                  {/* New patient dialog inline */}
+  1079→                  {showNewPatient && (
+  1080→                    <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+  1081→                      <p className="text-sm font-medium">Nouveau patient</p>
+  1082→                      <div className="grid grid-cols-2 gap-2">
+  1083→                        <Input
+  1084→                          placeholder="Prénom"
+  1085→                          className="h-8 text-sm"
+  1086→                          value={newPatient.prenom}
+  1087→                          onChange={e => setNewPatient(prev => ({ ...prev, prenom: e.target.value }))}
+  1088→                        />
+  1089→                        <Input
+  1090→                          placeholder="Nom"
+  1091→                          className="h-8 text-sm"
+  1092→                          value={newPatient.nom}
+  1093→                          onChange={e => setNewPatient(prev => ({ ...prev, nom: e.target.value }))}
+  1094→                        />
+  1095→                      </div>
+  1096→                      <Input
+  1097→                        placeholder="Téléphone"
+  1098→                        className="h-8 text-sm"
+  1099→                        value={newPatient.telephone}
+  1100→                        onChange={e => setNewPatient(prev => ({ ...prev, telephone: e.target.value }))}
+  1101→                      />
+  1102→                      <div className="flex gap-2">
+  1103→                        <Button size="sm" className="bg-[#1D9E75] hover:bg-[#178a65] text-white h-8" onClick={handleCreatePatient}>
+  1104→                          Créer
+  1105→                        </Button>
+  1106→                        <Button size="sm" variant="outline" className="h-8" onClick={() => setShowNewPatient(false)}>
+  1107→                          Annuler
+  1108→                        </Button>
+  1109→                      </div>
+  1110→                    </div>
+  1111→                  )}
+  1112→                </div>
+  1113→              </CardContent>
+  1114→            </Card>
+  1115→
+  1116→            {/* Payment Section */}
+  1117→            <Card>
+  1118→              <CardHeader className="pb-3 pt-4 px-4">
+  1119→                <div className="flex items-center justify-between">
+  1120→                  <CardTitle className="text-base flex items-center gap-2">
+  1121→                    <CreditCard className="h-4 w-4 text-[#1D9E75]" />
+  1122→                    Paiement
+  1123→                  </CardTitle>
+  1124→                  <Button
+  1125→                    variant="ghost"
+  1126→                    size="sm"
+  1127→                    className="h-7 text-xs gap-1"
+  1128→                    onClick={() => {
+  1129→                      setShowSplitPayment(!showSplitPayment)
+  1130→                      if (!showSplitPayment) {
+  1131→                        // Initialize first split payment with full amount
+  1132→                        setSplitPaiements(prev => {
+  1133→                          const updated = [...prev]
+  1134→                          if (updated.length > 0) updated[0].montant = cartTotal
+  1135→                          return updated
+  1136→                        })
+  1137→                      } else {
+  1138→                        setSplitPaiements([{ id: '1', mode: 'ESPECES', montant: 0, reference: '' }])
+  1139→                      }
+  1140→                    }}
+  1141→                  >
+  1142→                    {showSplitPayment ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+  1143→                    {showSplitPayment ? 'Paiement simple' : 'Paiement multiple'}
+  1144→                  </Button>
+  1145→                </div>
+  1146→              </CardHeader>
+  1147→              <CardContent className="px-4 pb-4">
+  1148→                {cartTotal === 0 ? (
+  1149→                  <div className="text-center py-4 text-muted-foreground text-sm">
+  1150→                    Ajoutez des articles au panier
+  1151→                  </div>
+  1152→                ) : (
+  1153→                  <div className="space-y-3">
+  1154→                    {!showSplitPayment ? (
+  1155→                      /* Simple payment */
+  1156→                      <div className="space-y-3">
+  1157→                        <div className="grid grid-cols-3 gap-1.5">
+  1158→                          {(['ESPECES', 'WAVE', 'MTN_MONEY', 'MOOV_MONEY', 'CARTE_BANCAIRE', 'CHEQUE'] as ModePaiement[]).map(mode => (
+  1159→                            <button
+  1160→                              key={mode}
+  1161→                              className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-medium transition-colors ${splitPaiements[0]?.mode === mode ? MODE_PAIEMENT_COLORS[mode] : 'border-transparent bg-muted/30 text-muted-foreground hover:bg-muted/50'}`}
+  1162→                              onClick={() => setSplitPaiements([{ id: '1', mode, montant: cartTotal, reference: '' }])}
+  1163→                            >
+  1164→                              {MODE_PAIEMENT_ICONS[mode]}
+  1165→                              {MODE_PAIEMENT_LABELS[mode]}
+  1166→                            </button>
+  1167→                          ))}
+  1168→                        </div>
+  1169→                      </div>
+  1170→                    ) : (
+  1171→                      /* Split payment */
+  1172→                      <div className="space-y-2">
+  1173→                        {splitPaiements.map((p, idx) => (
+  1174→                          <div key={p.id} className="flex items-center gap-2 p-2 border rounded-lg">
+  1175→                            <Select value={p.mode} onValueChange={v => updateSplitPaiement(p.id, 'mode', v)}>
+  1176→                              <SelectTrigger className="h-8 w-32 text-xs">
+  1177→                                <SelectValue />
+  1178→                              </SelectTrigger>
+  1179→                              <SelectContent>
+  1180→                                {(['ESPECES', 'WAVE', 'MTN_MONEY', 'MOOV_MONEY', 'CARTE_BANCAIRE', 'CHEQUE'] as ModePaiement[]).map(mode => (
+  1181→                                  <SelectItem key={mode} value={mode}>{MODE_PAIEMENT_LABELS[mode]}</SelectItem>
+  1182→                                ))}
+  1183→                              </SelectContent>
+  1184→                            </Select>
+  1185→                            <div className="flex-1 relative">
+  1186→                              <Input
+  1187→                                type="number"
+  1188→                                className="h-8 text-sm pr-12"
+  1189→                                placeholder="0"
+  1190→                                value={p.montant || ''}
+  1191→                                onChange={e => updateSplitPaiement(p.id, 'montant', parseFloat(e.target.value) || 0)}
+  1192→                              />
+  1193→                              <Button
+  1194→                                variant="ghost"
+  1195→                                size="sm"
+  1196→                                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 text-[10px] text-[#1D9E75] hover:text-[#178a65]"
+  1197→                                onClick={() => autoFillRemaining(p.id)}
+  1198→                              >
+  1199→                                Solde
+  1200→                              </Button>
+  1201→                            </div>
+  1202→                            {splitPaiements.length > 1 && (
+  1203→                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSplitPaiement(p.id)}>
+  1204→                                <X className="h-3 w-3" />
+  1205→                              </Button>
+  1206→                            )}
+  1207→                          </div>
+  1208→                        ))}
+  1209→                        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1" onClick={addSplitPaiement}>
+  1210→                          <Plus className="h-3 w-3" /> Ajouter un mode de paiement
+  1211→                        </Button>
+  1212→
+  1213→                        {/* Payment summary */}
+  1214→                        <div className="space-y-1 text-xs pt-1">
+  1215→                          <div className="flex justify-between">
+  1216→                            <span className="text-muted-foreground">Total à payer</span>
+  1217→                            <span className="font-semibold">{formatFCFA(cartTotal)}</span>
+  1218→                          </div>
+  1219→                          <div className="flex justify-between">
+  1220→                            <span className="text-muted-foreground">Total saisi</span>
+  1221→                            <span className={totalPaidAmount >= cartTotal ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>
+  1222→                              {formatFCFA(totalPaidAmount)}
+  1223→                            </span>
+  1224→                          </div>
+  1225→                          {remainingAmount > 0 && (
+  1226→                            <div className="flex justify-between text-destructive">
+  1227→                              <span>Reste à payer</span>
+  1228→                              <span className="font-semibold">{formatFCFA(remainingAmount)}</span>
+  1229→                            </div>
+  1230→                          )}
+  1231→                          {totalPaidAmount > cartTotal && (
+  1232→                            <div className="flex justify-between text-amber-600">
+  1233→                              <span>Excédent</span>
+  1234→                              <span className="font-semibold">{formatFCFA(totalPaidAmount - cartTotal)}</span>
+  1235→                            </div>
+  1236→                          )}
+  1237→                        </div>
+  1238→                      </div>
+  1239→                    )}
+  1240→
+  1241→                    {/* Encaisser button */}
+  1242→                    <Button
+  1243→                      className="w-full bg-[#1D9E75] hover:bg-[#178a65] text-white h-11 text-base font-semibold gap-2"
+  1244→                      onClick={handleSubmitSale}
+  1245→                      disabled={submitting || cart.length === 0 || (showSplitPayment && remainingAmount > 0)}
+  1246→                    >
+  1247→                      {submitting ? (
+  1248→                        <>
+  1249→                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+  1250→                          Enregistrement...
+  1251→                        </>
+  1252→                      ) : (
+  1253→                        <>
+  1254→                          <CheckCircle2 className="h-5 w-5" />
+  1255→                          Encaisser {formatFCFA(cartTotal)} [F4]
+  1256→                        </>
+  1257→                      )}
+  1258→                    </Button>
+  1259→                  </div>
+  1260→                )}
+  1261→              </CardContent>
+  1262→            </Card>
+  1263→
+  1264→            {/* Recent Transactions */}
+  1265→            <Card>
+  1266→              <CardHeader className="pb-3 pt-4 px-4">
+  1267→                <CardTitle className="text-base flex items-center gap-2">
+  1268→                  <Receipt className="h-4 w-4 text-[#1D9E75]" />
+  1269→                  Dernières transactions
+  1270→                </CardTitle>
+  1271→              </CardHeader>
+  1272→              <CardContent className="px-4 pb-4">
+  1273→                {recentVentes.length === 0 ? (
+  1274→                  <p className="text-sm text-muted-foreground text-center py-4">Aucune vente ce session</p>
+  1275→                ) : (
+  1276→                  <ScrollArea className="max-h-64">
+  1277→                    <div className="space-y-2">
+  1278→                      {recentVentes.slice(0, 10).map(v => (
+  1279→                        <div key={v.id} className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/30 transition-colors">
+  1280→                          <div className="min-w-0 flex-1">
+  1281→                            <div className="flex items-center gap-2">
+  1282→                              <span className="text-xs font-mono text-muted-foreground">{v.reference}</span>
+  1283→                              <Badge
+  1284→                                variant="secondary"
+  1285→                                className={`${MODE_PAIEMENT_COLORS[v.modePaiement]} text-[10px] px-1.5 py-0`}
+  1286→                              >
+  1287→                                {MODE_PAIEMENT_LABELS[v.modePaiement]}
+  1288→                              </Badge>
+  1289→                            </div>
+  1290→                            <p className="text-xs text-muted-foreground mt-0.5">
+  1291→                              {v.patient ? `${v.patient.prenom} ${v.patient.nom}` : 'Sans patient'}
+  1292→                              {' · '}
+  1293→                              {formatDateTime(v.createdAt)}
+  1294→                            </p>
+  1295→                          </div>
+  1296→                          <span className="font-semibold text-sm whitespace-nowrap ml-2">{formatFCFA(v.montantTotal)}</span>
+  1297→                        </div>
+  1298→                      ))}
+  1299→                    </div>
+  1300→                  </ScrollArea>
+  1301→                )}
+  1302→              </CardContent>
+  1303→            </Card>
+  1304→          </div>
+  1305→        </div>
+  1306→
+  1307→        {/* Close Register Dialog */}
+  1308→        <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+  1309→          <DialogContent className="sm:max-w-md">
+  1310→            <DialogHeader>
+  1311→              <DialogTitle className="flex items-center gap-2">
+  1312→                <Lock className="h-5 w-5 text-red-500" />
+  1313→                Clôturer la caisse
+  1314→              </DialogTitle>
+  1315→            </DialogHeader>
+  1316→            <div className="space-y-4 py-2">
+  1317→              {/* Session summary */}
+  1318→              <div className="bg-muted/50 rounded-lg p-3 space-y-1.5 text-sm">
+  1319→                <div className="flex justify-between">
+  1320→                  <span className="text-muted-foreground">Solde d&apos;ouverture</span>
+  1321→                  <span className="font-medium">{formatFCFA(activeSession.soldeOuverture)}</span>
+  1322→                </div>
+  1323→                <div className="flex justify-between">
+  1324→                  <span className="text-muted-foreground">Total des ventes</span>
+  1325→                  <span className="font-medium">{formatFCFA(sessionVentesTotal)}</span>
+  1326→                </div>
+  1327→                <Separator />
+  1328→                <div className="flex justify-between">
+  1329→                  <span className="font-semibold">Solde attendu</span>
+  1330→                  <span className="font-bold">{formatFCFA(expectedBalance)}</span>
+  1331→                </div>
+  1332→              </div>
+  1333→
+  1334→              <div className="space-y-2">
+  1335→                <Label>Solde de clôture (comptage en caisse)</Label>
+  1336→                <Input
+  1337→                  type="number"
+  1338→                  placeholder="0"
+  1339→                  value={soldeCloture}
+  1340→                  onChange={e => setSoldeCloture(e.target.value)}
+  1341→                  className="text-lg"
+  1342→                  autoFocus
+  1343→                />
+  1344→              </div>
+  1345→
+  1346→              {soldeCloture && (
+  1347→                <div className={`p-3 rounded-lg border ${ecart === 0 ? 'bg-emerald-50 border-emerald-200' : ecart > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+  1348→                  <div className="flex items-center gap-2">
+  1349→                    {ecart === 0 ? (
+  1350→                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+  1351→                    ) : ecart > 0 ? (
+  1352→                      <AlertCircle className="h-5 w-5 text-blue-600" />
+  1353→                    ) : (
+  1354→                      <AlertCircle className="h-5 w-5 text-red-600" />
+  1355→                    )}
+  1356→                    <div>
+  1357→                      <p className="text-sm font-medium">
+  1358→                        {ecart === 0 ? 'Caisse exacte' : ecart > 0 ? 'Excédent' : 'Manquant'}
+  1359→                      </p>
+  1360→                      <p className={`text-lg font-bold ${ecart === 0 ? 'text-emerald-600' : ecart > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+  1361→                        {ecart === 0 ? '0 FCFA' : `${formatFCFA(Math.abs(ecart))} ${ecart > 0 ? 'en plus' : 'en moins'}`}
+  1362→                      </p>
+  1363→                    </div>
+  1364→                  </div>
+  1365→                </div>
+  1366→              )}
+  1367→
+  1368→              <p className="text-xs text-muted-foreground">
+  1369→                Cette action est irréversible. La session sera clôturée et aucune nouvelle vente ne pourra y être ajoutée.
+  1370→              </p>
+  1371→            </div>
+  1372→            <DialogFooter>
+  1373→              <Button variant="outline" onClick={() => setCloseDialogOpen(false)}>Annuler</Button>
+  1374→              <Button
+  1375→                variant="destructive"
+  1376→                onClick={handleCloseRegister}
+  1377→                disabled={closingSession || !soldeCloture}
+  1378→              >
+  1379→                {closingSession ? 'Clôture en cours...' : 'Clôturer la caisse'}
+  1380→              </Button>
+  1381→            </DialogFooter>
+  1382→          </DialogContent>
+  1383→        </Dialog>
+  1384→      </div>
+  1385→    </TooltipProvider>
+  1386→  )
+  1387→}
+  1388→
