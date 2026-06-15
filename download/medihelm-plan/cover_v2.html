@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>MediHelm - Plan d'Action Conformite v2</title>
+<style>
+  @page { size: A4; margin: 0; }
+  @media screen {
+    html { background: #f2f2f1; }
+    .page { transform: scale(0.6); transform-origin: top center; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 210mm; height: 297mm; background: #f2f2f1; }
+  .page {
+    width: 210mm; height: 297mm; position: relative;
+    overflow: hidden; background: #f2f2f1;
+  }
+  .bg-fill { position: absolute; inset: 0; background: #f2f2f1; z-index: 0; }
+  .accent-block {
+    position: absolute; left: 0; top: 0; width: 12mm; height: 100%;
+    background: #4f4939; z-index: 1;
+  }
+  .decor-line-v {
+    position: absolute; top: 0; bottom: 0; width: 1px;
+    background: #ccc5af; z-index: 1; opacity: 0.5;
+  }
+  .decor-line-h {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: #ccc5af; z-index: 1; opacity: 0.5;
+  }
+  .struct-line {
+    position: absolute; height: 2px; background: #1e7693; z-index: 2;
+  }
+  .kicker {
+    position: absolute; top: 16%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 10pt; font-weight: 400; letter-spacing: 4pt;
+    color: #7e7c74; text-transform: uppercase; z-index: 3;
+  }
+  .hero-title {
+    position: absolute; top: 22%; left: 18%; right: 12%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 36pt; font-weight: 900; line-height: 1.15;
+    color: #1a1a18; z-index: 3;
+  }
+  .version-badge {
+    position: absolute; top: 38%; left: 18%;
+    font-family: 'Liberation Sans', 'DejaVu Sans', sans-serif;
+    font-size: 10pt; font-weight: 700; letter-spacing: 1pt;
+    color: #1e7693; z-index: 3;
+    border: 1.5px solid #1e7693; padding: 3pt 10pt; border-radius: 3pt;
+  }
+  .subtitle {
+    position: absolute; top: 44%; left: 18%; right: 15%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 13pt; font-weight: 400; line-height: 1.6;
+    color: #4f4939; z-index: 3;
+  }
+  .summary-block {
+    position: absolute; top: 54%; left: 18%; right: 20%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 10pt; font-weight: 400; line-height: 1.7;
+    color: #7e7c74; z-index: 3;
+    border-left: 2px solid #1e7693; padding-left: 12pt;
+  }
+  .meta-block {
+    position: absolute; bottom: 14%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 9.5pt; color: #7e7c74; line-height: 1.8; z-index: 3;
+  }
+  .footer-line {
+    position: absolute; bottom: 8%; left: 18%; right: 12%;
+    height: 1px; background: #ccc5af; z-index: 2;
+  }
+  .footer {
+    position: absolute; bottom: 5%; left: 18%;
+    font-family: 'Noto Serif SC', 'Liberation Serif', serif;
+    font-size: 8pt; letter-spacing: 2pt; color: #7e7c74;
+    text-transform: uppercase; z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="bg-fill"></div>
+  <div class="accent-block"></div>
+  <div class="decor-line-v" style="left: 16%;"></div>
+  <div class="decor-line-h" style="top: 14%;"></div>
+  <div class="struct-line" style="top: 20%; left: 18%; width: 60mm;"></div>
+  <div class="kicker">YEHI OR Tech &mdash; Dawes</div>
+  <div class="hero-title">M&eacute;diHelm<br>Plan d&rsquo;Action<br>Conformit&eacute;</div>
+  <div class="version-badge">VERSION 2.0 &mdash; ANALYSE COMPL&Egrave;TE</div>
+  <div class="subtitle">Feuille de route bas&eacute;e sur l&rsquo;analyse exhaustive des 41 documents<br>du dossier M&eacute;diHelm (268 pages PDF + 21 DOCX)</div>
+  <div class="summary-block">
+    10 phases d&rsquo;ex&eacute;cution sur 64 semaines couvrant la migration monorepo
+    5 apps (API, Web, Public, Grossiste, Institutionnel, Admin), le mode offline,
+    la s&eacute;curisation, les 19 modules Pro, le module Scan GS1, les 10 modules
+    Grossiste, les portails institutionnels, et la r&eacute;solution des incoh&eacute;rences
+    internes de la documentation (pricing, noms de plans, architecture).
+  </div>
+  <div class="meta-block">
+    R&eacute;f&eacute;rence : MH-ACTION-2025-002<br>
+    Version : 2.0 &mdash; Juin 2025<br>
+    Sources : 14 PDF (268 pages) + 21 DOCX + 3 MD + 1 cursorrules<br>
+    Classification : Confidentiel &mdash; Usage interne
+  </div>
+  <div class="footer-line"></div>
+  <div class="footer">Cotonou, R&eacute;publique du B&eacute;nin</div>
+</div>
+</body>
+</html>
