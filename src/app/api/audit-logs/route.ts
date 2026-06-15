@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Journaux d'audit
+// MediHelm — Journaux d'audit
 // GET /api/audit-logs
 // Liste des journaux d'audit filtrés par pharmacie
 // Permission M14_DASHBOARD read ou M07_RH pour les logs RH

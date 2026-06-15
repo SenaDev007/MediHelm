@@ -16,10 +16,10 @@ const navLinks = [
 ];
 
 const spaceLinks = [
-  { label: "MédiHelm Pro", href: "/pro", description: "Espace pharmacie", color: "text-teal-400" },
-  { label: "MédiHelm Patient", href: "/patient", description: "Espace patient (gratuit)", color: "text-blue-brand" },
-  { label: "MédiHelm Grossistes", href: "/grossistes", description: "Portail grossistes", color: "text-amber-400" },
-  { label: "MédiHelm Institutions", href: "/institutions", description: "Portail DPMED/SoBAPS", color: "text-teal-800" },
+  { label: "MediHelm Pro", href: "/pro", description: "Espace pharmacie", color: "text-teal-400" },
+  { label: "MediHelm Patient", href: "/patient", description: "Espace patient (gratuit)", color: "text-blue-brand" },
+  { label: "MediHelm Grossistes", href: "/grossistes", description: "Portail grossistes", color: "text-amber-400" },
+  { label: "MediHelm Institutions", href: "/institutions", description: "Portail DPMED/SoBAPS", color: "text-teal-800" },
 ];
 
 export function Navbar() {

@@ -1,10 +1,10 @@
 // ============================================================
-// MédiHelm — Système RBAC (Role-Based Access Control)
+// MediHelm — Système RBAC (Role-Based Access Control)
 // Définition des rôles, permissions par module (M01-M19)
 // Vérification d'accès et wrapper pour les routes API
 // ============================================================
 
-// === Définition des rôles MédiHelm ===
+// === Définition des rôles MediHelm ===
 
 export const ROLES = {
   ADMIN: 'ADMIN',

@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Gestion des fichiers uploadés
+// MediHelm — Gestion des fichiers uploadés
 // GET /api/uploads/[...path] — Servir les métadonnées d'un fichier
 // POST /api/uploads/[...path] — Uploader un fichier (simplifié : métadonnées)
 // Permission : M13_DOCUMENTS read/write

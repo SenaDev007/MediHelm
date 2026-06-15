@@ -85,9 +85,9 @@ export function InstitutionSidebar({ role, onRoleChange }: InstitutionSidebarPro
     <div className="flex h-full flex-col bg-teal-800 text-white">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-teal-600">
-        <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={40} height={40} className="shrink-0" />
+        <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={40} height={40} className="shrink-0" />
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-bold truncate">MédiHelm</h2>
+          <h2 className="text-sm font-bold truncate">MediHelm</h2>
           <p className="text-xs text-teal-200 truncate">Portail Institutionnel</p>
         </div>
       </div>

@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Middleware Next.js pour la protection des routes
+// MediHelm — Middleware Next.js pour la protection des routes
 // Authentification requise pour /pro/*, /institutions/*, /grossistes/*
 // Routes publiques: /patient/*, /api/auth/*, /api/webhooks/*
 // RBAC spécifique: /institutions/dpmed/* → DPMED_ADMIN uniquement

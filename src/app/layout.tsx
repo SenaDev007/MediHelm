@@ -15,11 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MédiHelm — L'Écosystème Santé de Confiance au Bénin",
+  title: "MediHelm — L'Écosystème Santé de Confiance au Bénin",
   description:
     "Le premier écosystème santé du Bénin — gestion de pharmacie, recherche de médicaments, alertes DPMED, conformité réglementaire. Pour pharmaciens et patients.",
   keywords: [
-    "MédiHelm",
+    "MediHelm",
     "pharmacie",
     "Bénin",
     "santé",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     apple: "/icon-192.png",
   },
   openGraph: {
-    title: "MédiHelm — L'Écosystème Santé de Confiance",
+    title: "MediHelm — L'Écosystème Santé de Confiance",
     description:
       "Pilotez votre santé avec confiance et précision. Gestion de pharmacie, alertes DPMED, conformité réglementaire.",
     type: "website",

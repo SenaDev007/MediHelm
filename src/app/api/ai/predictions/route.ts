@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Prédictions IA
+// MediHelm — Prédictions IA
 // GET /api/ai/predictions — Liste des prédictions pour la pharmacie
 // POST /api/ai/predictions — Générer une nouvelle prédiction (simplifié)
 // Permission : M15_ANALYTICS read/write

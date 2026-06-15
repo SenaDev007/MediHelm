@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Détail d'une réception SoBAPS
+// MediHelm — Détail d'une réception SoBAPS
 // GET /api/sobaps/receptions/[id]
 // PATCH /api/sobaps/receptions/[id]
 // Permission : M03_COMMANDES read/write

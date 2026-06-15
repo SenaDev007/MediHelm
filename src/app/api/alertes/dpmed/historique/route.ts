@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Historique des alertes DPMED
+// MediHelm — Historique des alertes DPMED
 // GET /api/alertes/dpmed/historique
 // Liste des diffusions d'alertes pour la pharmacie de l'utilisateur
 // Filtrage par statut et plage de dates

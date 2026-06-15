@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Production Schema (PostgreSQL / Neon)
+// MediHelm — Production Schema (PostgreSQL / Neon)
 // 47 modèles · 29 enums · Schéma Pharma + Grossiste + ORION + Institutionnel
 // Référence: MH-SCHEMA-2025-v1.0
 // ============================================================
@@ -286,7 +286,7 @@ enum StatutPaiement {
 }
 
 // ============================================================
-// SCHÉMA PHARMA — MédiHelm Pro
+// SCHÉMA PHARMA — MediHelm Pro
 // 3.1 Plateforme & Auth
 // ============================================================
 
@@ -1007,7 +1007,7 @@ model ReceptionGrossiste {
 }
 
 // ============================================================
-// SCHÉMA GROSSISTE — MédiHelm Grossiste
+// SCHÉMA GROSSISTE — MediHelm Grossiste
 // ============================================================
 
 model Grossiste {
@@ -1024,6 +1024,20 @@ model Grossiste {
   catalogue ProduitGrossiste[]
   commandes CommandeGrossiste[]
   webhooks  WebhookConfig[]
+  apiKeys   GrossisteApiKey[]
+}
+
+model GrossisteApiKey {
+  id          String    @id @default(uuid())
+  grossisteId String
+  name        String
+  prefix      String
+  keyHash     String
+  actif       Boolean   @default(true)
+  lastUsed    DateTime?
+  createdAt   DateTime  @default(now())
+
+  grossiste Grossiste @relation(fields: [grossisteId], references: [id])
 }
 
 model ProduitGrossiste {

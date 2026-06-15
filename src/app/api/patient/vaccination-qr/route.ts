@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Données QR Code de vaccination
+// MediHelm — Données QR Code de vaccination
 // GET /api/patient/vaccination-qr
 // Route publique (ou avec authentification patient)
 // Retourne les données de vaccination pour affichage QR code

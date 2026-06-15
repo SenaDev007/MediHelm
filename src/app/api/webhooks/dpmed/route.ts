@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Webhook DPMED (Direction de la Pharmacie et du Médicament)
+// MediHelm — Webhook DPMED (Direction de la Pharmacie et du Médicament)
 // Réception des alertes officielles (rappels, contrefaçons, pharmacovigilance)
 // Validation HMAC-SHA256 — Code d'erreur MH-SEC-001 pour signature invalide
 // ============================================================

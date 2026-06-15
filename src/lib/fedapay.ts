@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Fedapay SDK Simulation
+// MediHelm — Fedapay SDK Simulation
 // Benin-based payment gateway integration (similar to Stripe)
 // In production: POST https://api.fedapay.com/v1/transactions
 // ============================================================
@@ -41,30 +41,38 @@ export async function initiatePayment(params: InitiatePaymentParams): Promise<{
 }> {
   const transactionId = `feda_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
-  // In production, call Fedapay API:
-  // const response = await fetch('https://api.fedapay.com/v1/transactions', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${process.env.FEDAPAY_API_KEY}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     amount: params.amount,
-  //     currency: { iso: 'XOF' },
-  //     mode: params.mode,
-  //     phone_number: params.phoneNumber,
-  //     customer: {
-  //       email: params.customerEmail,
-  //       firstname: params.customerName?.split(' ')[0],
-  //       lastname: params.customerName?.split(' ').slice(1).join(' '),
-  //     },
-  //     metadata: params.metadata,
-  //   }),
-  // })
-  // const data = await response.json()
-  // return { checkoutUrl: data.url, transactionId: data.id }
+  // In production with FEDAPAY_API_KEY, call the real API
+  if (process.env.FEDAPAY_API_KEY) {
+    try {
+      const response = await fetch('https://api.fedapay.com/v1/transactions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.FEDAPAY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: params.amount,
+          currency: { iso: 'XOF' },
+          mode: params.mode,
+          phone_number: params.phoneNumber,
+          customer: {
+            email: params.customerEmail,
+            firstname: params.customerName?.split(' ')[0],
+            lastname: params.customerName?.split(' ').slice(1).join(' '),
+          },
+          metadata: params.metadata,
+        }),
+      })
+      const data = await response.json()
+      if (data.url && data.id) {
+        return { checkoutUrl: data.url, transactionId: String(data.id) }
+      }
+    } catch {
+      // Fall through to simulation
+    }
+  }
 
-  // Simulation for development
+  // Simulation for development (no API key or API call failed)
   const checkoutUrl = `https://fedapay.com/checkout/${transactionId}`
   return { checkoutUrl, transactionId }
 }

@@ -172,10 +172,10 @@ export default function InscriptionPage() {
           <>
             {/* Logo & Header */}
             <div className="text-center mb-5">
-              <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={56} height={56} className="mx-auto mb-3" />
+              <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={56} height={56} className="mx-auto mb-3" />
               <h1 className="text-xl font-bold text-teal-800">Créer un compte</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Rejoignez MédiHelm Patient gratuitement
+                Rejoignez MediHelm Patient gratuitement
               </p>
             </div>
 

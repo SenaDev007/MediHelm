@@ -16,6 +16,7 @@ import {
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { signOut } from 'next-auth/react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import Link from 'next/link'
 
 interface ProfileData {
@@ -65,31 +66,16 @@ export default function ProfilPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Demo profile for when API fails
-  const demoProfile: ProfileData = {
-    utilisateur: {
-      id: 'demo-user',
-      email: 'patient@medihelm.bj',
-      nom: 'ADJOVI',
-      prenom: 'Marie',
-      telephone: '97000000',
-    },
-    patient: {
-      id: 'demo-patient',
-      nom: 'ADJOVI',
-      prenom: 'Marie',
-      telephone: '97000000',
-      email: 'patient@medihelm.bj',
-      pointsFidelite: 150,
-      pharmacieId: null,
-    },
-  }
+  const { userId, email: sessionEmail, isLoading: sessionLoading } = usePatientSession()
 
   const fetchProfile = useCallback(async () => {
+    if (!sessionEmail) return
     setLoading(true)
+    setError(null)
     try {
-      const res = await fetch('/api/patient/comptes?email=patient@medihelm.bj')
+      const res = await fetch(`/api/patient/comptes?email=${encodeURIComponent(sessionEmail)}`)
       if (res.ok) {
         const data = await res.json()
         setProfile(data)
@@ -100,31 +86,25 @@ export default function ProfilPage() {
           telephone: data.utilisateur.telephone || '',
         })
       } else {
-        // Use demo data
-        setProfile(demoProfile)
-        setForm({
-          nom: demoProfile.utilisateur.nom,
-          prenom: demoProfile.utilisateur.prenom,
-          email: demoProfile.utilisateur.email,
-          telephone: demoProfile.utilisateur.telephone,
-        })
+        setProfile(null)
+        setError('Impossible de charger les données du profil')
       }
     } catch {
-      setProfile(demoProfile)
-      setForm({
-        nom: demoProfile.utilisateur.nom,
-        prenom: demoProfile.utilisateur.prenom,
-        email: demoProfile.utilisateur.email,
-        telephone: demoProfile.utilisateur.telephone,
-      })
+      setProfile(null)
+      setError('Erreur de connexion au serveur')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [sessionEmail])
 
   useEffect(() => {
-    fetchProfile()
-  }, [fetchProfile])
+    if (sessionEmail) {
+      fetchProfile()
+    } else if (!sessionLoading) {
+      setLoading(false)
+      setError('Vous devez être connecté pour accéder à cette page')
+    }
+  }, [sessionEmail, sessionLoading, fetchProfile])
 
   const handleSaveProfile = async () => {
     if (!form.nom.trim() || !form.prenom.trim() || !form.email.trim()) {
@@ -134,19 +114,28 @@ export default function ProfilPage() {
 
     setSaving(true)
     try {
-      // Simulate save
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      if (profile) {
-        setProfile({
-          ...profile,
-          utilisateur: { ...profile.utilisateur, ...form },
-          patient: profile.patient ? { ...profile.patient, ...form } : null,
-        })
+      const res = await fetch('/api/patient/comptes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          nom: form.nom,
+          prenom: form.prenom,
+          email: form.email,
+          telephone: form.telephone,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setProfile(data)
+        setEditing(false)
+        toast.success('Profil mis à jour avec succès')
+      } else {
+        const errData = await res.json().catch(() => null)
+        toast.error(errData?.error || 'Erreur lors de la sauvegarde')
       }
-      setEditing(false)
-      toast.success('Profil mis à jour avec succès')
     } catch {
-      toast.error('Erreur lors de la sauvegarde')
+      toast.error('Erreur de connexion au serveur')
     } finally {
       setSaving(false)
     }
@@ -168,12 +157,24 @@ export default function ProfilPage() {
 
     setChangingPassword(true)
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setPasswordDialogOpen(false)
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      toast.success('Mot de passe modifié avec succès')
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      })
+      if (res.ok) {
+        setPasswordDialogOpen(false)
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        toast.success('Mot de passe modifié avec succès')
+      } else {
+        const errData = await res.json().catch(() => null)
+        toast.error(errData?.error || 'Erreur lors du changement de mot de passe')
+      }
     } catch {
-      toast.error('Erreur lors du changement de mot de passe')
+      toast.error('Erreur de connexion au serveur')
     } finally {
       setChangingPassword(false)
     }
@@ -198,7 +199,7 @@ export default function ProfilPage() {
       </div>
 
       {/* Profile card */}
-      {loading ? (
+      {loading || sessionLoading ? (
         <Card className="border-teal-200">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center gap-4">
@@ -208,6 +209,20 @@ export default function ProfilPage() {
                 <div className="h-3 bg-teal-50 rounded w-3/4" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-5 text-center">
+            <p className="text-sm text-red-700">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 border-red-200 text-red-700 hover:bg-red-100"
+              onClick={fetchProfile}
+            >
+              Réessayer
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -476,7 +491,7 @@ export default function ProfilPage() {
 
       {/* App info */}
       <div className="text-center space-y-1 pb-2">
-        <p className="text-[10px] text-muted-foreground">MédiHelm Patient v1.0</p>
+        <p className="text-[10px] text-muted-foreground">MediHelm Patient v1.0</p>
         <p className="text-[10px] text-muted-foreground">🇧🇯 Conforme aux réglementations du Bénin</p>
       </div>
     </div>

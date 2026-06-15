@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
             const donnees = typeof r.donnees === 'string' ? JSON.parse(r.donnees) : r.donnees || {}
             return { mois: (donnees.mois || r.periode || '') as string, montant: (donnees.montant || 0) as number }
           })
-        setRevenueData(revenue.length > 0 ? revenue : generateMockRevenue())
+        setRevenueData(revenue)
 
         // Process top products
         const topProd: TopProduct[] = data
@@ -201,7 +201,7 @@ export default function AnalyticsPage() {
             const donnees = typeof r.donnees === 'string' ? JSON.parse(r.donnees) : r.donnees || {}
             return { id: r.id as string, nom: (donnees.nom || '') as string, quantite: (donnees.quantite || 0) as number, chiffreAffaires: (donnees.chiffreAffaires || 0) as number }
           })
-        setTopProducts(topProd.length > 0 ? topProd : generateMockTopProducts())
+        setTopProducts(topProd)
 
         // Sales distribution
         const dist: SalesDistribution[] = data
@@ -210,24 +210,24 @@ export default function AnalyticsPage() {
             const donnees = typeof r.donnees === 'string' ? JSON.parse(r.donnees) : r.donnees || {}
             return { categorie: (donnees.categorie || '') as string, pourcentage: (donnees.pourcentage || 0) as number, montant: (donnees.montant || 0) as number }
           })
-        setSalesDist(dist.length > 0 ? dist : generateMockDistribution())
+        setSalesDist(dist)
 
         // KPIs
         const kpiData = data.find((r: Record<string, unknown>) => r.domaine === 'KPI')
         if (kpiData) {
           const donnees = typeof kpiData.donnees === 'string' ? JSON.parse(kpiData.donnees) : kpiData.donnees || {}
           setKpi({
-            chiffreAffaires: donnees.chiffreAffaires || 2450000,
-            caTendance: donnees.caTendance || 12,
-            ventes: donnees.ventes || 342,
-            ventesTendance: donnees.ventesTendance || 8,
-            panierMoyen: donnees.panierMoyen || 7163,
-            panierTendance: donnees.panierTendance || 3,
-            clientsActifs: donnees.clientsActifs || 187,
-            clientsTendance: donnees.clientsTendance || 15,
+            chiffreAffaires: donnees.chiffreAffaires || 0,
+            caTendance: donnees.caTendance || 0,
+            ventes: donnees.ventes || 0,
+            ventesTendance: donnees.ventesTendance || 0,
+            panierMoyen: donnees.panierMoyen || 0,
+            panierTendance: donnees.panierTendance || 0,
+            clientsActifs: donnees.clientsActifs || 0,
+            clientsTendance: donnees.clientsTendance || 0,
           })
         } else {
-          setKpi({ chiffreAffaires: 2450000, caTendance: 12, ventes: 342, ventesTendance: 8, panierMoyen: 7163, panierTendance: 3, clientsActifs: 187, clientsTendance: 15 })
+          setKpi({ chiffreAffaires: 0, caTendance: 0, ventes: 0, ventesTendance: 0, panierMoyen: 0, panierTendance: 0, clientsActifs: 0, clientsTendance: 0 })
         }
 
         setRapports(data.map((r: Record<string, unknown>) => ({
@@ -238,10 +238,10 @@ export default function AnalyticsPage() {
         })))
       }
     } catch {
-      // Use mock data
-      setRevenueData(generateMockRevenue())
-      setTopProducts(generateMockTopProducts())
-      setSalesDist(generateMockDistribution())
+      // No data available
+      setRevenueData([])
+      setTopProducts([])
+      setSalesDist([])
     } finally {
       setLoading(false)
     }
@@ -264,30 +264,6 @@ export default function AnalyticsPage() {
 
   useEffect(() => { fetchAnalytics() }, [fetchAnalytics])
   useEffect(() => { fetchPredictions() }, [fetchPredictions])
-
-  // Mock data generators
-  function generateMockRevenue(): RevenueData[] {
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun']
-    return months.map(m => ({ mois: m, montant: Math.round(1500000 + Math.random() * 2000000) }))
-  }
-  function generateMockTopProducts(): TopProduct[] {
-    return [
-      { id: '1', nom: 'Paracétamol 500mg', quantite: 245, chiffreAffaires: 367500 },
-      { id: '2', nom: 'Amoxicilline 250mg', quantite: 189, chiffreAffaires: 567000 },
-      { id: '3', nom: 'Oméprazole 20mg', quantite: 156, chiffreAffaires: 234000 },
-      { id: '4', nom: 'Ibuprofène 400mg', quantite: 134, chiffreAffaires: 201000 },
-      { id: '5', nom: 'Metformine 500mg', quantite: 112, chiffreAffaires: 168000 },
-    ]
-  }
-  function generateMockDistribution(): SalesDistribution[] {
-    return [
-      { categorie: 'Antibiotiques', pourcentage: 32, montant: 784000 },
-      { categorie: 'Antalgiques', pourcentage: 24, montant: 588000 },
-      { categorie: 'Anti-ulcéreux', pourcentage: 18, montant: 441000 },
-      { categorie: 'Antidiabétiques', pourcentage: 14, montant: 343000 },
-      { categorie: 'Autres', pourcentage: 12, montant: 294000 },
-    ]
-  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

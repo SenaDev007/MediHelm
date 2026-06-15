@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Seed Script (Neon PostgreSQL)
+// MediHelm — Seed Script (Neon PostgreSQL)
 // Données de développement pour tous les espaces
 // ============================================================
 
@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Seeding MédiHelm database (PostgreSQL / Neon)...')
+  console.log('🌱 Seeding MediHelm database (PostgreSQL / Neon)...')
 
   // === 1. Pharmacies ===
   console.log('\n📦 Creating pharmacies...')
@@ -673,7 +673,7 @@ async function main() {
       { userId: users[0].id, titre: 'Alerte DPMED', message: 'Rappel de lot Paracétamol — consultez les détails', type: 'ALERTE' },
       { userId: users[0].id, titre: 'Stock bas', message: 'Le stock de Doliprane 500mg est en dessous du seuil minimum', type: 'STOCK' },
       { userId: users[1].id, titre: 'Nouvelle ordonnance', message: 'Une ordonnance a été reçue pour le patient Kofi Adambi', type: 'INFO' },
-      { userId: users[0].id, titre: 'Bienvenue', message: 'Bienvenue sur MédiHelm Pro ! Configurez votre pharmacie pour commencer.', type: 'INFO' },
+      { userId: users[0].id, titre: 'Bienvenue', message: 'Bienvenue sur MediHelm Pro ! Configurez votre pharmacie pour commencer.', type: 'INFO' },
     ],
   })
   console.log('  ✅ Notifications created')

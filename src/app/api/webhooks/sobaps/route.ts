@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Webhook SoBAPS (Service Béninois d'Approvisionnement Pharmaceutique)
+// MediHelm — Webhook SoBAPS (Service Béninois d'Approvisionnement Pharmaceutique)
 // Réception des confirmations de livraison
 // Validation par secret partagé
 // ============================================================

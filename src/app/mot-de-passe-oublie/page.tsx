@@ -342,7 +342,7 @@ export default function MotDePasseOubliePage() {
 
         {/* Footer */}
         <p className="text-xs text-center text-muted-foreground">
-          MédiHelm © {new Date().getFullYear()} — YEHI OR Tech
+          MediHelm © {new Date().getFullYear()} — YEHI OR Tech
         </p>
       </div>
     </div>

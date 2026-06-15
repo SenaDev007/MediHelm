@@ -201,10 +201,10 @@ export default function StupefiantsPage() {
       const res = await fetch(`/api/stupefiants?pharmacieId=${pharmacieId}&compliance=true`)
       if (res.ok) {
         const json = await res.json()
-        setCompliance(json.compliance || generateMockCompliance())
+        setCompliance(json.compliance || [])
       }
     } catch {
-      setCompliance(generateMockCompliance())
+      setCompliance([])
     } finally {
       setComplianceLoading(false)
     }
@@ -213,16 +213,6 @@ export default function StupefiantsPage() {
   useEffect(() => { fetchEntries() }, [fetchEntries])
   useEffect(() => { fetchCompliance() }, [fetchCompliance])
   useEffect(() => { setPage(1) }, [search, typeFilter])
-
-  function generateMockCompliance(): ComplianceCheck[] {
-    return [
-      { id: '1', categorie: 'Registre stupéfiants', description: 'Tenue du registre des stupéfiants à jour', statut: 'CONFORME', details: null },
-      { id: '2', categorie: 'Ordonnances', description: 'Conservation des ordonnances pour stupéfiants', statut: 'CONFORME', details: null },
-      { id: '3', categorie: 'Stock maximum', description: 'Respect des quantités maximales de stock', statut: 'EN_COURS', details: 'Vérification en cours' },
-      { id: '4', categorie: 'Déclaration trimestrielle', description: 'Déclaration trimestrielle des mouvements', statut: 'NON_CONFORME', details: 'Déclaration Q4 non soumise' },
-      { id: '5', categorie: 'Coffre-fort', description: 'Stockage sécurisé des stupéfiants', statut: 'CONFORME', details: null },
-    ]
-  }
 
   const stats = useMemo(() => ({
     total: entries.length,

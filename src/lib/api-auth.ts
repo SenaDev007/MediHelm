@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Helper d'authentification pour les routes API
+// MediHelm — Helper d'authentification pour les routes API
 // Extraction du JWT, vérification de permissions, accès pharmacie
 // Support Authorization Bearer header + cookie NextAuth
 // ============================================================

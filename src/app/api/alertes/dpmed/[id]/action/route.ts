@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Enregistrement d'une action sur une alerte DPMED
+// MediHelm — Enregistrement d'une action sur une alerte DPMED
 // POST /api/alertes/dpmed/[id]/action
 // Met à jour la diffusion avec actionPrise et commentaire
 // Crée une entrée AuditLog pour traçabilité

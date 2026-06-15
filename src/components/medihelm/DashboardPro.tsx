@@ -93,7 +93,7 @@ export function DashboardPro() {
         pharmacies: Array.isArray(pharmacies) ? pharmacies.length : 0,
         medicaments: Array.isArray(meds) ? meds.length : 0,
         alertes: Array.isArray(alerts) ? alerts.length : 0,
-        conformite: 78.5,
+        conformite: 0,
         patients: Array.isArray(patients) ? patients.length : 0,
         surveillances: Array.isArray(surveillances) ? surveillances.length : 0,
       })
@@ -114,6 +114,7 @@ export function DashboardPro() {
           const confData = await confRes.json()
           if (confData && confData.scoreTotal !== undefined) {
             setConformite(confData)
+            setKpi(prev => prev ? {...prev, conformite: confData.scoreTotal || 0} : prev)
           }
         } catch {
           // Use default conformite
@@ -181,7 +182,7 @@ export function DashboardPro() {
             </Badge>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'Georgia, serif' }}>
-            Tableau de Bord MédiHelm Pro
+            Tableau de Bord MediHelm Pro
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto text-lg">
             Visualisation en direct des données de l&apos;écosystème connecté à la base Neon PostgreSQL

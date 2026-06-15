@@ -71,7 +71,7 @@ export function generateTicketCaisse(data: {
   y += 5
   doc.setFontSize(7)
   doc.text('Merci pour votre confiance!', 40, y, { align: 'center' })
-  doc.text('MédiHelm — YEHI OR Tech', 40, y + 3.5, { align: 'center' })
+  doc.text('MediHelm — YEHI OR Tech', 40, y + 3.5, { align: 'center' })
 
   return doc
 }

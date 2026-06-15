@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Validation rapide d'ordonnance
+// MediHelm — Validation rapide d'ordonnance
 // POST /api/ordonnances/[id]/valider
 // Flux simplifié de validation : passe directement à VALIDEE
 // ============================================================

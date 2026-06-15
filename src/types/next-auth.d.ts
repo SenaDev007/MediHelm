@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Augmentation des types NextAuth.js
+// MediHelm — Augmentation des types NextAuth.js
 // Ajoute les propriétés personnalisées au JWT et à la Session
 // ============================================================
 

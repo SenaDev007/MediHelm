@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,16 +38,7 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; label
   SYSTEME: { icon: Info, color: 'bg-teal-50 text-teal-800', label: 'Système' },
 }
 
-// Mock notifications for demo
-const mockNotifications: Notification[] = [
-  { id: '1', titre: 'Commande confirmée', message: 'Votre commande CMD-001 a été confirmée par la Pharmacie Centrale. Vous pouvez la récupérer dès maintenant.', type: 'COMMANDE', lue: false, createdAt: new Date(Date.now() - 30 * 60000).toISOString(), lien: '/patient/suivi' },
-  { id: '2', titre: 'Rappel médicament', message: 'Il est temps de prendre votre Paracétamol 500mg. Ne sautez pas votre dose !', type: 'RAPPEL', lue: false, createdAt: new Date(Date.now() - 2 * 3600000).toISOString(), lien: '/patient/rappels' },
-  { id: '3', titre: 'Alerte DPMED', message: 'Un rappel de lot a été émis pour le médicament Amoxicilline 250mg. Vérifiez vos médicaments.', type: 'ALERTE', lue: false, createdAt: new Date(Date.now() - 5 * 3600000).toISOString(), lien: '/patient/verifier' },
-  { id: '4', titre: 'Points de fidélité', message: 'Vous avez gagné 50 points de fidélité suite à votre dernière commande. Total : 200 points.', type: 'FIDELITE', lue: true, createdAt: new Date(Date.now() - 24 * 3600000).toISOString(), lien: '/patient/fidelite' },
-  { id: '5', titre: 'Prochaine vaccination', message: 'Rappel : votre prochaine dose de vaccin COVID-19 est prévue le 15 mars 2025.', type: 'VACCINATION', lue: true, createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), lien: '/patient/vaccinations' },
-  { id: '6', titre: 'Commande prête', message: 'Votre commande CMD-002 est prête pour le retrait à la Pharmacie du Plateau.', type: 'COMMANDE', lue: true, createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), lien: '/patient/suivi' },
-  { id: '7', titre: 'Bienvenue sur MédiHelm', message: 'Bienvenue dans votre espace patient MédiHelm ! Découvrez toutes nos fonctionnalités pour gérer votre santé.', type: 'SYSTEME', lue: true, createdAt: new Date(Date.now() - 30 * 86400000).toISOString() },
-]
+
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -62,29 +54,25 @@ export default function NotificationsPage() {
     systeme: false,
   })
 
-  const userId = 'demo-user'
+  const { userId, isLoading: sessionLoading } = usePatientSession()
 
   const fetchNotifications = useCallback(async () => {
+    if (!userId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patient/notifications?userId=${userId}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.data && data.data.length > 0) {
-          setNotifications(data.data)
-        } else {
-          // Use mock data
-          setNotifications(mockNotifications)
-        }
+        setNotifications(data.data || [])
       } else {
-        setNotifications(mockNotifications)
+        setNotifications([])
       }
     } catch {
-      setNotifications(mockNotifications)
+      setNotifications([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [userId])
 
   useEffect(() => {
     fetchNotifications()

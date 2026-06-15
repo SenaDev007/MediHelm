@@ -43,7 +43,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* MédiHelm Brand Colors */
+  /* MediHelm Brand Colors */
   --color-teal-400: #1D9E75;
   --color-teal-600: #0F6E56;
   --color-teal-800: #085041;

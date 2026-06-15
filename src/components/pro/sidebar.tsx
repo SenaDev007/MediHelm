@@ -118,10 +118,10 @@ export function ProSidebar() {
       >
         {/* Brand */}
         <div className={cn('flex items-center gap-2 px-4 py-4 border-b border-sidebar-border', collapsed && 'justify-center px-2')}>
-          <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={32} height={32} className="shrink-0" />
+          <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-sm text-sidebar-foreground">MédiHelm Pro</span>
+              <span className="font-bold text-sm text-sidebar-foreground">MediHelm Pro</span>
               <span className="text-[10px] text-sidebar-foreground/60 truncate max-w-40">
                 {pharmacie?.nom || 'Pharmacie'}
               </span>

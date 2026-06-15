@@ -233,53 +233,6 @@ function interactionNiveauBadge(niveau: InteractionResult['niveau']) {
   )
 }
 
-// === Simulated interaction data ===
-
-const SIMULATED_INTERACTIONS: InteractionResult[] = [
-  {
-    medicament1: 'Méthotrexate',
-    medicament2: 'Ibuprofène',
-    niveau: 'MAJEURE',
-    description: 'Augmentation de la toxicité du méthotrexate par diminution de son excrétion rénale.',
-    conduite: 'Association déconseillée. Utiliser du paracétamol comme antalgique alternatif.',
-  },
-  {
-    medicament1: 'Warfarine',
-    medicament2: 'Aspirine',
-    niveau: 'MAJEURE',
-    description: 'Majoration du risque hémorragique par addition des effets anticoagulants.',
-    conduite: 'Association déconseillée. Surveillance de l\'INR si association indispensable.',
-  },
-  {
-    medicament1: 'Amoxicilline',
-    medicament2: 'Allopurinol',
-    niveau: 'MODEREE',
-    description: 'Augmentation de la fréquence des éruptions cutanées.',
-    conduite: 'Surveillance clinique renforcée.',
-  },
-  {
-    medicament1: 'Cimétidine',
-    medicament2: 'Théophylline',
-    niveau: 'MODEREE',
-    description: 'Inhibition du métabolisme de la théophylline avec risque de surdosage.',
-    conduite: 'Adapter la posologie de la théophylline si nécessaire.',
-  },
-  {
-    medicament1: 'Ketoconazole',
-    medicament2: 'Simvastatine',
-    niveau: 'CONTRE-INDICATION',
-    description: 'Risque majoré d\'effets indésirables musculaires (rhabdomyolyse).',
-    conduite: 'Association contre-indiquée. Suspender la simvastatine pendant le traitement.',
-  },
-  {
-    medicament1: 'Paracétamol',
-    medicament2: 'Vitamine C',
-    niveau: 'MINEURE',
-    description: 'Pas d\'interaction cliniquement significative à doses normales.',
-    conduite: 'Aucune précaution particulière.',
-  },
-]
-
 // === Main Component ===
 
 export default function QualitePage() {
@@ -529,19 +482,10 @@ export default function QualitePage() {
         const data = await res.json()
         setInteractionResults(Array.isArray(data) ? data : data.interactions || [])
       } else {
-        // Fallback to simulated data
-        const results = SIMULATED_INTERACTIONS.filter(
-          (i) =>
-            (i.medicament1.toLowerCase().includes(interactionMed1.toLowerCase()) ||
-              i.medicament2.toLowerCase().includes(interactionMed1.toLowerCase())) &&
-            (i.medicament1.toLowerCase().includes(interactionMed2.toLowerCase()) ||
-              i.medicament2.toLowerCase().includes(interactionMed2.toLowerCase()))
-        )
-        setInteractionResults(results.length > 0 ? results : SIMULATED_INTERACTIONS.slice(0, 2))
+        setInteractionResults([])
       }
     } catch {
-      // Fallback to simulated data
-      setInteractionResults(SIMULATED_INTERACTIONS.slice(0, 3))
+      setInteractionResults([])
     } finally {
       setIsCheckingInteractions(false)
     }

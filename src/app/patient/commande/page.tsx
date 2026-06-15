@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +39,7 @@ interface PharmacyOption {
 const CART_KEY = 'medihelm_cart'
 
 export default function CommandePage() {
+  const { patientId } = usePatientSession()
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(false)
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'pharmacy' | 'payment' | 'confirm'>('cart')
@@ -150,11 +152,13 @@ export default function CommandePage() {
       return
     }
 
+    if (!patientId) {
+      toast.error('Session patient non disponible')
+      return
+    }
+
     setSubmitting(true)
     try {
-      // For demo purposes, use a fixed patientId
-      const patientId = 'demo-patient'
-
       const lignes = cart.map(item => ({
         medicamentId: item.medicamentId,
         dci: item.dci,

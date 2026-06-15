@@ -84,7 +84,7 @@
   "pwa": {
     "offline": "You are offline",
     "online": "Connection restored",
-    "install": "Install MédiHelm",
+    "install": "Install MediHelm",
     "updateAvailable": "Update available"
   },
   "vaccination": {

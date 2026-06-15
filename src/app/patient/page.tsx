@@ -95,7 +95,7 @@ export default function PatientHomePage() {
       >
         <h1 className="text-xl font-bold text-teal-800">Bonjour 👋</h1>
         <p className="text-sm text-muted-foreground">
-          Bienvenue sur MédiHelm Patient — votre santé, gratuitement.
+          Bienvenue sur MediHelm Patient — votre santé, gratuitement.
         </p>
       </motion.div>
 
@@ -245,7 +245,7 @@ export default function PatientHomePage() {
       <div className="text-center py-2">
         <Badge variant="secondary" className="bg-teal-50 text-teal-800 border-0 text-xs">
           <Shield className="h-3 w-3 mr-1" />
-          MédiHelm Patient — 100% Gratuit
+          MediHelm Patient — 100% Gratuit
         </Badge>
       </div>
     </div>

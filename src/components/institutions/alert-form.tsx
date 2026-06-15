@@ -301,7 +301,7 @@ export function AlertForm({ initialData, mode = 'create' }: AlertFormProps) {
               <p className="text-xs text-amber-700 mt-1">
                 La publication de cette alerte engage la responsabilité de la DPMED.
                 Une signature numérique sera automatiquement apposée lors de la diffusion.
-                Toute alerte publiée sera diffusée à l&apos;ensemble des pharmacies connectées au réseau MédiHelm.
+                Toute alerte publiée sera diffusée à l&apos;ensemble des pharmacies connectées au réseau MediHelm.
               </p>
             </div>
           </div>

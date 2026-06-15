@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const spaces = [
   {
     icon: Building2,
-    title: "MédiHelm Pro",
+    title: "MediHelm Pro",
     subtitle: "Pharmacien",
     accentColor: "#1D9E75",
     accentBorder: "border-t-teal-400",
@@ -26,7 +26,7 @@ const spaces = [
   },
   {
     icon: Heart,
-    title: "MédiHelm Patient",
+    title: "MediHelm Patient",
     subtitle: "Patient",
     accentColor: "#378ADD",
     accentBorder: "border-t-blue-brand",
@@ -37,7 +37,7 @@ const spaces = [
   },
   {
     icon: Network,
-    title: "MédiHelm Grossistes",
+    title: "MediHelm Grossistes",
     subtitle: "Grossistes & Fournisseurs",
     accentColor: "#EF9F27",
     accentBorder: "border-t-amber-400",
@@ -48,7 +48,7 @@ const spaces = [
   },
   {
     icon: BarChart3,
-    title: "MédiHelm Analytics",
+    title: "MediHelm Analytics",
     subtitle: "Tableaux de bord IA",
     accentColor: "#EF9F27",
     accentBorder: "border-t-amber-400",
@@ -59,7 +59,7 @@ const spaces = [
   },
   {
     icon: Landmark,
-    title: "MédiHelm Institutionnel",
+    title: "MediHelm Institutionnel",
     subtitle: "DPMED, SoBAPS, ABRP",
     accentColor: "#085041",
     accentBorder: "border-t-teal-800",

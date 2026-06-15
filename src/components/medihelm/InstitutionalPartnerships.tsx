@@ -130,7 +130,7 @@ export function InstitutionalPartnerships() {
             Partenariats Institutionnels — Gratuit pour les Institutions
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            MédiHelm s&apos;intègre gratuitement avec les institutions clés du
+            MediHelm s&apos;intègre gratuitement avec les institutions clés du
             système pharmaceutique béninois
           </p>
         </motion.div>

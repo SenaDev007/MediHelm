@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Route Handler NextAuth.js
+// MediHelm — Route Handler NextAuth.js
 // Export des handlers GET et POST pour l'authentification
 // ============================================================
 

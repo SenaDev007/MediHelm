@@ -27,7 +27,7 @@ export default function NouvelleAlertePage() {
               <p className="text-sm font-semibold text-teal-800">Formulaire d&apos;alerte DPMED</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Remplissez les informations ci-dessous pour créer une nouvelle alerte sanitaire.
-                L&apos;alerte sera diffusée à l&apos;ensemble des pharmacies connectées au réseau MédiHelm.
+                L&apos;alerte sera diffusée à l&apos;ensemble des pharmacies connectées au réseau MediHelm.
                 Assurez-vous de l&apos;exactitude des informations avant publication.
               </p>
             </div>

@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Réceptions SoBAPS (liste)
+// MediHelm — Réceptions SoBAPS (liste)
 // GET /api/sobaps/receptions
 // Liste des réceptions pour la pharmacie de l'utilisateur
 // Permission : M03_COMMANDES read

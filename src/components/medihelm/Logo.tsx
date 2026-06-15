@@ -12,7 +12,7 @@ export function Logo({ variant = "full", className = "" }: LogoProps) {
   if (variant === "icon") {
     return (
       <div className={`flex items-center ${className}`}>
-        <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={40} height={40} />
+        <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={40} height={40} />
       </div>
     );
   }
@@ -20,21 +20,21 @@ export function Logo({ variant = "full", className = "" }: LogoProps) {
   if (variant === "wordmark") {
     return (
       <div className={`flex items-center ${className}`}>
-        <Image src="/logo-MediHelm.png" alt="MédiHelm" width={180} height={45} />
+        <Image src="/logo-MediHelm.png" alt="MediHelm" width={180} height={45} />
       </div>
     );
   }
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={36} height={36} />
+      <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={36} height={36} />
       <div className="flex flex-col">
         <span
           className="text-lg tracking-tight leading-none"
           style={{ fontFamily: "Georgia, serif" }}
         >
           <span className="font-bold" style={{ color: "#1D9E75" }}>
-            Médi
+            Medi
           </span>
           <span className="font-normal" style={{ color: "#085041" }}>
             Helm

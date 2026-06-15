@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -60,9 +61,10 @@ export default function SuiviPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'toutes' | 'en_cours' | 'terminees'>('en_cours')
 
-  const patientId = 'demo-patient'
+  const { patientId } = usePatientSession()
 
   const fetchCommandes = useCallback(async () => {
+    if (!patientId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patient/commandes?patientId=${patientId}`)
@@ -75,11 +77,11 @@ export default function SuiviPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [patientId])
 
   useEffect(() => {
-    fetchCommandes()
-  }, [fetchCommandes])
+    if (patientId) fetchCommandes()
+  }, [fetchCommandes, patientId])
 
   const filteredCommandes = commandes.filter((c) => {
     if (filter === 'en_cours') return !['LIVREE', 'ANNULEE'].includes(c.statut)

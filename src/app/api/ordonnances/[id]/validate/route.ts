@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Validation d'ordonnance (vérification pharmacien)
+// MediHelm — Validation d'ordonnance (vérification pharmacien)
 // POST /api/ordonnances/[id]/validate
 // Change le statut de EN_VERIFICATION vers VALIDEE ou REFUSEE
 // Enregistre le pharmacien validateur

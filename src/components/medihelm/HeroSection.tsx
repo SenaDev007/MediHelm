@@ -88,7 +88,7 @@ export function HeroSection() {
                 className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
               >
                 <Building2 className="mr-2 size-5" />
-                Découvrir MédiHelm Pro
+                Découvrir MediHelm Pro
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>

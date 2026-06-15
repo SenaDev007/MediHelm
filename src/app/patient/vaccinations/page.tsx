@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -55,9 +56,10 @@ export default function VaccinationsPage() {
   const [qrVaccinationId, setQrVaccinationId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'toutes' | 'prochaines'>('toutes')
 
-  const patientId = 'demo-patient'
+  const { patientId } = usePatientSession()
 
   const fetchVaccinations = useCallback(async () => {
+    if (!patientId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patient/vaccinations?patientId=${patientId}`)
@@ -70,11 +72,11 @@ export default function VaccinationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [patientId])
 
   useEffect(() => {
-    fetchVaccinations()
-  }, [fetchVaccinations])
+    if (patientId) fetchVaccinations()
+  }, [fetchVaccinations, patientId])
 
   const prochainesVaccinations = vaccinations.filter(v => {
     if (!v.prochaineDose) return false

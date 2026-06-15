@@ -51,7 +51,7 @@ export default function ConnexionPage() {
           case 'Compte désactivé. Contactez votre administrateur.':
             setError('Votre compte a été désactivé. Contactez le support.')
             break
-          case 'Pharmacie désactivée. Contactez le support MédiHelm.':
+          case 'Pharmacie désactivée. Contactez le support MediHelm.':
             setError('La pharmacie associée est désactivée. Contactez le support.')
             break
           default:
@@ -78,10 +78,10 @@ export default function ConnexionPage() {
       >
         {/* Logo & Header */}
         <div className="text-center mb-6">
-          <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={56} height={56} className="mx-auto mb-3" />
+          <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={56} height={56} className="mx-auto mb-3" />
           <h1 className="text-xl font-bold text-teal-800">Connexion</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Accédez à votre espace patient MédiHelm
+            Accédez à votre espace patient MediHelm
           </p>
           <Badge variant="secondary" className="mt-2 bg-teal-50 text-teal-800 border-0 text-xs">
             100% Gratuit

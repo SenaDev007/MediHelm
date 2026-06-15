@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -68,8 +69,7 @@ export default function RappelsPage() {
   const [filter, setFilter] = useState<'tous' | 'actifs' | 'inactifs'>('tous')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-  // Mock patientId - in production, this would come from auth context
-  const patientId = 'demo-patient'
+  const { patientId } = usePatientSession()
 
   const fetchRappels = useCallback(async () => {
     setLoading(true)
@@ -87,8 +87,8 @@ export default function RappelsPage() {
   }, [patientId])
 
   useEffect(() => {
-    fetchRappels()
-  }, [fetchRappels])
+    if (patientId) fetchRappels()
+  }, [fetchRappels, patientId])
 
   const handleSubmit = async () => {
     if (!form.medicamentNom.trim() || !form.dateDebut) {

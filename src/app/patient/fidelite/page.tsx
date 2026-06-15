@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -52,15 +53,6 @@ const rewardsCatalog: Reward[] = [
   { id: '6', nom: 'Coffret bien-être', description: 'Coffret produits bien-être offert', pointsRequis: 1000, categorie: 'cadeau', disponible: false },
 ]
 
-// Mock transactions
-const mockTransactions: Transaction[] = [
-  { id: '1', type: 'GAGNE', points: 50, description: 'Commande #CMD001', date: new Date(Date.now() - 2 * 86400000).toISOString() },
-  { id: '2', type: 'GAGNE', points: 30, description: 'Commande #CMD002', date: new Date(Date.now() - 5 * 86400000).toISOString() },
-  { id: '3', type: 'UTILISE', points: -100, description: 'Remise 5% utilisée', date: new Date(Date.now() - 10 * 86400000).toISOString() },
-  { id: '4', type: 'GAGNE', points: 75, description: 'Commande #CMD003', date: new Date(Date.now() - 15 * 86400000).toISOString() },
-  { id: '5', type: 'GAGNE', points: 25, description: 'Bonus inscription', date: new Date(Date.now() - 30 * 86400000).toISOString() },
-]
-
 const pointsToNextLevel = 500
 const levelNames = [
   { min: 0, name: 'Bronze', color: 'text-amber-700', icon: '🥉' },
@@ -73,11 +65,12 @@ export default function FidelitePage() {
   const [fideliteData, setFideliteData] = useState<FideliteData | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'resume' | 'historique' | 'recompenses'>('resume')
-  const [transactions] = useState<Transaction[]>(mockTransactions)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
-  const patientId = 'demo-patient'
+  const { patientId, isLoading: sessionLoading } = usePatientSession()
 
   const fetchFidelite = useCallback(async () => {
+    if (!patientId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patient/fidelite?patientId=${patientId}`)
@@ -90,11 +83,25 @@ export default function FidelitePage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [patientId])
+
+  const fetchTransactions = useCallback(async () => {
+    if (!patientId) return
+    try {
+      const res = await fetch(`/api/patient/fidelite/transactions?patientId=${patientId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTransactions(data)
+      }
+    } catch {
+      // ignore
+    }
+  }, [patientId])
 
   useEffect(() => {
     fetchFidelite()
-  }, [fetchFidelite])
+    fetchTransactions()
+  }, [fetchFidelite, fetchTransactions])
 
   const points = fideliteData?.pointsFidelite || 0
 
@@ -141,8 +148,19 @@ export default function FidelitePage() {
         </p>
       </div>
 
+      {/* Session loading */}
+      {sessionLoading && (
+        <Card className="border-teal-200">
+          <CardContent className="p-5 space-y-3">
+            <Skeleton className="h-8 w-1/2" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Loading */}
-      {loading && (
+      {!sessionLoading && loading && (
         <Card className="border-teal-200">
           <CardContent className="p-5 space-y-3">
             <Skeleton className="h-8 w-1/2" />
@@ -153,7 +171,7 @@ export default function FidelitePage() {
       )}
 
       {/* Points summary card */}
-      {!loading && (
+      {!sessionLoading && !loading && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -211,7 +229,7 @@ export default function FidelitePage() {
       )}
 
       {/* Stats row */}
-      {!loading && (
+      {!sessionLoading && !loading && (
         <div className="grid grid-cols-3 gap-2">
           <Card className="border-teal-200">
             <CardContent className="p-3 text-center">

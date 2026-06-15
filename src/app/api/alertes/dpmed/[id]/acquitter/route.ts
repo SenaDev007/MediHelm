@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Acquittement d'une alerte DPMED
+// MediHelm — Acquittement d'une alerte DPMED
 // POST /api/alertes/dpmed/[id]/acquitter
 // Met à jour la diffusion vers ACQUITTEE et la date d'acquittement
 // ============================================================

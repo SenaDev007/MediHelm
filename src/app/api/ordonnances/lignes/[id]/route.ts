@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Ligne d'ordonnance (détail et mise à jour)
+// MediHelm — Ligne d'ordonnance (détail et mise à jour)
 // GET /api/ordonnances/lignes/[id]
 // PATCH /api/ordonnances/lignes/[id]
 // ============================================================

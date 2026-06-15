@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Image / Scan d'ordonnance
+// MediHelm — Image / Scan d'ordonnance
 // GET /api/ordonnances/[id]/image
 // Retourne les détails de l'ordonnance avec l'URL de l'image si disponible
 // ============================================================

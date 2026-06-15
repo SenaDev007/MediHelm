@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Webhook UbiPharm
+// MediHelm — Webhook UbiPharm
 // Réception des mises à jour de statut de commande
 // Validation par secret partagé
 // ============================================================

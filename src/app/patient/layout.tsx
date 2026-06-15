@@ -41,9 +41,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               {menuOpen ? <X className="h-5 w-5 text-gray-900" /> : <Menu className="h-5 w-5 text-gray-900" />}
             </button>
             <Link href="/patient" className="flex items-center gap-2">
-              <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={32} height={32} className="shrink-0" />
+              <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-teal-800 leading-tight">MédiHelm</span>
+                <span className="text-sm font-bold text-teal-800 leading-tight">MediHelm</span>
                 <span className="text-[10px] text-primary font-medium leading-tight">Patient • Gratuit</span>
               </div>
             </Link>
@@ -78,9 +78,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             >
               <div className="p-4 border-b border-teal-200">
                 <div className="flex items-center gap-2">
-                  <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={32} height={32} className="shrink-0" />
+                  <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
                   <div>
-                    <p className="font-bold text-teal-800">MédiHelm Patient</p>
+                    <p className="font-bold text-teal-800">MediHelm Patient</p>
                     <p className="text-xs text-primary">100% Gratuit</p>
                   </div>
                 </div>

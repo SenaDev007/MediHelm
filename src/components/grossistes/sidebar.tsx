@@ -62,10 +62,10 @@ export function GrossisteSidebar() {
           "flex items-center gap-3 px-4 py-5 border-b border-sidebar-border",
           collapsed && "justify-center px-2"
         )}>
-          <Image src="/logo-MediHelm-01.png" alt="MédiHelm" width={36} height={36} className="shrink-0" />
+          <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={36} height={36} className="shrink-0" />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-bold text-sm text-sidebar-foreground leading-tight">MédiHelm</span>
+              <span className="font-bold text-sm text-sidebar-foreground leading-tight">MediHelm</span>
               <span className="text-xs text-sidebar-accent-foreground font-medium">Grossistes</span>
             </div>
           )}

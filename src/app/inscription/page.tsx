@@ -191,7 +191,7 @@ export default function InscriptionPage() {
             <Logo />
           </div>
           <h1 className="text-2xl font-bold mt-4" style={{ color: '#085041' }}>
-            Créez votre espace MédiHelm
+            Créez votre espace MediHelm
           </h1>
           <p className="text-muted-foreground mt-1">
             Inscrivez votre pharmacie et commencez l&apos;essai gratuit de 14 jours
@@ -531,7 +531,7 @@ export default function InscriptionPage() {
               )}
             </Button>
             <p className="text-xs text-center text-muted-foreground">
-              En créant votre compte, vous acceptez les conditions d&apos;utilisation de MédiHelm.
+              En créant votre compte, vous acceptez les conditions d&apos;utilisation de MediHelm.
               <br />
               Vous ne serez pas facturé pendant la période d&apos;essai.
             </p>

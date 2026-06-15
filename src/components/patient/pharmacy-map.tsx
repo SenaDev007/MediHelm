@@ -358,7 +358,7 @@ export default function PharmacyMap({
           )
         })}
 
-        {/* Popup — Personalized MédiHelm design */}
+        {/* Popup — Personalized MediHelm design */}
         {popupInfo && popupInfo.latitude && popupInfo.longitude && (
           <Popup
             longitude={popupInfo.longitude}

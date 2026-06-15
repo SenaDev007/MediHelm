@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Demande de réinitialisation de mot de passe
+// MediHelm — Demande de réinitialisation de mot de passe
 // POST /api/auth/reset-password
 // Accepte un email, génère un token de réinitialisation
 // Retourne toujours 200 pour prévenir l'énumération d'emails

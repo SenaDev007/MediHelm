@@ -143,45 +143,22 @@ export default function ParametresPage() {
     fetchGrossistes()
   }, [])
 
-  // ─── Mock API keys & webhooks (would normally come from API) ─
   useEffect(() => {
     if (selectedGrossiste) {
-      setApiKeys([
-        {
-          id: 'key-1',
-          name: 'Clé principale',
-          prefix: 'mh_live_****',
-          createdAt: '2025-01-15',
-          lastUsed: '2025-03-01',
-          actif: true,
-        },
-        {
-          id: 'key-2',
-          name: 'Clé test',
-          prefix: 'mh_test_****',
-          createdAt: '2025-02-10',
-          lastUsed: null,
-          actif: true,
-        },
-      ])
-      setWebhooks([
-        {
-          id: 'wh-1',
-          eventType: 'COMMANDE_CREEE',
-          url: 'https://api.example.com/webhooks/orders',
-          secret: 'whsec_****',
-          actif: true,
-          createdAt: '2025-01-20',
-        },
-        {
-          id: 'wh-2',
-          eventType: 'STATUT_CHANGE',
-          url: 'https://api.example.com/webhooks/status',
-          secret: 'whsec_****',
-          actif: false,
-          createdAt: '2025-02-05',
-        },
-      ])
+      // Fetch API keys from DB
+      fetch(`/api/grossistes/${selectedGrossiste.id}/api-keys`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setApiKeys(Array.isArray(data) ? data : []))
+        .catch(() => setApiKeys([]))
+      
+      // Fetch webhooks from DB
+      fetch(`/api/grossistes/${selectedGrossiste.id}/webhooks`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setWebhooks(Array.isArray(data) ? data : []))
+        .catch(() => setWebhooks([]))
+    } else {
+      setApiKeys([])
+      setWebhooks([])
     }
   }, [selectedGrossiste])
 
@@ -468,7 +445,7 @@ export default function ParametresPage() {
                 Clés API
               </CardTitle>
               <CardDescription>
-                Gérez vos clés d&apos;accès à l&apos;API MédiHelm
+                Gérez vos clés d&apos;accès à l&apos;API MediHelm
               </CardDescription>
             </div>
             <Button

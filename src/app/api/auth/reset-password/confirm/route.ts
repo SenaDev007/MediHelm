@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Confirmation de réinitialisation de mot de passe
+// MediHelm — Confirmation de réinitialisation de mot de passe
 // POST /api/auth/reset-password/confirm
 // Valide le token et met à jour le mot de passe
 // ============================================================

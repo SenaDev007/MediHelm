@@ -151,7 +151,7 @@ export function PatientFeatures() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            MédiHelm Patient — Le Compagnon Santé de Tous
+            MediHelm Patient — Le Compagnon Santé de Tous
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
             Un espace dédié aux patients pour accéder facilement aux services

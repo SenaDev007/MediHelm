@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -72,9 +73,10 @@ export default function OrdonnancesPage() {
   const [imageDialogOpen, setImageDialogOpen] = useState(false)
   const [imageDialogUrl, setImageDialogUrl] = useState<string | null>(null)
 
-  const patientId = 'demo-patient'
+  const { patientId } = usePatientSession()
 
   const fetchOrdonnances = useCallback(async () => {
+    if (!patientId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/patient/ordonnances?patientId=${patientId}`)
@@ -87,11 +89,11 @@ export default function OrdonnancesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [patientId])
 
   useEffect(() => {
-    fetchOrdonnances()
-  }, [fetchOrdonnances])
+    if (patientId) fetchOrdonnances()
+  }, [fetchOrdonnances, patientId])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -121,7 +123,7 @@ export default function OrdonnancesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patientId,
-          pharmacieId: ordonnances[0]?.pharmacie?.id || 'demo-pharmacy',
+          pharmacieId: ordonnances[0]?.pharmacie?.id || '',
           prescripteur: prescripteur.trim(),
           dateOrdonnance: new Date().toISOString(),
           imageUrl: previewUrl,

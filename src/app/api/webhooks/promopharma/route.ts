@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Webhook Promopharma
+// MediHelm — Webhook Promopharma
 // Réception des mises à jour de statut de commande
 // Validation par secret partagé (X-Webhook-Secret)
 // ============================================================

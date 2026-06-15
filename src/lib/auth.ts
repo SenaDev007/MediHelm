@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Configuration NextAuth.js v4
+// MediHelm — Configuration NextAuth.js v4
 // Authentification par email/mot de passe avec JWT
 // Simplified for SQLite dev schema (no Role/Permission models)
 // ============================================================
@@ -73,7 +73,7 @@ export const authOptions: NextAuthOptions = {
 
         // Vérifier que la pharmacie est active
         if (!utilisateur.pharmacie.actif) {
-          throw new Error('Pharmacie désactivée. Contactez le support MédiHelm.')
+          throw new Error('Pharmacie désactivée. Contactez le support MediHelm.')
         }
 
         // Vérification du mot de passe (bcrypt + SHA-256 legacy)

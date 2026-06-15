@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Health Check / API Info
+// MediHelm — Health Check / API Info
 // GET /api
 // Point d'entrée de l'API — statut et version
 // ============================================================
@@ -11,7 +11,7 @@ export async function GET() {
     status: 'ok',
     version: '2.0.0',
     timestamp: new Date().toISOString(),
-    service: 'MédiHelm API',
+    service: 'MediHelm API',
     environment: process.env.NODE_ENV || 'development',
   })
 }

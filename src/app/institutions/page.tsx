@@ -32,7 +32,7 @@ export default function InstitutionsLanding() {
                 <Shield className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-teal-800">MédiHelm</h1>
+                <h1 className="text-lg font-bold text-teal-800">MediHelm</h1>
                 <p className="text-xs text-teal-600">Portail Institutionnel</p>
               </div>
             </div>
@@ -60,7 +60,7 @@ export default function InstitutionsLanding() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
             Accédez aux outils dédiés aux institutions de santé du Bénin.
             Gestion des alertes sanitaires, suivi logistique, et analytics de marché —
-            en partenariat GRATUIT avec l&apos;écosystème MédiHelm.
+            en partenariat GRATUIT avec l&apos;écosystème MediHelm.
           </p>
           <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ export default function InstitutionsLanding() {
       <section className="py-12 bg-teal-800 text-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold mb-2">Écosystème MédiHelm en chiffres</h3>
+            <h3 className="text-xl font-semibold mb-2">Écosystème MediHelm en chiffres</h3>
             <p className="text-sm text-teal-200">Un réseau pharmaceutique connecté pour la santé publique</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -158,10 +158,10 @@ export default function InstitutionsLanding() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            <span className="text-sm">MédiHelm — Portail Institutionnel</span>
+            <span className="text-sm">MediHelm — Portail Institutionnel</span>
           </div>
           <p className="text-xs text-teal-300">
-            © {new Date().getFullYear()} MédiHelm Health Ecosystem — République du Bénin
+            © {new Date().getFullYear()} MediHelm Health Ecosystem — République du Bénin
           </p>
         </div>
       </footer>

@@ -1,5 +1,5 @@
 // ============================================================
-// MédiHelm — Utilitaires de validation HMAC pour les webhooks
+// MediHelm — Utilitaires de validation HMAC pour les webhooks
 // Validation des signatures HMAC-SHA256 pour les webhooks entrants
 // ============================================================
 
