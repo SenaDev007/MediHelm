@@ -1,14 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
+    const authResult = await requireAuth(request, 'M19_CONFORMITE', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
+    const pharmacieId = user.pharmacieId
 
     // Use findFirst instead of findUnique (pharmacieId is not unique constraint)
     const data = await db.scoreConformite.findFirst({

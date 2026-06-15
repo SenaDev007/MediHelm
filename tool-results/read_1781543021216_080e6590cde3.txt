@@ -1,0 +1,1208 @@
+     1→     1→// ============================================================
+     2→     2→// MédiHelm — Production Schema (PostgreSQL / Neon)
+     3→     3→// 47 modèles · 29 enums · Schéma Pharma + Grossiste + ORION + Institutionnel
+     4→     4→// Référence: MH-SCHEMA-2025-v1.0
+     5→     5→// ============================================================
+     6→     6→
+     7→     7→generator client {
+     8→     8→  provider = "prisma-client-js"
+     9→     9→}
+    10→    10→
+    11→    11→datasource db {
+    12→    12→  provider = "postgresql"
+    13→    13→  url      = env("DATABASE_URL")
+    14→    14→}
+    15→    15→
+    16→    16→// ============================================================
+    17→    17→// 1. Enums Globaux — Plateforme & Auth
+    18→    18→// ============================================================
+    19→    19→
+    20→    20→enum PlanType {
+    21→    21→  SEED
+    22→    22→  GROW
+    23→    23→  LEAD
+    24→    24→  NETWORK
+    25→    25→}
+    26→    26→
+    27→    27→enum RoleType {
+    28→    28→  PLATFORM_ADMIN
+    29→    29→  OWNER
+    30→    30→  DIRECTEUR
+    31→    31→  PHARMACIEN
+    32→    32→  CAISSIER
+    33→    33→  MAGASINIER
+    34→    34→  COMPTABLE
+    35→    35→  STAGIAIRE
+    36→    36→  PROMOTEUR
+    37→    37→  DPMED_ADMIN
+    38→    38→  SOBAPS_VIEWER
+    39→    39→  ABRP_VIEWER
+    40→    40→  GROSSISTE_PARTNER
+    41→    41→  PATIENT
+    42→    42→}
+    43→    43→
+    44→    44→enum TenantType {
+    45→    45→  PHARMACIE
+    46→    46→  GROSSISTE
+    47→    47→  INSTITUTION
+    48→    48→}
+    49→    49→
+    50→    50→// ============================================================
+    51→    51→// 2. Enums Stock & Médicaments
+    52→    52→// ============================================================
+    53→    53→
+    54→    54→enum FormeGalenique {
+    55→    55→  COMPRIME
+    56→    56→  GELULE
+    57→    57→  SIROP
+    58→    58→  INJECTION
+    59→    59→  POMMADE
+    60→    60→  GOUTTES
+    61→    61→  SUPPOSITOIRE
+    62→    62→  INHALATEUR
+    63→    63→  SOLUTION
+    64→    64→  POUDRE
+    65→    65→  AUTRE
+    66→    66→}
+    67→    67→
+    68→    68→enum CategorieATC {
+    69→    69→  A
+    70→    70→  B
+    71→    71→  C
+    72→    72→  D
+    73→    73→  G
+    74→    74→  H
+    75→    75→  J
+    76→    76→  L
+    77→    77→  M
+    78→    78→  N
+    79→    79→  P
+    80→    80→  R
+    81→    81→  S
+    82→    82→  V
+    83→    83→}
+    84→    84→
+    85→    85→enum TypeAlerteStock {
+    86→    86→  RUPTURE
+    87→    87→  SEUIL_MINIMUM
+    88→    88→  PEREMPTION_PROCHE
+    89→    89→  SURSTOCK
+    90→    90→}
+    91→    91→
+    92→    92→enum TypeMouvement {
+    93→    93→  ENTREE
+    94→    94→  SORTIE
+    95→    95→  TRANSFERT
+    96→    96→  RETOUR
+    97→    97→  AJUSTEMENT
+    98→    98→  DESTRUCTION
+    99→    99→}
+   100→   100→
+   101→   101→// ============================================================
+   102→   102→// 3. Enums Ventes & POS
+   103→   103→// ============================================================
+   104→   104→
+   105→   105→enum StatutVente {
+   106→   106→  BROUILLON
+   107→   107→  EN_COURS
+   108→   108→  VALIDEE
+   109→   109→  ANNULEE
+   110→   110→  REMBOURSEE
+   111→   111→}
+   112→   112→
+   113→   113→enum ModePaiement {
+   114→   114→  ESPECES
+   115→   115→  WAVE
+   116→   116→  MTN_MONEY
+   117→   117→  MOOV_MONEY
+   118→   118→  CARTE_BANCAIRE
+   119→   119→  CHEQUE
+   120→   120→  CREDIT
+   121→   121→  ASSURANCE
+   122→   122→}
+   123→   123→
+   124→   124→enum StatutCaisse {
+   125→   125→  OUVERTE
+   126→   126→  FERMEE
+   127→   127→  EN_CLOTURE
+   128→   128→}
+   129→   129→
+   130→   130→// ============================================================
+   131→   131→// 4. Enums Ordonnances
+   132→   132→// ============================================================
+   133→   133→
+   134→   134→enum StatutOrdonnance {
+   135→   135→  RECUE
+   136→   136→  EN_VERIFICATION
+   137→   137→  VALIDEE
+   138→   138→  PARTIELLEMENT_DELIVREE
+   139→   139→  DELIVREE
+   140→   140→  REFUSEE
+   141→   141→}
+   142→   142→
+   143→   143→// ============================================================
+   144→   144→// 5. Enums Commandes
+   145→   145→// ============================================================
+   146→   146→
+   147→   147→enum StatutCommande {
+   148→   148→  BROUILLON
+   149→   149→  ENVOYEE
+   150→   150→  CONFIRMEE
+   151→   151→  EN_PREPARATION
+   152→   152→  LIVREE_PARTIELLEMENT
+   153→   153→  LIVREE
+   154→   154→  ANNULEE
+   155→   155→}
+   156→   156→
+   157→   157→enum StatutCommandePatient {
+   158→   158→  EN_ATTENTE
+   159→   159→  CONFIRMEE
+   160→   160→  EN_PREPARATION
+   161→   161→  PRETE
+   162→   162→  LIVREE
+   163→   163→  ANNULEE
+   164→   164→}
+   165→   165→
+   166→   166→// ============================================================
+   167→   167→// 6. Enums RH
+   168→   168→// ============================================================
+   169→   169→
+   170→   170→enum TypeContrat {
+   171→   171→  CDI
+   172→   172→  CDD
+   173→   173→  STAGE
+   174→   174→  CONSULTATION
+   175→   175→  INTERIM
+   176→   176→}
+   177→   177→
+   178→   178→enum TypeConge {
+   179→   179→  ANNUEL
+   180→   180→  MALADIE
+   181→   181→  MATERNITE
+   182→   182→  PATERNITE
+   183→   183→  SANS_SOLDE
+   184→   184→  EXCEPTIONNEL
+   185→   185→}
+   186→   186→
+   187→   187→// ============================================================
+   188→   188→// 7. Enums Conformité
+   189→   189→// ============================================================
+   190→   190→
+   191→   191→enum NiveauUrgence {
+   192→   192→  INFO
+   193→   193→  ATTENTION
+   194→   194→  URGENT
+   195→   195→  URGENCE_IMMEDIATE
+   196→   196→}
+   197→   197→
+   198→   198→enum TypeAlerteDPMED {
+   199→   199→  RAPPEL_LOT
+   200→   200→  CONTREFACON
+   201→   201→  AMM_SUSPENDUE
+   202→   202→  INTERDICTION
+   203→   203→  INFORMATION
+   204→   204→  PHARMACOVIGILANCE
+   205→   205→}
+   206→   206→
+   207→   207→enum StatutAlerte {
+   208→   208→  EN_DIFFUSION
+   209→   209→  ACQUITTEE
+   210→   210→  EXPIREE
+   211→   211→  ANNULEE
+   212→   212→}
+   213→   213→
+   214→   214→enum StatutDiffusion {
+   215→   215→  EN_ATTENTE
+   216→   216→  RECUE
+   217→   217→  ACQUITTEE
+   218→   218→  NON_CONCERNEE
+   219→   219→}
+   220→   220→
+   221→   221→enum TypeSurveillance {
+   222→   222→  SOUS_SURVEILLANCE
+   223→   223→  RAPPEL_LOT
+   224→   224→  CONTREFACON
+   225→   225→  AMM_SUSPENDUE
+   226→   226→  INTERDICTION
+   227→   227→}
+   228→   228→
+   229→   229→enum NiveauRisque {
+   230→   230→  FAIBLE
+   231→   231→  MODERE
+   232→   232→  ELEVE
+   233→   233→  CRITIQUE
+   234→   234→}
+   235→   235→
+   236→   236→enum GraviteEI {
+   237→   237→  MINEUR
+   238→   238→  MODERE
+   239→   239→  GRAVE
+   240→   240→  VITAL
+   241→   241→}
+   242→   242→
+   243→   243→enum StatutSignalement {
+   244→   244→  EN_ATTENTE
+   245→   245→  SOUMIS
+   246→   246→  ACQUITTE
+   247→   247→  CLOTURE
+   248→   248→}
+   249→   249→
+   250→   250→enum TypeDocument {
+   251→   251→  REGISTRE_STUPEFIANTS
+   252→   252→  ORDONNANCE
+   253→   253→  DECLARATION_TRIMESTRIELLE
+   254→   254→  RAPPORT_PHARMACOVIGILANCE
+   255→   255→  RAPPORT_DESTRUCTION
+   256→   256→  CERTIFICATION
+   257→   257→  LICENCE
+   258→   258→  AUTRE
+   259→   259→}
+   260→   260→
+   261→   261→enum TypeGarde {
+   262→   262→  NORMALE
+   263→   263→  VACANCES
+   264→   264→  FERIE
+   265→   265→  EXCEPTIONNELLE
+   266→   266→}
+   267→   267→
+   268→   268→enum TypeAbonnement {
+   269→   269→  MENSUEL
+   270→   270→  TRIMESTRIEL
+   271→   271→  ANNUEL
+   272→   272→}
+   273→   273→
+   274→   274→enum StatutAbonnement {
+   275→   275→  ACTIF
+   276→   276→  EXPIRE
+   277→   277→  SUSPENDU
+   278→   278→  EN_ATTENTE
+   279→   279→}
+   280→   280→
+   281→   281→enum StatutPaiement {
+   282→   282→  EN_ATTENTE
+   283→   283→  REUSSI
+   284→   284→  ECHEC
+   285→   285→  REMBOURSE
+   286→   286→}
+   287→   287→
+   288→   288→// ============================================================
+   289→   289→// SCHÉMA PHARMA — MédiHelm Pro
+   290→   290→// 3.1 Plateforme & Auth
+   291→   291→// ============================================================
+   292→   292→
+   293→   293→model Pharmacie {
+   294→   294→  id               String       @id @default(uuid())
+   295→   295→  slug             String       @unique
+   296→   296→  nom              String
+   297→   297→  adresse          String
+   298→   298→  ville            String
+   299→   299→  telephone        String
+   300→   300→  email            String?
+   301→   301→  numeroAgrement   String       @unique
+   302→   302→  latitude         Float?
+   303→   303→  longitude        Float?
+   304→   304→  plan             PlanType     @default(SEED)
+   305→   305→  actif            Boolean      @default(true)
+   306→   306→  modeGardeActif   Boolean      @default(false)
+   307→   307→  logoUrl          String?
+   308→   308→  siteWeb          String?
+   309→   309→  dateAgrement     DateTime?
+   310→   310→  createdAt        DateTime     @default(now())
+   311→   311→  updatedAt        DateTime     @updatedAt
+   312→   312→
+   313→   313→  utilisateurs        Utilisateur[]
+   314→   314→  utilisateursTenant  UtilisateurTenant[]
+   315→   315→  promoLinks          PromoPharmacieLink[]
+   316→   316→  medicaments         Medicament[]
+   317→   317→  lots                Lot[]
+   318→   318→  ventes              Vente[]
+   319→   319→  patients            Patient[]
+   320→   320→  ordonnances         Ordonnance[]
+   321→   321→  employes            Employe[]
+   322→   322→  fournisseurs        Fournisseur[]
+   323→   323→  commandes           CommandeFournisseur[]
+   324→   324→  alertesStock        AlerteStock[]
+   325→   325→  mouvementsStock     MouvementStock[]
+   326→   326→  planningsGarde      PlanningGarde[]
+   327→   327→  scoreConformite     ScoreConformite[]
+   328→   328→  diffusionsAlerte    DiffusionAlerte[]
+   329→   329→  signalementsEI      SignalementEI[]
+   330→   330→  documents           Document[]
+   331→   331→  sessionsCaisse      SessionCaisse[]
+   332→   332→  caisses             Caisse[]
+   333→   333→  abonnements         Abonnement[]
+   334→   334→  credits             Credit[]
+   335→   335→  ecritures           EcritureComptable[]
+   336→   336→  bulletinsPaie       BulletinPaie[]
+   337→   337→  conges              Cone[]
+   338→   338→  presences           Presence[]
+   339→   339→  tierPayantLinks     PharmacieTierPayant[]
+   340→   340→  campagnesSms        CampagneSms[]
+   341→   341→  alertesOp           AlerteOperationnelle[]
+   342→   342→  rapportsAnalytics   RapportAnalytique[]
+   343→   343→  ordonnancesGrossiste OrdonnanceGrossiste[]
+   344→   344→  receptions          ReceptionGrossiste[]
+   345→   345→  commandesPatient    CommandePatient[]
+   346→   346→  vaccinations        Vaccination[]
+   347→   347→}
+   348→   348→
+   349→   349→model Utilisateur {
+   350→   350→  id             String           @id @default(uuid())
+   351→   351→  pharmacieId    String
+   352→   352→  email          String           @unique
+   353→   353→  nom            String
+   354→   354→  prenom         String
+   355→   355→  role           RoleType         @default(PHARMACIEN)
+   356→   356→  motDePasse     String
+   357→   357→  actif          Boolean          @default(true)
+   358→   358→  telephone      String?
+   359→   359→  avatarUrl      String?
+   360→   360→  dernierLogin   DateTime?
+   361→   361→  createdAt      DateTime         @default(now())
+   362→   362→  updatedAt      DateTime         @updatedAt
+   363→   363→
+   364→   364→  pharmacie        Pharmacie          @relation(fields: [pharmacieId], references: [id])
+   365→   365→  tenants          UtilisateurTenant[]
+   366→   366→  ventes           Vente[]
+   367→   367→  sessionsCaisse   SessionCaisse[]
+   368→   368→  patients         Patient[]
+   369→   369→}
+   370→   370→
+   371→   371→model UtilisateurTenant {
+   372→   372→  id            String   @id @default(uuid())
+   373→   373→  utilisateurId String
+   374→   374→  pharmacieId   String
+   375→   375→  role          RoleType
+   376→   376→  actif         Boolean  @default(true)
+   377→   377→  createdAt     DateTime @default(now())
+   378→   378→
+   379→   379→  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id])
+   380→   380→  pharmacie   Pharmacie   @relation(fields: [pharmacieId], references: [id])
+   381→   381→
+   382→   382→  @@unique([utilisateurId, pharmacieId])
+   383→   383→}
+   384→   384→
+   385→   385→model Promoteur {
+   386→   386→  id          String   @id @default(uuid())
+   387→   387→  nom         String
+   388→   388→  prenom      String
+   389→   389→  email       String   @unique
+   390→   390→  telephone   String
+   391→   391→  createdAt   DateTime @default(now())
+   392→   392→  updatedAt   DateTime @updatedAt
+   393→   393→
+   394→   394→  pharmacieLinks PromoPharmacieLink[]
+   395→   395→}
+   396→   396→
+   397→   397→model PromoPharmacieLink {
+   398→   398→  id           String   @id @default(uuid())
+   399→   399→  promoteurId  String
+   400→   400→  pharmacieId  String
+   401→   401→  createdAt    DateTime @default(now())
+   402→   402→
+   403→   403→  promoteur  Promoteur  @relation(fields: [promoteurId], references: [id])
+   404→   404→  pharmacie  Pharmacie  @relation(fields: [pharmacieId], references: [id])
+   405→   405→
+   406→   406→  @@unique([promoteurId, pharmacieId])
+   407→   407→}
+   408→   408→
+   409→   409→// 3.2 Stock & Médicaments
+   410→   410→
+   411→   411→model Medicament {
+   412→   412→  id              String          @id @default(uuid())
+   413→   413→  pharmacieId     String
+   414→   414→  dci             String
+   415→   415→  nomCommercial   String
+   416→   416→  forme           FormeGalenique  @default(COMPRIME)
+   417→   417→  dosage          String
+   418→   418→  prixPublic      Float
+   419→   419→  prixAvantRemise Float?
+   420→   420→  surOrdonnance   Boolean         @default(false)
+   421→   421→  estStupefiant   Boolean         @default(false)
+   422→   422→  stockMinimum    Int             @default(5)
+   423→   423→  stockSecurite   Int             @default(10)
+   424→   424→  codeBarres      String?
+   425→   425→  categorieAtc    CategorieATC?
+   426→   426→  remboursable    Boolean         @default(false)
+   427→   427→  generique       Boolean         @default(false)
+   428→   428→  actif           Boolean         @default(true)
+   429→   429→  createdAt       DateTime        @default(now())
+   430→   430→  updatedAt       DateTime        @updatedAt
+   431→   431→
+   432→   432→  pharmacie       Pharmacie              @relation(fields: [pharmacieId], references: [id])
+   433→   433→  lots            Lot[]
+   434→   434→  alertesStock    AlerteStock[]
+   435→   435→  lignesVente     LigneVente[]
+   436→   436→  surveillances   MedicamentSurveillance[]
+   437→   437→  mouvementsStock MouvementStock[]
+   438→   438→  lignesCommande  LigneCommandePatient[]
+   439→   439→}
+   440→   440→
+   441→   441→model Lot {
+   442→   442→  id               String          @id @default(uuid())
+   443→   443→  medicamentId     String
+   444→   444→  pharmacieId      String
+   445→   445→  numeroLot        String
+   446→   446→  quantite         Int
+   447→   447→  quantiteInitiale Int
+   448→   448→  prixAchat        Float
+   449→   449→  dateExpiration   DateTime
+   450→   450→  dateReception    DateTime        @default(now())
+   451→   451→  createdAt        DateTime        @default(now())
+   452→   452→  updatedAt        DateTime        @updatedAt
+   453→   453→
+   454→   454→  medicament       Medicament      @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
+   455→   455→  pharmacie        Pharmacie       @relation(fields: [pharmacieId], references: [id])
+   456→   456→  mouvements       MouvementStock[]
+   457→   457→
+   458→   458→  @@unique([medicamentId, numeroLot])
+   459→   459→}
+   460→   460→
+   461→   461→model AlerteStock {
+   462→   462→  id           String           @id @default(uuid())
+   463→   463→  pharmacieId  String
+   464→   464→  medicamentId String
+   465→   465→  lotId        String?
+   466→   466→  type         TypeAlerteStock  @default(RUPTURE)
+   467→   467→  message      String
+   468→   468→  traitee      Boolean          @default(false)
+   469→   469→  traiteePar   String?
+   470→   470→  traiteeLe    DateTime?
+   471→   471→  createdAt    DateTime         @default(now())
+   472→   472→
+   473→   473→  pharmacie  Pharmacie  @relation(fields: [pharmacieId], references: [id])
+   474→   474→  medicament Medicament @relation(fields: [medicamentId], references: [id])
+   475→   475→}
+   476→   476→
+   477→   477→model MouvementStock {
+   478→   478→  id            String           @id @default(uuid())
+   479→   479→  pharmacieId   String
+   480→   480→  medicamentId  String
+   481→   481→  lotId         String?
+   482→   482→  type          TypeMouvement
+   483→   483→  quantite      Int
+   484→   484→  prixUnitaire  Float?
+   485→   485→  motif         String?
+   486→   486→  reference     String?
+   487→   487→  utilisateurId String?
+   488→   488→  createdAt     DateTime         @default(now())
+   489→   489→
+   490→   490→  pharmacie  Pharmacie  @relation(fields: [pharmacieId], references: [id])
+   491→   491→  medicament Medicament @relation(fields: [medicamentId], references: [id])
+   492→   492→  lot        Lot?       @relation(fields: [lotId], references: [id])
+   493→   493→}
+   494→   494→
+   495→   495→// 3.3 Ventes & POS
+   496→   496→
+   497→   497→model Caisse {
+   498→   498→  id          String        @id @default(uuid())
+   499→   499→  pharmacieId String
+   500→   500→  nom         String
+   501→   501→  actif       Boolean       @default(true)
+   502→   502→  createdAt   DateTime      @default(now())
+   503→   503→
+   504→   504→  pharmacie Pharmacie      @relation(fields: [pharmacieId], references: [id])
+   505→   505→  sessions  SessionCaisse[]
+   506→   506→}
+   507→   507→
+   508→   508→model SessionCaisse {
+   509→   509→  id             String        @id @default(uuid())
+   510→   510→  pharmacieId    String
+   511→   511→  caisseId       String
+   512→   512→  utilisateurId  String
+   513→   513→  statut         StatutCaisse  @default(OUVERTE)
+   514→   514→  soldeOuverture Float         @default(0)
+   515→   515→  soldeCloture   Float?
+   516→   516→  ecart          Float?
+   517→   517→  ouvertLe       DateTime      @default(now())
+   518→   518→  fermeLe        DateTime?
+   519→   519→
+   520→   520→  pharmacie    Pharmacie   @relation(fields: [pharmacieId], references: [id])
+   521→   521→  caisse       Caisse      @relation(fields: [caisseId], references: [id])
+   522→   522→  utilisateur  Utilisateur @relation(fields: [utilisateurId], references: [id])
+   523→   523→  ventes       Vente[]
+   524→   524→}
+   525→   525→
+   526→   526→model Vente {
+   527→   527→  id            String       @id @default(uuid())
+   528→   528→  pharmacieId   String
+   529→   529→  utilisateurId String?
+   530→   530→  patientId     String?
+   531→   531→  ordonnanceId  String?
+   532→   532→  sessionId     String?
+   533→   533→  montantTotal  Float
+   534→   534→  montantPaye   Float
+   535→   535→  montantAssur  Float        @default(0)
+   536→   536→  remise        Float        @default(0)
+   537→   537→  statut        StatutVente  @default(VALIDEE)
+   538→   538→  reference     String       @unique
+   539→   539→  modePaiement  ModePaiement @default(ESPECES)
+   540→   540→  synchedAt     DateTime?
+   541→   541→  createdAt     DateTime     @default(now())
+   542→   542→  updatedAt     DateTime     @updatedAt
+   543→   543→
+   544→   544→  pharmacie    Pharmacie      @relation(fields: [pharmacieId], references: [id])
+   545→   545→  utilisateur  Utilisateur?   @relation(fields: [utilisateurId], references: [id])
+   546→   546→  patient      Patient?       @relation(fields: [patientId], references: [id])
+   547→   547→  ordonnance   Ordonnance?    @relation(fields: [ordonnanceId], references: [id])
+   548→   548→  session      SessionCaisse? @relation(fields: [sessionId], references: [id])
+   549→   549→  lignes       LigneVente[]
+   550→   550→  paiements    Paiement[]
+   551→   551→}
+   552→   552→
+   553→   553→model LigneVente {
+   554→   554→  id           String   @id @default(uuid())
+   555→   555→  venteId      String
+   556→   556→  medicamentId String
+   557→   557→  lotId        String?
+   558→   558→  quantite     Int
+   559→   559→  prixUnitaire Float
+   560→   560→  prixTotal    Float
+   561→   561→  remise       Float    @default(0)
+   562→   562→  createdAt    DateTime @default(now())
+   563→   563→
+   564→   564→  vente      Vente      @relation(fields: [venteId], references: [id], onDelete: Cascade)
+   565→   565→  medicament Medicament @relation(fields: [medicamentId], references: [id])
+   566→   566→}
+   567→   567→
+   568→   568→model Paiement {
+   569→   569→  id        String         @id @default(uuid())
+   570→   570→  venteId   String
+   571→   571→  montant   Float
+   572→   572→  mode      ModePaiement
+   573→   573→  reference String?
+   574→   574→  statut    StatutPaiement @default(REUSSI)
+   575→   575→  createdAt DateTime       @default(now())
+   576→   576→
+   577→   577→  vente Vente @relation(fields: [venteId], references: [id], onDelete: Cascade)
+   578→   578→}
+   579→   579→
+   580→   580→// 3.4 Patients & Ordonnances
+   581→   581→
+   582→   582→model Patient {
+   583→   583→  id              String    @id @default(uuid())
+   584→   584→  pharmacieId     String
+   585→   585→  utilisateurId   String?   @unique
+   586→   586→  nom             String
+   587→   587→  prenom          String
+   588→   588→  telephone       String
+   589→   589→  email           String?
+   590→   590→  dateNaissance   DateTime?
+   591→   591→  sexe            String?
+   592→   592→  numeroAssurance String?
+   593→   593→  assurance       String?
+   594→   594→  adresse         String?
+   595→   595→  notes           String?
+   596→   596→  creditAutorise  Boolean   @default(false)
+   597→   597→  creditLimite    Float     @default(0)
+   598→   598→  pointsFidelite  Int       @default(0)
+   599→   599→  actif           Boolean   @default(true)
+   600→   600→  createdAt       DateTime  @default(now())
+   601→   601→  updatedAt       DateTime  @updatedAt
+   602→   602→
+   603→   603→  pharmacie     Pharmacie        @relation(fields: [pharmacieId], references: [id])
+   604→   604→  utilisateur   Utilisateur?    @relation(fields: [utilisateurId], references: [id])
+   605→   605→  ventes        Vente[]
+   606→   606→  ordonnances   Ordonnance[]
+   607→   607→  commandes     CommandePatient[]
+   608→   608→  vaccinations  Vaccination[]
+   609→   609→  rappels       Rappel[]
+   610→   610→}
+   611→   611→
+   612→   612→model Ordonnance {
+   613→   613→  id             String            @id @default(uuid())
+   614→   614→  pharmacieId    String
+   615→   615→  patientId      String?
+   616→   616→  prescripteur   String
+   617→   617→  dateOrdonnance DateTime
+   618→   618→  statut         StatutOrdonnance  @default(RECUE)
+   619→   619→  imageUrl       String?
+   620→   620→  notes          String?
+   621→   621→  verifiePar     String?
+   622→   622→  verifieLe      DateTime?
+   623→   623→  createdAt      DateTime          @default(now())
+   624→   624→  updatedAt      DateTime          @updatedAt
+   625→   625→
+   626→   626→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   627→   627→  patient   Patient?  @relation(fields: [patientId], references: [id])
+   628→   628→  ventes    Vente[]
+   629→   629→  lignes    LigneOrdonnance[]
+   630→   630→}
+   631→   631→
+   632→   632→model LigneOrdonnance {
+   633→   633→  id           String   @id @default(uuid())
+   634→   634→  ordonnanceId String
+   635→   635→  medicamentId String?
+   636→   636→  dci          String
+   637→   637→  posologie    String?
+   638→   638→  quantite     Int      @default(1)
+   639→   639→  delivree     Boolean  @default(false)
+   640→   640→  createdAt    DateTime @default(now())
+   641→   641→
+   642→   642→  ordonnance Ordonnance @relation(fields: [ordonnanceId], references: [id], onDelete: Cascade)
+   643→   643→}
+   644→   644→
+   645→   645→model Vaccination {
+   646→   646→  id            String   @id @default(uuid())
+   647→   647→  patientId     String
+   648→   648→  pharmacieId   String
+   649→   649→  vaccin        String
+   650→   650→  dateVaccin    DateTime
+   651→   651→  lot           String?
+   652→   652→  prochaineDose DateTime?
+   653→   653→  createdAt     DateTime @default(now())
+   654→   654→
+   655→   655→  patient    Patient   @relation(fields: [patientId], references: [id])
+   656→   656→  pharmacie  Pharmacie @relation(fields: [pharmacieId], references: [id])
+   657→   657→}
+   658→   658→
+   659→   659→model Rappel {
+   660→   660→  id            String    @id @default(uuid())
+   661→   661→  patientId     String
+   662→   662→  medicamentNom String
+   663→   663→  dosage        String?
+   664→   664→  frequence     String?
+   665→   665→  heureRappel   String?
+   666→   666→  dateDebut     DateTime
+   667→   667→  dateFin       DateTime?
+   668→   668→  actif         Boolean   @default(true)
+   669→   669→  notes         String?
+   670→   670→  createdAt     DateTime  @default(now())
+   671→   671→  updatedAt     DateTime  @updatedAt
+   672→   672→
+   673→   673→  patient Patient @relation(fields: [patientId], references: [id])
+   674→   674→}
+   675→   675→
+   676→   676→// 3.5 Fournisseurs & Commandes
+   677→   677→
+   678→   678→model Fournisseur {
+   679→   679→  id          String   @id @default(uuid())
+   680→   680→  pharmacieId String
+   681→   681→  nom         String
+   682→   682→  contact     String?
+   683→   683→  telephone   String?
+   684→   684→  email       String?
+   685→   685→  adresse     String?
+   686→   686→  actif       Boolean  @default(true)
+   687→   687→  note        Float?
+   688→   688→  createdAt   DateTime @default(now())
+   689→   689→  updatedAt   DateTime @updatedAt
+   690→   690→
+   691→   691→  pharmacie  Pharmacie           @relation(fields: [pharmacieId], references: [id])
+   692→   692→  commandes  CommandeFournisseur[]
+   693→   693→}
+   694→   694→
+   695→   695→model CommandeFournisseur {
+   696→   696→  id                  String          @id @default(uuid())
+   697→   697→  pharmacieId         String
+   698→   698→  fournisseurId       String?
+   699→   699→  nomFournisseur      String
+   700→   700→  statut              StatutCommande  @default(BROUILLON)
+   701→   701→  montantTotal        Float           @default(0)
+   702→   702→  dateLivraisonPrevue DateTime?
+   703→   703→  dateLivraisonReelle DateTime?
+   704→   704→  notes               String?
+   705→   705→  createdAt           DateTime        @default(now())
+   706→   706→  updatedAt           DateTime        @updatedAt
+   707→   707→
+   708→   708→  pharmacie       Pharmacie     @relation(fields: [pharmacieId], references: [id])
+   709→   709→  fournisseur     Fournisseur?  @relation(fields: [fournisseurId], references: [id])
+   710→   710→  lignes          LigneCommande[]
+   711→   711→}
+   712→   712→
+   713→   713→model LigneCommande {
+   714→   714→  id            String   @id @default(uuid())
+   715→   715→  commandeId    String
+   716→   716→  medicamentId  String?
+   717→   717→  dci           String
+   718→   718→  nomCommercial String?
+   719→   719→  quantite      Int
+   720→   720→  quantiteLivre Int      @default(0)
+   721→   721→  prixAchat     Float
+   722→   722→  montant       Float
+   723→   723→  createdAt     DateTime @default(now())
+   724→   724→
+   725→   725→  commande CommandeFournisseur @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+   726→   726→}
+   727→   727→
+   728→   728→// 3.6 RH
+   729→   729→
+   730→   730→model Employe {
+   731→   731→  id           String       @id @default(uuid())
+   732→   732→  pharmacieId  String
+   733→   733→  nom          String
+   734→   734→  prenom       String
+   735→   735→  poste        String
+   736→   736→  telephone    String?
+   737→   737→  email        String?
+   738→   738→  typeContrat  TypeContrat  @default(CDI)
+   739→   739→  salaireBrut  Float        @default(0)
+   740→   740→  dateEmbauche DateTime
+   741→   741→  actif        Boolean      @default(true)
+   742→   742→  createdAt    DateTime     @default(now())
+   743→   743→  updatedAt    DateTime     @updatedAt
+   744→   744→
+   745→   745→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   746→   746→}
+   747→   747→
+   748→   748→model Cone {
+   749→   749→  id          String     @id @default(uuid())
+   750→   750→  pharmacieId String
+   751→   751→  type        TypeConge  @default(ANNUEL)
+   752→   752→  dateDebut   DateTime
+   753→   753→  dateFin     DateTime
+   754→   754→  motif       String?
+   755→   755→  statut      String     @default("EN_ATTENTE")
+   756→   756→  approuvePar String?
+   757→   757→  createdAt   DateTime   @default(now())
+   758→   758→
+   759→   759→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   760→   760→}
+   761→   761→
+   762→   762→model Presence {
+   763→   763→  id           String   @id @default(uuid())
+   764→   764→  pharmacieId  String
+   765→   765→  date         DateTime
+   766→   766→  heureArrivee DateTime?
+   767→   767→  heureDepart  DateTime?
+   768→   768→  statut       String   @default("PRESENT")
+   769→   769→  createdAt    DateTime @default(now())
+   770→   770→
+   771→   771→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   772→   772→}
+   773→   773→
+   774→   774→model BulletinPaie {
+   775→   775→  id          String   @id @default(uuid())
+   776→   776→  pharmacieId String
+   777→   777→  mois        Int
+   778→   778→  annee       Int
+   779→   779→  salaireBrut Float
+   780→   780→  salaireNet  Float
+   781→   781→  retenues    Float    @default(0)
+   782→   782→  primes      Float    @default(0)
+   783→   783→  createdAt   DateTime @default(now())
+   784→   784→
+   785→   785→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   786→   786→}
+   787→   787→
+   788→   788→// 3.7 Finance
+   789→   789→
+   790→   790→model Abonnement {
+   791→   791→  id              String            @id @default(uuid())
+   792→   792→  pharmacieId     String
+   793→   793→  plan            PlanType
+   794→   794→  type            TypeAbonnement    @default(MENSUEL)
+   795→   795→  statut          StatutAbonnement  @default(ACTIF)
+   796→   796→  montant         Float
+   797→   797→  dateDebut       DateTime
+   798→   798→  dateFin         DateTime
+   799→   799→  methodePaiement ModePaiement?
+   800→   800→  createdAt       DateTime          @default(now())
+   801→   801→  updatedAt       DateTime          @updatedAt
+   802→   802→
+   803→   803→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   804→   804→}
+   805→   805→
+   806→   806→model Credit {
+   807→   807→  id          String   @id @default(uuid())
+   808→   808→  pharmacieId String
+   809→   809→  patientId   String?
+   810→   810→  montant     Float
+   811→   811→  montantPaye Float    @default(0)
+   812→   812→  statut      String   @default("EN_COURS")
+   813→   813→  echeance    DateTime?
+   814→   814→  createdAt   DateTime @default(now())
+   815→   815→  updatedAt   DateTime @updatedAt
+   816→   816→
+   817→   817→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   818→   818→}
+   819→   819→
+   820→   820→model EcritureComptable {
+   821→   821→  id           String   @id @default(uuid())
+   822→   822→  pharmacieId  String
+   823→   823→  type         String
+   824→   824→  montant      Float
+   825→   825→  libelle      String
+   826→   826→  reference    String?
+   827→   827→  dateEcriture DateTime @default(now())
+   828→   828→  createdAt    DateTime @default(now())
+   829→   829→
+   830→   830→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   831→   831→}
+   832→   832→
+   833→   833→model PharmacieTierPayant {
+   834→   834→  id                String   @id @default(uuid())
+   835→   835→  pharmacieId       String
+   836→   836→  organismeId       String
+   837→   837→  tauxRemboursement Float    @default(0)
+   838→   838→  actif             Boolean  @default(true)
+   839→   839→  createdAt         DateTime @default(now())
+   840→   840→
+   841→   841→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   842→   842→  organisme Organisme @relation(fields: [organismeId], references: [id])
+   843→   843→
+   844→   844→  @@unique([pharmacieId, organismeId])
+   845→   845→}
+   846→   846→
+   847→   847→model Organisme {
+   848→   848→  id        String   @id @default(uuid())
+   849→   849→  nom       String
+   850→   850→  type      String
+   851→   851→  actif     Boolean  @default(true)
+   852→   852→  createdAt DateTime @default(now())
+   853→   853→
+   854→   854→  pharmacieLinks PharmacieTierPayant[]
+   855→   855→}
+   856→   856→
+   857→   857→// 3.8 Garde & Communication
+   858→   858→
+   859→   859→model PlanningGarde {
+   860→   860→  id          String     @id @default(uuid())
+   861→   861→  pharmacieId String
+   862→   862→  date        DateTime
+   863→   863→  dateDebut   DateTime
+   864→   864→  dateFin     DateTime
+   865→   865→  type        TypeGarde  @default(NORMALE)
+   866→   866→  rapport     String?
+   867→   867→  createdAt   DateTime   @default(now())
+   868→   868→
+   869→   869→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   870→   870→}
+   871→   871→
+   872→   872→model CampagneSms {
+   873→   873→  id            String   @id @default(uuid())
+   874→   874→  pharmacieId   String
+   875→   875→  titre         String
+   876→   876→  message       String
+   877→   877→  destinataires Int      @default(0)
+   878→   878→  envoyes       Int      @default(0)
+   879→   879→  statut        String   @default("BROUILLON")
+   880→   880→  dateEnvoi     DateTime?
+   881→   881→  createdAt     DateTime @default(now())
+   882→   882→
+   883→   883→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   884→   884→}
+   885→   885→
+   886→   886→model AlerteOperationnelle {
+   887→   887→  id          String   @id @default(uuid())
+   888→   888→  pharmacieId String
+   889→   889→  type        String
+   890→   890→  titre       String
+   891→   891→  message     String
+   892→   892→  lue         Boolean  @default(false)
+   893→   893→  createdAt   DateTime @default(now())
+   894→   894→
+   895→   895→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   896→   896→}
+   897→   897→
+   898→   898→// 3.9 Documents & Conformité
+   899→   899→
+   900→   900→model Document {
+   901→   901→  id           String        @id @default(uuid())
+   902→   902→  pharmacieId  String
+   903→   903→  type         TypeDocument
+   904→   904→  titre        String
+   905→   905→  fichierUrl   String?
+   906→   906→  statut       String        @default("BROUILLON")
+   907→   907→  dateValidite DateTime?
+   908→   908→  creePar      String?
+   909→   909→  createdAt    DateTime      @default(now())
+   910→   910→  updatedAt    DateTime      @updatedAt
+   911→   911→
+   912→   912→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   913→   913→}
+   914→   914→
+   915→   915→model ScoreConformite {
+   916→   916→  id                     String   @id @default(uuid())
+   917→   917→  pharmacieId            String
+   918→   918→  scoreTotal             Int      @default(0)
+   919→   919→  scoreRegistreStup      Int      @default(0)
+   920→   920→  scoreAlerteDPMED       Int      @default(0)
+   921→   921→  scoreDocuments         Int      @default(0)
+   922→   922→  scorePharmacovigilance Int      @default(0)
+   923→   923→  scoreDestructions      Int      @default(0)
+   924→   924→  certificationDPMED     Boolean  @default(false)
+   925→   925→  dateCalcul             DateTime @default(now())
+   926→   926→
+   927→   927→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   928→   928→}
+   929→   929→
+   930→   930→// 3.10 Commandes Patient
+   931→   931→
+   932→   932→model CommandePatient {
+   933→   933→  id           String               @id @default(uuid())
+   934→   934→  pharmacieId  String
+   935→   935→  patientId    String
+   936→   936→  statut       StatutCommandePatient @default(EN_ATTENTE)
+   937→   937→  montantTotal Float                @default(0)
+   938→   938→  notes        String?
+   939→   939→  createdAt    DateTime             @default(now())
+   940→   940→  updatedAt    DateTime             @updatedAt
+   941→   941→
+   942→   942→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+   943→   943→  patient   Patient   @relation(fields: [patientId], references: [id])
+   944→   944→  lignes    LigneCommandePatient[]
+   945→   945→}
+   946→   946→
+   947→   947→model LigneCommandePatient {
+   948→   948→  id            String   @id @default(uuid())
+   949→   949→  commandeId    String
+   950→   950→  medicamentId  String?
+   951→   951→  dci           String
+   952→   952→  quantite      Int
+   953→   953→  prixUnitaire  Float
+   954→   954→  prixTotal     Float
+   955→   955→  createdAt     DateTime @default(now())
+   956→   956→
+   957→   957→  commande   CommandePatient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+   958→   958→  medicament Medicament?     @relation(fields: [medicamentId], references: [id])
+   959→   959→}
+   960→   960→
+   961→   961→// 3.11 Intégrations Grossiste
+   962→   962→
+   963→   963→model OrdonnanceGrossiste {
+   964→   964→  id            String          @id @default(uuid())
+   965→   965→  pharmacieId   String
+   966→   966→  grossisteId   String?
+   967→   967→  reference     String          @unique
+   968→   968→  statut        StatutCommande  @default(ENVOYEE)
+   969→   969→  montantTotal  Float           @default(0)
+   970→   970→  dateLivraison DateTime?
+   971→   971→  createdAt     DateTime        @default(now())
+   972→   972→  updatedAt     DateTime        @updatedAt
+   973→   973→
+   974→   974→  pharmacie  Pharmacie                   @relation(fields: [pharmacieId], references: [id])
+   975→   975→  lignes     LigneOrdonnanceGrossiste[]
+   976→   976→  reception  ReceptionGrossiste?
+   977→   977→}
+   978→   978→
+   979→   979→model LigneOrdonnanceGrossiste {
+   980→   980→  id            String   @id @default(uuid())
+   981→   981→  ordonnanceId  String
+   982→   982→  dci           String
+   983→   983→  nomCommercial String?
+   984→   984→  quantite      Int
+   985→   985→  prixAchat     Float
+   986→   986→  montant       Float
+   987→   987→  quantiteLivre Int      @default(0)
+   988→   988→  createdAt     DateTime @default(now())
+   989→   989→
+   990→   990→  ordonnance OrdonnanceGrossiste @relation(fields: [ordonnanceId], references: [id], onDelete: Cascade)
+   991→   991→}
+   992→   992→
+   993→   993→model ReceptionGrossiste {
+   994→   994→  id                      String   @id @default(uuid())
+   995→   995→  pharmacieId             String
+   996→   996→  ordonnanceGrossisteId   String   @unique
+   997→   997→  dateReception           DateTime @default(now())
+   998→   998→  statut                  String   @default("PARTIELLE")
+   999→   999→  notes                   String?
+  1000→  1000→  createdAt               DateTime @default(now())
+  1001→  1001→
+  1002→  1002→  pharmacie           Pharmacie          @relation(fields: [pharmacieId], references: [id])
+  1003→  1003→  ordonnanceGrossiste OrdonnanceGrossiste @relation(fields: [ordonnanceGrossisteId], references: [id])
+  1004→  1004→}
+  1005→  1005→
+  1006→  1006→// ============================================================
+  1007→  1007→// SCHÉMA GROSSISTE — MédiHelm Grossiste
+  1008→  1008→// ============================================================
+  1009→  1009→
+  1010→  1010→model Grossiste {
+  1011→  1011→  id        String   @id @default(uuid())
+  1012→  1012→  nom       String
+  1013→  1013→  slug      String   @unique
+  1014→  1014→  contact   String?
+  1015→  1015→  telephone String?
+  1016→  1016→  email     String?
+  1017→  1017→  actif     Boolean  @default(true)
+  1018→  1018→  createdAt DateTime @default(now())
+  1019→  1019→  updatedAt DateTime @updatedAt
+  1020→  1020→
+  1021→  1021→  catalogue ProduitGrossiste[]
+  1022→  1022→  commandes CommandeGrossiste[]
+  1023→  1023→  webhooks  WebhookConfig[]
+  1024→  1024→}
+  1025→  1025→
+  1026→  1026→model ProduitGrossiste {
+  1027→  1027→  id              String   @id @default(uuid())
+  1028→  1028→  grossisteId     String
+  1029→  1029→  dci             String
+  1030→  1030→  nomCommercial   String
+  1031→  1031→  forme           String
+  1032→  1032→  dosage          String
+  1033→  1033→  prixUnitaire    Float
+  1034→  1034→  quantiteDispo   Int?
+  1035→  1035→  actif           Boolean  @default(true)
+  1036→  1036→  createdAt       DateTime @default(now())
+  1037→  1037→  updatedAt       DateTime @updatedAt
+  1038→  1038→
+  1039→  1039→  grossiste Grossiste @relation(fields: [grossisteId], references: [id])
+  1040→  1040→}
+  1041→  1041→
+  1042→  1042→model CommandeGrossiste {
+  1043→  1043→  id           String          @id @default(uuid())
+  1044→  1044→  grossisteId  String
+  1045→  1045→  pharmacieId  String?
+  1046→  1046→  reference    String          @unique
+  1047→  1047→  statut       StatutCommande  @default(BROUILLON)
+  1048→  1048→  montantTotal Float           @default(0)
+  1049→  1049→  createdAt    DateTime        @default(now())
+  1050→  1050→  updatedAt    DateTime        @updatedAt
+  1051→  1051→
+  1052→  1052→  grossiste Grossiste              @relation(fields: [grossisteId], references: [id])
+  1053→  1053→  lignes    LigneCommandeGrossiste[]
+  1054→  1054→}
+  1055→  1055→
+  1056→  1056→model LigneCommandeGrossiste {
+  1057→  1057→  id             String   @id @default(uuid())
+  1058→  1058→  commandeId     String
+  1059→  1059→  produitId      String?
+  1060→  1060→  dci            String
+  1061→  1061→  nomCommercial  String?
+  1062→  1062→  quantite       Int
+  1063→  1063→  prixUnitaire   Float
+  1064→  1064→  montant        Float
+  1065→  1065→  createdAt      DateTime @default(now())
+  1066→  1066→
+  1067→  1067→  commande CommandeGrossiste @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  1068→  1068→}
+  1069→  1069→
+  1070→  1070→model WebhookConfig {
+  1071→  1071→  id          String   @id @default(uuid())
+  1072→  1072→  grossisteId String
+  1073→  1073→  eventType   String
+  1074→  1074→  url         String
+  1075→  1075→  secret      String?
+  1076→  1076→  actif       Boolean  @default(true)
+  1077→  1077→  createdAt   DateTime @default(now())
+  1078→  1078→
+  1079→  1079→  grossiste Grossiste @relation(fields: [grossisteId], references: [id])
+  1080→  1080→}
+  1081→  1081→
+  1082→  1082→// ============================================================
+  1083→  1083→// SCHÉMA ORION — Agent IA
+  1084→  1084→// ============================================================
+  1085→  1085→
+  1086→  1086→model PredictionIA {
+  1087→  1087→  id          String   @id @default(uuid())
+  1088→  1088→  pharmacieId String?
+  1089→  1089→  domaine     String
+  1090→  1090→  type        String
+  1091→  1091→  donnees     String   @default("{}")
+  1092→  1092→  prediction  String   @default("{}")
+  1093→  1093→  confiance   Float    @default(0)
+  1094→  1094→  genereeLe   DateTime @default(now())
+  1095→  1095→  expireLe    DateTime?
+  1096→  1096→
+  1097→  1097→  @@index([pharmacieId, domaine])
+  1098→  1098→}
+  1099→  1099→
+  1100→  1100→model RapportAnalytique {
+  1101→  1101→  id          String   @id @default(uuid())
+  1102→  1102→  pharmacieId String
+  1103→  1103→  domaine     String
+  1104→  1104→  periode     String
+  1105→  1105→  donnees     String   @default("{}")
+  1106→  1106→  genereeLe   DateTime @default(now())
+  1107→  1107→
+  1108→  1108→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+  1109→  1109→}
+  1110→  1110→
+  1111→  1111→// ============================================================
+  1112→  1112→// SCHÉMA INSTITUTIONNEL — DPMED · SoBAPS · Pharmacovigilance
+  1113→  1113→// ============================================================
+  1114→  1114→
+  1115→  1115→model AlerteDPMED {
+  1116→  1116→  id                  String           @id @default(uuid())
+  1117→  1117→  referenceOfficielle String           @unique
+  1118→  1118→  titre               String
+  1119→  1119→  typeAlerte          TypeAlerteDPMED  @default(RAPPEL_LOT)
+  1120→  1120→  niveauUrgence       NiveauUrgence    @default(URGENT)
+  1121→  1121→  dciConcernee        String?
+  1122→  1122→  description         String?
+  1123→  1123→  signatureNumerique  String           @default("")
+  1124→  1124→  dateEmissionDPMED   DateTime
+  1125→  1125→  statut              StatutAlerte     @default(EN_DIFFUSION)
+  1126→  1126→  createdAt           DateTime         @default(now())
+  1127→  1127→  updatedAt           DateTime         @updatedAt
+  1128→  1128→
+  1129→  1129→  diffusions DiffusionAlerte[]
+  1130→  1130→}
+  1131→  1131→
+  1132→  1132→model DiffusionAlerte {
+  1133→  1133→  id               String           @id @default(uuid())
+  1134→  1134→  alerteId         String
+  1135→  1135→  pharmacieId      String
+  1136→  1136→  statut           StatutDiffusion  @default(EN_ATTENTE)
+  1137→  1137→  dateAcquittement DateTime?
+  1138→  1138→  commentaire      String?
+  1139→  1139→  createdAt        DateTime         @default(now())
+  1140→  1140→
+  1141→  1141→  alerte    AlerteDPMED @relation(fields: [alerteId], references: [id])
+  1142→  1142→  pharmacie Pharmacie   @relation(fields: [pharmacieId], references: [id])
+  1143→  1143→}
+  1144→  1144→
+  1145→  1145→model MedicamentSurveillance {
+  1146→  1146→  id               String            @id @default(uuid())
+  1147→  1147→  dci              String
+  1148→  1148→  nomCommercial    String?
+  1149→  1149→  typeSurveillance TypeSurveillance  @default(SOUS_SURVEILLANCE)
+  1150→  1150→  description      String
+  1151→  1151→  sourceAlerte     String            @default("DPMED")
+  1152→  1152→  dateEmission     DateTime
+  1153→  1153→  niveauRisque     NiveauRisque      @default(MODERE)
+  1154→  1154→  statut           String            @default("ACTIVE")
+  1155→  1155→  createdAt        DateTime          @default(now())
+  1156→  1156→  updatedAt        DateTime          @updatedAt
+  1157→  1157→
+  1158→  1158→  medicament  Medicament? @relation(fields: [medicamentId], references: [id])
+  1159→  1159→  medicamentId String?
+  1160→  1160→}
+  1161→  1161→
+  1162→  1162→model SignalementEI {
+  1163→  1163→  id            String            @id @default(uuid())
+  1164→  1164→  pharmacieId   String
+  1165→  1165→  dciConcernee  String
+  1166→  1166→  descriptionEI String
+  1167→  1167→  gravite       GraviteEI         @default(MODERE)
+  1168→  1168→  dateDebut     DateTime
+  1169→  1169→  statutEnvoi   StatutSignalement @default(EN_ATTENTE)
+  1170→  1170→  refDPMED      String?
+  1171→  1171→  createdAt     DateTime          @default(now())
+  1172→  1172→  updatedAt     DateTime          @updatedAt
+  1173→  1173→
+  1174→  1174→  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+  1175→  1175→}
+  1176→  1176→
+  1177→  1177→// Audit Log (Global)
+  1178→  1178→
+  1179→  1179→model AuditLog {
+  1180→  1180→  id        String   @id @default(uuid())
+  1181→  1181→  userId    String?
+  1182→  1182→  action    String
+  1183→  1183→  entity    String
+  1184→  1184→  entityId  String?
+  1185→  1185→  details   String?
+  1186→  1186→  ipAddress String?
+  1187→  1187→  createdAt DateTime @default(now())
+  1188→  1188→
+  1189→  1189→  @@index([entity, entityId])
+  1190→  1190→  @@index([userId])
+  1191→  1191→  @@index([createdAt])
+  1192→  1192→}
+  1193→  1193→
+  1194→  1194→// Notification (Global)
+  1195→  1195→
+  1196→  1196→model Notification {
+  1197→  1197→  id        String   @id @default(uuid())
+  1198→  1198→  userId    String
+  1199→  1199→  titre     String
+  1200→  1200→  message   String
+  1201→  1201→  type      String   @default("INFO")
+  1202→  1202→  lue       Boolean  @default(false)
+  1203→  1203→  lien      String?
+  1204→  1204→  createdAt DateTime @default(now())
+  1205→  1205→
+  1206→  1206→  @@index([userId, lue])
+  1207→  1207→}
+  1208→  1208→

@@ -1,10 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const search = searchParams.get('search')
     const actif = searchParams.get('actif')
     const assurance = searchParams.get('assurance')
@@ -13,10 +18,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const sortBy = searchParams.get('sortBy') || 'nom'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
-
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
 
     const where: Record<string, unknown> = { pharmacieId }
 
@@ -155,12 +156,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { pharmacieId, nom, prenom, telephone } = body
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId || !nom || !prenom) {
+    const pharmacieId = user.pharmacieId
+    const body = await request.json()
+    const { nom, prenom, telephone } = body
+
+    if (!nom || !prenom) {
       return NextResponse.json(
-        { error: 'pharmacieId, nom et prenom sont requis' },
+        { error: 'nom et prenom sont requis' },
         { status: 400 }
       )
     }

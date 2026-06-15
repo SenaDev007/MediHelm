@@ -2,9 +2,9 @@
 
 export interface CommandeGrossiste {
   id: string
-  pharmacieId: string
+  pharmacieId: string | null
   grossisteId: string
-  commandeInterneId: string
+  reference: string
   referenceGrossiste: string | null
   statut: string
   montantTotal: number | null
@@ -12,6 +12,8 @@ export interface CommandeGrossiste {
   dateConfirmation: string | Date | null
   dateLivraisonPrev: string | Date | null
   dateLivraisonReelle: string | Date | null
+  createdAt: string | Date
+  updatedAt: string | Date
   payload: Record<string, unknown>
   reponseGrossiste: Record<string, unknown> | null
   pharmacie?: {
@@ -20,23 +22,20 @@ export interface CommandeGrossiste {
     ville: string
     adresse: string
     telephone: string
-  }
+  } | null
   grossiste?: {
     id: string
     nom: string
-    codeGrossiste: string
-  }
-  commandeInterne?: {
+    slug: string
+  } | null
+  lignes?: Array<{
     id: string
-    reference: string
-    lignes?: Array<{
-      id: string
-      dci: string
-      quantiteCommandee: number
-      quantiteLivree: number
-      prixAchat: number | null
-    }>
-  }
+    dci: string
+    nomCommercial: string | null
+    quantite: number
+    prixUnitaire: number
+    montant: number
+  }>
 }
 
 export interface CatalogueItem {
@@ -75,12 +74,14 @@ export const STATUT_CMD = {
 
 export function getStatusLabel(statut: string): string {
   const labels: Record<string, string> = {
+    BROUILLON: "Brouillon",
     ENVOYEE: "Envoyée",
     CONFIRMEE: "Confirmée",
     REFUSEE: "Refusée",
     EN_PREPARATION: "En préparation",
     EN_LIVRAISON: "En livraison",
     LIVREE: "Livrée",
+    ANNULEE: "Annulée",
     LITIGE: "Litige",
   }
   return labels[statut] || statut
@@ -88,12 +89,14 @@ export function getStatusLabel(statut: string): string {
 
 export function getStatusColor(statut: string): string {
   const colors: Record<string, string> = {
+    BROUILLON: "bg-gray-100 text-gray-800 hover:bg-gray-100",
     ENVOYEE: "bg-blue-100 text-blue-800 hover:bg-blue-100",
     CONFIRMEE: "bg-teal-100 text-teal-800 hover:bg-teal-100",
     REFUSEE: "bg-red-100 text-red-800 hover:bg-red-100",
     EN_PREPARATION: "bg-amber-100 text-amber-800 hover:bg-amber-100",
     EN_LIVRAISON: "bg-purple-100 text-purple-800 hover:bg-purple-100",
     LIVREE: "bg-green-100 text-green-800 hover:bg-green-100",
+    ANNULEE: "bg-gray-100 text-gray-800 hover:bg-gray-100",
     LITIGE: "bg-orange-100 text-orange-800 hover:bg-orange-100",
   }
   return colors[statut] || "bg-gray-100 text-gray-800"

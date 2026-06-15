@@ -1,16 +1,17 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const statut = searchParams.get('statut')
     const caisseId = searchParams.get('caisseId')
-
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
 
     const where: Record<string, unknown> = { pharmacieId }
     if (statut) where.statut = statut
@@ -47,11 +48,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { pharmacieId, caisseId, utilisateurId, soldeOuverture } = body
+    const authResult = await requireAuth(request, 'M02_POS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId || !caisseId || !utilisateurId) {
-      return NextResponse.json({ error: 'pharmacieId, caisseId et utilisateurId sont requis' }, { status: 400 })
+    const pharmacieId = user.pharmacieId
+    const body = await request.json()
+    const { caisseId, utilisateurId, soldeOuverture } = body
+
+    if (!caisseId || !utilisateurId) {
+      return NextResponse.json({ error: 'caisseId et utilisateurId sont requis' }, { status: 400 })
     }
 
     // Check if there's already an open session for this caisse

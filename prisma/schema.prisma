@@ -365,6 +365,7 @@ model Utilisateur {
   tenants          UtilisateurTenant[]
   ventes           Vente[]
   sessionsCaisse   SessionCaisse[]
+  patients         Patient[]
 }
 
 model UtilisateurTenant {
@@ -422,6 +423,8 @@ model Medicament {
   stockSecurite   Int             @default(10)
   codeBarres      String?
   categorieAtc    CategorieATC?
+  remboursable    Boolean         @default(false)
+  generique       Boolean         @default(false)
   actif           Boolean         @default(true)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -432,6 +435,7 @@ model Medicament {
   lignesVente     LigneVente[]
   surveillances   MedicamentSurveillance[]
   mouvementsStock MouvementStock[]
+  lignesCommande  LigneCommandePatient[]
 }
 
 model Lot {
@@ -578,6 +582,7 @@ model Paiement {
 model Patient {
   id              String    @id @default(uuid())
   pharmacieId     String
+  utilisateurId   String?   @unique
   nom             String
   prenom          String
   telephone       String
@@ -590,15 +595,18 @@ model Patient {
   notes           String?
   creditAutorise  Boolean   @default(false)
   creditLimite    Float     @default(0)
+  pointsFidelite  Int       @default(0)
   actif           Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   pharmacie     Pharmacie        @relation(fields: [pharmacieId], references: [id])
+  utilisateur   Utilisateur?    @relation(fields: [utilisateurId], references: [id])
   ventes        Vente[]
   ordonnances   Ordonnance[]
   commandes     CommandePatient[]
   vaccinations  Vaccination[]
+  rappels       Rappel[]
 }
 
 model Ordonnance {
@@ -646,6 +654,23 @@ model Vaccination {
 
   patient    Patient   @relation(fields: [patientId], references: [id])
   pharmacie  Pharmacie @relation(fields: [pharmacieId], references: [id])
+}
+
+model Rappel {
+  id            String    @id @default(uuid())
+  patientId     String
+  medicamentNom String
+  dosage        String?
+  frequence     String?
+  heureRappel   String?
+  dateDebut     DateTime
+  dateFin       DateTime?
+  actif         Boolean   @default(true)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
 }
 
 // 3.5 Fournisseurs & Commandes
@@ -929,7 +954,8 @@ model LigneCommandePatient {
   prixTotal     Float
   createdAt     DateTime @default(now())
 
-  commande CommandePatient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  commande   CommandePatient @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  medicament Medicament?     @relation(fields: [medicamentId], references: [id])
 }
 
 // 3.11 Intégrations Grossiste

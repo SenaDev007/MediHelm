@@ -22,15 +22,45 @@ export async function GET(request: NextRequest) {
     const medicamentId = searchParams.get('medicamentId') || undefined
     const radius = searchParams.get('radius') ? parseFloat(searchParams.get('radius')!) : 20
 
+    // If a medication ID is provided, find pharmacies that carry it
+    let pharmacyIdsWithMed: Set<string> | null = null
+    let medicamentPrix: Record<string, number> = {}
+
+    if (medicamentId) {
+      // Find all medications with this ID that are active, include their lots
+      const meds = await db.medicament.findMany({
+        where: { id: medicamentId, actif: true },
+        select: {
+          pharmacieId: true,
+          prixPublic: true,
+          lots: {
+            where: {
+              quantite: { gt: 0 },
+              dateExpiration: { gt: new Date() },
+            },
+            select: { id: true },
+          },
+        },
+      })
+
+      pharmacyIdsWithMed = new Set<string>()
+      for (const med of meds) {
+        // Only include pharmacies that have active lots with stock
+        if (med.lots.length > 0) {
+          pharmacyIdsWithMed.add(med.pharmacieId)
+          medicamentPrix[med.pharmacieId] = med.prixPublic
+        }
+      }
+    }
+
+    // Get pharmacies
     const pharmacies = await db.pharmacie.findMany({
       where: {
         actif: true,
         latitude: { not: null },
         longitude: { not: null },
-        ...(medicamentId ? {
-          medicaments: {
-            some: { id: medicamentId, actif: true }
-          }
+        ...(pharmacyIdsWithMed !== null ? {
+          id: { in: Array.from(pharmacyIdsWithMed) },
         } : {}),
       },
       include: {
@@ -47,13 +77,27 @@ export async function GET(request: NextRequest) {
       take: 200,
     })
 
-    // Add distance calculation and garde status
+    // Build results with actual stock availability
     const results = pharmacies
-      .map(p => {
+      .map((p) => {
         const distance = lat && lng && p.latitude && p.longitude
           ? haversine(lat, lng, p.latitude, p.longitude)
           : 0
         const estGarde = p.planningsGarde.length > 0
+
+        // Determine medication availability based on actual stock
+        let medicamentDispo = false
+        let prixMedicament: number | null = null
+
+        if (medicamentId && pharmacyIdsWithMed) {
+          // We already filtered to only pharmacies with stock
+          medicamentDispo = pharmacyIdsWithMed.has(p.id)
+          prixMedicament = medicamentPrix[p.id] ?? null
+        } else if (!medicamentId) {
+          // No medication filter — availability not applicable, default true
+          medicamentDispo = true
+        }
+
         return {
           id: p.id,
           nom: p.nom,
@@ -64,15 +108,19 @@ export async function GET(request: NextRequest) {
           longitude: p.longitude,
           distance,
           estGarde,
-          medicamentDispo: !!medicamentId,
+          medicamentDispo,
+          prixMedicament,
         }
       })
-      .filter(p => !lat || !lng || p.distance <= radius)
+      .filter((p) => !lat || !lng || p.distance <= radius)
       .sort((a, b) => a.distance - b.distance)
 
     return NextResponse.json(results)
   } catch (error) {
     console.error('Erreur GET pharmacies proches:', error)
-    return NextResponse.json({ error: 'Erreur lors de la recherche de pharmacies' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Erreur lors de la recherche de pharmacies' },
+      { status: 500 }
+    )
   }
 }

@@ -1,10 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const statut = searchParams.get('statut')
     const modePaiement = searchParams.get('modePaiement')
     const search = searchParams.get('search')
@@ -14,10 +19,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
-
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
 
     const where: Record<string, unknown> = { pharmacieId }
 
@@ -107,11 +108,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { pharmacieId, patientId, lignes, modePaiement, utilisateurId, remise, sessionId, paiements } = body
+    const authResult = await requireAuth(request, 'M02_POS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId || !lignes || lignes.length === 0) {
-      return NextResponse.json({ error: 'pharmacieId et lignes sont requis' }, { status: 400 })
+    const pharmacieId = user.pharmacieId
+    const body = await request.json()
+    const { patientId, lignes, modePaiement, utilisateurId, remise, sessionId, paiements } = body
+
+    if (!lignes || lignes.length === 0) {
+      return NextResponse.json({ error: 'lignes sont requises' }, { status: 400 })
     }
 
     // Generate reference
@@ -158,8 +164,7 @@ export async function POST(request: NextRequest) {
     if (montantTotal < 0) montantTotal = 0
 
     // Build payment records — support split payments
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const paiementRecords: any[] = []
+    const paiementRecords: Record<string, unknown>[] = []
     if (paiements && Array.isArray(paiements) && paiements.length > 0) {
       for (const p of paiements) {
         paiementRecords.push({
@@ -177,58 +182,62 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const vente = await db.vente.create({
-      data: {
-        pharmacieId,
-        utilisateurId: utilisateurId || null,
-        patientId: patientId || null,
-        sessionId: sessionId || null,
-        reference,
-        modePaiement: modePaiement || (paiements?.[0]?.mode as string) || 'ESPECES',
-        montantTotal,
-        montantPaye: paiementRecords.reduce((s, p) => s + p.montant, 0),
-        remise: totalRemise,
-        statut: 'VALIDEE',
-        lignes: {
-          create: ligneData,
-        },
-        paiements: {
-          create: paiementRecords,
-        },
-      },
-      include: {
-        patient: true,
-        lignes: { include: { medicament: true } },
-        paiements: true,
-      },
-    })
-
-    // Update stock for each medication line
-    for (const ligne of ligneData) {
-      // Find best lot (earliest expiration with stock)
-      if (ligne.lotId) {
-        await db.lot.update({
-          where: { id: ligne.lotId },
-          data: { quantite: { decrement: ligne.quantite } },
-        })
-      } else {
-        // Auto-pick earliest expiring lot
-        const lot = await db.lot.findFirst({
-          where: {
-            medicamentId: ligne.medicamentId,
-            pharmacieId,
-            quantite: { gte: ligne.quantite },
+    // Use transaction to ensure atomicity of vente creation + stock decrement
+    const vente = await db.$transaction(async (tx) => {
+      const v = await tx.vente.create({
+        data: {
+          pharmacieId,
+          utilisateurId: utilisateurId || null,
+          patientId: patientId || null,
+          sessionId: sessionId || null,
+          reference,
+          modePaiement: modePaiement || (paiements?.[0]?.mode as string) || 'ESPECES',
+          montantTotal,
+          montantPaye: paiementRecords.reduce((s, p) => s + p.montant, 0),
+          remise: totalRemise,
+          statut: 'VALIDEE',
+          lignes: {
+            create: ligneData,
           },
-          orderBy: { dateExpiration: 'asc' },
-        })
-        if (lot) {
-          await db.lot.update({
-            where: { id: lot.id },
+          paiements: {
+            create: paiementRecords,
+          },
+        },
+        include: {
+          patient: true,
+          lignes: { include: { medicament: true } },
+          paiements: true,
+        },
+      })
+
+      // Update stock for each medication line (FEFO - First Expired, First Out)
+      for (const ligne of ligneData) {
+        if (ligne.lotId) {
+          await tx.lot.update({
+            where: { id: ligne.lotId },
             data: { quantite: { decrement: ligne.quantite } },
           })
+        } else {
+          // Auto-pick earliest expiring lot (FEFO)
+          const lot = await tx.lot.findFirst({
+            where: {
+              medicamentId: ligne.medicamentId,
+              pharmacieId,
+              quantite: { gte: ligne.quantite },
+            },
+            orderBy: { dateExpiration: 'asc' },
+          })
+          if (lot) {
+            await tx.lot.update({
+              where: { id: lot.id },
+              data: { quantite: { decrement: ligne.quantite } },
+            })
+          }
         }
       }
-    }
+
+      return v
+    })
 
     return NextResponse.json(vente, { status: 201 })
   } catch (error) {

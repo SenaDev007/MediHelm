@@ -1,0 +1,722 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState } from 'react'
+     4→import {
+     5→  Settings,
+     6→  Key,
+     7→  Globe,
+     8→  Shield,
+     9→  Save,
+    10→  Loader2,
+    11→  Copy,
+    12→  CheckCircle2,
+    13→  Eye,
+    14→  EyeOff,
+    15→  Bell,
+    16→  Trash2,
+    17→  RefreshCw,
+    18→  AlertTriangle,
+    19→} from 'lucide-react'
+    20→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+    21→import { Badge } from '@/components/ui/badge'
+    22→import { Button } from '@/components/ui/button'
+    23→import { Input } from '@/components/ui/input'
+    24→import { Label } from '@/components/ui/label'
+    25→import { Separator } from '@/components/ui/separator'
+    26→import { Switch } from '@/components/ui/switch'
+    27→import {
+    28→  Select,
+    29→  SelectContent,
+    30→  SelectItem,
+    31→  SelectTrigger,
+    32→  SelectValue,
+    33→} from '@/components/ui/select'
+    34→import {
+    35→  Table,
+    36→  TableBody,
+    37→  TableCell,
+    38→  TableHead,
+    39→  TableHeader,
+    40→  TableRow,
+    41→} from '@/components/ui/table'
+    42→import {
+    43→  Dialog,
+    44→  DialogContent,
+    45→  DialogDescription,
+    46→  DialogFooter,
+    47→  DialogHeader,
+    48→  DialogTitle,
+    49→} from '@/components/ui/dialog'
+    50→import { toast } from 'sonner'
+    51→
+    52→interface WebhookConfig {
+    53→  id: string
+    54→  eventType: string
+    55→  url: string
+    56→  secret: string | null
+    57→  actif: boolean
+    58→  createdAt: string
+    59→}
+    60→
+    61→interface GrossisteProfile {
+    62→  id: string
+    63→  nom: string
+    64→  slug: string
+    65→  contact: string | null
+    66→  telephone: string | null
+    67→  email: string | null
+    68→  actif: boolean
+    69→}
+    70→
+    71→interface NotificationPreferences {
+    72→  nouvelleCommande: boolean
+    73→  statutChange: boolean
+    74→  livraisonEffectuee: boolean
+    75→  stockBas: boolean
+    76→  rapportHebdo: boolean
+    77→  emailNotifs: boolean
+    78→}
+    79→
+    80→const WEBHOOK_EVENTS = [
+    81→  { value: 'commande.nouvelle', label: 'Nouvelle commande' },
+    82→  { value: 'commande.statut', label: 'Changement de statut' },
+    83→  { value: 'commande.livree', label: 'Commande livrée' },
+    84→  { value: 'catalogue.update', label: 'Mise à jour catalogue' },
+    85→  { value: 'stock.alerte', label: 'Alerte stock' },
+    86→]
+    87→
+    88→export default function ParametresPage() {
+    89→  const [grossistes, setGrossistes] = useState<GrossisteProfile[]>([])
+    90→  const [selectedGrossiste, setSelectedGrossiste] = useState<string>('')
+    91→  const [profile, setProfile] = useState<GrossisteProfile | null>(null)
+    92→  const [webhooks, setWebhooks] = useState<WebhookConfig[]>([])
+    93→  const [loading, setLoading] = useState(true)
+    94→  const [saving, setSaving] = useState(false)
+    95→  const [showApiKey, setShowApiKey] = useState(false)
+    96→  const [deleteWebhookId, setDeleteWebhookId] = useState<string | null>(null)
+    97→  const [revokeKeyDialogOpen, setRevokeKeyDialogOpen] = useState(false)
+    98→
+    99→  // API Key state
+   100→  const [apiKey, setApiKey] = useState('')
+   101→  const [apiEndpoint, setApiEndpoint] = useState('')
+   102→  const [apiKeyCreatedAt, setApiKeyCreatedAt] = useState<string>('')
+   103→
+   104→  // Webhook form
+   105→  const [newWebhook, setNewWebhook] = useState({
+   106→    eventType: '',
+   107→    url: '',
+   108→    secret: '',
+   109→  })
+   110→
+   111→  // Notification preferences
+   112→  const [notifications, setNotifications] = useState<NotificationPreferences>({
+   113→    nouvelleCommande: true,
+   114→    statutChange: true,
+   115→    livraisonEffectuee: true,
+   116→    stockBas: false,
+   117→    rapportHebdo: true,
+   118→    emailNotifs: false,
+   119→  })
+   120→
+   121→  // Fetch grossistes
+   122→  useEffect(() => {
+   123→    const fetchGrossistes = async () => {
+   124→      try {
+   125→        const res = await fetch('/api/grossistes?actif=true')
+   126→        if (res.ok) {
+   127→          const data = await res.json()
+   128→          setGrossistes(data)
+   129→          if (data.length > 0) {
+   130→            setSelectedGrossiste(data[0].id)
+   131→            setProfile(data[0])
+   132→          }
+   133→        }
+   134→      } catch (error) {
+   135→        console.error('Erreur:', error)
+   136→      } finally {
+   137→        setLoading(false)
+   138→      }
+   139→    }
+   140→    fetchGrossistes()
+   141→  }, [])
+   142→
+   143→  // Generate API key for display
+   144→  useEffect(() => {
+   145→    if (selectedGrossiste) {
+   146→      const key = `mhel_${selectedGrossiste.substring(0, 8)}_${Date.now().toString(36)}`
+   147→      setApiKey(key)
+   148→      setApiEndpoint(`/api/grossistes/${selectedGrossiste}`)
+   149→      setApiKeyCreatedAt(new Date().toLocaleDateString('fr-FR'))
+   150→    }
+   151→  }, [selectedGrossiste])
+   152→
+   153→  // Fetch webhooks for selected grossiste
+   154→  useEffect(() => {
+   155→    if (!selectedGrossiste) return
+   156→    const fetchWebhooks = async () => {
+   157→      try {
+   158→        const res = await fetch(`/api/grossistes/${selectedGrossiste}`)
+   159→        // Webhooks would come from the grossiste detail if available
+   160→        // For now, they are local state since there's no dedicated webhook API
+   161→      } catch (error) {
+   162→        console.error('Erreur:', error)
+   163→      }
+   164→    }
+   165→    fetchWebhooks()
+   166→  }, [selectedGrossiste])
+   167→
+   168→  // Save profile
+   169→  const handleSaveProfile = async () => {
+   170→    if (!profile) return
+   171→    setSaving(true)
+   172→    try {
+   173→      const res = await fetch(`/api/grossistes`, {
+   174→        method: 'POST',
+   175→        headers: { 'Content-Type': 'application/json' },
+   176→        body: JSON.stringify({
+   177→          nom: profile.nom,
+   178→          slug: profile.slug,
+   179→          contact: profile.contact,
+   180→          telephone: profile.telephone,
+   181→          email: profile.email,
+   182→        }),
+   183→      })
+   184→      if (res.ok || res.status === 409) {
+   185→        toast.success('Profil mis à jour avec succès')
+   186→      } else {
+   187→        toast.error('Erreur lors de la sauvegarde')
+   188→      }
+   189→    } catch (error) {
+   190→      toast.error('Erreur de connexion')
+   191→    } finally {
+   192→      setSaving(false)
+   193→    }
+   194→  }
+   195→
+   196→  // Add webhook
+   197→  const handleAddWebhook = async () => {
+   198→    if (!newWebhook.eventType || !newWebhook.url) {
+   199→      toast.error('Veuillez remplir l\'événement et l\'URL')
+   200→      return
+   201→    }
+   202→    try {
+   203→      // Validate URL
+   204→      new URL(newWebhook.url)
+   205→    } catch {
+   206→      toast.error('URL invalide. Veuillez entrer une URL valide (https://...)')
+   207→      return
+   208→    }
+   209→
+   210→    const webhook: WebhookConfig = {
+   211→      id: `wh_${Date.now()}`,
+   212→      eventType: newWebhook.eventType,
+   213→      url: newWebhook.url,
+   214→      secret: newWebhook.secret || null,
+   215→      actif: true,
+   216→      createdAt: new Date().toISOString(),
+   217→    }
+   218→    setWebhooks([...webhooks, webhook])
+   219→    setNewWebhook({ eventType: '', url: '', secret: '' })
+   220→    toast.success('Webhook ajouté avec succès')
+   221→  }
+   222→
+   223→  // Toggle webhook active state
+   224→  const toggleWebhook = (id: string) => {
+   225→    setWebhooks(webhooks.map(wh =>
+   226→      wh.id === id ? { ...wh, actif: !wh.actif } : wh
+   227→    ))
+   228→  }
+   229→
+   230→  // Delete webhook
+   231→  const handleDeleteWebhook = () => {
+   232→    if (!deleteWebhookId) return
+   233→    setWebhooks(webhooks.filter(wh => wh.id !== deleteWebhookId))
+   234→    setDeleteWebhookId(null)
+   235→    toast.success('Webhook supprimé')
+   236→  }
+   237→
+   238→  // Copy to clipboard
+   239→  const handleCopy = (text: string) => {
+   240→    navigator.clipboard.writeText(text)
+   241→    toast.success('Copié dans le presse-papiers')
+   242→  }
+   243→
+   244→  // Generate API key
+   245→  const handleGenerateKey = () => {
+   246→    const newKey = `mhel_${selectedGrossiste.substring(0, 8)}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`
+   247→    setApiKey(newKey)
+   248→    setApiKeyCreatedAt(new Date().toLocaleDateString('fr-FR'))
+   249→    toast.success('Nouvelle clé API générée')
+   250→  }
+   251→
+   252→  // Revoke API key
+   253→  const handleRevokeKey = () => {
+   254→    setApiKey('')
+   255→    setApiKeyCreatedAt('')
+   256→    setRevokeKeyDialogOpen(false)
+   257→    toast.success('Clé API révoquée. Génèrezen une nouvelle.')
+   258→  }
+   259→
+   260→  // Save notification preferences
+   261→  const handleSaveNotifications = () => {
+   262→    toast.success('Préférences de notification sauvegardées')
+   263→  }
+   264→
+   265→  if (loading) {
+   266→    return (
+   267→      <div className="space-y-6">
+   268→        <div className="flex items-center gap-3">
+   269→          <Settings className="h-7 w-7 text-teal-600" />
+   270→          <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
+   271→        </div>
+   272→        <Card className="animate-pulse">
+   273→          <CardContent className="p-12"><div className="h-40 bg-muted rounded" /></CardContent>
+   274→        </Card>
+   275→      </div>
+   276→    )
+   277→  }
+   278→
+   279→  return (
+   280→    <div className="space-y-6">
+   281→      {/* Header */}
+   282→      <div className="flex items-center gap-3">
+   283→        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100">
+   284→          <Settings className="h-5 w-5 text-teal-600" />
+   285→        </div>
+   286→        <div>
+   287→          <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
+   288→          <p className="text-sm text-muted-foreground">Configuration du compte grossiste</p>
+   289→        </div>
+   290→      </div>
+   291→
+   292→      {/* Grossiste selector */}
+   293→      <Card className="border-teal-200">
+   294→        <CardContent className="p-4">
+   295→          <div className="flex items-center gap-4">
+   296→            <Label className="text-sm font-medium">Grossiste :</Label>
+   297→            <Select value={selectedGrossiste} onValueChange={(v) => {
+   298→              setSelectedGrossiste(v)
+   299→              const g = grossistes.find(g => g.id === v)
+   300→              setProfile(g || null)
+   301→            }}>
+   302→              <SelectTrigger className="w-64 border-teal-200">
+   303→                <SelectValue placeholder="Sélectionner" />
+   304→              </SelectTrigger>
+   305→              <SelectContent>
+   306→                {grossistes.map(g => (
+   307→                  <SelectItem key={g.id} value={g.id}>{g.nom}</SelectItem>
+   308→                ))}
+   309→              </SelectContent>
+   310→            </Select>
+   311→            {profile && (
+   312→              <Badge className={profile.actif ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+   313→                {profile.actif ? 'Actif' : 'Inactif'}
+   314→              </Badge>
+   315→            )}
+   316→          </div>
+   317→        </CardContent>
+   318→      </Card>
+   319→
+   320→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   321→        {/* Profile Section */}
+   322→        <Card className="border-teal-200">
+   323→          <CardHeader>
+   324→            <CardTitle className="text-base flex items-center gap-2">
+   325→              <Shield className="h-4 w-4 text-teal-600" />
+   326→              Informations du profil
+   327→            </CardTitle>
+   328→            <CardDescription>Modifier les informations de votre compte grossiste</CardDescription>
+   329→          </CardHeader>
+   330→          <CardContent className="space-y-4">
+   331→            <div className="space-y-2">
+   332→              <Label>Nom *</Label>
+   333→              <Input
+   334→                value={profile?.nom || ''}
+   335→                onChange={(e) => profile && setProfile({ ...profile, nom: e.target.value })}
+   336→                className="border-teal-200"
+   337→              />
+   338→            </div>
+   339→            <div className="space-y-2">
+   340→              <Label>Slug (identifiant unique) *</Label>
+   341→              <Input
+   342→                value={profile?.slug || ''}
+   343→                onChange={(e) => profile && setProfile({ ...profile, slug: e.target.value })}
+   344→                className="border-teal-200 font-mono text-sm"
+   345→              />
+   346→            </div>
+   347→            <div className="grid grid-cols-2 gap-4">
+   348→              <div className="space-y-2">
+   349→                <Label>Contact</Label>
+   350→                <Input
+   351→                  value={profile?.contact || ''}
+   352→                  onChange={(e) => profile && setProfile({ ...profile, contact: e.target.value })}
+   353→                  placeholder="Nom du contact"
+   354→                  className="border-teal-200"
+   355→                />
+   356→              </div>
+   357→              <div className="space-y-2">
+   358→                <Label>Téléphone</Label>
+   359→                <Input
+   360→                  value={profile?.telephone || ''}
+   361→                  onChange={(e) => profile && setProfile({ ...profile, telephone: e.target.value })}
+   362→                  placeholder="+229 90 00 00 00"
+   363→                  className="border-teal-200"
+   364→                />
+   365→              </div>
+   366→            </div>
+   367→            <div className="space-y-2">
+   368→              <Label>Email</Label>
+   369→              <Input
+   370→                type="email"
+   371→                value={profile?.email || ''}
+   372→                onChange={(e) => profile && setProfile({ ...profile, email: e.target.value })}
+   373→                placeholder="contact@grossiste.bj"
+   374→                className="border-teal-200"
+   375→              />
+   376→            </div>
+   377→            <Button
+   378→              onClick={handleSaveProfile}
+   379→              disabled={saving}
+   380→              className="bg-teal-600 hover:bg-teal-700 w-full"
+   381→            >
+   382→              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+   383→              Sauvegarder le profil
+   384→            </Button>
+   385→          </CardContent>
+   386→        </Card>
+   387→
+   388→        {/* API Keys Section */}
+   389→        <Card className="border-teal-200">
+   390→          <CardHeader>
+   391→            <CardTitle className="text-base flex items-center gap-2">
+   392→              <Key className="h-4 w-4 text-teal-600" />
+   393→              Clés API
+   394→            </CardTitle>
+   395→            <CardDescription>Gérez vos clés d&apos;accès API</CardDescription>
+   396→          </CardHeader>
+   397→          <CardContent className="space-y-4">
+   398→            <div className="p-4 rounded-lg border border-amber-200 bg-amber-50">
+   399→              <div className="flex items-start gap-2">
+   400→                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+   401→                <p className="text-xs text-amber-700">
+   402→                  Ne partagez jamais vos clés API. Elles donnent accès à l&apos;ensemble de vos données catalogue et commandes.
+   403→                </p>
+   404→              </div>
+   405→            </div>
+   406→
+   407→            <div className="space-y-2">
+   408→              <Label>Clé API</Label>
+   409→              <div className="flex gap-2">
+   410→                <div className="relative flex-1">
+   411→                  <Input
+   412→                    type={showApiKey ? 'text' : 'password'}
+   413→                    value={apiKey || 'Aucune clé générée'}
+   414→                    readOnly
+   415→                    className="font-mono text-sm pr-10 border-teal-200"
+   416→                  />
+   417→                  <Button
+   418→                    variant="ghost"
+   419→                    size="sm"
+   420→                    className="absolute right-1 top-1 h-7 w-7"
+   421→                    onClick={() => setShowApiKey(!showApiKey)}
+   422→                  >
+   423→                    {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+   424→                  </Button>
+   425→                </div>
+   426→                <Button variant="outline" size="sm" onClick={() => handleCopy(apiKey)} className="border-teal-300 text-teal-700" disabled={!apiKey}>
+   427→                  <Copy className="h-4 w-4" />
+   428→                </Button>
+   429→              </div>
+   430→              {apiKeyCreatedAt && (
+   431→                <p className="text-xs text-muted-foreground">Créée le : {apiKeyCreatedAt}</p>
+   432→              )}
+   433→            </div>
+   434→
+   435→            <div className="space-y-2">
+   436→              <Label>Endpoint API</Label>
+   437→              <div className="flex gap-2">
+   438→                <Input
+   439→                  value={apiEndpoint}
+   440→                  readOnly
+   441→                  className="font-mono text-sm border-teal-200"
+   442→                />
+   443→                <Button variant="outline" size="sm" onClick={() => handleCopy(apiEndpoint)} className="border-teal-300 text-teal-700">
+   444→                  <Copy className="h-4 w-4" />
+   445→                </Button>
+   446→              </div>
+   447→            </div>
+   448→
+   449→            <div className="flex gap-2">
+   450→              <Button variant="outline" onClick={handleGenerateKey} className="flex-1 border-teal-300 text-teal-700">
+   451→                <RefreshCw className="h-4 w-4 mr-2" />
+   452→                Régénérer la clé
+   453→              </Button>
+   454→              {apiKey && (
+   455→                <Button variant="outline" onClick={() => setRevokeKeyDialogOpen(true)} className="border-red-300 text-red-700">
+   456→                  <Trash2 className="h-4 w-4 mr-2" />
+   457→                  Révoquer
+   458→                </Button>
+   459→              )}
+   460→            </div>
+   461→
+   462→            <Separator />
+   463→
+   464→            <div className="space-y-2">
+   465→              <Label className="text-sm font-semibold">Endpoints disponibles</Label>
+   466→              <div className="space-y-1.5 text-xs font-mono">
+   467→                <div className="flex items-center gap-2">
+   468→                  <Badge className="bg-green-100 text-green-800 text-xs">GET</Badge>
+   469→                  <span>/api/grossistes/{'{id}'}/catalogue</span>
+   470→                </div>
+   471→                <div className="flex items-center gap-2">
+   472→                  <Badge className="bg-blue-100 text-blue-800 text-xs">POST</Badge>
+   473→                  <span>/api/grossistes/{'{id}'}/catalogue</span>
+   474→                </div>
+   475→                <div className="flex items-center gap-2">
+   476→                  <Badge className="bg-green-100 text-green-800 text-xs">GET</Badge>
+   477→                  <span>/api/grossistes/{'{id}'}/commandes</span>
+   478→                </div>
+   479→                <div className="flex items-center gap-2">
+   480→                  <Badge className="bg-amber-100 text-amber-800 text-xs">PATCH</Badge>
+   481→                  <span>/api/grossistes/commandes/{'{id}'}</span>
+   482→                </div>
+   483→                <div className="flex items-center gap-2">
+   484→                  <Badge className="bg-amber-100 text-amber-800 text-xs">PATCH</Badge>
+   485→                  <span>/api/grossistes/catalogue/{'{id}'}</span>
+   486→                </div>
+   487→                <div className="flex items-center gap-2">
+   488→                  <Badge className="bg-green-100 text-green-800 text-xs">GET</Badge>
+   489→                  <span>/api/grossistes/compare?dci=...</span>
+   490→                </div>
+   491→              </div>
+   492→            </div>
+   493→          </CardContent>
+   494→        </Card>
+   495→      </div>
+   496→
+   497→      {/* Webhooks Section */}
+   498→      <Card className="border-teal-200">
+   499→        <CardHeader>
+   500→          <CardTitle className="text-base flex items-center gap-2">
+   501→            <Globe className="h-4 w-4 text-teal-600" />
+   502→            Configuration Webhooks
+   503→          </CardTitle>
+   504→          <CardDescription>Recevez des notifications en temps réel sur les événements</CardDescription>
+   505→        </CardHeader>
+   506→        <CardContent className="space-y-4">
+   507→          {/* Add webhook form */}
+   508→          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+   509→            <Select value={newWebhook.eventType} onValueChange={(v) => setNewWebhook({ ...newWebhook, eventType: v })}>
+   510→              <SelectTrigger className="border-teal-200">
+   511→                <SelectValue placeholder="Événement" />
+   512→              </SelectTrigger>
+   513→              <SelectContent>
+   514→                {WEBHOOK_EVENTS.map(e => (
+   515→                  <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+   516→                ))}
+   517→              </SelectContent>
+   518→            </Select>
+   519→            <Input
+   520→              value={newWebhook.url}
+   521→              onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
+   522→              placeholder="https://votre-serveur.com/webhook"
+   523→              className="md:col-span-2 border-teal-200"
+   524→            />
+   525→            <Input
+   526→              value={newWebhook.secret}
+   527→              onChange={(e) => setNewWebhook({ ...newWebhook, secret: e.target.value })}
+   528→              placeholder="Secret HMAC (optionnel)"
+   529→              className="border-teal-200"
+   530→            />
+   531→            <Button onClick={handleAddWebhook} className="bg-teal-600 hover:bg-teal-700">
+   532→              Ajouter
+   533→            </Button>
+   534→          </div>
+   535→
+   536→          {/* Existing webhooks table */}
+   537→          {webhooks.length > 0 ? (
+   538→            <Table>
+   539→              <TableHeader>
+   540→                <TableRow>
+   541→                  <TableHead>Événement</TableHead>
+   542→                  <TableHead>URL</TableHead>
+   543→                  <TableHead>Secret HMAC</TableHead>
+   544→                  <TableHead>Statut</TableHead>
+   545→                  <TableHead>Date</TableHead>
+   546→                  <TableHead className="w-20">Actions</TableHead>
+   547→                </TableRow>
+   548→              </TableHeader>
+   549→              <TableBody>
+   550→                {webhooks.map((wh) => (
+   551→                  <TableRow key={wh.id}>
+   552→                    <TableCell>
+   553→                      <Badge variant="outline" className="text-xs">
+   554→                        {WEBHOOK_EVENTS.find(e => e.value === wh.eventType)?.label || wh.eventType}
+   555→                      </Badge>
+   556→                    </TableCell>
+   557→                    <TableCell className="font-mono text-xs max-w-48 truncate">{wh.url}</TableCell>
+   558→                    <TableCell className="text-xs text-muted-foreground">
+   559→                      {wh.secret ? (
+   560→                        <span className="flex items-center gap-1">
+   561→                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+   562→                          Configuré
+   563→                        </span>
+   564→                      ) : 'Aucun'}
+   565→                    </TableCell>
+   566→                    <TableCell>
+   567→                      <button onClick={() => toggleWebhook(wh.id)}>
+   568→                        <Badge className={wh.actif ? 'bg-green-100 text-green-800 cursor-pointer' : 'bg-gray-100 text-gray-800 cursor-pointer'}>
+   569→                          {wh.actif ? 'Actif' : 'Inactif'}
+   570→                        </Badge>
+   571→                      </button>
+   572→                    </TableCell>
+   573→                    <TableCell className="text-xs text-muted-foreground">
+   574→                      {new Date(wh.createdAt).toLocaleDateString('fr-FR')}
+   575→                    </TableCell>
+   576→                    <TableCell>
+   577→                      <Button
+   578→                        variant="ghost"
+   579→                        size="sm"
+   580→                        className="text-red-500 hover:text-red-700"
+   581→                        onClick={() => setDeleteWebhookId(wh.id)}
+   582→                      >
+   583→                        <Trash2 className="h-4 w-4" />
+   584→                      </Button>
+   585→                    </TableCell>
+   586→                  </TableRow>
+   587→                ))}
+   588→              </TableBody>
+   589→            </Table>
+   590→          ) : (
+   591→            <div className="text-center py-8 text-muted-foreground text-sm">
+   592→              <Globe className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+   593→              Aucun webhook configuré
+   594→              <p className="text-xs mt-1">Les webhooks vous permettent de recevoir des notifications en temps réel</p>
+   595→            </div>
+   596→          )}
+   597→        </CardContent>
+   598→      </Card>
+   599→
+   600→      {/* Notification Preferences */}
+   601→      <Card className="border-teal-200">
+   602→        <CardHeader>
+   603→          <CardTitle className="text-base flex items-center gap-2">
+   604→            <Bell className="h-4 w-4 text-teal-600" />
+   605→            Préférences de notification
+   606→          </CardTitle>
+   607→          <CardDescription>Choisissez les événements pour lesquels vous souhaitez être notifié</CardDescription>
+   608→        </CardHeader>
+   609→        <CardContent className="space-y-4">
+   610→          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   611→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   612→              <div>
+   613→                <p className="text-sm font-medium">Nouvelle commande</p>
+   614→                <p className="text-xs text-muted-foreground">Notification lors de la réception d&apos;une commande</p>
+   615→              </div>
+   616→              <Switch
+   617→                checked={notifications.nouvelleCommande}
+   618→                onCheckedChange={(checked) => setNotifications({ ...notifications, nouvelleCommande: checked })}
+   619→              />
+   620→            </div>
+   621→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   622→              <div>
+   623→                <p className="text-sm font-medium">Changement de statut</p>
+   624→                <p className="text-xs text-muted-foreground">Mise à jour du statut d&apos;une commande</p>
+   625→              </div>
+   626→              <Switch
+   627→                checked={notifications.statutChange}
+   628→                onCheckedChange={(checked) => setNotifications({ ...notifications, statutChange: checked })}
+   629→              />
+   630→            </div>
+   631→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   632→              <div>
+   633→                <p className="text-sm font-medium">Livraison effectuée</p>
+   634→                <p className="text-xs text-muted-foreground">Confirmation de livraison d&apos;une commande</p>
+   635→              </div>
+   636→              <Switch
+   637→                checked={notifications.livraisonEffectuee}
+   638→                onCheckedChange={(checked) => setNotifications({ ...notifications, livraisonEffectuee: checked })}
+   639→              />
+   640→            </div>
+   641→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   642→              <div>
+   643→                <p className="text-sm font-medium">Alerte stock bas</p>
+   644→                <p className="text-xs text-muted-foreground">Quand un produit atteint un seuil minimal</p>
+   645→              </div>
+   646→              <Switch
+   647→                checked={notifications.stockBas}
+   648→                onCheckedChange={(checked) => setNotifications({ ...notifications, stockBas: checked })}
+   649→              />
+   650→            </div>
+   651→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   652→              <div>
+   653→                <p className="text-sm font-medium">Rapport hebdomadaire</p>
+   654→                <p className="text-xs text-muted-foreground">Résumé d&apos;activité chaque lundi</p>
+   655→              </div>
+   656→              <Switch
+   657→                checked={notifications.rapportHebdo}
+   658→                onCheckedChange={(checked) => setNotifications({ ...notifications, rapportHebdo: checked })}
+   659→              />
+   660→            </div>
+   661→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   662→              <div>
+   663→                <p className="text-sm font-medium">Notifications par email</p>
+   664→                <p className="text-xs text-muted-foreground">Recevoir également les notifications par email</p>
+   665→              </div>
+   666→              <Switch
+   667→                checked={notifications.emailNotifs}
+   668→                onCheckedChange={(checked) => setNotifications({ ...notifications, emailNotifs: checked })}
+   669→              />
+   670→            </div>
+   671→          </div>
+   672→          <Button
+   673→            onClick={handleSaveNotifications}
+   674→            className="bg-teal-600 hover:bg-teal-700"
+   675→          >
+   676→            <Save className="h-4 w-4 mr-2" />
+   677→            Sauvegarder les préférences
+   678→          </Button>
+   679→        </CardContent>
+   680→      </Card>
+   681→
+   682→      {/* Delete webhook dialog */}
+   683→      <Dialog open={!!deleteWebhookId} onOpenChange={() => setDeleteWebhookId(null)}>
+   684→        <DialogContent>
+   685→          <DialogHeader>
+   686→            <DialogTitle>Supprimer le webhook</DialogTitle>
+   687→            <DialogDescription>
+   688→              Êtes-vous sûr de vouloir supprimer ce webhook ? Vous ne recevrez plus les notifications associées.
+   689→            </DialogDescription>
+   690→          </DialogHeader>
+   691→          <DialogFooter>
+   692→            <Button variant="outline" onClick={() => setDeleteWebhookId(null)}>Annuler</Button>
+   693→            <Button variant="destructive" onClick={handleDeleteWebhook}>
+   694→              <Trash2 className="h-4 w-4 mr-2" />
+   695→              Supprimer
+   696→            </Button>
+   697→          </DialogFooter>
+   698→        </DialogContent>
+   699→      </Dialog>
+   700→
+   701→      {/* Revoke API key dialog */}
+   702→      <Dialog open={revokeKeyDialogOpen} onOpenChange={setRevokeKeyDialogOpen}>
+   703→        <DialogContent>
+   704→          <DialogHeader>
+   705→            <DialogTitle>Révoquer la clé API</DialogTitle>
+   706→            <DialogDescription>
+   707→              Êtes-vous sûr de vouloir révoquer cette clé API ? Toute intégration l&apos;utilisant cessera de fonctionner immédiatement.
+   708→            </DialogDescription>
+   709→          </DialogHeader>
+   710→          <DialogFooter>
+   711→            <Button variant="outline" onClick={() => setRevokeKeyDialogOpen(false)}>Annuler</Button>
+   712→            <Button variant="destructive" onClick={handleRevokeKey}>
+   713→              <Trash2 className="h-4 w-4 mr-2" />
+   714→              Révoquer la clé
+   715→            </Button>
+   716→          </DialogFooter>
+   717→        </DialogContent>
+   718→      </Dialog>
+   719→    </div>
+   720→  )
+   721→}
+   722→

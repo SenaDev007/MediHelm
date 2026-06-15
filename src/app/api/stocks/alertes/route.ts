@@ -1,15 +1,19 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M01_STOCK', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const type = searchParams.get('type')
     const traitee = searchParams.get('traitee')
 
-    const where: Record<string, unknown> = {}
-    if (pharmacieId) where.pharmacieId = pharmacieId
+    const where: Record<string, unknown> = { pharmacieId }
     if (type) where.type = type
     if (traitee !== null && traitee !== undefined) {
       where.traitee = traitee === 'true'
@@ -32,6 +36,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M01_STOCK', 'write')
+    if (authResult instanceof Response) return authResult
+
     const body = await request.json()
     const { id, traiteePar } = body
 

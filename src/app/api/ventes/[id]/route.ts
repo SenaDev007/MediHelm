@@ -1,11 +1,17 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
+import { INSTITUTIONAL_ROLES } from '@/lib/rbac'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
     const { id } = await params
     const vente = await db.vente.findUnique({
       where: { id },
@@ -27,6 +33,11 @@ export async function GET(
       return NextResponse.json({ error: 'Vente non trouvée' }, { status: 404 })
     }
 
+    // Ownership check: verify the vente belongs to the user's pharmacy
+    if (!INSTITUTIONAL_ROLES.includes(user.roleName) && vente.pharmacieId !== user.pharmacieId) {
+      return NextResponse.json({ error: 'Accès refusé : cette vente n\'appartient pas à votre pharmacie' }, { status: 403 })
+    }
+
     return NextResponse.json(vente)
   } catch (error) {
     console.error('Erreur GET vente:', error)
@@ -39,6 +50,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authResult = await requireAuth(request, 'M02_POS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
     const { id } = await params
     const body = await request.json()
     const { statut } = body
@@ -46,6 +61,11 @@ export async function PATCH(
     const vente = await db.vente.findUnique({ where: { id } })
     if (!vente) {
       return NextResponse.json({ error: 'Vente non trouvée' }, { status: 404 })
+    }
+
+    // Ownership check: verify the vente belongs to the user's pharmacy
+    if (!INSTITUTIONAL_ROLES.includes(user.roleName) && vente.pharmacieId !== user.pharmacieId) {
+      return NextResponse.json({ error: 'Accès refusé : cette vente n\'appartient pas à votre pharmacie' }, { status: 403 })
     }
 
     const updated = await db.vente.update({

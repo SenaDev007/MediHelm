@@ -1,10 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M01_STOCK', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const dci = searchParams.get('dci')
     const nomCommercial = searchParams.get('nomCommercial')
     const forme = searchParams.get('forme')
@@ -15,8 +20,7 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'nomCommercial'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
 
-    const where: Record<string, unknown> = {}
-    if (pharmacieId) where.pharmacieId = pharmacieId
+    const where: Record<string, unknown> = { pharmacieId }
     if (dci) where.dci = { contains: dci, mode: 'insensitive' }
     if (nomCommercial) where.nomCommercial = { contains: nomCommercial, mode: 'insensitive' }
     if (forme) where.forme = forme
@@ -60,8 +64,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M01_STOCK', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
     const body = await request.json()
-    const data = await db.medicament.create({ data: body })
+    // Enforce pharmacieId from authenticated user
+    const data = await db.medicament.create({ data: { ...body, pharmacieId: user.pharmacieId } })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Erreur POST medicaments:', error)

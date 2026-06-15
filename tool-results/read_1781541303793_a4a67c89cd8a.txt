@@ -1,0 +1,1625 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useCallback, useMemo } from 'react'
+     4→import { useAuth } from '@/app/pro/auth-context'
+     5→import { Card, CardContent } from '@/components/ui/card'
+     6→import {
+     7→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+     8→} from '@/components/ui/table'
+     9→import {
+    10→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    11→} from '@/components/ui/dialog'
+    12→import {
+    13→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    14→} from '@/components/ui/select'
+    15→import {
+    16→  Badge,
+    17→} from '@/components/ui/badge'
+    18→import {
+    19→  Button,
+    20→} from '@/components/ui/button'
+    21→import {
+    22→  Input,
+    23→} from '@/components/ui/input'
+    24→import {
+    25→  Label,
+    26→} from '@/components/ui/label'
+    27→import {
+    28→  Separator,
+    29→} from '@/components/ui/separator'
+    30→import {
+    31→  ScrollArea,
+    32→} from '@/components/ui/scroll-area'
+    33→import {
+    34→  Tabs, TabsContent, TabsList, TabsTrigger,
+    35→} from '@/components/ui/tabs'
+    36→import {
+    37→  Switch,
+    38→} from '@/components/ui/switch'
+    39→import {
+    40→  Textarea,
+    41→} from '@/components/ui/textarea'
+    42→import {
+    43→  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+    44→} from '@/components/ui/tooltip'
+    45→import {
+    46→  Users, UserPlus, Phone, Mail, Shield, CreditCard, Search, Filter,
+    47→  Plus, Eye, Edit, ArrowUpDown, ChevronLeft, ChevronRight, X,
+    48→  Calendar, MapPin, FileText, Syringe, ShoppingCart, Activity,
+    49→  CheckCircle2, XCircle, AlertTriangle, Loader2,
+    50→} from 'lucide-react'
+    51→import { toast } from 'sonner'
+    52→import { KpiCard } from '@/components/pro/kpi-card'
+    53→
+    54→// ============================================================
+    55→// Types
+    56→// ============================================================
+    57→
+    58→interface Patient {
+    59→  id: string
+    60→  pharmacieId: string
+    61→  nom: string
+    62→  prenom: string
+    63→  telephone: string
+    64→  email: string | null
+    65→  dateNaissance: string | null
+    66→  sexe: string | null
+    67→  numeroAssurance: string | null
+    68→  assurance: string | null
+    69→  adresse: string | null
+    70→  notes: string | null
+    71→  creditAutorise: boolean
+    72→  creditLimite: number
+    73→  actif: boolean
+    74→  createdAt: string
+    75→  updatedAt: string
+    76→  _count?: { ventes: number; ordonnances: number; vaccinations: number }
+    77→  creditUtilise?: number
+    78→}
+    79→
+    80→interface PatientDetail extends Patient {
+    81→  ventes: {
+    82→    id: string
+    83→    reference: string
+    84→    montantTotal: number
+    85→    montantPaye: number
+    86→    modePaiement: string
+    87→    statut: string
+    88→    createdAt: string
+    89→  }[]
+    90→  ordonnances: {
+    91→    id: string
+    92→    prescripteur: string
+    93→    dateOrdonnance: string
+    94→    statut: string
+    95→    notes: string | null
+    96→    lignes: {
+    97→      medicament: { nomCommercial: string; dci: string } | null
+    98→    }[]
+    99→  }[]
+   100→  vaccinations: {
+   101→    id: string
+   102→    vaccin: string
+   103→    dateVaccin: string
+   104→    lot: string | null
+   105→    prochaineDose: string | null
+   106→  }[]
+   107→}
+   108→
+   109→interface PatientsResponse {
+   110→  patients: Patient[]
+   111→  total: number
+   112→  page: number
+   113→  limit: number
+   114→  totalPages: number
+   115→  stats: {
+   116→    totalActifs: number
+   117→    patientsAvecAssurance: number
+   118→    creditsEnCours: number
+   119→    nouveauxMois: number
+   120→  }
+   121→}
+   122→
+   123→// ============================================================
+   124→// Helpers
+   125→// ============================================================
+   126→
+   127→function formatFCFA(amount: number): string {
+   128→  return new Intl.NumberFormat('fr-FR', {
+   129→    style: 'decimal',
+   130→    minimumFractionDigits: 0,
+   131→    maximumFractionDigits: 0,
+   132→  }).format(amount) + ' FCFA'
+   133→}
+   134→
+   135→function formatDate(date: string | null): string {
+   136→  if (!date) return '—'
+   137→  return new Date(date).toLocaleDateString('fr-FR', {
+   138→    day: '2-digit',
+   139→    month: '2-digit',
+   140→    year: 'numeric',
+   141→  })
+   142→}
+   143→
+   144→function formatDateLong(date: string): string {
+   145→  return new Date(date).toLocaleDateString('fr-FR', {
+   146→    day: 'numeric',
+   147→    month: 'long',
+   148→    year: 'numeric',
+   149→  })
+   150→}
+   151→
+   152→const ASSURANCE_LABELS: Record<string, string> = {
+   153→  CNSS: 'CNSS',
+   154→  RAMU: 'RAMU',
+   155→  ASSURANCE_PRIVEE: 'Assurance privée',
+   156→}
+   157→
+   158→const ASSURANCE_COLORS: Record<string, string> = {
+   159→  CNSS: 'bg-blue-100 text-blue-800 border-blue-200',
+   160→  RAMU: 'bg-green-100 text-green-800 border-green-200',
+   161→  ASSURANCE_PRIVEE: 'bg-purple-100 text-purple-800 border-purple-200',
+   162→}
+   163→
+   164→const SEXE_LABELS: Record<string, string> = {
+   165→  M: 'Masculin',
+   166→  F: 'Féminin',
+   167→}
+   168→
+   169→const MODE_PAIEMENT_LABELS: Record<string, string> = {
+   170→  ESPECES: 'Espèces',
+   171→  WAVE: 'Wave',
+   172→  MTN_MONEY: 'MTN Money',
+   173→  MOOV_MONEY: 'Moov Money',
+   174→  CARTE_BANCAIRE: 'Carte bancaire',
+   175→  CHEQUE: 'Chèque',
+   176→  CREDIT: 'Crédit',
+   177→  ASSURANCE: 'Assurance',
+   178→}
+   179→
+   180→const STATUT_VENTE_LABELS: Record<string, string> = {
+   181→  BROUILLON: 'Brouillon',
+   182→  EN_COURS: 'En cours',
+   183→  VALIDEE: 'Validée',
+   184→  ANNULEE: 'Annulée',
+   185→  REMBOURSEE: 'Remboursée',
+   186→}
+   187→
+   188→const STATUT_ORDONNANCE_LABELS: Record<string, string> = {
+   189→  RECUE: 'Reçue',
+   190→  EN_VERIFICATION: 'En vérification',
+   191→  VALIDEE: 'Validée',
+   192→  PARTIELLEMENT_DELIVREE: 'Partiellement délivrée',
+   193→  DELIVREE: 'Délivrée',
+   194→  REFUSEE: 'Refusée',
+   195→}
+   196→
+   197→const EMPTY_STATS = {
+   198→  totalActifs: 0,
+   199→  patientsAvecAssurance: 0,
+   200→  creditsEnCours: 0,
+   201→  nouveauxMois: 0,
+   202→}
+   203→
+   204→// ============================================================
+   205→// Main Component
+   206→// ============================================================
+   207→
+   208→export default function PatientsPage() {
+   209→  const { pharmacie } = useAuth()
+   210→  const pharmacieId = pharmacie?.id || ''
+   211→
+   212→  // --- State ---
+   213→  const [patients, setPatients] = useState<Patient[]>([])
+   214→  const [total, setTotal] = useState(0)
+   215→  const [totalPages, setTotalPages] = useState(1)
+   216→  const [stats, setStats] = useState(EMPTY_STATS)
+   217→  const [loading, setLoading] = useState(true)
+   218→
+   219→  // Filters
+   220→  const [search, setSearch] = useState('')
+   221→  const [actifFilter, setActifFilter] = useState<string>('all')
+   222→  const [assuranceFilter, setAssuranceFilter] = useState<string>('all')
+   223→  const [creditFilter, setCreditFilter] = useState<string>('all')
+   224→  const [sortBy, setSortBy] = useState<string>('nom')
+   225→  const [sortOrder, setSortOrder] = useState<string>('asc')
+   226→  const [page, setPage] = useState(1)
+   227→  const limit = 20
+   228→
+   229→  // Dialogs
+   230→  const [showAddDialog, setShowAddDialog] = useState(false)
+   231→  const [showEditDialog, setShowEditDialog] = useState(false)
+   232→  const [showDetailDialog, setShowDetailDialog] = useState(false)
+   233→  const [showCreditDialog, setShowCreditDialog] = useState(false)
+   234→  const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null)
+   235→  const [editPatient, setEditPatient] = useState<Patient | null>(null)
+   236→  const [creditPatient, setCreditPatient] = useState<Patient | null>(null)
+   237→  const [detailLoading, setDetailLoading] = useState(false)
+   238→  const [saving, setSaving] = useState(false)
+   239→
+   240→  // Form state
+   241→  const emptyForm = {
+   242→    nom: '', prenom: '', telephone: '', email: '', dateNaissance: '',
+   243→    sexe: '', numeroAssurance: '', assurance: 'none', adresse: '', notes: '',
+   244→    creditAutorise: false, creditLimite: 0,
+   245→  }
+   246→  const [form, setForm] = useState(emptyForm)
+   247→
+   248→  // --- Fetch patients ---
+   249→  const fetchPatients = useCallback(async () => {
+   250→    if (!pharmacieId) return
+   251→    setLoading(true)
+   252→    try {
+   253→      const params = new URLSearchParams({
+   254→        pharmacieId,
+   255→        page: String(page),
+   256→        limit: String(limit),
+   257→        sortBy,
+   258→        sortOrder,
+   259→      })
+   260→      if (search) params.set('search', search)
+   261→      if (actifFilter !== 'all') params.set('actif', actifFilter)
+   262→      if (assuranceFilter !== 'all') params.set('assurance', assuranceFilter)
+   263→      if (creditFilter !== 'all') params.set('creditStatus', creditFilter)
+   264→
+   265→      const res = await fetch(`/api/patients?${params}`)
+   266→      if (!res.ok) throw new Error()
+   267→      const data: PatientsResponse = await res.json()
+   268→      setPatients(data.patients)
+   269→      setTotal(data.total)
+   270→      setTotalPages(data.totalPages)
+   271→      setStats(data.stats)
+   272→    } catch {
+   273→      toast.error('Erreur lors du chargement des patients')
+   274→    } finally {
+   275→      setLoading(false)
+   276→    }
+   277→  }, [pharmacieId, page, sortBy, sortOrder, search, actifFilter, assuranceFilter, creditFilter])
+   278→
+   279→  useEffect(() => {
+   280→    fetchPatients()
+   281→  }, [fetchPatients])
+   282→
+   283→  // Reset to page 1 when filters change
+   284→  useEffect(() => {
+   285→    setPage(1)
+   286→  }, [search, actifFilter, assuranceFilter, creditFilter, sortBy, sortOrder])
+   287→
+   288→  // --- Fetch patient detail ---
+   289→  const fetchPatientDetail = async (patientId: string) => {
+   290→    if (!pharmacieId) return
+   291→    setDetailLoading(true)
+   292→    try {
+   293→      const res = await fetch(`/api/patients/${patientId}?pharmacieId=${pharmacieId}`)
+   294→      if (!res.ok) throw new Error()
+   295→      const data: PatientDetail = await res.json()
+   296→      setSelectedPatient(data)
+   297→    } catch {
+   298→      toast.error('Erreur lors du chargement du patient')
+   299→    } finally {
+   300→      setDetailLoading(false)
+   301→    }
+   302→  }
+   303→
+   304→  // --- Save patient (add/edit) ---
+   305→  const handleSavePatient = async (isEdit: boolean) => {
+   306→    if (!pharmacieId || !form.nom || !form.prenom) {
+   307→      toast.error('Nom et prénom sont requis')
+   308→      return
+   309→    }
+   310→    setSaving(true)
+   311→    try {
+   312→      const payload = {
+   313→        pharmacieId,
+   314→        nom: form.nom,
+   315→        prenom: form.prenom,
+   316→        telephone: form.telephone,
+   317→        email: form.email || null,
+   318→        dateNaissance: form.dateNaissance || null,
+   319→        sexe: form.sexe || null,
+   320→        numeroAssurance: form.numeroAssurance || null,
+   321→        assurance: form.assurance === 'none' ? null : form.assurance,
+   322→        adresse: form.adresse || null,
+   323→        notes: form.notes || null,
+   324→        creditAutorise: form.creditAutorise,
+   325→        creditLimite: form.creditAutorise ? form.creditLimite : 0,
+   326→      }
+   327→
+   328→      if (isEdit && editPatient) {
+   329→        const res = await fetch(`/api/patients/${editPatient.id}?pharmacieId=${pharmacieId}`, {
+   330→          method: 'PUT',
+   331→          headers: { 'Content-Type': 'application/json' },
+   332→          body: JSON.stringify(payload),
+   333→        })
+   334→        if (!res.ok) throw new Error()
+   335→        toast.success('Patient mis à jour avec succès')
+   336→        setShowEditDialog(false)
+   337→      } else {
+   338→        const res = await fetch('/api/patients', {
+   339→          method: 'POST',
+   340→          headers: { 'Content-Type': 'application/json' },
+   341→          body: JSON.stringify(payload),
+   342→        })
+   343→        if (!res.ok) throw new Error()
+   344→        toast.success('Patient créé avec succès')
+   345→        setShowAddDialog(false)
+   346→      }
+   347→      setForm(emptyForm)
+   348→      setEditPatient(null)
+   349→      fetchPatients()
+   350→    } catch {
+   351→      toast.error(isEdit ? 'Erreur lors de la mise à jour' : 'Erreur lors de la création')
+   352→    } finally {
+   353→      setSaving(false)
+   354→    }
+   355→  }
+   356→
+   357→  // --- Toggle credit ---
+   358→  const handleSaveCredit = async () => {
+   359→    if (!pharmacieId || !creditPatient) return
+   360→    setSaving(true)
+   361→    try {
+   362→      const res = await fetch(`/api/patients/${creditPatient.id}?pharmacieId=${pharmacieId}`, {
+   363→        method: 'PATCH',
+   364→        headers: { 'Content-Type': 'application/json' },
+   365→        body: JSON.stringify({
+   366→          pharmacieId,
+   367→          creditAutorise: creditPatient.creditAutorise,
+   368→          creditLimite: creditPatient.creditLimite,
+   369→        }),
+   370→      })
+   371→      if (!res.ok) throw new Error()
+   372→      toast.success('Crédit mis à jour')
+   373→      setShowCreditDialog(false)
+   374→      setCreditPatient(null)
+   375→      fetchPatients()
+   376→    } catch {
+   377→      toast.error('Erreur lors de la mise à jour du crédit')
+   378→    } finally {
+   379→      setSaving(false)
+   380→    }
+   381→  }
+   382→
+   383→  // --- Toggle active ---
+   384→  const handleToggleActive = async (patient: Patient) => {
+   385→    if (!pharmacieId) return
+   386→    try {
+   387→      const res = await fetch(`/api/patients/${patient.id}?pharmacieId=${pharmacieId}`, {
+   388→        method: 'PATCH',
+   389→        headers: { 'Content-Type': 'application/json' },
+   390→        body: JSON.stringify({
+   391→          pharmacieId,
+   392→          actif: !patient.actif,
+   393→        }),
+   394→      })
+   395→      if (!res.ok) throw new Error()
+   396→      toast.success(patient.actif ? 'Patient désactivé' : 'Patient réactivé')
+   397→      fetchPatients()
+   398→    } catch {
+   399→      toast.error('Erreur lors du changement de statut')
+   400→    }
+   401→  }
+   402→
+   403→  // --- Open edit dialog ---
+   404→  const openEdit = (patient: Patient) => {
+   405→    setEditPatient(patient)
+   406→    setForm({
+   407→      nom: patient.nom,
+   408→      prenom: patient.prenom,
+   409→      telephone: patient.telephone,
+   410→      email: patient.email || '',
+   411→      dateNaissance: patient.dateNaissance
+   412→        ? new Date(patient.dateNaissance).toISOString().split('T')[0]
+   413→        : '',
+   414→      sexe: patient.sexe || '',
+   415→      numeroAssurance: patient.numeroAssurance || '',
+   416→      assurance: patient.assurance || 'none',
+   417→      adresse: patient.adresse || '',
+   418→      notes: patient.notes || '',
+   419→      creditAutorise: patient.creditAutorise,
+   420→      creditLimite: patient.creditLimite,
+   421→    })
+   422→    setShowEditDialog(true)
+   423→  }
+   424→
+   425→  // --- Open detail dialog ---
+   426→  const openDetail = (patient: Patient) => {
+   427→    fetchPatientDetail(patient.id)
+   428→    setShowDetailDialog(true)
+   429→  }
+   430→
+   431→  // --- Sort toggle ---
+   432→  const handleSort = (field: string) => {
+   433→    if (sortBy === field) {
+   434→      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+   435→    } else {
+   436→      setSortBy(field)
+   437→      setSortOrder('asc')
+   438→    }
+   439→  }
+   440→
+   441→  // --- Memoized filtered check ---
+   442→  const hasActiveFilters = useMemo(() => {
+   443→    return search !== '' || actifFilter !== 'all' || assuranceFilter !== 'all' || creditFilter !== 'all'
+   444→  }, [search, actifFilter, assuranceFilter, creditFilter])
+   445→
+   446→  // ============================================================
+   447→  // Render
+   448→  // ============================================================
+   449→
+   450→  return (
+   451→    <div className="space-y-6">
+   452→      {/* Header */}
+   453→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   454→        <div>
+   455→          <h1 className="text-2xl font-bold tracking-tight">Patients</h1>
+   456→          <p className="text-sm text-muted-foreground">
+   457→            Gérez vos patients, leurs informations et crédits
+   458→          </p>
+   459→        </div>
+   460→        <Button
+   461→          onClick={() => {
+   462→            setForm(emptyForm)
+   463→            setShowAddDialog(true)
+   464→          }}
+   465→          className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white gap-2"
+   466→        >
+   467→          <UserPlus className="w-4 h-4" />
+   468→          Nouveau patient
+   469→        </Button>
+   470→      </div>
+   471→
+   472→      {/* KPI Cards */}
+   473→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   474→        <KpiCard
+   475→          title="Patients actifs"
+   476→          value={stats.totalActifs}
+   477→          icon={Users}
+   478→          variant="success"
+   479→        />
+   480→        <KpiCard
+   481→          title="Avec assurance"
+   482→          value={stats.patientsAvecAssurance}
+   483→          icon={Shield}
+   484→          variant="default"
+   485→        />
+   486→        <KpiCard
+   487→          title="Crédits en cours"
+   488→          value={formatFCFA(stats.creditsEnCours)}
+   489→          icon={CreditCard}
+   490→          variant="warning"
+   491→        />
+   492→        <KpiCard
+   493→          title="Nouveaux ce mois"
+   494→          value={stats.nouveauxMois}
+   495→          icon={Activity}
+   496→          variant="default"
+   497→        />
+   498→      </div>
+   499→
+   500→      {/* Filters Bar */}
+   501→      <Card>
+   502→        <CardContent className="p-4">
+   503→          <div className="flex flex-col lg:flex-row gap-3">
+   504→            {/* Search */}
+   505→            <div className="relative flex-1">
+   506→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   507→              <Input
+   508→                placeholder="Rechercher par nom, téléphone, email..."
+   509→                value={search}
+   510→                onChange={(e) => setSearch(e.target.value)}
+   511→                className="pl-9"
+   512→              />
+   513→              {search && (
+   514→                <button
+   515→                  onClick={() => setSearch('')}
+   516→                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+   517→                >
+   518→                  <X className="w-4 h-4" />
+   519→                </button>
+   520→              )}
+   521→            </div>
+   522→
+   523→            {/* Filters */}
+   524→            <div className="flex flex-wrap gap-2">
+   525→              <Select value={actifFilter} onValueChange={setActifFilter}>
+   526→                <SelectTrigger className="w-[150px]">
+   527→                  <SelectValue placeholder="Statut" />
+   528→                </SelectTrigger>
+   529→                <SelectContent>
+   530→                  <SelectItem value="all">Tous les statuts</SelectItem>
+   531→                  <SelectItem value="true">Actif</SelectItem>
+   532→                  <SelectItem value="false">Inactif</SelectItem>
+   533→                </SelectContent>
+   534→              </Select>
+   535→
+   536→              <Select value={assuranceFilter} onValueChange={setAssuranceFilter}>
+   537→                <SelectTrigger className="w-[170px]">
+   538→                  <SelectValue placeholder="Assurance" />
+   539→                </SelectTrigger>
+   540→                <SelectContent>
+   541→                  <SelectItem value="all">Toutes assurances</SelectItem>
+   542→                  <SelectItem value="CNSS">CNSS</SelectItem>
+   543→                  <SelectItem value="RAMU">RAMU</SelectItem>
+   544→                  <SelectItem value="ASSURANCE_PRIVEE">Assurance privée</SelectItem>
+   545→                </SelectContent>
+   546→              </Select>
+   547→
+   548→              <Select value={creditFilter} onValueChange={setCreditFilter}>
+   549→                <SelectTrigger className="w-[160px]">
+   550→                  <SelectValue placeholder="Crédit" />
+   551→                </SelectTrigger>
+   552→                <SelectContent>
+   553→                  <SelectItem value="all">Tous crédits</SelectItem>
+   554→                  <SelectItem value="autorise">Crédit autorisé</SelectItem>
+   555→                  <SelectItem value="non_autorise">Sans crédit</SelectItem>
+   556→                </SelectContent>
+   557→              </Select>
+   558→
+   559→              {hasActiveFilters && (
+   560→                <Button
+   561→                  variant="ghost"
+   562→                  size="sm"
+   563→                  onClick={() => {
+   564→                    setSearch('')
+   565→                    setActifFilter('all')
+   566→                    setAssuranceFilter('all')
+   567→                    setCreditFilter('all')
+   568→                  }}
+   569→                  className="gap-1 text-muted-foreground"
+   570→                >
+   571→                  <X className="w-3 h-3" />
+   572→                  Réinitialiser
+   573→                </Button>
+   574→              )}
+   575→            </div>
+   576→          </div>
+   577→        </CardContent>
+   578→      </Card>
+   579→
+   580→      {/* Table */}
+   581→      <Card>
+   582→        <CardContent className="p-0">
+   583→          {loading ? (
+   584→            <div className="flex items-center justify-center py-20">
+   585→              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+   586→            </div>
+   587→          ) : patients.length === 0 ? (
+   588→            <div className="flex flex-col items-center justify-center py-20 text-center">
+   589→              <Users className="w-12 h-12 text-muted-foreground/40 mb-4" />
+   590→              <p className="text-lg font-medium text-muted-foreground">Aucun patient trouvé</p>
+   591→              <p className="text-sm text-muted-foreground/70 mt-1">
+   592→                {hasActiveFilters
+   593→                  ? 'Essayez de modifier vos filtres de recherche'
+   594→                  : 'Ajoutez votre premier patient pour commencer'}
+   595→              </p>
+   596→              {!hasActiveFilters && (
+   597→                <Button
+   598→                  onClick={() => {
+   599→                    setForm(emptyForm)
+   600→                    setShowAddDialog(true)
+   601→                  }}
+   602→                  className="mt-4 bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white gap-2"
+   603→                >
+   604→                  <UserPlus className="w-4 h-4" />
+   605→                  Ajouter un patient
+   606→                </Button>
+   607→              )}
+   608→            </div>
+   609→          ) : (
+   610→            <>
+   611→              <div className="overflow-x-auto">
+   612→                <Table>
+   613→                  <TableHeader>
+   614→                    <TableRow>
+   615→                      <TableHead className="w-[220px]">
+   616→                        <button
+   617→                          onClick={() => handleSort('nom')}
+   618→                          className="flex items-center gap-1 hover:text-foreground transition-colors"
+   619→                        >
+   620→                          Nom complet
+   621→                          <ArrowUpDown className="w-3 h-3" />
+   622→                        </button>
+   623→                      </TableHead>
+   624→                      <TableHead className="hidden md:table-cell">Téléphone</TableHead>
+   625→                      <TableHead className="hidden lg:table-cell">Email</TableHead>
+   626→                      <TableHead>Assurance</TableHead>
+   627→                      <TableHead className="hidden md:table-cell">Crédit autorisé</TableHead>
+   628→                      <TableHead className="hidden lg:table-cell">Limite crédit</TableHead>
+   629→                      <TableHead>Statut</TableHead>
+   630→                      <TableHead className="text-right">Actions</TableHead>
+   631→                    </TableRow>
+   632→                  </TableHeader>
+   633→                  <TableBody>
+   634→                    {patients.map((patient) => (
+   635→                      <TableRow
+   636→                        key={patient.id}
+   637→                        className="cursor-pointer hover:bg-muted/50"
+   638→                        onClick={() => openDetail(patient)}
+   639→                      >
+   640→                        <TableCell>
+   641→                          <div className="flex items-center gap-3">
+   642→                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-[#1D9E75]/10 text-[#1D9E75] font-semibold text-sm shrink-0">
+   643→                              {patient.prenom[0]}{patient.nom[0]}
+   644→                            </div>
+   645→                            <div className="min-w-0">
+   646→                              <p className="font-medium truncate">
+   647→                                {patient.prenom} {patient.nom}
+   648→                              </p>
+   649→                              <p className="text-xs text-muted-foreground md:hidden">
+   650→                                {patient.telephone}
+   651→                              </p>
+   652→                            </div>
+   653→                          </div>
+   654→                        </TableCell>
+   655→                        <TableCell className="hidden md:table-cell">
+   656→                          <span className="flex items-center gap-1.5 text-sm">
+   657→                            <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+   658→                            {patient.telephone}
+   659→                          </span>
+   660→                        </TableCell>
+   661→                        <TableCell className="hidden lg:table-cell">
+   662→                          {patient.email ? (
+   663→                            <span className="flex items-center gap-1.5 text-sm">
+   664→                              <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+   665→                              {patient.email}
+   666→                            </span>
+   667→                          ) : (
+   668→                            <span className="text-muted-foreground">—</span>
+   669→                          )}
+   670→                        </TableCell>
+   671→                        <TableCell>
+   672→                          {patient.assurance ? (
+   673→                            <Badge
+   674→                              variant="outline"
+   675→                              className={ASSURANCE_COLORS[patient.assurance] || 'bg-gray-100 text-gray-800'}
+   676→                            >
+   677→                              {ASSURANCE_LABELS[patient.assurance] || patient.assurance}
+   678→                            </Badge>
+   679→                          ) : (
+   680→                            <span className="text-sm text-muted-foreground">Aucune</span>
+   681→                          )}
+   682→                        </TableCell>
+   683→                        <TableCell className="hidden md:table-cell">
+   684→                          {patient.creditAutorise ? (
+   685→                            <Badge className="bg-amber-100 text-amber-800 border-amber-200" variant="outline">
+   686→                              <CreditCard className="w-3 h-3 mr-1" />
+   687→                              Oui
+   688→                            </Badge>
+   689→                          ) : (
+   690→                            <span className="text-sm text-muted-foreground">Non</span>
+   691→                          )}
+   692→                        </TableCell>
+   693→                        <TableCell className="hidden lg:table-cell text-sm">
+   694→                          {patient.creditAutorise ? formatFCFA(patient.creditLimite) : '—'}
+   695→                        </TableCell>
+   696→                        <TableCell>
+   697→                          <Badge
+   698→                            variant="outline"
+   699→                            className={
+   700→                              patient.actif
+   701→                                ? 'bg-green-50 text-green-700 border-green-200'
+   702→                                : 'bg-red-50 text-red-700 border-red-200'
+   703→                            }
+   704→                          >
+   705→                            {patient.actif ? 'Actif' : 'Inactif'}
+   706→                          </Badge>
+   707→                        </TableCell>
+   708→                        <TableCell className="text-right">
+   709→                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   710→                            <TooltipProvider>
+   711→                              <Tooltip>
+   712→                                <TooltipTrigger asChild>
+   713→                                  <Button
+   714→                                    variant="ghost"
+   715→                                    size="icon"
+   716→                                    className="h-8 w-8"
+   717→                                    onClick={() => openDetail(patient)}
+   718→                                  >
+   719→                                    <Eye className="w-4 h-4" />
+   720→                                  </Button>
+   721→                                </TooltipTrigger>
+   722→                                <TooltipContent>Voir les détails</TooltipContent>
+   723→                              </Tooltip>
+   724→                            </TooltipProvider>
+   725→                            <TooltipProvider>
+   726→                              <Tooltip>
+   727→                                <TooltipTrigger asChild>
+   728→                                  <Button
+   729→                                    variant="ghost"
+   730→                                    size="icon"
+   731→                                    className="h-8 w-8"
+   732→                                    onClick={() => openEdit(patient)}
+   733→                                  >
+   734→                                    <Edit className="w-4 h-4" />
+   735→                                  </Button>
+   736→                                </TooltipTrigger>
+   737→                                <TooltipContent>Modifier</TooltipContent>
+   738→                              </Tooltip>
+   739→                            </TooltipProvider>
+   740→                            <TooltipProvider>
+   741→                              <Tooltip>
+   742→                                <TooltipTrigger asChild>
+   743→                                  <Button
+   744→                                    variant="ghost"
+   745→                                    size="icon"
+   746→                                    className="h-8 w-8"
+   747→                                    onClick={() => {
+   748→                                      setCreditPatient(patient)
+   749→                                      setShowCreditDialog(true)
+   750→                                    }}
+   751→                                  >
+   752→                                    <CreditCard className="w-4 h-4" />
+   753→                                  </Button>
+   754→                                </TooltipTrigger>
+   755→                                <TooltipContent>Gérer le crédit</TooltipContent>
+   756→                              </Tooltip>
+   757→                            </TooltipProvider>
+   758→                          </div>
+   759→                        </TableCell>
+   760→                      </TableRow>
+   761→                    ))}
+   762→                  </TableBody>
+   763→                </Table>
+   764→              </div>
+   765→
+   766→              {/* Pagination */}
+   767→              <div className="flex items-center justify-between px-4 py-3 border-t">
+   768→                <p className="text-sm text-muted-foreground">
+   769→                  {total} patient{total !== 1 ? 's' : ''} au total
+   770→                </p>
+   771→                <div className="flex items-center gap-2">
+   772→                  <Button
+   773→                    variant="outline"
+   774→                    size="sm"
+   775→                    disabled={page <= 1}
+   776→                    onClick={() => setPage(page - 1)}
+   777→                  >
+   778→                    <ChevronLeft className="w-4 h-4" />
+   779→                  </Button>
+   780→                  <span className="text-sm text-muted-foreground">
+   781→                    Page {page} / {totalPages}
+   782→                  </span>
+   783→                  <Button
+   784→                    variant="outline"
+   785→                    size="sm"
+   786→                    disabled={page >= totalPages}
+   787→                    onClick={() => setPage(page + 1)}
+   788→                  >
+   789→                    <ChevronRight className="w-4 h-4" />
+   790→                  </Button>
+   791→                </div>
+   792→              </div>
+   793→            </>
+   794→          )}
+   795→        </CardContent>
+   796→      </Card>
+   797→
+   798→      {/* ============================================================ */}
+   799→      {/* Add Patient Dialog */}
+   800→      {/* ============================================================ */}
+   801→      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+   802→        <DialogContent className="max-w-2xl max-h-[90vh]">
+   803→          <DialogHeader>
+   804→            <DialogTitle className="flex items-center gap-2">
+   805→              <UserPlus className="w-5 h-5 text-[#1D9E75]" />
+   806→              Nouveau patient
+   807→            </DialogTitle>
+   808→          </DialogHeader>
+   809→          <ScrollArea className="max-h-[65vh] pr-4">
+   810→            <div className="grid gap-4 py-4">
+   811→              {/* Personal Info */}
+   812→              <div className="space-y-2">
+   813→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+   814→                  <Users className="w-4 h-4" />
+   815→                  Informations personnelles
+   816→                </h3>
+   817→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   818→                  <div className="space-y-1">
+   819→                    <Label htmlFor="add-nom">Nom *</Label>
+   820→                    <Input
+   821→                      id="add-nom"
+   822→                      value={form.nom}
+   823→                      onChange={(e) => setForm({ ...form, nom: e.target.value })}
+   824→                      placeholder="Nom de famille"
+   825→                    />
+   826→                  </div>
+   827→                  <div className="space-y-1">
+   828→                    <Label htmlFor="add-prenom">Prénom *</Label>
+   829→                    <Input
+   830→                      id="add-prenom"
+   831→                      value={form.prenom}
+   832→                      onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+   833→                      placeholder="Prénom"
+   834→                    />
+   835→                  </div>
+   836→                  <div className="space-y-1">
+   837→                    <Label htmlFor="add-telephone">Téléphone</Label>
+   838→                    <Input
+   839→                      id="add-telephone"
+   840→                      value={form.telephone}
+   841→                      onChange={(e) => setForm({ ...form, telephone: e.target.value })}
+   842→                      placeholder="+229 90 00 00 00"
+   843→                    />
+   844→                  </div>
+   845→                  <div className="space-y-1">
+   846→                    <Label htmlFor="add-email">Email</Label>
+   847→                    <Input
+   848→                      id="add-email"
+   849→                      type="email"
+   850→                      value={form.email}
+   851→                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+   852→                      placeholder="email@exemple.com"
+   853→                    />
+   854→                  </div>
+   855→                  <div className="space-y-1">
+   856→                    <Label htmlFor="add-dateNaissance">Date de naissance</Label>
+   857→                    <Input
+   858→                      id="add-dateNaissance"
+   859→                      type="date"
+   860→                      value={form.dateNaissance}
+   861→                      onChange={(e) => setForm({ ...form, dateNaissance: e.target.value })}
+   862→                    />
+   863→                  </div>
+   864→                  <div className="space-y-1">
+   865→                    <Label htmlFor="add-sexe">Sexe</Label>
+   866→                    <Select value={form.sexe} onValueChange={(v) => setForm({ ...form, sexe: v })}>
+   867→                      <SelectTrigger id="add-sexe">
+   868→                        <SelectValue placeholder="Sélectionner" />
+   869→                      </SelectTrigger>
+   870→                      <SelectContent>
+   871→                        <SelectItem value="M">Masculin</SelectItem>
+   872→                        <SelectItem value="F">Féminin</SelectItem>
+   873→                      </SelectContent>
+   874→                    </Select>
+   875→                  </div>
+   876→                </div>
+   877→                <div className="space-y-1">
+   878→                  <Label htmlFor="add-adresse">Adresse</Label>
+   879→                  <Input
+   880→                    id="add-adresse"
+   881→                    value={form.adresse}
+   882→                    onChange={(e) => setForm({ ...form, adresse: e.target.value })}
+   883→                    placeholder="Adresse du patient"
+   884→                  />
+   885→                </div>
+   886→              </div>
+   887→
+   888→              <Separator />
+   889→
+   890→              {/* Insurance Info */}
+   891→              <div className="space-y-2">
+   892→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+   893→                  <Shield className="w-4 h-4" />
+   894→                  Assurance
+   895→                </h3>
+   896→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   897→                  <div className="space-y-1">
+   898→                    <Label htmlFor="add-assurance">Type d&apos;assurance</Label>
+   899→                    <Select value={form.assurance} onValueChange={(v) => setForm({ ...form, assurance: v })}>
+   900→                      <SelectTrigger id="add-assurance">
+   901→                        <SelectValue placeholder="Sélectionner" />
+   902→                      </SelectTrigger>
+   903→                      <SelectContent>
+   904→                        <SelectItem value="none">Aucune</SelectItem>
+   905→                        <SelectItem value="CNSS">CNSS</SelectItem>
+   906→                        <SelectItem value="RAMU">RAMU</SelectItem>
+   907→                        <SelectItem value="ASSURANCE_PRIVEE">Assurance privée</SelectItem>
+   908→                      </SelectContent>
+   909→                    </Select>
+   910→                  </div>
+   911→                  <div className="space-y-1">
+   912→                    <Label htmlFor="add-numeroAssurance">N° assurance</Label>
+   913→                    <Input
+   914→                      id="add-numeroAssurance"
+   915→                      value={form.numeroAssurance}
+   916→                      onChange={(e) => setForm({ ...form, numeroAssurance: e.target.value })}
+   917→                      placeholder="Numéro d'assurance"
+   918→                    />
+   919→                  </div>
+   920→                </div>
+   921→              </div>
+   922→
+   923→              <Separator />
+   924→
+   925→              {/* Credit Info */}
+   926→              <div className="space-y-2">
+   927→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+   928→                  <CreditCard className="w-4 h-4" />
+   929→                  Crédit
+   930→                </h3>
+   931→                <div className="flex items-center gap-3">
+   932→                  <Switch
+   933→                    checked={form.creditAutorise}
+   934→                    onCheckedChange={(v) => setForm({ ...form, creditAutorise: v })}
+   935→                  />
+   936→                  <Label>Autoriser le crédit</Label>
+   937→                </div>
+   938→                {form.creditAutorise && (
+   939→                  <div className="space-y-1">
+   940→                    <Label htmlFor="add-creditLimite">Limite de crédit (FCFA)</Label>
+   941→                    <Input
+   942→                      id="add-creditLimite"
+   943→                      type="number"
+   944→                      value={form.creditLimite}
+   945→                      onChange={(e) => setForm({ ...form, creditLimite: parseFloat(e.target.value) || 0 })}
+   946→                      placeholder="0"
+   947→                    />
+   948→                  </div>
+   949→                )}
+   950→              </div>
+   951→
+   952→              <Separator />
+   953→
+   954→              {/* Notes */}
+   955→              <div className="space-y-1">
+   956→                <Label htmlFor="add-notes">Notes</Label>
+   957→                <Textarea
+   958→                  id="add-notes"
+   959→                  value={form.notes}
+   960→                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+   961→                  placeholder="Notes sur le patient..."
+   962→                  rows={3}
+   963→                />
+   964→              </div>
+   965→            </div>
+   966→          </ScrollArea>
+   967→          <DialogFooter>
+   968→            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+   969→              Annuler
+   970→            </Button>
+   971→            <Button
+   972→              onClick={() => handleSavePatient(false)}
+   973→              disabled={saving || !form.nom || !form.prenom}
+   974→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white"
+   975→            >
+   976→              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+   977→              Créer le patient
+   978→            </Button>
+   979→          </DialogFooter>
+   980→        </DialogContent>
+   981→      </Dialog>
+   982→
+   983→      {/* ============================================================ */}
+   984→      {/* Edit Patient Dialog */}
+   985→      {/* ============================================================ */}
+   986→      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+   987→        <DialogContent className="max-w-2xl max-h-[90vh]">
+   988→          <DialogHeader>
+   989→            <DialogTitle className="flex items-center gap-2">
+   990→              <Edit className="w-5 h-5 text-[#1D9E75]" />
+   991→              Modifier le patient
+   992→            </DialogTitle>
+   993→          </DialogHeader>
+   994→          <ScrollArea className="max-h-[65vh] pr-4">
+   995→            <div className="grid gap-4 py-4">
+   996→              {/* Personal Info */}
+   997→              <div className="space-y-2">
+   998→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+   999→                  <Users className="w-4 h-4" />
+  1000→                  Informations personnelles
+  1001→                </h3>
+  1002→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1003→                  <div className="space-y-1">
+  1004→                    <Label htmlFor="edit-nom">Nom *</Label>
+  1005→                    <Input
+  1006→                      id="edit-nom"
+  1007→                      value={form.nom}
+  1008→                      onChange={(e) => setForm({ ...form, nom: e.target.value })}
+  1009→                    />
+  1010→                  </div>
+  1011→                  <div className="space-y-1">
+  1012→                    <Label htmlFor="edit-prenom">Prénom *</Label>
+  1013→                    <Input
+  1014→                      id="edit-prenom"
+  1015→                      value={form.prenom}
+  1016→                      onChange={(e) => setForm({ ...form, prenom: e.target.value })}
+  1017→                    />
+  1018→                  </div>
+  1019→                  <div className="space-y-1">
+  1020→                    <Label htmlFor="edit-telephone">Téléphone</Label>
+  1021→                    <Input
+  1022→                      id="edit-telephone"
+  1023→                      value={form.telephone}
+  1024→                      onChange={(e) => setForm({ ...form, telephone: e.target.value })}
+  1025→                    />
+  1026→                  </div>
+  1027→                  <div className="space-y-1">
+  1028→                    <Label htmlFor="edit-email">Email</Label>
+  1029→                    <Input
+  1030→                      id="edit-email"
+  1031→                      type="email"
+  1032→                      value={form.email}
+  1033→                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+  1034→                    />
+  1035→                  </div>
+  1036→                  <div className="space-y-1">
+  1037→                    <Label htmlFor="edit-dateNaissance">Date de naissance</Label>
+  1038→                    <Input
+  1039→                      id="edit-dateNaissance"
+  1040→                      type="date"
+  1041→                      value={form.dateNaissance}
+  1042→                      onChange={(e) => setForm({ ...form, dateNaissance: e.target.value })}
+  1043→                    />
+  1044→                  </div>
+  1045→                  <div className="space-y-1">
+  1046→                    <Label htmlFor="edit-sexe">Sexe</Label>
+  1047→                    <Select value={form.sexe} onValueChange={(v) => setForm({ ...form, sexe: v })}>
+  1048→                      <SelectTrigger id="edit-sexe">
+  1049→                        <SelectValue placeholder="Sélectionner" />
+  1050→                      </SelectTrigger>
+  1051→                      <SelectContent>
+  1052→                        <SelectItem value="M">Masculin</SelectItem>
+  1053→                        <SelectItem value="F">Féminin</SelectItem>
+  1054→                      </SelectContent>
+  1055→                    </Select>
+  1056→                  </div>
+  1057→                </div>
+  1058→                <div className="space-y-1">
+  1059→                  <Label htmlFor="edit-adresse">Adresse</Label>
+  1060→                  <Input
+  1061→                    id="edit-adresse"
+  1062→                    value={form.adresse}
+  1063→                    onChange={(e) => setForm({ ...form, adresse: e.target.value })}
+  1064→                  />
+  1065→                </div>
+  1066→              </div>
+  1067→
+  1068→              <Separator />
+  1069→
+  1070→              {/* Insurance Info */}
+  1071→              <div className="space-y-2">
+  1072→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+  1073→                  <Shield className="w-4 h-4" />
+  1074→                  Assurance
+  1075→                </h3>
+  1076→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1077→                  <div className="space-y-1">
+  1078→                    <Label htmlFor="edit-assurance">Type d&apos;assurance</Label>
+  1079→                    <Select value={form.assurance} onValueChange={(v) => setForm({ ...form, assurance: v })}>
+  1080→                      <SelectTrigger id="edit-assurance">
+  1081→                        <SelectValue placeholder="Sélectionner" />
+  1082→                      </SelectTrigger>
+  1083→                      <SelectContent>
+  1084→                        <SelectItem value="none">Aucune</SelectItem>
+  1085→                        <SelectItem value="CNSS">CNSS</SelectItem>
+  1086→                        <SelectItem value="RAMU">RAMU</SelectItem>
+  1087→                        <SelectItem value="ASSURANCE_PRIVEE">Assurance privée</SelectItem>
+  1088→                      </SelectContent>
+  1089→                    </Select>
+  1090→                  </div>
+  1091→                  <div className="space-y-1">
+  1092→                    <Label htmlFor="edit-numeroAssurance">N° assurance</Label>
+  1093→                    <Input
+  1094→                      id="edit-numeroAssurance"
+  1095→                      value={form.numeroAssurance}
+  1096→                      onChange={(e) => setForm({ ...form, numeroAssurance: e.target.value })}
+  1097→                    />
+  1098→                  </div>
+  1099→                </div>
+  1100→              </div>
+  1101→
+  1102→              <Separator />
+  1103→
+  1104→              {/* Credit Info */}
+  1105→              <div className="space-y-2">
+  1106→                <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+  1107→                  <CreditCard className="w-4 h-4" />
+  1108→                  Crédit
+  1109→                </h3>
+  1110→                <div className="flex items-center gap-3">
+  1111→                  <Switch
+  1112→                    checked={form.creditAutorise}
+  1113→                    onCheckedChange={(v) => setForm({ ...form, creditAutorise: v })}
+  1114→                  />
+  1115→                  <Label>Autoriser le crédit</Label>
+  1116→                </div>
+  1117→                {form.creditAutorise && (
+  1118→                  <div className="space-y-1">
+  1119→                    <Label htmlFor="edit-creditLimite">Limite de crédit (FCFA)</Label>
+  1120→                    <Input
+  1121→                      id="edit-creditLimite"
+  1122→                      type="number"
+  1123→                      value={form.creditLimite}
+  1124→                      onChange={(e) => setForm({ ...form, creditLimite: parseFloat(e.target.value) || 0 })}
+  1125→                    />
+  1126→                  </div>
+  1127→                )}
+  1128→              </div>
+  1129→
+  1130→              <Separator />
+  1131→
+  1132→              {/* Notes */}
+  1133→              <div className="space-y-1">
+  1134→                <Label htmlFor="edit-notes">Notes</Label>
+  1135→                <Textarea
+  1136→                  id="edit-notes"
+  1137→                  value={form.notes}
+  1138→                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+  1139→                  rows={3}
+  1140→                />
+  1141→              </div>
+  1142→            </div>
+  1143→          </ScrollArea>
+  1144→          <DialogFooter>
+  1145→            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+  1146→              Annuler
+  1147→            </Button>
+  1148→            <Button
+  1149→              onClick={() => handleSavePatient(true)}
+  1150→              disabled={saving || !form.nom || !form.prenom}
+  1151→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white"
+  1152→            >
+  1153→              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+  1154→              Enregistrer
+  1155→            </Button>
+  1156→          </DialogFooter>
+  1157→        </DialogContent>
+  1158→      </Dialog>
+  1159→
+  1160→      {/* ============================================================ */}
+  1161→      {/* Patient Detail Dialog */}
+  1162→      {/* ============================================================ */}
+  1163→      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+  1164→        <DialogContent className="max-w-3xl max-h-[90vh]">
+  1165→          <DialogHeader>
+  1166→            <DialogTitle className="flex items-center gap-2">
+  1167→              <Eye className="w-5 h-5 text-[#1D9E75]" />
+  1168→              Détails du patient
+  1169→            </DialogTitle>
+  1170→          </DialogHeader>
+  1171→          {detailLoading ? (
+  1172→            <div className="flex items-center justify-center py-20">
+  1173→              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+  1174→            </div>
+  1175→          ) : selectedPatient ? (
+  1176→            <ScrollArea className="max-h-[70vh] pr-4">
+  1177→              <div className="space-y-6">
+  1178→                {/* Header info */}
+  1179→                <div className="flex items-start gap-4">
+  1180→                  <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#1D9E75]/10 text-[#1D9E75] font-bold text-xl shrink-0">
+  1181→                    {selectedPatient.prenom[0]}{selectedPatient.nom[0]}
+  1182→                  </div>
+  1183→                  <div className="flex-1">
+  1184→                    <h2 className="text-xl font-bold">
+  1185→                      {selectedPatient.prenom} {selectedPatient.nom}
+  1186→                    </h2>
+  1187→                    <div className="flex flex-wrap items-center gap-2 mt-1">
+  1188→                      <Badge
+  1189→                        variant="outline"
+  1190→                        className={
+  1191→                          selectedPatient.actif
+  1192→                            ? 'bg-green-50 text-green-700 border-green-200'
+  1193→                            : 'bg-red-50 text-red-700 border-red-200'
+  1194→                        }
+  1195→                      >
+  1196→                        {selectedPatient.actif ? 'Actif' : 'Inactif'}
+  1197→                      </Badge>
+  1198→                      {selectedPatient.assurance && (
+  1199→                        <Badge
+  1200→                          variant="outline"
+  1201→                          className={ASSURANCE_COLORS[selectedPatient.assurance] || ''}
+  1202→                        >
+  1203→                          {ASSURANCE_LABELS[selectedPatient.assurance] || selectedPatient.assurance}
+  1204→                        </Badge>
+  1205→                      )}
+  1206→                      {selectedPatient.creditAutorise && (
+  1207→                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+  1208→                          Crédit autorisé
+  1209→                        </Badge>
+  1210→                      )}
+  1211→                    </div>
+  1212→                  </div>
+  1213→                  <div className="flex gap-2">
+  1214→                    <Button
+  1215→                      variant="outline"
+  1216→                      size="sm"
+  1217→                      onClick={() => {
+  1218→                        setShowDetailDialog(false)
+  1219→                        openEdit(selectedPatient)
+  1220→                      }}
+  1221→                    >
+  1222→                      <Edit className="w-4 h-4 mr-1" />
+  1223→                      Modifier
+  1224→                    </Button>
+  1225→                    <Button
+  1226→                      variant="outline"
+  1227→                      size="sm"
+  1228→                      onClick={() => handleToggleActive(selectedPatient)}
+  1229→                    >
+  1230→                      {selectedPatient.actif ? (
+  1231→                        <><XCircle className="w-4 h-4 mr-1" /> Désactiver</>
+  1232→                      ) : (
+  1233→                        <><CheckCircle2 className="w-4 h-4 mr-1" /> Réactiver</>
+  1234→                      )}
+  1235→                    </Button>
+  1236→                  </div>
+  1237→                </div>
+  1238→
+  1239→                <Separator />
+  1240→
+  1241→                {/* Tabs */}
+  1242→                <Tabs defaultValue="info" className="w-full">
+  1243→                  <TabsList className="grid w-full grid-cols-4">
+  1244→                    <TabsTrigger value="info" className="text-xs sm:text-sm">Informations</TabsTrigger>
+  1245→                    <TabsTrigger value="ventes" className="text-xs sm:text-sm">
+  1246→                      Achats ({selectedPatient.ventes?.length || 0})
+  1247→                    </TabsTrigger>
+  1248→                    <TabsTrigger value="ordonnances" className="text-xs sm:text-sm">
+  1249→                      Ordonnances ({selectedPatient.ordonnances?.length || 0})
+  1250→                    </TabsTrigger>
+  1251→                    <TabsTrigger value="vaccinations" className="text-xs sm:text-sm">
+  1252→                      Vaccinations ({selectedPatient.vaccinations?.length || 0})
+  1253→                    </TabsTrigger>
+  1254→                  </TabsList>
+  1255→
+  1256→                  {/* Info Tab */}
+  1257→                  <TabsContent value="info" className="mt-4 space-y-4">
+  1258→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1259→                      {/* Personal */}
+  1260→                      <Card>
+  1261→                        <CardContent className="p-4 space-y-3">
+  1262→                          <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+  1263→                            <Users className="w-4 h-4" />
+  1264→                            Informations personnelles
+  1265→                          </h4>
+  1266→                          <div className="space-y-2 text-sm">
+  1267→                            <div className="flex justify-between">
+  1268→                              <span className="text-muted-foreground">Nom complet</span>
+  1269→                              <span className="font-medium">{selectedPatient.prenom} {selectedPatient.nom}</span>
+  1270→                            </div>
+  1271→                            <Separator />
+  1272→                            <div className="flex justify-between">
+  1273→                              <span className="text-muted-foreground">Téléphone</span>
+  1274→                              <span className="font-medium flex items-center gap-1">
+  1275→                                <Phone className="w-3 h-3" /> {selectedPatient.telephone}
+  1276→                              </span>
+  1277→                            </div>
+  1278→                            <Separator />
+  1279→                            <div className="flex justify-between">
+  1280→                              <span className="text-muted-foreground">Email</span>
+  1281→                              <span className="font-medium">
+  1282→                                {selectedPatient.email || '—'}
+  1283→                              </span>
+  1284→                            </div>
+  1285→                            <Separator />
+  1286→                            <div className="flex justify-between">
+  1287→                              <span className="text-muted-foreground">Date de naissance</span>
+  1288→                              <span className="font-medium flex items-center gap-1">
+  1289→                                <Calendar className="w-3 h-3" /> {formatDate(selectedPatient.dateNaissance)}
+  1290→                              </span>
+  1291→                            </div>
+  1292→                            <Separator />
+  1293→                            <div className="flex justify-between">
+  1294→                              <span className="text-muted-foreground">Sexe</span>
+  1295→                              <span className="font-medium">
+  1296→                                {selectedPatient.sexe ? SEXE_LABELS[selectedPatient.sexe] || selectedPatient.sexe : '—'}
+  1297→                              </span>
+  1298→                            </div>
+  1299→                            <Separator />
+  1300→                            <div className="flex justify-between">
+  1301→                              <span className="text-muted-foreground">Adresse</span>
+  1302→                              <span className="font-medium text-right max-w-[60%] flex items-center gap-1 justify-end">
+  1303→                                <MapPin className="w-3 h-3 shrink-0" />
+  1304→                                {selectedPatient.adresse || '—'}
+  1305→                              </span>
+  1306→                            </div>
+  1307→                          </div>
+  1308→                        </CardContent>
+  1309→                      </Card>
+  1310→
+  1311→                      {/* Insurance + Credit */}
+  1312→                      <div className="space-y-4">
+  1313→                        <Card>
+  1314→                          <CardContent className="p-4 space-y-3">
+  1315→                            <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+  1316→                              <Shield className="w-4 h-4" />
+  1317→                              Assurance
+  1318→                            </h4>
+  1319→                            <div className="space-y-2 text-sm">
+  1320→                              <div className="flex justify-between">
+  1321→                                <span className="text-muted-foreground">Assureur</span>
+  1322→                                <span className="font-medium">
+  1323→                                  {selectedPatient.assurance
+  1324→                                    ? ASSURANCE_LABELS[selectedPatient.assurance] || selectedPatient.assurance
+  1325→                                    : 'Aucune'}
+  1326→                                </span>
+  1327→                              </div>
+  1328→                              <Separator />
+  1329→                              <div className="flex justify-between">
+  1330→                                <span className="text-muted-foreground">N° assurance</span>
+  1331→                                <span className="font-medium">{selectedPatient.numeroAssurance || '—'}</span>
+  1332→                              </div>
+  1333→                            </div>
+  1334→                          </CardContent>
+  1335→                        </Card>
+  1336→
+  1337→                        <Card>
+  1338→                          <CardContent className="p-4 space-y-3">
+  1339→                            <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+  1340→                              <CreditCard className="w-4 h-4" />
+  1341→                              Crédit
+  1342→                            </h4>
+  1343→                            <div className="space-y-2 text-sm">
+  1344→                              <div className="flex justify-between">
+  1345→                                <span className="text-muted-foreground">Crédit autorisé</span>
+  1346→                                <span className="font-medium">
+  1347→                                  {selectedPatient.creditAutorise ? (
+  1348→                                    <Badge className="bg-green-50 text-green-700 border-green-200" variant="outline">Oui</Badge>
+  1349→                                  ) : (
+  1350→                                    <Badge className="bg-red-50 text-red-700 border-red-200" variant="outline">Non</Badge>
+  1351→                                  )}
+  1352→                                </span>
+  1353→                              </div>
+  1354→                              <Separator />
+  1355→                              <div className="flex justify-between">
+  1356→                                <span className="text-muted-foreground">Limite de crédit</span>
+  1357→                                <span className="font-medium">
+  1358→                                  {selectedPatient.creditAutorise ? formatFCFA(selectedPatient.creditLimite) : '—'}
+  1359→                                </span>
+  1360→                              </div>
+  1361→                              <Separator />
+  1362→                              <div className="flex justify-between">
+  1363→                                <span className="text-muted-foreground">Solde utilisé</span>
+  1364→                                <span className="font-medium text-amber-600">
+  1365→                                  {selectedPatient.creditUtilise ? formatFCFA(selectedPatient.creditUtilise) : '0 FCFA'}
+  1366→                                </span>
+  1367→                              </div>
+  1368→                              {selectedPatient.creditAutorise && selectedPatient.creditUtilise !== undefined && (
+  1369→                                <>
+  1370→                                  <Separator />
+  1371→                                  <div className="flex justify-between">
+  1372→                                    <span className="text-muted-foreground">Disponible</span>
+  1373→                                    <span className="font-medium text-[#1D9E75]">
+  1374→                                      {formatFCFA(selectedPatient.creditLimite - selectedPatient.creditUtilise)}
+  1375→                                    </span>
+  1376→                                  </div>
+  1377→                                </>
+  1378→                              )}
+  1379→                            </div>
+  1380→                          </CardContent>
+  1381→                        </Card>
+  1382→                      </div>
+  1383→                    </div>
+  1384→
+  1385→                    {/* Notes */}
+  1386→                    {selectedPatient.notes && (
+  1387→                      <Card>
+  1388→                        <CardContent className="p-4">
+  1389→                          <h4 className="text-sm font-semibold text-muted-foreground mb-2">Notes</h4>
+  1390→                          <p className="text-sm whitespace-pre-wrap">{selectedPatient.notes}</p>
+  1391→                        </CardContent>
+  1392→                      </Card>
+  1393→                    )}
+  1394→                  </TabsContent>
+  1395→
+  1396→                  {/* Ventes Tab */}
+  1397→                  <TabsContent value="ventes" className="mt-4">
+  1398→                    {selectedPatient.ventes && selectedPatient.ventes.length > 0 ? (
+  1399→                      <div className="space-y-2">
+  1400→                        {selectedPatient.ventes.map((vente) => (
+  1401→                          <Card key={vente.id}>
+  1402→                            <CardContent className="p-3">
+  1403→                              <div className="flex items-center justify-between">
+  1404→                                <div className="flex items-center gap-3">
+  1405→                                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#1D9E75]/10 text-[#1D9E75]">
+  1406→                                    <ShoppingCart className="w-4 h-4" />
+  1407→                                  </div>
+  1408→                                  <div>
+  1409→                                    <p className="text-sm font-medium">{vente.reference}</p>
+  1410→                                    <p className="text-xs text-muted-foreground">
+  1411→                                      {formatDateLong(vente.createdAt)} · {MODE_PAIEMENT_LABELS[vente.modePaiement] || vente.modePaiement}
+  1412→                                    </p>
+  1413→                                  </div>
+  1414→                                </div>
+  1415→                                <div className="text-right">
+  1416→                                  <p className="text-sm font-semibold">{formatFCFA(vente.montantTotal)}</p>
+  1417→                                  <Badge
+  1418→                                    variant="outline"
+  1419→                                    className={
+  1420→                                      vente.statut === 'VALIDEE'
+  1421→                                        ? 'bg-green-50 text-green-700 border-green-200 text-xs'
+  1422→                                        : vente.statut === 'ANNULEE'
+  1423→                                        ? 'bg-red-50 text-red-700 border-red-200 text-xs'
+  1424→                                        : 'bg-gray-50 text-gray-700 border-gray-200 text-xs'
+  1425→                                    }
+  1426→                                  >
+  1427→                                    {STATUT_VENTE_LABELS[vente.statut] || vente.statut}
+  1428→                                  </Badge>
+  1429→                                </div>
+  1430→                              </div>
+  1431→                            </CardContent>
+  1432→                          </Card>
+  1433→                        ))}
+  1434→                      </div>
+  1435→                    ) : (
+  1436→                      <div className="text-center py-10">
+  1437→                        <ShoppingCart className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+  1438→                        <p className="text-sm text-muted-foreground">Aucun achat enregistré</p>
+  1439→                      </div>
+  1440→                    )}
+  1441→                  </TabsContent>
+  1442→
+  1443→                  {/* Ordonnances Tab */}
+  1444→                  <TabsContent value="ordonnances" className="mt-4">
+  1445→                    {selectedPatient.ordonnances && selectedPatient.ordonnances.length > 0 ? (
+  1446→                      <div className="space-y-2">
+  1447→                        {selectedPatient.ordonnances.map((ordo) => (
+  1448→                          <Card key={ordo.id}>
+  1449→                            <CardContent className="p-3">
+  1450→                              <div className="flex items-center justify-between">
+  1451→                                <div className="flex items-center gap-3">
+  1452→                                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-100 text-blue-700">
+  1453→                                    <FileText className="w-4 h-4" />
+  1454→                                  </div>
+  1455→                                  <div>
+  1456→                                    <p className="text-sm font-medium">
+  1457→                                      Dr. {ordo.prescripteur}
+  1458→                                    </p>
+  1459→                                    <p className="text-xs text-muted-foreground">
+  1460→                                      {formatDate(ordo.dateOrdonnance)}
+  1461→                                      {ordo.lignes && ordo.lignes.length > 0 && (
+  1462→                                        <> · {ordo.lignes.length} médicament{ordo.lignes.length > 1 ? 's' : ''}</>
+  1463→                                      )}
+  1464→                                    </p>
+  1465→                                    {ordo.notes && (
+  1466→                                      <p className="text-xs text-muted-foreground mt-0.5">{ordo.notes}</p>
+  1467→                                    )}
+  1468→                                  </div>
+  1469→                                </div>
+  1470→                                <Badge
+  1471→                                  variant="outline"
+  1472→                                  className={
+  1473→                                    ordo.statut === 'DELIVREE'
+  1474→                                      ? 'bg-green-50 text-green-700 border-green-200 text-xs'
+  1475→                                      : ordo.statut === 'REFUSEE'
+  1476→                                      ? 'bg-red-50 text-red-700 border-red-200 text-xs'
+  1477→                                      : 'bg-blue-50 text-blue-700 border-blue-200 text-xs'
+  1478→                                  }
+  1479→                                >
+  1480→                                  {STATUT_ORDONNANCE_LABELS[ordo.statut] || ordo.statut}
+  1481→                                </Badge>
+  1482→                              </div>
+  1483→                            </CardContent>
+  1484→                          </Card>
+  1485→                        ))}
+  1486→                      </div>
+  1487→                    ) : (
+  1488→                      <div className="text-center py-10">
+  1489→                        <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+  1490→                        <p className="text-sm text-muted-foreground">Aucune ordonnance enregistrée</p>
+  1491→                      </div>
+  1492→                    )}
+  1493→                  </TabsContent>
+  1494→
+  1495→                  {/* Vaccinations Tab */}
+  1496→                  <TabsContent value="vaccinations" className="mt-4">
+  1497→                    {selectedPatient.vaccinations && selectedPatient.vaccinations.length > 0 ? (
+  1498→                      <div className="space-y-2">
+  1499→                        {selectedPatient.vaccinations.map((vacc) => (
+  1500→                          <Card key={vacc.id}>
+  1501→                            <CardContent className="p-3">
+  1502→                              <div className="flex items-center justify-between">
+  1503→                                <div className="flex items-center gap-3">
+  1504→                                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-purple-100 text-purple-700">
+  1505→                                    <Syringe className="w-4 h-4" />
+  1506→                                  </div>
+  1507→                                  <div>
+  1508→                                    <p className="text-sm font-medium">{vacc.vaccin}</p>
+  1509→                                    <p className="text-xs text-muted-foreground">
+  1510→                                      {formatDateLong(vacc.dateVaccin)}
+  1511→                                      {vacc.lot && <> · Lot : {vacc.lot}</>}
+  1512→                                    </p>
+  1513→                                  </div>
+  1514→                                </div>
+  1515→                                {vacc.prochaineDose && (
+  1516→                                  <div className="text-right">
+  1517→                                    <p className="text-xs text-muted-foreground">Prochaine dose</p>
+  1518→                                    <p className="text-xs font-medium text-amber-600">
+  1519→                                      {formatDate(vacc.prochaineDose)}
+  1520→                                    </p>
+  1521→                                  </div>
+  1522→                                )}
+  1523→                              </div>
+  1524→                            </CardContent>
+  1525→                          </Card>
+  1526→                        ))}
+  1527→                      </div>
+  1528→                    ) : (
+  1529→                      <div className="text-center py-10">
+  1530→                        <Syringe className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+  1531→                        <p className="text-sm text-muted-foreground">Aucune vaccination enregistrée</p>
+  1532→                      </div>
+  1533→                    )}
+  1534→                  </TabsContent>
+  1535→                </Tabs>
+  1536→              </div>
+  1537→            </ScrollArea>
+  1538→          ) : null}
+  1539→        </DialogContent>
+  1540→      </Dialog>
+  1541→
+  1542→      {/* ============================================================ */}
+  1543→      {/* Credit Management Dialog */}
+  1544→      {/* ============================================================ */}
+  1545→      <Dialog open={showCreditDialog} onOpenChange={setShowCreditDialog}>
+  1546→        <DialogContent className="max-w-md">
+  1547→          <DialogHeader>
+  1548→            <DialogTitle className="flex items-center gap-2">
+  1549→              <CreditCard className="w-5 h-5 text-[#1D9E75]" />
+  1550→              Gestion du crédit
+  1551→            </DialogTitle>
+  1552→          </DialogHeader>
+  1553→          {creditPatient && (
+  1554→            <div className="space-y-4 py-4">
+  1555→              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+  1556→                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1D9E75]/10 text-[#1D9E75] font-semibold">
+  1557→                  {creditPatient.prenom[0]}{creditPatient.nom[0]}
+  1558→                </div>
+  1559→                <div>
+  1560→                  <p className="font-medium">{creditPatient.prenom} {creditPatient.nom}</p>
+  1561→                  <p className="text-xs text-muted-foreground">{creditPatient.telephone}</p>
+  1562→                </div>
+  1563→              </div>
+  1564→
+  1565→              <div className="flex items-center justify-between p-3 border rounded-lg">
+  1566→                <div>
+  1567→                  <Label className="text-sm font-medium">Autoriser le crédit</Label>
+  1568→                  <p className="text-xs text-muted-foreground">
+  1569→                    Permet au patient d&apos;acheter à crédit
+  1570→                  </p>
+  1571→                </div>
+  1572→                <Switch
+  1573→                  checked={creditPatient.creditAutorise}
+  1574→                  onCheckedChange={(v) =>
+  1575→                    setCreditPatient({ ...creditPatient, creditAutorise: v })
+  1576→                  }
+  1577→                />
+  1578→              </div>
+  1579→
+  1580→              {creditPatient.creditAutorise && (
+  1581→                <div className="space-y-1">
+  1582→                  <Label htmlFor="credit-limite">Limite de crédit (FCFA)</Label>
+  1583→                  <Input
+  1584→                    id="credit-limite"
+  1585→                    type="number"
+  1586→                    value={creditPatient.creditLimite}
+  1587→                    onChange={(e) =>
+  1588→                      setCreditPatient({
+  1589→                        ...creditPatient,
+  1590→                        creditLimite: parseFloat(e.target.value) || 0,
+  1591→                      })
+  1592→                    }
+  1593→                    placeholder="0"
+  1594→                  />
+  1595→                  {creditPatient.creditLimite > 0 && (
+  1596→                    <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 rounded-md border border-amber-200">
+  1597→                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+  1598→                      <p className="text-xs text-amber-700">
+  1599→                        Le patient pourra accumuler jusqu&apos;à {formatFCFA(creditPatient.creditLimite)} de crédit
+  1600→                      </p>
+  1601→                    </div>
+  1602→                  )}
+  1603→                </div>
+  1604→              )}
+  1605→            </div>
+  1606→          )}
+  1607→          <DialogFooter>
+  1608→            <Button variant="outline" onClick={() => setShowCreditDialog(false)}>
+  1609→              Annuler
+  1610→            </Button>
+  1611→            <Button
+  1612→              onClick={handleSaveCredit}
+  1613→              disabled={saving}
+  1614→              className="bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white"
+  1615→            >
+  1616→              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+  1617→              Enregistrer
+  1618→            </Button>
+  1619→          </DialogFooter>
+  1620→        </DialogContent>
+  1621→      </Dialog>
+  1622→    </div>
+  1623→  )
+  1624→}
+  1625→

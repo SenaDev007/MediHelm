@@ -1,15 +1,19 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
+    const pharmacieId = user.pharmacieId
     const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
     const statut = searchParams.get('statut')
     const patientId = searchParams.get('patientId')
 
-    const where: Record<string, unknown> = {}
-    if (pharmacieId) where.pharmacieId = pharmacieId
+    const where: Record<string, unknown> = { pharmacieId }
     if (statut) where.statut = statut
     if (patientId) where.patientId = patientId
 
@@ -43,8 +47,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
+
     const body = await request.json()
-    const data = await db.ordonnance.create({ data: body })
+    // Enforce pharmacieId from authenticated user
+    const data = await db.ordonnance.create({ data: { ...body, pharmacieId: user.pharmacieId } })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Erreur POST ordonnances:', error)

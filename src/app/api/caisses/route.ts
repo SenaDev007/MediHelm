@@ -1,14 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const pharmacieId = searchParams.get('pharmacieId')
+    const authResult = await requireAuth(request, 'M02_POS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId) {
-      return NextResponse.json({ error: 'pharmacieId requis' }, { status: 400 })
-    }
+    const pharmacieId = user.pharmacieId
 
     const caisses = await db.caisse.findMany({
       where: { pharmacieId },
@@ -31,11 +31,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { pharmacieId, nom } = body
+    const authResult = await requireAuth(request, 'M02_POS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
-    if (!pharmacieId || !nom) {
-      return NextResponse.json({ error: 'pharmacieId et nom sont requis' }, { status: 400 })
+    const pharmacieId = user.pharmacieId
+    const body = await request.json()
+    const { nom } = body
+
+    if (!nom) {
+      return NextResponse.json({ error: 'nom est requis' }, { status: 400 })
     }
 
     const caisse = await db.caisse.create({

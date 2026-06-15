@@ -1,0 +1,675 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useEffect, useState, useCallback } from 'react'
+     4→     4→import {
+     5→     5→  Package,
+     6→     6→  Search,
+     7→     7→  Plus,
+     8→     8→  Loader2,
+     9→     9→  Filter,
+    10→    10→  X,
+    11→    11→  Trash2,
+    12→    12→  Edit3,
+    13→    13→  CheckSquare,
+    14→    14→  Square,
+    15→    15→  Archive,
+    16→    16→} from 'lucide-react'
+    17→    17→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+    18→    18→import { Badge } from '@/components/ui/badge'
+    19→    19→import { Button } from '@/components/ui/button'
+    20→    20→import { Input } from '@/components/ui/input'
+    21→    21→import { Label } from '@/components/ui/label'
+    22→    22→import { Checkbox } from '@/components/ui/checkbox'
+    23→    23→import { ScrollArea } from '@/components/ui/scroll-area'
+    24→    24→import { Separator } from '@/components/ui/separator'
+    25→    25→import {
+    26→    26→  Select,
+    27→    27→  SelectContent,
+    28→    28→  SelectItem,
+    29→    29→  SelectTrigger,
+    30→    30→  SelectValue,
+    31→    31→} from '@/components/ui/select'
+    32→    32→import {
+    33→    33→  Dialog,
+    34→    34→  DialogContent,
+    35→    35→  DialogDescription,
+    36→    36→  DialogFooter,
+    37→    37→  DialogHeader,
+    38→    38→  DialogTitle,
+    39→    39→  DialogTrigger,
+    40→    40→} from '@/components/ui/dialog'
+    41→    41→import {
+    42→    42→  Table,
+    43→    43→  TableBody,
+    44→    44→  TableCell,
+    45→    45→  TableHead,
+    46→    46→  TableHeader,
+    47→    47→  TableRow,
+    48→    48→} from '@/components/ui/table'
+    49→    49→import {
+    50→    50→  DropdownMenu,
+    51→    51→  DropdownMenuContent,
+    52→    52→  DropdownMenuItem,
+    53→    53→  DropdownMenuTrigger,
+    54→    54→} from '@/components/ui/dropdown-menu'
+    55→    55→import { ProductRow } from '@/components/grossistes/product-row'
+    56→    56→import type { CatalogueItem } from '@/lib/grossiste-utils'
+    57→    57→import { toast } from 'sonner'
+    58→    58→
+    59→    59→interface ProduitGrossiste {
+    60→    60→  id: string
+    61→    61→  grossisteId: string
+    62→    62→  dci: string
+    63→    63→  nomCommercial: string
+    64→    64→  forme: string
+    65→    65→  dosage: string
+    66→    66→  prixUnitaire: number
+    67→    67→  quantiteDispo: number | null
+    68→    68→  actif: boolean
+    69→    69→  createdAt: string
+    70→    70→  updatedAt: string
+    71→    71→}
+    72→    72→
+    73→    73→export default function CataloguePage() {
+    74→    74→  const [produits, setProduits] = useState<ProduitGrossiste[]>([])
+    75→    75→  const [loading, setLoading] = useState(true)
+    76→    76→  const [searchTerm, setSearchTerm] = useState('')
+    77→    77→  const [filterDispo, setFilterDispo] = useState<string>('all')
+    78→    78→  const [filterForme, setFilterForme] = useState<string>('all')
+    79→    79→  const [grossisteId, setGrossisteId] = useState<string>('')
+    80→    80→  const [grossistes, setGrossistes] = useState<Array<{ id: string; nom: string }>>([])
+    81→    81→  const [dialogOpen, setDialogOpen] = useState(false)
+    82→    82→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    83→    83→  const [productToDelete, setProductToDelete] = useState<string | null>(null)
+    84→    84→
+    85→    85→  // Bulk edit state
+    86→    86→  const [bulkMode, setBulkMode] = useState(false)
+    87→    87→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    88→    88→  const [bulkPrix, setBulkPrix] = useState('')
+    89→    89→  const [bulkDispo, setBulkDispo] = useState<string>('')
+    90→    90→
+    91→    91→  // New product form
+    92→    92→  const [newProduct, setNewProduct] = useState({
+    93→    93→    dci: '',
+    94→    94→    nomCommercial: '',
+    95→    95→    forme: 'COMPRIME',
+    96→    96→    dosage: '',
+    97→    97→    prixUnitaire: '',
+    98→    98→    quantiteDispo: '',
+    99→    99→  })
+   100→   100→
+   101→   101→  // Fetch grossistes
+   102→   102→  useEffect(() => {
+   103→   103→    const fetchGrossistes = async () => {
+   104→   104→      try {
+   105→   105→        const res = await fetch('/api/grossistes?actif=true')
+   106→   106→        if (res.ok) {
+   107→   107→          const data = await res.json()
+   108→   108→          setGrossistes(data)
+   109→   109→          if (data.length > 0) setGrossisteId(data[0].id)
+   110→   110→        }
+   111→   111→      } catch (error) {
+   112→   112→        console.error('Erreur:', error)
+   113→   113→      }
+   114→   114→    }
+   115→   115→    fetchGrossistes()
+   116→   116→  }, [])
+   117→   117→
+   118→   118→  // Fetch catalogue
+   119→   119→  const fetchCatalogue = useCallback(async () => {
+   120→   120→    if (!grossisteId) return
+   121→   121→    setLoading(true)
+   122→   122→    try {
+   123→   123→      const res = await fetch(`/api/grossistes/${grossisteId}/catalogue`)
+   124→   124→      if (res.ok) {
+   125→   125→        const data = await res.json()
+   126→   126→        setProduits(data)
+   127→   127→      }
+   128→   128→    } catch (error) {
+   129→   129→      console.error('Erreur:', error)
+   130→   130→    } finally {
+   131→   131→      setLoading(false)
+   132→   132→    }
+   133→   133→  }, [grossisteId])
+   134→   134→
+   135→   135→  useEffect(() => {
+   136→   136→    fetchCatalogue()
+   137→   137→  }, [fetchCatalogue])
+   138→   138→
+   139→   139→  // Unique formes for filter
+   140→   140→  const uniqueFormes = Array.from(new Set(produits.map(p => p.forme))).sort()
+   141→   141→
+   142→   142→  // Filter products
+   143→   143→  const filteredProduits = produits.filter(p => {
+   144→   144→    if (searchTerm) {
+   145→   145→      const term = searchTerm.toLowerCase()
+   146→   146→      if (!p.dci.toLowerCase().includes(term) && !p.nomCommercial.toLowerCase().includes(term) && !p.dosage.toLowerCase().includes(term)) return false
+   147→   147→    }
+   148→   148→    if (filterDispo === 'disponible' && (!p.actif || (p.quantiteDispo !== null && p.quantiteDispo <= 0))) return false
+   149→   149→    if (filterDispo === 'rupture' && p.actif && (p.quantiteDispo === null || p.quantiteDispo > 0)) return false
+   150→   150→    if (filterForme !== 'all' && p.forme !== filterForme) return false
+   151→   151→    return true
+   152→   152→  })
+   153→   153→
+   154→   154→  // Map to CatalogueItem for ProductRow
+   155→   155→  const catalogueItems: CatalogueItem[] = filteredProduits.map(p => ({
+   156→   156→    id: p.id,
+   157→   157→    grossisteId: p.grossisteId,
+   158→   158→    referenceGros: p.id.substring(0, 8).toUpperCase(),
+   159→   159→    dci: p.dci,
+   160→   160→    nomCommercial: p.nomCommercial,
+   161→   161→    forme: p.forme,
+   162→   162→    dosage: p.dosage,
+   163→   163→    prixAchat: p.prixUnitaire,
+   164→   164→    disponible: p.actif && (p.quantiteDispo === null || p.quantiteDispo > 0),
+   165→   165→    updatedAt: p.updatedAt,
+   166→   166→  }))
+   167→   167→
+   168→   168→  // Handle save from ProductRow
+   169→   169→  const handleSave = async (id: string, data: Partial<CatalogueItem>) => {
+   170→   170→    try {
+   171→   171→      const res = await fetch(`/api/grossistes/catalogue/${id}`, {
+   172→   172→        method: 'PATCH',
+   173→   173→        headers: { 'Content-Type': 'application/json' },
+   174→   174→        body: JSON.stringify({
+   175→   175→          prixUnitaire: data.prixAchat,
+   176→   176→          actif: data.disponible,
+   177→   177→        }),
+   178→   178→      })
+   179→   179→      if (res.ok) {
+   180→   180→        toast.success('Produit mis à jour')
+   181→   181→        fetchCatalogue()
+   182→   182→      } else {
+   183→   183→        toast.error('Erreur lors de la mise à jour')
+   184→   184→      }
+   185→   185→    } catch (error) {
+   186→   186→      console.error(error)
+   187→   187→      toast.error('Erreur de connexion')
+   188→   188→    }
+   189→   189→  }
+   190→   190→
+   191→   191→  // Add new product
+   192→   192→  const handleAddProduct = async () => {
+   193→   193→    if (!newProduct.dci || !newProduct.nomCommercial || !newProduct.prixUnitaire) {
+   194→   194→      toast.error('Veuillez remplir les champs obligatoires (DCI, Nom commercial, Prix)')
+   195→   195→      return
+   196→   196→    }
+   197→   197→    try {
+   198→   198→      const res = await fetch(`/api/grossistes/${grossisteId}/catalogue`, {
+   199→   199→        method: 'POST',
+   200→   200→        headers: { 'Content-Type': 'application/json' },
+   201→   201→        body: JSON.stringify({
+   202→   202→          dci: newProduct.dci,
+   203→   203→          nomCommercial: newProduct.nomCommercial,
+   204→   204→          forme: newProduct.forme || 'COMPRIME',
+   205→   205→          dosage: newProduct.dosage || '',
+   206→   206→          prixUnitaire: parseFloat(newProduct.prixUnitaire),
+   207→   207→          quantiteDispo: newProduct.quantiteDispo ? parseInt(newProduct.quantiteDispo) : null,
+   208→   208→        }),
+   209→   209→      })
+   210→   210→      if (res.ok) {
+   211→   211→        toast.success('Produit ajouté au catalogue')
+   212→   212→        setDialogOpen(false)
+   213→   213→        setNewProduct({ dci: '', nomCommercial: '', forme: 'COMPRIME', dosage: '', prixUnitaire: '', quantiteDispo: '' })
+   214→   214→        fetchCatalogue()
+   215→   215→      } else {
+   216→   216→        const err = await res.json()
+   217→   217→        toast.error(err.error || 'Erreur lors de l\'ajout')
+   218→   218→      }
+   219→   219→    } catch (error) {
+   220→   220→      console.error(error)
+   221→   221→      toast.error('Erreur de connexion')
+   222→   222→    }
+   223→   223→  }
+   224→   224→
+   225→   225→  // Delete product
+   226→   226→  const handleDeleteProduct = async () => {
+   227→   227→    if (!productToDelete) return
+   228→   228→    try {
+   229→   229→      const res = await fetch(`/api/grossistes/catalogue/${productToDelete}`, {
+   230→   230→        method: 'DELETE',
+   231→   231→      })
+   232→   232→      if (res.ok) {
+   233→   233→        toast.success('Produit supprimé du catalogue')
+   234→   234→        setDeleteDialogOpen(false)
+   235→   235→        setProductToDelete(null)
+   236→   236→        fetchCatalogue()
+   237→   237→      } else {
+   238→   238→        toast.error('Erreur lors de la suppression')
+   239→   239→      }
+   240→   240→    } catch (error) {
+   241→   241→      console.error(error)
+   242→   242→      toast.error('Erreur de connexion')
+   243→   243→    }
+   244→   244→  }
+   245→   245→
+   246→   246→  // Bulk edit handlers
+   247→   247→  const toggleSelect = (id: string) => {
+   248→   248→    const next = new Set(selectedIds)
+   249→   249→    if (next.has(id)) next.delete(id)
+   250→   250→    else next.add(id)
+   251→   251→    setSelectedIds(next)
+   252→   252→  }
+   253→   253→
+   254→   254→  const toggleSelectAll = () => {
+   255→   255→    if (selectedIds.size === filteredProduits.length) {
+   256→   256→      setSelectedIds(new Set())
+   257→   257→    } else {
+   258→   258→      setSelectedIds(new Set(filteredProduits.map(p => p.id)))
+   259→   259→    }
+   260→   260→  }
+   261→   261→
+   262→   262→  const handleBulkSave = async () => {
+   263→   263→    if (selectedIds.size === 0) {
+   264→   264→      toast.error('Aucun produit sélectionné')
+   265→   265→      return
+   266→   266→    }
+   267→   267→    try {
+   268→   268→      const updates = Array.from(selectedIds).map(id => {
+   269→   269→        const data: Record<string, unknown> = {}
+   270→   270→        if (bulkPrix) data.prixUnitaire = parseFloat(bulkPrix)
+   271→   271→        if (bulkDispo === 'disponible') data.actif = true
+   272→   272→        if (bulkDispo === 'rupture') data.actif = false
+   273→   273→        return fetch(`/api/grossistes/catalogue/${id}`, {
+   274→   274→          method: 'PATCH',
+   275→   275→          headers: { 'Content-Type': 'application/json' },
+   276→   276→          body: JSON.stringify(data),
+   277→   277→        })
+   278→   278→      })
+   279→   279→      await Promise.all(updates)
+   280→   280→      toast.success(`${selectedIds.size} produit(s) mis à jour`)
+   281→   281→      setSelectedIds(new Set())
+   282→   282→      setBulkPrix('')
+   283→   283→      setBulkDispo('')
+   284→   284→      setBulkMode(false)
+   285→   285→      fetchCatalogue()
+   286→   286→    } catch (error) {
+   287→   287→      console.error(error)
+   288→   288→      toast.error('Erreur lors de la mise à jour en masse')
+   289→   289→    }
+   290→   290→  }
+   291→   291→
+   292→   292→  // Stats
+   293→   293→  const totalProducts = produits.length
+   294→   294→  const disponibles = produits.filter(p => p.actif && (p.quantiteDispo === null || p.quantiteDispo > 0)).length
+   295→   295→  const enRupture = produits.filter(p => !p.actif || (p.quantiteDispo !== null && p.quantiteDispo <= 0)).length
+   296→   296→
+   297→   297→  return (
+   298→   298→    <div className="space-y-6">
+   299→   299→      {/* Header */}
+   300→   300→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   301→   301→        <div className="flex items-center gap-3">
+   302→   302→          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100">
+   303→   303→            <Package className="h-5 w-5 text-teal-600" />
+   304→   304→          </div>
+   305→   305→          <div>
+   306→   306→            <h1 className="text-2xl font-bold text-foreground">Catalogue produits</h1>
+   307→   307→            <p className="text-sm text-muted-foreground">Gérez votre catalogue de produits</p>
+   308→   308→          </div>
+   309→   309→        </div>
+   310→   310→        <div className="flex gap-2 flex-wrap">
+   311→   311→          <Select value={grossisteId} onValueChange={setGrossisteId}>
+   312→   312→            <SelectTrigger className="w-48 border-teal-200">
+   313→   313→              <SelectValue placeholder="Sélectionner grossiste" />
+   314→   314→            </SelectTrigger>
+   315→   315→            <SelectContent>
+   316→   316→              {grossistes.map(g => (
+   317→   317→                <SelectItem key={g.id} value={g.id}>{g.nom}</SelectItem>
+   318→   318→              ))}
+   319→   319→            </SelectContent>
+   320→   320→          </Select>
+   321→   321→          <Button
+   322→   322→            variant={bulkMode ? 'default' : 'outline'}
+   323→   323→            className={bulkMode ? 'bg-teal-600 hover:bg-teal-700' : 'border-teal-300 text-teal-700'}
+   324→   324→            onClick={() => {
+   325→   325→              setBulkMode(!bulkMode)
+   326→   326→              setSelectedIds(new Set())
+   327→   327→            }}
+   328→   328→          >
+   329→   329→            <Edit3 className="h-4 w-4 mr-2" />
+   330→   330→            {bulkMode ? 'Annuler mode masse' : 'Édition en masse'}
+   331→   331→          </Button>
+   332→   332→          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   333→   333→            <DialogTrigger asChild>
+   334→   334→              <Button className="bg-teal-600 hover:bg-teal-700">
+   335→   335→                <Plus className="h-4 w-4 mr-2" />
+   336→   336→                Ajouter
+   337→   337→              </Button>
+   338→   338→            </DialogTrigger>
+   339→   339→            <DialogContent className="max-w-lg">
+   340→   340→              <DialogHeader>
+   341→   341→                <DialogTitle>Ajouter un produit</DialogTitle>
+   342→   342→                <DialogDescription>Ajoutez un nouveau produit au catalogue du grossiste</DialogDescription>
+   343→   343→              </DialogHeader>
+   344→   344→              <div className="grid gap-4 py-4">
+   345→   345→                <div className="grid grid-cols-2 gap-4">
+   346→   346→                  <div className="space-y-2">
+   347→   347→                    <Label>DCI *</Label>
+   348→   348→                    <Input value={newProduct.dci} onChange={(e) => setNewProduct({ ...newProduct, dci: e.target.value })} placeholder="Paracétamol" />
+   349→   349→                  </div>
+   350→   350→                  <div className="space-y-2">
+   351→   351→                    <Label>Nom commercial *</Label>
+   352→   352→                    <Input value={newProduct.nomCommercial} onChange={(e) => setNewProduct({ ...newProduct, nomCommercial: e.target.value })} placeholder="Doliprane" />
+   353→   353→                  </div>
+   354→   354→                </div>
+   355→   355→                <div className="grid grid-cols-2 gap-4">
+   356→   356→                  <div className="space-y-2">
+   357→   357→                    <Label>Forme galénique</Label>
+   358→   358→                    <Select value={newProduct.forme || 'COMPRIME'} onValueChange={(v) => setNewProduct({ ...newProduct, forme: v })}>
+   359→   359→                      <SelectTrigger><SelectValue /></SelectTrigger>
+   360→   360→                      <SelectContent>
+   361→   361→                        <SelectItem value="COMPRIME">Comprimé</SelectItem>
+   362→   362→                        <SelectItem value="GELULE">Gélule</SelectItem>
+   363→   363→                        <SelectItem value="SIROP">Sirop</SelectItem>
+   364→   364→                        <SelectItem value="INJECTION">Injection</SelectItem>
+   365→   365→                        <SelectItem value="POMMADE">Pommade</SelectItem>
+   366→   366→                        <SelectItem value="GOUTTES">Gouttes</SelectItem>
+   367→   367→                        <SelectItem value="SUPPOSITOIRE">Suppositoire</SelectItem>
+   368→   368→                        <SelectItem value="INHALATEUR">Inhalateur</SelectItem>
+   369→   369→                        <SelectItem value="SOLUTION">Solution</SelectItem>
+   370→   370→                        <SelectItem value="POUDRE">Poudre</SelectItem>
+   371→   371→                        <SelectItem value="AUTRE">Autre</SelectItem>
+   372→   372→                      </SelectContent>
+   373→   373→                    </Select>
+   374→   374→                  </div>
+   375→   375→                  <div className="space-y-2">
+   376→   376→                    <Label>Dosage</Label>
+   377→   377→                    <Input value={newProduct.dosage} onChange={(e) => setNewProduct({ ...newProduct, dosage: e.target.value })} placeholder="500mg" />
+   378→   378→                  </div>
+   379→   379→                </div>
+   380→   380→                <div className="grid grid-cols-2 gap-4">
+   381→   381→                  <div className="space-y-2">
+   382→   382→                    <Label>Prix unitaire (FCFA) *</Label>
+   383→   383→                    <Input type="number" value={newProduct.prixUnitaire} onChange={(e) => setNewProduct({ ...newProduct, prixUnitaire: e.target.value })} placeholder="1500" min={0} />
+   384→   384→                  </div>
+   385→   385→                  <div className="space-y-2">
+   386→   386→                    <Label>Quantité disponible</Label>
+   387→   387→                    <Input type="number" value={newProduct.quantiteDispo} onChange={(e) => setNewProduct({ ...newProduct, quantiteDispo: e.target.value })} placeholder="100" min={0} />
+   388→   388→                  </div>
+   389→   389→                </div>
+   390→   390→              </div>
+   391→   391→              <DialogFooter>
+   392→   392→                <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+   393→   393→                <Button className="bg-teal-600 hover:bg-teal-700" onClick={handleAddProduct}>
+   394→   394→                  <Plus className="h-4 w-4 mr-2" />
+   395→   395→                  Ajouter au catalogue
+   396→   396→                </Button>
+   397→   397→              </DialogFooter>
+   398→   398→            </DialogContent>
+   399→   399→          </Dialog>
+   400→   400→        </div>
+   401→   401→      </div>
+   402→   402→
+   403→   403→      {/* Stats */}
+   404→   404→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   405→   405→        <Card className="border-l-4 border-l-teal-500">
+   406→   406→          <CardContent className="p-4 flex items-center gap-3">
+   407→   407→            <Package className="h-5 w-5 text-teal-600" />
+   408→   408→            <div>
+   409→   409→              <p className="text-2xl font-bold">{totalProducts}</p>
+   410→   410→              <p className="text-xs text-muted-foreground">Total produits</p>
+   411→   411→            </div>
+   412→   412→          </CardContent>
+   413→   413→        </Card>
+   414→   414→        <Card className="border-l-4 border-l-green-500">
+   415→   415→          <CardContent className="p-4 flex items-center gap-3">
+   416→   416→            <Badge className="bg-teal-600">Disponible</Badge>
+   417→   417→            <div>
+   418→   418→              <p className="text-2xl font-bold text-green-700">{disponibles}</p>
+   419→   419→              <p className="text-xs text-muted-foreground">En stock</p>
+   420→   420→            </div>
+   421→   421→          </CardContent>
+   422→   422→        </Card>
+   423→   423→        <Card className="border-l-4 border-l-red-500">
+   424→   424→          <CardContent className="p-4 flex items-center gap-3">
+   425→   425→            <Badge variant="destructive">Rupture</Badge>
+   426→   426→            <div>
+   427→   427→              <p className="text-2xl font-bold text-red-600">{enRupture}</p>
+   428→   428→              <p className="text-xs text-muted-foreground">Indisponibles</p>
+   429→   429→            </div>
+   430→   430→          </CardContent>
+   431→   431→        </Card>
+   432→   432→      </div>
+   433→   433→
+   434→   434→      {/* Search & Filter */}
+   435→   435→      <Card>
+   436→   436→        <CardContent className="p-4">
+   437→   437→          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+   438→   438→            <div className="relative flex-1">
+   439→   439→              <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+   440→   440→              <Input
+   441→   441→                value={searchTerm}
+   442→   442→                onChange={(e) => setSearchTerm(e.target.value)}
+   443→   443→                placeholder="Rechercher par DCI, nom commercial ou dosage..."
+   444→   444→                className="pl-8 border-teal-200"
+   445→   445→              />
+   446→   446→            </div>
+   447→   447→            <div className="flex gap-2 flex-wrap">
+   448→   448→              <Select value={filterForme} onValueChange={setFilterForme}>
+   449→   449→                <SelectTrigger className="w-40 border-teal-200">
+   450→   450→                  <Filter className="h-3.5 w-3.5 mr-1" />
+   451→   451→                  <SelectValue placeholder="Forme" />
+   452→   452→                </SelectTrigger>
+   453→   453→                <SelectContent>
+   454→   454→                  <SelectItem value="all">Toutes formes</SelectItem>
+   455→   455→                  {uniqueFormes.map(f => (
+   456→   456→                    <SelectItem key={f} value={f}>{f}</SelectItem>
+   457→   457→                  ))}
+   458→   458→                </SelectContent>
+   459→   459→              </Select>
+   460→   460→              <Select value={filterDispo} onValueChange={setFilterDispo}>
+   461→   461→                <SelectTrigger className="w-36 border-teal-200">
+   462→   462→                  <SelectValue placeholder="Disponibilité" />
+   463→   463→                </SelectTrigger>
+   464→   464→                <SelectContent>
+   465→   465→                  <SelectItem value="all">Tous</SelectItem>
+   466→   466→                  <SelectItem value="disponible">Disponible</SelectItem>
+   467→   467→                  <SelectItem value="rupture">Rupture</SelectItem>
+   468→   468→                </SelectContent>
+   469→   469→              </Select>
+   470→   470→              {(searchTerm || filterDispo !== 'all' || filterForme !== 'all') && (
+   471→   471→                <Button
+   472→   472→                  variant="ghost"
+   473→   473→                  size="sm"
+   474→   474→                  onClick={() => { setSearchTerm(''); setFilterDispo('all'); setFilterForme('all') }}
+   475→   475→                >
+   476→   476→                  <X className="h-4 w-4 mr-1" />
+   477→   477→                  Réinitialiser
+   478→   478→                </Button>
+   479→   479→              )}
+   480→   480→            </div>
+   481→   481→          </div>
+   482→   482→        </CardContent>
+   483→   483→      </Card>
+   484→   484→
+   485→   485→      {/* Bulk Edit Bar */}
+   486→   486→      {bulkMode && (
+   487→   487→        <Card className="border-amber-300 bg-amber-50">
+   488→   488→          <CardContent className="p-4">
+   489→   489→            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+   490→   490→              <div className="flex items-center gap-2">
+   491→   491→                <Button variant="ghost" size="sm" onClick={toggleSelectAll}>
+   492→   492→                  {selectedIds.size === filteredProduits.length && filteredProduits.length > 0 ? (
+   493→   493→                    <CheckSquare className="h-4 w-4 mr-1 text-teal-600" />
+   494→   494→                  ) : (
+   495→   495→                    <Square className="h-4 w-4 mr-1" />
+   496→   496→                  )}
+   497→   497→                  {selectedIds.size === filteredProduits.length && filteredProduits.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
+   498→   498→                </Button>
+   499→   499→                <Badge variant="outline" className="border-amber-400 text-amber-700">
+   500→   500→                  {selectedIds.size} sélectionné(s)
+   501→   501→                </Badge>
+   502→   502→              </div>
+   503→   503→              <Separator orientation="vertical" className="hidden sm:block h-6" />
+   504→   504→              <div className="flex items-center gap-2 flex-1">
+   505→   505→                <Input
+   506→   506→                  type="number"
+   507→   507→                  placeholder="Nouveau prix (FCFA)"
+   508→   508→                  value={bulkPrix}
+   509→   509→                  onChange={(e) => setBulkPrix(e.target.value)}
+   510→   510→                  className="w-44 h-9 text-sm"
+   511→   511→                  min={0}
+   512→   512→                />
+   513→   513→                <Select value={bulkDispo} onValueChange={setBulkDispo}>
+   514→   514→                  <SelectTrigger className="w-40 h-9 text-sm">
+   515→   515→                    <SelectValue placeholder="Disponibilité" />
+   516→   516→                  </SelectTrigger>
+   517→   517→                  <SelectContent>
+   518→   518→                    <SelectItem value="none">— Conserver —</SelectItem>
+   519→   519→                    <SelectItem value="disponible">Disponible</SelectItem>
+   520→   520→                    <SelectItem value="rupture">Indisponible</SelectItem>
+   521→   521→                  </SelectContent>
+   522→   522→                </Select>
+   523→   523→                <Button
+   524→   524→                  size="sm"
+   525→   525→                  className="bg-teal-600 hover:bg-teal-700"
+   526→   526→                  disabled={selectedIds.size === 0}
+   527→   527→                  onClick={handleBulkSave}
+   528→   528→                >
+   529→   529→                  <Archive className="h-4 w-4 mr-1" />
+   530→   530→                  Appliquer ({selectedIds.size})
+   531→   531→                </Button>
+   532→   532→              </div>
+   533→   533→            </div>
+   534→   534→          </CardContent>
+   535→   535→        </Card>
+   536→   536→      )}
+   537→   537→
+   538→   538→      {/* Products Table */}
+   539→   539→      {loading ? (
+   540→   540→        <Card>
+   541→   541→          <CardContent className="flex items-center justify-center py-16">
+   542→   542→            <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+   543→   543→            <span className="ml-2 text-muted-foreground">Chargement du catalogue...</span>
+   544→   544→          </CardContent>
+   545→   545→        </Card>
+   546→   546→      ) : catalogueItems.length === 0 ? (
+   547→   547→        <Card>
+   548→   548→          <CardContent className="flex flex-col items-center justify-center py-16">
+   549→   549→            <Package className="h-12 w-12 text-muted-foreground/30 mb-4" />
+   550→   550→            <p className="text-muted-foreground">Aucun produit dans le catalogue</p>
+   551→   551→            <p className="text-xs text-muted-foreground mt-1">
+   552→   552→              {grossisteId ? 'Ajoutez des produits ou changez de grossiste' : 'Sélectionnez un grossiste'}
+   553→   553→            </p>
+   554→   554→            {grossisteId && (
+   555→   555→              <Button className="mt-4 bg-teal-600 hover:bg-teal-700" onClick={() => setDialogOpen(true)}>
+   556→   556→                <Plus className="h-4 w-4 mr-2" />
+   557→   557→                Ajouter un produit
+   558→   558→              </Button>
+   559→   559→            )}
+   560→   560→          </CardContent>
+   561→   561→        </Card>
+   562→   562→      ) : bulkMode ? (
+   563→   563→        /* Bulk mode: checkbox table with read-only price/disponibility */
+   564→   564→        <Card>
+   565→   565→          <CardHeader className="pb-2">
+   566→   566→            <CardTitle className="text-base">Sélection multiple</CardTitle>
+   567→   567→            <CardDescription>Cochez les produits à modifier en masse</CardDescription>
+   568→   568→          </CardHeader>
+   569→   569→          <CardContent className="p-0">
+   570→   570→            <ScrollArea className="max-h-[520px]">
+   571→   571→              <Table>
+   572→   572→                <TableHeader>
+   573→   573→                  <TableRow>
+   574→   574→                    <TableHead className="w-10">
+   575→   575→                      <Checkbox
+   576→   576→                        checked={selectedIds.size === filteredProduits.length && filteredProduits.length > 0}
+   577→   577→                        onCheckedChange={toggleSelectAll}
+   578→   578→                      />
+   579→   579→                    </TableHead>
+   580→   580→                    <TableHead>Réf.</TableHead>
+   581→   581→                    <TableHead>Produit</TableHead>
+   582→   582→                    <TableHead>Forme — Dosage</TableHead>
+   583→   583→                    <TableHead>Prix</TableHead>
+   584→   584→                    <TableHead>Disponibilité</TableHead>
+   585→   585→                  </TableRow>
+   586→   586→                </TableHeader>
+   587→   587→                <TableBody>
+   588→   588→                  {catalogueItems.map((item) => (
+   589→   589→                    <TableRow key={item.id} className={selectedIds.has(item.id) ? 'bg-teal-50' : ''}>
+   590→   590→                      <TableCell className="w-10">
+   591→   591→                        <Checkbox
+   592→   592→                          checked={selectedIds.has(item.id)}
+   593→   593→                          onCheckedChange={() => toggleSelect(item.id)}
+   594→   594→                        />
+   595→   595→                      </TableCell>
+   596→   596→                      <TableCell className="px-4 py-3 text-sm font-mono text-muted-foreground">
+   597→   597→                        {item.referenceGros}
+   598→   598→                      </TableCell>
+   599→   599→                      <TableCell className="px-4 py-3">
+   600→   600→                        <div className="text-sm font-medium">{item.nomCommercial}</div>
+   601→   601→                        <div className="text-xs text-muted-foreground">{item.dci}</div>
+   602→   602→                      </TableCell>
+   603→   603→                      <TableCell className="px-4 py-3 text-sm text-muted-foreground">
+   604→   604→                        {item.forme} — {item.dosage}
+   605→   605→                      </TableCell>
+   606→   606→                      <TableCell className="px-4 py-3 text-sm">
+   607→   607→                        <span className="font-semibold text-teal-600">
+   608→   608→                          {new Intl.NumberFormat('fr-FR').format(item.prixAchat)} FCFA
+   609→   609→                        </span>
+   610→   610→                      </TableCell>
+   611→   611→                      <TableCell className="px-4 py-3">
+   612→   612→                        <Badge variant={item.disponible ? 'default' : 'destructive'} className={item.disponible ? 'bg-teal-600' : ''}>
+   613→   613→                          {item.disponible ? 'En stock' : 'Rupture'}
+   614→   614→                        </Badge>
+   615→   615→                      </TableCell>
+   616→   616→                    </TableRow>
+   617→   617→                  ))}
+   618→   618→                </TableBody>
+   619→   619→              </Table>
+   620→   620→            </ScrollArea>
+   621→   621→          </CardContent>
+   622→   622→        </Card>
+   623→   623→      ) : (
+   624→   624→        /* Normal mode: ProductRow with inline editing */
+   625→   625→        <Card>
+   626→   626→          <CardHeader className="pb-2">
+   627→   627→            <CardTitle className="text-base">Catalogue — Édition rapide</CardTitle>
+   628→   628→            <CardDescription>Cliquez sur l&apos;icône crayon pour modifier le prix ou la disponibilité d&apos;un produit</CardDescription>
+   629→   629→          </CardHeader>
+   630→   630→          <CardContent className="p-0">
+   631→   631→            <ScrollArea className="max-h-[520px]">
+   632→   632→              <Table>
+   633→   633→                <TableHeader>
+   634→   634→                  <TableRow>
+   635→   635→                    <TableHead>Réf.</TableHead>
+   636→   636→                    <TableHead>Produit</TableHead>
+   637→   637→                    <TableHead>Forme — Dosage</TableHead>
+   638→   638→                    <TableHead>Prix</TableHead>
+   639→   639→                    <TableHead>Disponibilité</TableHead>
+   640→   640→                    <TableHead className="w-20">Actions</TableHead>
+   641→   641→                  </TableRow>
+   642→   642→                </TableHeader>
+   643→   643→                <TableBody>
+   644→   644→                  {catalogueItems.map((item) => (
+   645→   645→                    <ProductRow key={item.id} product={item} onSave={handleSave} />
+   646→   646→                  ))}
+   647→   647→                </TableBody>
+   648→   648→              </Table>
+   649→   649→            </ScrollArea>
+   650→   650→          </CardContent>
+   651→   651→        </Card>
+   652→   652→      )}
+   653→   653→
+   654→   654→      {/* Delete confirmation dialog */}
+   655→   655→      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   656→   656→        <DialogContent>
+   657→   657→          <DialogHeader>
+   658→   658→            <DialogTitle>Confirmer la suppression</DialogTitle>
+   659→   659→            <DialogDescription>
+   660→   660→              Êtes-vous sûr de vouloir supprimer ce produit du catalogue ? Cette action est irréversible.
+   661→   661→            </DialogDescription>
+   662→   662→          </DialogHeader>
+   663→   663→          <DialogFooter>
+   664→   664→            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+   665→   665→            <Button variant="destructive" onClick={handleDeleteProduct}>
+   666→   666→              <Trash2 className="h-4 w-4 mr-2" />
+   667→   667→              Supprimer
+   668→   668→            </Button>
+   669→   669→          </DialogFooter>
+   670→   670→        </DialogContent>
+   671→   671→      </Dialog>
+   672→   672→    </div>
+   673→   673→  )
+   674→   674→}
+   675→   675→
