@@ -1,0 +1,1019 @@
+     1→import { PrismaClient } from '@prisma/client'
+     2→import bcrypt from 'bcryptjs'
+     3→
+     4→const prisma = new PrismaClient()
+     5→
+     6→const hashPassword = (pw: string) => bcrypt.hash(pw, 12)
+     7→
+     8→// === PARAKOU CENTER: 9.3372°N, 2.6303°E ===
+     9→// Real GPS coordinates sourced from OpenStreetMap (Overpass API)
+    10→// Each pharmacy uses its ACTUAL location in Parakou, Bénin
+    11→
+    12→const PARAKOU_LAT = 9.3372
+    13→const PARAKOU_LNG = 2.6303
+    14→
+    15→async function main() {
+    16→  console.log('🌱 Début du seeding MédiHelm — Parakou, Bénin...')
+    17→
+    18→  // ============================================================
+    19→  // 1. ROLES
+    20→  // ============================================================
+    21→  console.log('📋 Création des rôles...')
+    22→  const roleNames = [
+    23→    'ADMIN', 'DIRECTEUR', 'PHARMACIEN', 'CAISSIER', 'MAGASINIER', 'PROMOTEUR',
+    24→    'DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER', 'GROSSISTE_PARTNER', 'PLATFORM_ADMIN',
+    25→  ]
+    26→  const roles: Record<string, { id: string }> = {}
+    27→  for (const nom of roleNames) {
+    28→    const existing = await prisma.role.findUnique({ where: { nom } })
+    29→    if (existing) {
+    30→      roles[nom] = existing
+    31→    } else {
+    32→      roles[nom] = await prisma.role.create({ data: { nom, description: `Rôle ${nom}` } })
+    33→    }
+    34→  }
+    35→
+    36→  // ============================================================
+    37→  // 2. PHARMACIES IN PARAKOU AREA
+    38→  // ============================================================
+    39→  console.log('🏥 Création des pharmacies de Parakou...')
+    40→
+    41→  const pharmaciesData = [
+    42→    // --- Pharmacies de Parakou — Coordonnées réelles OpenStreetMap ---
+    43→    {
+    44→      nom: 'Pharmacie Albarika',
+    45→      adresse: 'Quartier Albarika, Parakou',
+    46→      ville: 'Parakou',
+    47→      departement: 'Borgou',
+    48→      telephone: '+229 23 61 00 01',
+    49→      email: 'albarika@medihelm.bj',
+    50→      numeroAgrement: 'AGR-PK-2024-001',
+    51→      latitude: 9.3380,
+    52→      longitude: 2.6317,
+    53→      plan: 'GROW' as const,
+    54→      statutAbonnement: 'ACTIF' as const,
+    55→      periodeFacturation: 'MENSUEL' as const,
+    56→      nbUtilisateursMax: 8,
+    57→      nbCaissiersSimut: 3,
+    58→      nbPatientsMax: 2000,
+    59→      stockageDocuments: 1000,
+    60→      apiGrossistesMax: 3,
+    61→    },
+    62→    {
+    63→      nom: 'Pharmacie La Grace',
+    64→      adresse: '3ème Arrondissement, Cathédrale St Pierre, Parakou',
+    65→      ville: 'Parakou',
+    66→      departement: 'Borgou',
+    67→      telephone: '+229 23 61 00 02',
+    68→      email: 'lagrace@medihelm.bj',
+    69→      numeroAgrement: 'AGR-PK-2024-002',
+    70→      latitude: 9.3427,
+    71→      longitude: 2.6212,
+    72→      plan: 'LEAD' as const,
+    73→      statutAbonnement: 'ACTIF' as const,
+    74→      periodeFacturation: 'ANNUEL' as const,
+    75→      nbUtilisateursMax: 12,
+    76→      nbCaissiersSimut: 4,
+    77→      nbPatientsMax: 5000,
+    78→      stockageDocuments: 2000,
+    79→      apiGrossistesMax: 5,
+    80→    },
+    81→    {
+    82→      nom: 'Pharmacie de la Gare',
+    83→      adresse: '2ème Arrondissement, Parakou',
+    84→      ville: 'Parakou',
+    85→      departement: 'Borgou',
+    86→      telephone: '+229 23 61 00 03',
+    87→      email: 'gare@medihelm.bj',
+    88→      numeroAgrement: 'AGR-PK-2024-003',
+    89→      latitude: 9.3438,
+    90→      longitude: 2.6103,
+    91→      plan: 'GROW' as const,
+    92→      statutAbonnement: 'ACTIF' as const,
+    93→      periodeFacturation: 'MENSUEL' as const,
+    94→      nbUtilisateursMax: 8,
+    95→      nbCaissiersSimut: 3,
+    96→      nbPatientsMax: 2000,
+    97→      stockageDocuments: 1000,
+    98→      apiGrossistesMax: 3,
+    99→    },
+   100→    {
+   101→      nom: 'Pharmacie Arafat',
+   102→      adresse: 'Quartier Arafat, Parakou',
+   103→      ville: 'Parakou',
+   104→      departement: 'Borgou',
+   105→      telephone: '+229 23 61 00 04',
+   106→      email: 'arafat@medihelm.bj',
+   107→      numeroAgrement: 'AGR-PK-2024-004',
+   108→      latitude: 9.3341,
+   109→      longitude: 2.6509,
+   110→      plan: 'SEED' as const,
+   111→      statutAbonnement: 'ACTIF' as const,
+   112→      periodeFacturation: 'MENSUEL' as const,
+   113→      nbUtilisateursMax: 5,
+   114→      nbCaissiersSimut: 2,
+   115→      nbPatientsMax: 800,
+   116→      stockageDocuments: 500,
+   117→      apiGrossistesMax: 2,
+   118→    },
+   119→    {
+   120→      nom: 'Pharmacie du Camp Séro Kpéra',
+   121→      adresse: 'Rond Point Papini, Parakou',
+   122→      ville: 'Parakou',
+   123→      departement: 'Borgou',
+   124→      telephone: '+229 94 01 12 19',
+   125→      email: 'campsero@medihelm.bj',
+   126→      numeroAgrement: 'AGR-PK-2024-005',
+   127→      latitude: 9.3505,
+   128→      longitude: 2.6374,
+   129→      plan: 'GROW' as const,
+   130→      statutAbonnement: 'ACTIF' as const,
+   131→      periodeFacturation: 'MENSUEL' as const,
+   132→      nbUtilisateursMax: 8,
+   133→      nbCaissiersSimut: 3,
+   134→      nbPatientsMax: 2000,
+   135→      stockageDocuments: 1000,
+   136→      apiGrossistesMax: 3,
+   137→    },
+   138→    {
+   139→      nom: 'Pharmacie du Lycée',
+   140→      adresse: 'Zone Aéroport, Parakou',
+   141→      ville: 'Parakou',
+   142→      departement: 'Borgou',
+   143→      telephone: '+229 23 61 00 06',
+   144→      email: 'lycee@medihelm.bj',
+   145→      numeroAgrement: 'AGR-PK-2024-006',
+   146→      latitude: 9.3522,
+   147→      longitude: 2.6162,
+   148→      plan: 'SEED' as const,
+   149→      statutAbonnement: 'ACTIF' as const,
+   150→      periodeFacturation: 'MENSUEL' as const,
+   151→      nbUtilisateursMax: 5,
+   152→      nbCaissiersSimut: 2,
+   153→      nbPatientsMax: 800,
+   154→      stockageDocuments: 500,
+   155→      apiGrossistesMax: 2,
+   156→    },
+   157→    {
+   158→      nom: 'Pharmacie Banikani',
+   159→      adresse: 'Quartier Banikani, Parakou',
+   160→      ville: 'Parakou',
+   161→      departement: 'Borgou',
+   162→      telephone: '+229 23 61 00 07',
+   163→      email: 'banikani@medihelm.bj',
+   164→      numeroAgrement: 'AGR-PK-2024-007',
+   165→      latitude: 9.3323,
+   166→      longitude: 2.6334,
+   167→      plan: 'GROW' as const,
+   168→      statutAbonnement: 'ACTIF' as const,
+   169→      periodeFacturation: 'MENSUEL' as const,
+   170→      nbUtilisateursMax: 8,
+   171→      nbCaissiersSimut: 3,
+   172→      nbPatientsMax: 2000,
+   173→      stockageDocuments: 1000,
+   174→      apiGrossistesMax: 3,
+   175→    },
+   176→    {
+   177→      nom: 'Pharmacie Tranza',
+   178→      adresse: '1er Arrondissement, Parakou',
+   179→      ville: 'Parakou',
+   180→      departement: 'Borgou',
+   181→      telephone: '+229 23 61 00 08',
+   182→      email: 'tranza@medihelm.bj',
+   183→      numeroAgrement: 'AGR-PK-2024-008',
+   184→      latitude: 9.3565,
+   185→      longitude: 2.6266,
+   186→      plan: 'LEAD' as const,
+   187→      statutAbonnement: 'ACTIF' as const,
+   188→      periodeFacturation: 'ANNUEL' as const,
+   189→      nbUtilisateursMax: 12,
+   190→      nbCaissiersSimut: 4,
+   191→      nbPatientsMax: 5000,
+   192→      stockageDocuments: 2000,
+   193→      apiGrossistesMax: 5,
+   194→    },
+   195→    {
+   196→      nom: 'Pharmacie du Campus',
+   197→      adresse: 'Campus Universitaire, Parakou',
+   198→      ville: 'Parakou',
+   199→      departement: 'Borgou',
+   200→      telephone: '+229 23 61 00 09',
+   201→      email: 'campus@medihelm.bj',
+   202→      numeroAgrement: 'AGR-PK-2024-009',
+   203→      latitude: 9.3305,
+   204→      longitude: 2.6386,
+   205→      plan: 'SEED' as const,
+   206→      statutAbonnement: 'ACTIF' as const,
+   207→      periodeFacturation: 'MENSUEL' as const,
+   208→      nbUtilisateursMax: 5,
+   209→      nbCaissiersSimut: 2,
+   210→      nbPatientsMax: 800,
+   211→      stockageDocuments: 500,
+   212→      apiGrossistesMax: 2,
+   213→    },
+   214→    {
+   215→      nom: 'Pharmacie Zongo II',
+   216→      adresse: 'Quartier Zongo, Parakou',
+   217→      ville: 'Parakou',
+   218→      departement: 'Borgou',
+   219→      telephone: '+229 23 61 01 95',
+   220→      email: 'zongo@medihelm.bj',
+   221→      numeroAgrement: 'AGR-PK-2024-010',
+   222→      latitude: 9.3645,
+   223→      longitude: 2.6243,
+   224→      plan: 'GROW' as const,
+   225→      statutAbonnement: 'ACTIF' as const,
+   226→      periodeFacturation: 'MENSUEL' as const,
+   227→      nbUtilisateursMax: 8,
+   228→      nbCaissiersSimut: 3,
+   229→      nbPatientsMax: 2000,
+   230→      stockageDocuments: 1000,
+   231→      apiGrossistesMax: 3,
+   232→    },
+   233→    {
+   234→      nom: 'Pharmacie Vita-Plus',
+   235→      adresse: 'RNIE2, Parakou',
+   236→      ville: 'Parakou',
+   237→      departement: 'Borgou',
+   238→      telephone: '+229 23 61 13 14',
+   239→      email: 'vitaplus@medihelm.bj',
+   240→      numeroAgrement: 'AGR-PK-2024-011',
+   241→      latitude: 9.3763,
+   242→      longitude: 2.6239,
+   243→      plan: 'SEED' as const,
+   244→      statutAbonnement: 'ACTIF' as const,
+   245→      periodeFacturation: 'MENSUEL' as const,
+   246→      nbUtilisateursMax: 5,
+   247→      nbCaissiersSimut: 2,
+   248→      nbPatientsMax: 600,
+   249→      stockageDocuments: 400,
+   250→      apiGrossistesMax: 2,
+   251→    },
+   252→    {
+   253→      nom: 'Pharmacie de Nima',
+   254→      adresse: 'Quartier Nima, Parakou',
+   255→      ville: 'Parakou',
+   256→      departement: 'Borgou',
+   257→      telephone: '+229 23 61 00 12',
+   258→      email: 'nima@medihelm.bj',
+   259→      numeroAgrement: 'AGR-PK-2024-012',
+   260→      latitude: 9.3496,
+   261→      longitude: 2.6479,
+   262→      plan: 'SEED' as const,
+   263→      statutAbonnement: 'ACTIF' as const,
+   264→      periodeFacturation: 'MENSUEL' as const,
+   265→      nbUtilisateursMax: 5,
+   266→      nbCaissiersSimut: 2,
+   267→      nbPatientsMax: 600,
+   268→      stockageDocuments: 400,
+   269→      apiGrossistesMax: 2,
+   270→    },
+   271→    {
+   272→      nom: 'Santé Vitale',
+   273→      adresse: 'Parakou',
+   274→      ville: 'Parakou',
+   275→      departement: 'Borgou',
+   276→      telephone: '+229 23 61 00 13',
+   277→      email: 'santevitale@medihelm.bj',
+   278→      numeroAgrement: 'AGR-PK-2024-013',
+   279→      latitude: 9.3429,
+   280→      longitude: 2.5936,
+   281→      plan: 'SEED' as const,
+   282→      statutAbonnement: 'ACTIF' as const,
+   283→      periodeFacturation: 'MENSUEL' as const,
+   284→      nbUtilisateursMax: 5,
+   285→      nbCaissiersSimut: 2,
+   286→      nbPatientsMax: 400,
+   287→      stockageDocuments: 300,
+   288→      apiGrossistesMax: 1,
+   289→    },
+   290→    {
+   291→      nom: 'Pharmacie Saint Benoît',
+   292→      adresse: 'Parakou',
+   293→      ville: 'Parakou',
+   294→      departement: 'Borgou',
+   295→      telephone: '+229 23 11 10 94',
+   296→      email: 'stbenoit@medihelm.bj',
+   297→      numeroAgrement: 'AGR-PK-2024-014',
+   298→      latitude: 9.3238,
+   299→      longitude: 2.6444,
+   300→      plan: 'SEED' as const,
+   301→      statutAbonnement: 'ACTIF' as const,
+   302→      periodeFacturation: 'MENSUEL' as const,
+   303→      nbUtilisateursMax: 5,
+   304→      nbCaissiersSimut: 2,
+   305→      nbPatientsMax: 400,
+   306→      stockageDocuments: 300,
+   307→      apiGrossistesMax: 1,
+   308→    },
+   309→    {
+   310→      nom: 'Pharmacie Imane',
+   311→      adresse: 'Parakou',
+   312→      ville: 'Parakou',
+   313→      departement: 'Borgou',
+   314→      telephone: '+229 23 61 00 15',
+   315→      email: 'imane@medihelm.bj',
+   316→      numeroAgrement: 'AGR-PK-2024-015',
+   317→      latitude: 9.3637,
+   318→      longitude: 2.6395,
+   319→      plan: 'SEED' as const,
+   320→      statutAbonnement: 'ESSAI' as const,
+   321→      periodeFacturation: 'MENSUEL' as const,
+   322→      nbUtilisateursMax: 5,
+   323→      nbCaissiersSimut: 2,
+   324→      nbPatientsMax: 400,
+   325→      stockageDocuments: 300,
+   326→      apiGrossistesMax: 1,
+   327→    },
+   328→    {
+   329→      nom: 'Pharmacie du Plateau',
+   330→      adresse: 'Quartier du Plateau, Parakou',
+   331→      ville: 'Parakou',
+   332→      departement: 'Borgou',
+   333→      telephone: '+229 23 61 00 16',
+   334→      email: 'plateau@medihelm.bj',
+   335→      numeroAgrement: 'AGR-PK-2024-016',
+   336→      latitude: 9.3825,
+   337→      longitude: 2.6344,
+   338→      plan: 'SEED' as const,
+   339→      statutAbonnement: 'ACTIF' as const,
+   340→      periodeFacturation: 'MENSUEL' as const,
+   341→      nbUtilisateursMax: 5,
+   342→      nbCaissiersSimut: 2,
+   343→      nbPatientsMax: 400,
+   344→      stockageDocuments: 300,
+   345→      apiGrossistesMax: 1,
+   346→    },
+   347→
+   348→    // --- Cotonou (pour la couverture nationale) ---
+   349→    {
+   350→      nom: 'Pharmacie du Centre',
+   351→      adresse: '12 Avenue de la République',
+   352→      ville: 'Cotonou',
+   353→      departement: 'Littoral',
+   354→      telephone: '+229 97 00 00 00',
+   355→      email: 'contact@pharmacieducentre.bj',
+   356→      numeroAgrement: 'AGR-CT-2024-001',
+   357→      ...offsetCoords(6.3703, 2.3912, 0, 0),
+   358→      plan: 'NETWORK' as const,
+   359→      statutAbonnement: 'ACTIF' as const,
+   360→      periodeFacturation: 'ANNUEL' as const,
+   361→      nbUtilisateursMax: 20,
+   362→      nbCaissiersSimut: 6,
+   363→      nbPatientsMax: 10000,
+   364→      stockageDocuments: 5000,
+   365→      apiGrossistesMax: 10,
+   366→    },
+   367→    {
+   368→      nom: 'Pharmacie de Ganhi',
+   369→      adresse: '45 Boulevard Saint Michel, Ganhi',
+   370→      ville: 'Cotonou',
+   371→      departement: 'Littoral',
+   372→      telephone: '+229 97 00 00 17',
+   373→      email: 'ganhi@medihelm.bj',
+   374→      numeroAgrement: 'AGR-CT-2024-002',
+   375→      ...offsetCoords(6.3703, 2.3912, 1.0, -0.5),
+   376→      plan: 'LEAD' as const,
+   377→      statutAbonnement: 'ACTIF' as const,
+   378→      periodeFacturation: 'ANNUEL' as const,
+   379→      nbUtilisateursMax: 12,
+   380→      nbCaissiersSimut: 4,
+   381→      nbPatientsMax: 5000,
+   382→      stockageDocuments: 2000,
+   383→      apiGrossistesMax: 5,
+   384→    },
+   385→  ]
+   386→
+   387→  const createdPharmacies: Record<string, Awaited<ReturnType<typeof prisma.pharmacie.create>>> = {}
+   388→  for (const pData of pharmaciesData) {
+   389→    const existing = await prisma.pharmacie.findUnique({ where: { numeroAgrement: pData.numeroAgrement } })
+   390→    if (!existing) {
+   391→      const { lat, lng, ...rest } = pData as any
+   392→      createdPharmacies[pData.numeroAgrement] = await prisma.pharmacie.create({
+   393→        data: { ...rest, latitude: lat, longitude: lng },
+   394→      })
+   395→      console.log(`  ✅ ${pData.nom} — ${pData.ville}`)
+   396→    } else {
+   397→      createdPharmacies[pData.numeroAgrement] = existing
+   398→      console.log(`  ⏩ ${pData.nom} existe déjà`)
+   399→    }
+   400→  }
+   401→
+   402→  // ============================================================
+   403→  // 3. UTILISATEURS (Directeur + Pharmacien par pharmacie)
+   404→  // ============================================================
+   405→  console.log('👤 Création des utilisateurs...')
+   406→
+   407→  const pharmacienUsers: Record<string, any> = {}
+   408→
+   409→  for (const [agrement, pharmacie] of Object.entries(createdPharmacies)) {
+   410→    const prefix = agrement.replace('AGR-', '').replace('2024-', '').toLowerCase()
+   411→
+   412→    // Directeur
+   413→    const dirEmail = `directeur.${prefix}@medihelm.bj`
+   414→    const existingDir = await prisma.utilisateur.findUnique({ where: { email: dirEmail } })
+   415→    if (!existingDir) {
+   416→      await prisma.utilisateur.create({
+   417→        data: {
+   418→          pharmacieId: pharmacie.id,
+   419→          email: dirEmail,
+   420→          motDePasse: await hashPassword('admin123'),
+   421→          nom: `Directeur`,
+   422→          prenom: `${pharmacie.ville}`,
+   423→          roleId: roles.DIRECTEUR.id,
+   424→          telephone: pharmacie.telephone.replace('00', '01'),
+   425→        },
+   426→      })
+   427→    }
+   428→
+   429→    // Pharmacien (pour planning garde)
+   430→    const pharmaEmail = `pharmacien.${prefix}@medihelm.bj`
+   431→    const existingPharma = await prisma.utilisateur.findUnique({ where: { email: pharmaEmail } })
+   432→    if (!existingPharma) {
+   433→      const user = await prisma.utilisateur.create({
+   434→        data: {
+   435→          pharmacieId: pharmacie.id,
+   436→          email: pharmaEmail,
+   437→          motDePasse: await hashPassword('pharma123'),
+   438→          nom: `Pharmacien`,
+   439→          prenom: `${pharmacie.ville}`,
+   440→          roleId: roles.PHARMACIEN.id,
+   441→          telephone: pharmacie.telephone.replace('00', '02'),
+   442→        },
+   443→      })
+   444→      pharmacienUsers[agrement] = user
+   445→    } else {
+   446→      pharmacienUsers[agrement] = existingPharma
+   447→    }
+   448→
+   449→    // Caissier
+   450→    const caissEmail = `caissier.${prefix}@medihelm.bj`
+   451→    const existingCaiss = await prisma.utilisateur.findUnique({ where: { email: caissEmail } })
+   452→    if (!existingCaiss) {
+   453→      await prisma.utilisateur.create({
+   454→        data: {
+   455→          pharmacieId: pharmacie.id,
+   456→          email: caissEmail,
+   457→          motDePasse: await hashPassword('caissier123'),
+   458→          nom: `Caissier`,
+   459→          prenom: `${pharmacie.ville}`,
+   460→          roleId: roles.CAISSIER.id,
+   461→          telephone: pharmacie.telephone.replace('00', '03'),
+   462→        },
+   463→      })
+   464→    }
+   465→  }
+   466→
+   467→  // ============================================================
+   468→  // 4. CAISSES
+   469→  // ============================================================
+   470→  console.log('💳 Création des caisses...')
+   471→  for (const [agrement, pharmacie] of Object.entries(createdPharmacies)) {
+   472→    const existingCaisse = await prisma.caisse.findFirst({ where: { pharmacieId: pharmacie.id } })
+   473→    if (!existingCaisse) {
+   474→      await prisma.caisse.createMany({
+   475→        data: [
+   476→          { pharmacieId: pharmacie.id, nom: 'Caisse Principale', numero: 1, actif: true },
+   477→          { pharmacieId: pharmacie.id, nom: 'Caisse 2', numero: 2, actif: true },
+   478→        ],
+   479→      })
+   480→    }
+   481→  }
+   482→
+   483→  // ============================================================
+   484→  // 5. MEDICAMENTS + LOTS (pour les 5 premières pharmacies Parakou)
+   485→  // ============================================================
+   486→  console.log('💊 Création des médicaments...')
+   487→
+   488→  const medicamentsCatalog = [
+   489→    { dci: 'Paracétamol', nomCommercial: 'Doliprane 500mg', forme: 'Comprimé', dosage: '500mg', unite: 'boîte', prixVente: 1500, prixAchat: 900, tva: 0.18, estRemboursable: true, stockMin: 50 },
+   490→    { dci: 'Amoxicilline', nomCommercial: 'Clamoxyl 500mg', forme: 'Gélule', dosage: '500mg', unite: 'boîte', prixVente: 3500, prixAchat: 2200, tva: 0.18, estRemboursable: true, stockMin: 30 },
+   491→    { dci: 'Métronidazole', nomCommercial: 'Flagyl 250mg', forme: 'Comprimé', dosage: '250mg', unite: 'boîte', prixVente: 2800, prixAchat: 1700, tva: 0.18, estRemboursable: true, stockMin: 25 },
+   492→    { dci: 'Artémether/Luméfantrine', nomCommercial: 'Coartem 20/120mg', forme: 'Comprimé', dosage: '20/120mg', unite: 'boîte', prixVente: 5000, prixAchat: 3200, tva: 0.18, estRemboursable: true, stockMin: 40 },
+   493→    { dci: 'Ciprofloxacine', nomCommercial: 'Ciflox 500mg', forme: 'Comprimé', dosage: '500mg', unite: 'boîte', prixVente: 4200, prixAchat: 2800, tva: 0.18, estRemboursable: true, stockMin: 20 },
+   494→    { dci: 'Oméprazole', nomCommercial: 'Mopral 20mg', forme: 'Gélule', dosage: '20mg', unite: 'boîte', prixVente: 3800, prixAchat: 2400, tva: 0.18, estRemboursable: true, stockMin: 30 },
+   495→    { dci: 'Ibuprofène', nomCommercial: 'Brufen 400mg', forme: 'Comprimé', dosage: '400mg', unite: 'boîte', prixVente: 2200, prixAchat: 1300, tva: 0.18, estRemboursable: true, stockMin: 40 },
+   496→    { dci: 'Azithromycine', nomCommercial: 'Zithromax 250mg', forme: 'Comprimé', dosage: '250mg', unite: 'boîte', prixVente: 6500, prixAchat: 4200, tva: 0.18, estRemboursable: true, stockMin: 15 },
+   497→    { dci: 'Diazépam', nomCommercial: 'Valium 5mg', forme: 'Comprimé', dosage: '5mg', unite: 'boîte', prixVente: 3000, prixAchat: 1800, tva: 0.18, estStupefiant: true, estRemboursable: false, stockMin: 10 },
+   498→    { dci: 'Morphine', nomCommercial: 'Skenan 30mg', forme: 'Gélule', dosage: '30mg', unite: 'boîte', prixVente: 12000, prixAchat: 8000, tva: 0.18, estStupefiant: true, estRemboursable: false, stockMin: 5 },
+   499→    { dci: 'Sulfadoxine/Pyriméthamine', nomCommercial: 'Fansidar 500/25mg', forme: 'Comprimé', dosage: '500/25mg', unite: 'boîte', prixVente: 2000, prixAchat: 1200, tva: 0.18, estRemboursable: true, stockMin: 30 },
+   500→    { dci: 'Albendazole', nomCommercial: 'Zentel 400mg', forme: 'Comprimé', dosage: '400mg', unite: 'boîte', prixVente: 1800, prixAchat: 1000, tva: 0.18, estRemboursable: true, stockMin: 35 },
+   501→    { dci: 'Fer/Acide Folique', nomCommercial: 'Ferrograd C', forme: 'Comprimé', dosage: '325mg/500mg', unite: 'boîte', prixVente: 2500, prixAchat: 1500, tva: 0.18, estRemboursable: true, stockMin: 40 },
+   502→    { dci: 'Chloroquine', nomCommercial: 'Nivaquine 100mg', forme: 'Comprimé', dosage: '100mg', unite: 'boîte', prixVente: 1200, prixAchat: 700, tva: 0.18, estRemboursable: true, stockMin: 25 },
+   503→    { dci: 'Cotrimoxazole', nomCommercial: 'Bactrim 480mg', forme: 'Comprimé', dosage: '480mg', unite: 'boîte', prixVente: 1500, prixAchat: 900, tva: 0.18, estRemboursable: true, stockMin: 30 },
+   504→  ]
+   505→
+   506→  // Seed medications for the top 8 Parakou pharmacies
+   507→  const pharmacieAgrementsForMeds = [
+   508→    'AGR-PK-2024-001', 'AGR-PK-2024-002', 'AGR-PK-2024-003',
+   509→    'AGR-PK-2024-004', 'AGR-PK-2024-005', 'AGR-PK-2024-006',
+   510→    'AGR-PK-2024-007', 'AGR-PK-2024-008',
+   511→  ]
+   512→
+   513→  for (const agrement of pharmacieAgrementsForMeds) {
+   514→    const pharmacie = createdPharmacies[agrement]
+   515→    if (!pharmacie) continue
+   516→
+   517→    const existingMeds = await prisma.medicament.count({ where: { pharmacieId: pharmacie.id } })
+   518→    if (existingMeds > 0) continue
+   519→
+   520→    for (const med of medicamentsCatalog) {
+   521→      const m = await prisma.medicament.create({
+   522→        data: {
+   523→          pharmacieId: pharmacie.id,
+   524→          ...med,
+   525→          estStupefiant: (med as any).estStupefiant || false,
+   526→          estGenerique: false,
+   527→          estRemboursable: (med as any).estRemboursable || false,
+   528→          stockMax: (med as any).stockMin ? (med as any).stockMin * 3 : 100,
+   529→        },
+   530→      })
+   531→      await prisma.lot.create({
+   532→        data: {
+   533→          medicamentId: m.id,
+   534→          pharmacieId: pharmacie.id,
+   535→          numeroLot: `LOT-${m.dci.substring(0, 4).toUpperCase()}-PK-2024-001`,
+   536→          dateExpiration: new Date('2026-12-31'),
+   537→          quantite: (med as any).estStupefiant ? 20 : Math.floor(Math.random() * 100) + 50,
+   538→          prixAchat: med.prixAchat ?? 1000,
+   539→          dateReception: new Date('2025-06-15'),
+   540→        },
+   541→      })
+   542→    }
+   543→    console.log(`  💊 Médicaments créés pour ${pharmacie.nom}`)
+   544→  }
+   545→
+   546→  // Also seed a reduced set for Cotonou pharmacies
+   547→  for (const agrement of ['AGR-CT-2024-001', 'AGR-CT-2024-002']) {
+   548→    const pharmacie = createdPharmacies[agrement]
+   549→    if (!pharmacie) continue
+   550→    const existingMeds = await prisma.medicament.count({ where: { pharmacieId: pharmacie.id } })
+   551→    if (existingMeds > 0) continue
+   552→
+   553→    for (const med of medicamentsCatalog.slice(0, 10)) {
+   554→      const m = await prisma.medicament.create({
+   555→        data: {
+   556→          pharmacieId: pharmacie.id,
+   557→          ...med,
+   558→          estStupefiant: (med as any).estStupefiant || false,
+   559→          estGenerique: false,
+   560→          estRemboursable: (med as any).estRemboursable || false,
+   561→          stockMax: (med as any).stockMin ? (med as any).stockMin * 3 : 100,
+   562→        },
+   563→      })
+   564→      await prisma.lot.create({
+   565→        data: {
+   566→          medicamentId: m.id,
+   567→          pharmacieId: pharmacie.id,
+   568→          numeroLot: `LOT-${m.dci.substring(0, 4).toUpperCase()}-CT-2024-001`,
+   569→          dateExpiration: new Date('2026-12-31'),
+   570→          quantite: Math.floor(Math.random() * 80) + 40,
+   571→          prixAchat: med.prixAchat ?? 1000,
+   572→          dateReception: new Date('2025-06-15'),
+   573→        },
+   574→      })
+   575→    }
+   576→  }
+   577→
+   578→  // ============================================================
+   579→  // 6. PLANNINGS DE GARDE (cette semaine)
+   580→  // ============================================================
+   581→  console.log('🌙 Création des plannings de garde...')
+   582→
+   583→  // Get current week dates (Mon-Sun)
+   584→  const today = new Date()
+   585→  const dayOfWeek = today.getDay() // 0=Sun, 1=Mon, ...
+   586→  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+   587→  const monday = new Date(today)
+   588→  monday.setDate(today.getDate() + mondayOffset)
+   589→
+   590→  const weekDates: Date[] = []
+   591→  for (let i = 0; i < 7; i++) {
+   592→    const d = new Date(monday)
+   593→    d.setDate(monday.getDate() + i)
+   594→    weekDates.push(d)
+   595→  }
+   596→
+   597→  // Assign 2-3 pharmacies on duty each day (rotating)
+   598→  const parakouAgrements = Object.keys(createdPharmacies).filter(a => a.startsWith('AGR-PK'))
+   599→  const gardeRotations = [
+   600→    [0, 3, 7],    // Lundi: Pharmacie Marché Central, Arafat, Madina
+   601→    [1, 4, 9],    // Mardi: Albarika, Terminus, Zongo
+   602→    [2, 5, 8],    // Mercredi: Gare, Camp Guézo, Sans Fil
+   603→    [0, 6, 10],   // Jeudi: Marché Central, Baka, Tourou
+   604→    [1, 3, 11],   // Vendredi: Albarika, Arafat, Biro
+   605→    [2, 4, 12],   // Samedi: Gare, Terminus, Pèrèrè
+   606→    [0, 1, 2],    // Dimanche: Marché Central, Albarika, Gare
+   607→  ]
+   608→
+   609→  for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+   610→    const date = weekDates[dayIdx]
+   611→    const dayName = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'][dayIdx]
+   612→
+   613→    for (const pharmaIdx of gardeRotations[dayIdx]) {
+   614→      if (pharmaIdx >= parakouAgrements.length) continue
+   615→      const agrement = parakouAgrements[pharmaIdx]
+   616→      const pharmacie = createdPharmacies[agrement]
+   617→      if (!pharmacie) continue
+   618→
+   619→      // Check if planning already exists
+   620→      const existing = await prisma.planningGarde.findFirst({
+   621→        where: {
+   622→          pharmacieId: pharmacie.id,
+   623→          date: {
+   624→            gte: new Date(date.setHours(0, 0, 0, 0)),
+   625→            lte: new Date(date.setHours(23, 59, 59, 999)),
+   626→          },
+   627→        },
+   628→      })
+   629→      if (existing) continue
+   630→
+   631→      const pharmacien = pharmacienUsers[agrement]
+   632→
+   633→      await prisma.planningGarde.create({
+   634→        data: {
+   635→          pharmacieId: pharmacie.id,
+   636→          date: new Date(date.setHours(0, 0, 0, 0)),
+   637→          type: dayIdx >= 5 ? 'WEEKEND' : 'SEMAINE',
+   638→          heureDebut: new Date(date.setHours(8, 0, 0, 0)),
+   639→          heureFin: new Date(date.setHours(20, 0, 0, 0)),
+   640→          pharmacienId: pharmacien?.id,
+   641→        },
+   642→      })
+   643→    }
+   644→    console.log(`  🌙 Garde ${dayName}: ${gardeRotations[dayIdx].length} pharmacies`)
+   645→  }
+   646→
+   647→  // ============================================================
+   648→  // 7. SCORES DE CONFORMITÉ
+   649→  // ============================================================
+   650→  console.log('✅ Création des scores de conformité...')
+   651→  for (const [agrement, pharmacie] of Object.entries(createdPharmacies)) {
+   652→    const existingScore = await prisma.scoreConformite.findUnique({ where: { pharmacieId: pharmacie.id } })
+   653→    if (existingScore) continue
+   654→
+   655→    const baseScore = 65 + Math.random() * 30
+   656→    await prisma.scoreConformite.create({
+   657→      data: {
+   658→        pharmacieId: pharmacie.id,
+   659→        scoreTotal: Math.round(baseScore * 10) / 10,
+   660→        scoreRegistreStup: Math.round((baseScore + Math.random() * 10) * 10) / 10,
+   661→        scoreAlerteDPMED: Math.round((baseScore + Math.random() * 5) * 10) / 10,
+   662→        scoreDocuments: Math.round((baseScore - Math.random() * 10) * 10) / 10,
+   663→        scorePharmacovigi: Math.round((baseScore - Math.random() * 5) * 10) / 10,
+   664→        scoreDestructions: Math.round((baseScore + Math.random() * 8) * 10) / 10,
+   665→      },
+   666→    })
+   667→  }
+   668→
+   669→  // ============================================================
+   670→  // 8. SCORES PHARMACIE (Dashboard)
+   671→  // ============================================================
+   672→  console.log('📊 Création des scores pharmacie...')
+   673→  for (const [agrement, pharmacie] of Object.entries(createdPharmacies)) {
+   674→    const existingScore = await prisma.scorePharmacie.findFirst({ where: { pharmacieId: pharmacie.id } })
+   675→    if (existingScore) continue
+   676→
+   677→    await prisma.scorePharmacie.create({
+   678→      data: {
+   679→        pharmacieId: pharmacie.id,
+   680→        scoreSante: Math.round((60 + Math.random() * 35) * 10) / 10,
+   681→        scoreStock: Math.round((50 + Math.random() * 40) * 10) / 10,
+   682→        scoreFinance: Math.round((55 + Math.random() * 40) * 10) / 10,
+   683→        scoreConformite: Math.round((65 + Math.random() * 30) * 10) / 10,
+   684→        scoreRH: Math.round((70 + Math.random() * 25) * 10) / 10,
+   685→        scorePharmacovigilance: Math.round((60 + Math.random() * 30) * 10) / 10,
+   686→        scoreQualite: Math.round((65 + Math.random() * 25) * 10) / 10,
+   687→      },
+   688→    })
+   689→  }
+   690→
+   691→  // ============================================================
+   692→  // 9. PATIENTS (Parakou)
+   693→  // ============================================================
+   694→  console.log('👥 Création des patients...')
+   695→  const patientsData = [
+   696→    { nom: 'Adam', prenom: 'Issouf', telephone: '+229 97 23 00 01', sexe: 'M', estFidele: true, pointsFidelite: 200 },
+   697→    { nom: 'Baba', prenom: 'Mariama', telephone: '+229 97 23 00 02', sexe: 'F', estFidele: true, pointsFidelite: 150 },
+   698→    { nom: 'Djibril', prenom: 'Moussa', telephone: '+229 97 23 00 03', sexe: 'M', estFidele: false },
+   699→    { nom: 'Issa', prenom: 'Fatima', telephone: '+229 97 23 00 04', sexe: 'F', estFidele: true, pointsFidelite: 85 },
+   700→    { nom: 'Karim', prenom: 'Abdou', telephone: '+229 97 23 00 05', sexe: 'M', estFidele: false },
+   701→    { nom: 'Mama', prenom: 'Aminata', telephone: '+229 97 23 00 06', sexe: 'F', estFidele: true, pointsFidelite: 320 },
+   702→    { nom: 'Ouro', prenom: 'Saliou', telephone: '+229 97 23 00 07', sexe: 'M', estFidele: true, pointsFidelite: 45 },
+   703→    { nom: 'Saka', prenom: 'Kadijatou', telephone: '+229 97 23 00 08', sexe: 'F', estFidele: false },
+   704→    { nom: 'Tahirou', prenom: 'Boubacar', telephone: '+229 97 23 00 09', sexe: 'M', estFidele: true, pointsFidelite: 175 },
+   705→    { nom: 'Yaya', prenom: 'Aïchatou', telephone: '+229 97 23 00 10', sexe: 'F', estFidele: true, pointsFidelite: 260 },
+   706→    { nom: 'Zoumarou', prenom: 'Bachir', telephone: '+229 97 23 00 11', sexe: 'M', estFidele: false },
+   707→    { nom: 'Gani', prenom: 'Rahamatou', telephone: '+229 97 23 00 12', sexe: 'F', estFidele: true, pointsFidelite: 130 },
+   708→  ]
+   709→
+   710→  // Distribute patients across Parakou pharmacies
+   711→  const parakouPharmacieIds = parakouAgrements.map(a => createdPharmacies[a]?.id).filter(Boolean)
+   712→  for (let i = 0; i < patientsData.length; i++) {
+   713→    const pData = patientsData[i]
+   714→    const pharmacieId = parakouPharmacieIds[i % parakouPharmacieIds.length]
+   715→    if (!pharmacieId) continue
+   716→
+   717→    const existingPatient = await prisma.patient.findFirst({
+   718→      where: { pharmacieId, telephone: pData.telephone },
+   719→    })
+   720→    if (existingPatient) continue
+   721→
+   722→    await prisma.patient.create({
+   723→      data: {
+   724→        pharmacieId,
+   725→        ...pData,
+   726→        dateNaissance: new Date(1985 + Math.floor(Math.random() * 20), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+   727→        adresse: `Quartier ${['Central', 'Albarika', 'Gare', 'Arafat', 'Camp Guézo', 'Madina', 'Baka', 'Zongo'][i % 8]}, Parakou`,
+   728→        numeroCNSS: `CNSS-PK-${String(i + 1).padStart(4, '0')}`,
+   729→      },
+   730→    })
+   731→  }
+   732→
+   733→  // ============================================================
+   734→  // 10. ORGANISMES + TIERS PAYANT
+   735→  // ============================================================
+   736→  console.log('🏥 Création des organismes d\'assurance...')
+   737→  const organismesData = [
+   738→    { nom: 'CNSS Bénin', code: 'CNSS-BJ', type: 'ASSURANCE_MALADIE', tauxRemboursement: 0.8 },
+   739→    { nom: 'INSA Bénin', code: 'INSA-BJ', type: 'ASSURANCE_PRIVEE', tauxRemboursement: 0.7 },
+   740→    { nom: 'RAMU Bénin', code: 'RAMU-BJ', type: 'REGIME_OBLIGATOIRE', tauxRemboursement: 0.6 },
+   741→  ]
+   742→
+   743→  for (const orgData of organismesData) {
+   744→    for (const pharmacieId of parakouPharmacieIds.slice(0, 5)) {
+   745→      const existingOrg = await prisma.organisme.findFirst({
+   746→        where: { pharmacieId, code: orgData.code },
+   747→      })
+   748→      if (existingOrg) continue
+   749→
+   750→      await prisma.organisme.create({
+   751→        data: {
+   752→          pharmacieId,
+   753→          ...orgData,
+   754→          actif: true,
+   755→        },
+   756→      })
+   757→    }
+   758→  }
+   759→
+   760→  // ============================================================
+   761→  // 11. PARTENAIRES GROSSISTES
+   762→  // ============================================================
+   763→  console.log('🏭 Création des grossistes...')
+   764→  const ubipharm = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'UBIPHARM-BJ' } })
+   765→  if (!ubipharm) {
+   766→    await prisma.partenaireGrossiste.create({
+   767→      data: {
+   768→        nom: 'UbiPharm Bénin',
+   769→        codeGrossiste: 'UBIPHARM-BJ',
+   770→        apiEndpoint: 'https://api.ubipharm.bj/v2',
+   771→        apiKeyHash: 'hash_ubipharm_demo_key',
+   772→        webhookSecret: 'whsec_ubipharm_demo',
+   773→      },
+   774→    })
+   775→  }
+   776→  const promopharma = await prisma.partenaireGrossiste.findUnique({ where: { codeGrossiste: 'PROMOPHARMA-BJ' } })
+   777→  if (!promopharma) {
+   778→    await prisma.partenaireGrossiste.create({
+   779→      data: {
+   780→        nom: 'Promopharma Bénin',
+   781→        codeGrossiste: 'PROMOPHARMA-BJ',
+   782→        apiEndpoint: 'https://api.promopharma.bj/v1',
+   783→        apiKeyHash: 'hash_promopharma_demo_key',
+   784→        webhookSecret: 'whsec_promopharma_demo',
+   785→      },
+   786→    })
+   787→  }
+   788→
+   789→  // ============================================================
+   790→  // 12. FICHES DCI
+   791→  // ============================================================
+   792→  console.log('📋 Création des fiches DCI...')
+   793→  const existingDCI = await prisma.ficheDCI.count()
+   794→  if (existingDCI === 0) {
+   795→    await prisma.ficheDCI.createMany({
+   796→      data: [
+   797→        { dci: 'Paracétamol', classeThera: 'Antalgique', mecanismeAction: 'Inhibition COX centrale', indicationsPrincipales: 'Douleur, fièvre', posologie: '1g x3/jour', contreIndications: 'Insuffisance hépatique', interactions: [{ dciCible: 'Warfarine', gravite: 'MODEREE', description: 'Risque hémorragique' }], effetsIndesirables: [{ nom: 'Hépatotoxicité', frequence: 'Rare' }], conservation: 'T° ambiante', sourceVersion: 'ANSM v2024' },
+   798→        { dci: 'Amoxicilline', classeThera: 'Antibiotique', mecanismeAction: 'Inhibition paroi bactérienne', indicationsPrincipales: 'Infections bactériennes', posologie: '1g x3/jour', contreIndications: 'Allergie pénicilline', interactions: [{ dciCible: 'Méthotrexate', gravite: 'MAJEURE', description: 'Toxicité MTX' }], effetsIndesirables: [{ nom: 'Diarrhée', frequence: 'Fréquent' }], conservation: 'T° ambiante', sourceVersion: 'ANSM v2024' },
+   799→        { dci: 'Artémether/Luméfantrine', classeThera: 'Antipaludéen', mecanismeAction: 'Inhibition hème', indicationsPrincipales: 'Paludisme', posologie: '4cp x6', contreIndications: 'Hypersensibilité', interactions: [], effetsIndesirables: [{ nom: 'Céphalées', frequence: 'Fréquent' }], conservation: 'T° ambiante', sourceVersion: 'OMS v2024' },
+   800→        { dci: 'Ciprofloxacine', classeThera: 'Fluoroquinolone', mecanismeAction: 'Inhibition ADN gyrase', indicationsPrincipales: 'Infections urinaires', posologie: '500mg x2/jour', contreIndications: 'Enfants, grossesse', interactions: [{ dciCible: 'Théophylline', gravite: 'MAJEURE', description: 'Surdosage théophylline' }], effetsIndesirables: [{ nom: 'Tendinite', frequence: 'Peu fréquent' }], conservation: 'T° ambiante', sourceVersion: 'ANSM v2024' },
+   801→        { dci: 'Métronidazole', classeThera: 'Antiparasitaire', mecanismeAction: 'Rupture ADN', indicationsPrincipales: 'Infections anaérobies', posologie: '500mg x3/jour', contreIndications: 'Hypersensibilité', interactions: [{ dciCible: 'Alcool', gravite: 'MAJEURE', description: 'Effet antabuse' }], effetsIndesirables: [{ nom: 'Nausées', frequence: 'Fréquent' }], conservation: 'T° ambiante', sourceVersion: 'ANSM v2024' },
+   802→      ],
+   803→    })
+   804→  }
+   805→
+   806→  // ============================================================
+   807→  // 13. MEDICAMENT SURVEILLANCE
+   808→  // ============================================================
+   809→  console.log('⚠️ Création des surveillances...')
+   810→  const existingSurv = await prisma.medicamentSurveillance.count()
+   811→  if (existingSurv === 0) {
+   812→    await prisma.medicamentSurveillance.createMany({
+   813→      data: [
+   814→        { dci: 'Ciprofloxacine', nomCommercial: 'Ciflox 500mg', fabricant: 'Sanofi', numeroLot: 'LOT-CIPR-2023-042', typeSurveillance: 'RAPPEL_LOT', description: 'Rappel lot pour contamination bactérienne', sourceAlerte: 'ANSM', dateEmission: new Date('2024-03-15'), niveauRisque: 'ELEVE', statut: 'ACTIVE' },
+   815→        { dci: 'Paracétamol', nomCommercial: 'Doliprane 500mg', fabricant: 'Sanofi', typeSurveillance: 'SOUS_SURVEILLANCE', description: 'Surveillance hépatotoxicité', sourceAlerte: 'Pharmacovigilance EU', dateEmission: new Date('2024-05-01'), niveauRisque: 'MODERE', statut: 'ACTIVE' },
+   816→        { dci: 'Amoxicilline', typeSurveillance: 'CONTREFACON', description: 'Contrefaçon détectée Afrique Ouest', sourceAlerte: 'OMS', dateEmission: new Date('2024-06-20'), niveauRisque: 'CRITIQUE', statut: 'ACTIVE' },
+   817→      ],
+   818→    })
+   819→  }
+   820→
+   821→  // ============================================================
+   822→  // 14. ALERTE DPMED + DIFFUSIONS
+   823→  // ============================================================
+   824→  console.log('🚨 Création des alertes DPMED...')
+   825→
+   826→  // Alerte 1: Rappel Ciprofloxacine
+   827→  const alerte1Ref = 'DPMED-2024-ALRT-001'
+   828→  const existingAlert1 = await prisma.alerteDPMED.findUnique({ where: { referenceOfficielle: alerte1Ref } })
+   829→  if (!existingAlert1) {
+   830→    const surv = await prisma.medicamentSurveillance.findFirst({ where: { dci: 'Ciprofloxacine' } })
+   831→    const alerte1 = await prisma.alerteDPMED.create({
+   832→      data: {
+   833→        referenceOfficielle: alerte1Ref,
+   834→        titre: 'Rappel lot Ciprofloxacine — Contamination bactérienne',
+   835→        description: 'Rappel urgent du lot CIPR-2023-042 pour contamination bactérienne détectée. Toutes les pharmacies doivent retirer les produits et les mettre en quarantaine immédiatement.',
+   836→        typeAlerte: 'RAPPEL_LOT',
+   837→        niveauUrgence: 'URGENT',
+   838→        medicamentSurvId: surv?.id,
+   839→        dciConcernee: 'Ciprofloxacine',
+   840→        numerosLotConcernes: ['LOT-CIPR-2023-042'],
+   841→        fabricantConcerne: 'Sanofi',
+   842→        sourceEmission: 'DPMED',
+   843→        signatureNumerique: 'SIG-DPMED-001',
+   844→        dateEmissionDPMED: new Date('2024-03-15'),
+   845→        statut: 'DIFFUSEE',
+   846→        nbOfficinesNotifiees: parakouAgrements.length,
+   847→      },
+   848→    })
+   849→
+   850→    // Diffuser à toutes les pharmacies Parakou
+   851→    for (const agrement of parakouAgrements) {
+   852→      const pharmacie = createdPharmacies[agrement]
+   853→      if (!pharmacie) continue
+   854→
+   855→      const isCentral = ['AGR-PK-2024-001', 'AGR-PK-2024-002', 'AGR-PK-2024-003'].includes(agrement)
+   856→      await prisma.diffusionAlerte.create({
+   857→        data: {
+   858→          alerteId: alerte1.id,
+   859→          pharmacieId: pharmacie.id,
+   860→          lotsConcernes: ['LOT-CIPR-2023-042'],
+   861→          canalEnvoi: ['PUSH', 'IN_APP'],
+   862→          dateEnvoi: new Date('2024-03-15'),
+   863→          dateAcquittement: isCentral ? new Date('2024-03-16') : null,
+   864→          actionPrise: isCentral ? 'Produits retirés et mis en quarantaine' : null,
+   865→        },
+   866→      })
+   867→    }
+   868→  }
+   869→
+   870→  // Alerte 2: Contrefaçon Amoxicilline
+   871→  const alerte2Ref = 'DPMED-2024-ALRT-002'
+   872→  const existingAlert2 = await prisma.alerteDPMED.findUnique({ where: { referenceOfficielle: alerte2Ref } })
+   873→  if (!existingAlert2) {
+   874→    const surv2 = await prisma.medicamentSurveillance.findFirst({ where: { dci: 'Amoxicilline' } })
+   875→    const alerte2 = await prisma.alerteDPMED.create({
+   876→      data: {
+   877→        referenceOfficielle: alerte2Ref,
+   878→        titre: 'Alerte contrefaçon Amoxicilline — Afrique de l\'Ouest',
+   879→        description: 'Des lots contrefaits d\'Amoxicilline 500mg ont été détectés en Afrique de l\'Ouest. Les pharmacies doivent vérifier leurs stocks et signaler tout lot suspect au DPMED.',
+   880→        typeAlerte: 'CONTREFACON',
+   881→        niveauUrgence: 'URGENCE_IMMEDIATE',
+   882→        medicamentSurvId: surv2?.id,
+   883→        dciConcernee: 'Amoxicilline',
+   884→        numerosLotConcernes: ['LOT-AMOX-FAKE-001', 'LOT-AMOX-FAKE-002'],
+   885→        fabricantConcerne: 'Multiple',
+   886→        sourceEmission: 'DPMED',
+   887→        signatureNumerique: 'SIG-DPMED-002',
+   888→        dateEmissionDPMED: new Date('2024-06-20'),
+   889→        statut: 'DIFFUSEE',
+   890→        nbOfficinesNotifiees: parakouAgrements.length,
+   891→      },
+   892→    })
+   893→
+   894→    // Diffuser à toutes les pharmacies Parakou
+   895→    for (const agrement of parakouAgrements) {
+   896→      const pharmacie = createdPharmacies[agrement]
+   897→      if (!pharmacie) continue
+   898→
+   899→      const isCentral = ['AGR-PK-2024-001', 'AGR-PK-2024-005'].includes(agrement)
+   900→      await prisma.diffusionAlerte.create({
+   901→        data: {
+   902→          alerteId: alerte2.id,
+   903→          pharmacieId: pharmacie.id,
+   904→          lotsConcernes: ['LOT-AMOX-FAKE-001', 'LOT-AMOX-FAKE-002'],
+   905→          canalEnvoi: ['PUSH', 'SMS', 'IN_APP'],
+   906→          dateEnvoi: new Date('2024-06-20'),
+   907→          dateAcquittement: isCentral ? new Date('2024-06-21') : null,
+   908→          actionPrise: isCentral ? 'Vérification effectuée, aucun lot suspect trouvé' : null,
+   909→        },
+   910→      })
+   911→    }
+   912→  }
+   913→
+   914→  // ============================================================
+   915→  // 15. CONFIRMATIONS SoBAPS (pour la carte d'approvisionnement)
+   916→  // ============================================================
+   917→  console.log('📦 Création des confirmations SoBAPS...')
+   918→  for (const agrement of parakouAgrements) {
+   919→    const pharmacie = createdPharmacies[agrement]
+   920→    if (!pharmacie) continue
+   921→
+   922→    const existingConf = await prisma.confirmationReceptionSoBAPS.count({
+   923→      where: { pharmacieId: pharmacie.id },
+   924→    })
+   925→    if (existingConf > 0) continue
+   926→
+   927→    // 2-3 confirmations par pharmacie
+   928→    const nbConf = 2 + Math.floor(Math.random() * 2)
+   929→    for (let i = 0; i < nbConf; i++) {
+   930→      const dateReception = new Date(2026, 5, 1 - i * 7) // recent dates
+   931→      await prisma.confirmationReceptionSoBAPS.create({
+   932→        data: {
+   933→          pharmacieId: pharmacie.id,
+   934→          bonLivraisonRef: `BL-SOBAPS-PK-${agrement.slice(-3)}-${String(i + 1).padStart(3, '0')}`,
+   935→          dateReception: dateReception,
+   936→          statut: Math.random() > 0.3 ? 'CONFORME' : 'AVEC_ECART',
+   937→          ecarts: Math.random() > 0.7 ? [{ produit: 'Coartem', attendu: 20, recu: 15 }] : null,
+   938→        },
+   939→      })
+   940→    }
+   941→  }
+   942→
+   943→  // ============================================================
+   944→  // 16. NOTIFICATIONS (pour le feed d'activité)
+   945→  // ============================================================
+   946→  console.log('🔔 Création des notifications...')
+   947→  for (const agrement of parakouAgrements.slice(0, 5)) {
+   948→    const pharmacie = createdPharmacies[agrement]
+   949→    if (!pharmacie) continue
+   950→
+   951→    const pharmacien = pharmacienUsers[agrement]
+   952→    if (!pharmacien) continue
+   953→
+   954→    const existingNotifs = await prisma.notification.count({ where: { pharmacieId: pharmacie.id } })
+   955→    if (existingNotifs > 0) continue
+   956→
+   957→    await prisma.notification.createMany({
+   958→      data: [
+   959→        {
+   960→          pharmacieId: pharmacie.id,
+   961→          utilisateurId: pharmacien.id,
+   962→          titre: 'Alerte DPMED — Rappel Ciprofloxacine',
+   963→          message: 'Un lot de Ciprofloxacine a été rappelé. Vérifiez vos stocks.',
+   964→          canal: 'PUSH',
+   965→          typeReference: 'ALERTE_DPMED',
+   966→        },
+   967→        {
+   968→          pharmacieId: pharmacie.id,
+   969→          utilisateurId: pharmacien.id,
+   970→          titre: 'Planning de garde confirmé',
+   971→          message: 'Votre planning de garde pour cette semaine a été confirmé.',
+   972→          canal: 'IN_APP',
+   973→          typeReference: 'PLANNING_GARDE',
+   974→        },
+   975→        {
+   976→          pharmacieId: pharmacie.id,
+   977→          titre: 'Nouvelle commande SoBAPS reçue',
+   978→          message: 'Une livraison SoBAPS a été réceptionnée avec succès.',
+   979→          canal: 'IN_APP',
+   980→          typeReference: 'RECEPTION',
+   981→        },
+   982→      ],
+   983→    })
+   984→  }
+   985→
+   986→  // ============================================================
+   987→  // SUMMARY
+   988→  // ============================================================
+   989→  const totalPharmacies = await prisma.pharmacie.count()
+   990→  const totalUsers = await prisma.utilisateur.count()
+   991→  const totalMedicaments = await prisma.medicament.count()
+   992→  const totalPlannings = await prisma.planningGarde.count()
+   993→  const totalPatients = await prisma.patient.count()
+   994→  const totalAlertes = await prisma.alerteDPMED.count()
+   995→  const totalDiffusions = await prisma.diffusionAlerte.count()
+   996→  const totalConfirmations = await prisma.confirmationReceptionSoBAPS.count()
+   997→  const totalScores = await prisma.scoreConformite.count()
+   998→
+   999→  console.log(`
+  1000→╔══════════════════════════════════════════════════╗
+  1001→║   🎉 SEEDING MÉDIHELM PARAKOU TERMINÉ !        ║
+  1002→╠══════════════════════════════════════════════════╣
+  1003→║   🏥 Pharmacies:         ${String(totalPharmacies).padStart(3)}                    ║
+  1004→║   👤 Utilisateurs:       ${String(totalUsers).padStart(3)}                    ║
+  1005→║   💊 Médicaments:        ${String(totalMedicaments).padStart(3)}                    ║
+  1006→║   🌙 Plannings garde:    ${String(totalPlannings).padStart(3)}                    ║
+  1007→║   👥 Patients:           ${String(totalPatients).padStart(3)}                    ║
+  1008→║   🚨 Alertes DPMED:      ${String(totalAlertes).padStart(3)}                    ║
+  1009→║   📢 Diffusions:         ${String(totalDiffusions).padStart(3)}                    ║
+  1010→║   📦 Confirmations:      ${String(totalConfirmations).padStart(3)}                    ║
+  1011→║   ✅ Scores conformité:  ${String(totalScores).padStart(3)}                    ║
+  1012→╚══════════════════════════════════════════════════╝
+  1013→  `)
+  1014→}
+  1015→
+  1016→main()
+  1017→  .catch((e) => { console.error('❌ Erreur:', e); process.exit(1) })
+  1018→  .finally(async () => { await prisma.$disconnect() })
+  1019→

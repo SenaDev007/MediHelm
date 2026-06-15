@@ -1,0 +1,1173 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Skeleton } from '@/components/ui/skeleton'
+     9→import { Separator } from '@/components/ui/separator'
+    10→import { Label } from '@/components/ui/label'
+    11→import { Checkbox } from '@/components/ui/checkbox'
+    12→import {
+    13→  Dialog,
+    14→  DialogContent,
+    15→  DialogHeader,
+    16→  DialogTitle,
+    17→} from '@/components/ui/dialog'
+    18→import {
+    19→  Select,
+    20→  SelectContent,
+    21→  SelectItem,
+    22→  SelectTrigger,
+    23→  SelectValue,
+    24→} from '@/components/ui/select'
+    25→import { ScrollArea } from '@/components/ui/scroll-area'
+    26→import { Textarea } from '@/components/ui/textarea'
+    27→import {
+    28→  Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote,
+    29→  Smartphone, Receipt, Lock, Unlock, AlertTriangle, FileText, User,
+    30→  Percent, Printer
+    31→} from 'lucide-react'
+    32→import { useEffect, useState, useMemo } from 'react'
+    33→import { toast } from 'sonner'
+    34→
+    35→interface Medicament {
+    36→  id: string
+    37→  dci: string
+    38→  nomCommercial: string
+    39→  forme: string
+    40→  dosage: string
+    41→  prixVente: number
+    42→  prixAchat: number | null
+    43→  tva: number
+    44→  estStupefiant: boolean
+    45→  lots: { id: string; numeroLot: string; quantite: number; dateExpiration: string; prixAchat: number }[]
+    46→}
+    47→
+    48→interface CartItem {
+    49→  medicament: Medicament
+    50→  quantite: number
+    51→  lotId: string | null
+    52→  remise: number
+    53→}
+    54→
+    55→interface Patient {
+    56→  id: string
+    57→  nom: string
+    58→  prenom: string
+    59→  telephone: string | null
+    60→}
+    61→
+    62→interface Ordonnance {
+    63→  id: string
+    64→  prescripteurNom: string
+    65→  dateOrdonnance: string
+    66→  statut: string
+    67→}
+    68→
+    69→interface SessionCaisse {
+    70→  id: string
+    71→  dateOuverture: string
+    72→  dateFermeture: string | null
+    73→  fondDeCaisse: number
+    74→  totalEntrees: number
+    75→  totalSorties: number
+    76→  ecart: number | null
+    77→  caisse: { id: string; nom: string; numero: number }
+    78→  utilisateur: { id: string; nom: string; prenom: string }
+    79→}
+    80→
+    81→interface MultiPayment {
+    82→  id: string
+    83→  modePaiement: string
+    84→  montant: number
+    85→}
+    86→
+    87→function formatFCFA(amount: number) {
+    88→  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+    89→}
+    90→
+    91→export default function VentesPage() {
+    92→  const { pharmacie } = useAuth()
+    93→  const [medicaments, setMedicaments] = useState<Medicament[]>([])
+    94→  const [ventes, setVentes] = useState<unknown[]>([])
+    95→  const [loading, setLoading] = useState(true)
+    96→  const [search, setSearch] = useState('')
+    97→  const [cart, setCart] = useState<CartItem[]>([])
+    98→  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+    99→  const [montantPaye, setMontantPaye] = useState('')
+   100→  const [activeTab, setActiveTab] = useState<'pos' | 'historique'>('pos')
+   101→
+   102→  // Session caisse
+   103→  const [sessionCaisse, setSessionCaisse] = useState<SessionCaisse | null>(null)
+   104→  const [openSessionDialog, setOpenSessionDialog] = useState(false)
+   105→  const [closeSessionDialog, setCloseSessionDialog] = useState(false)
+   106→  const [fondDeCaisse, setFondDeCaisse] = useState('0')
+   107→  const [soldePhysique, setSoldePhysique] = useState('')
+   108→  const [zReport, setZReport] = useState<Record<string, unknown> | null>(null)
+   109→
+   110→  // Patient & Ordonnance
+   111→  const [patients, setPatients] = useState<Patient[]>([])
+   112→  const [ordonnances, setOrdonnances] = useState<Ordonnance[]>([])
+   113→  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
+   114→  const [selectedOrdonnanceId, setSelectedOrdonnanceId] = useState<string>('')
+   115→
+   116→  // Remise globale
+   117→  const [remiseGlobale, setRemiseGlobale] = useState(0)
+   118→
+   119→  // Multi-paiement
+   120→  const [multiPaiements, setMultiPaiements] = useState<MultiPayment[]>([
+   121→    { id: '1', modePaiement: 'ESPECES', montant: 0 }
+   122→  ])
+   123→
+   124→  // Receipt
+   125→  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+   126→  const [lastVente, setLastVente] = useState<Record<string, unknown> | null>(null)
+   127→  const [receiptCart, setReceiptCart] = useState<CartItem[]>([])
+   128→  const [receiptRemise, setReceiptRemise] = useState(0)
+   129→  const [receiptTVA, setReceiptTVA] = useState(0)
+   130→  const [receiptTotal, setReceiptTotal] = useState(0)
+   131→  const [receiptPatient, setReceiptPatient] = useState<string>('')
+   132→  const [receiptPaiements, setReceiptPaiements] = useState<MultiPayment[]>([])
+   133→
+   134→  // Stupéfiant warning
+   135→  const [stupWarningOpen, setStupWarningOpen] = useState(false)
+   136→
+   137→  // Ticket dialog for historique
+   138→  const [ticketDialogOpen, setTicketDialogOpen] = useState(false)
+   139→  const [ticketData, setTicketData] = useState<Record<string, unknown> | null>(null)
+   140→  const [ticketLoading, setTicketLoading] = useState(false)
+   141→
+   142→  useEffect(() => {
+   143→    const pid = pharmacie?.id
+   144→    if (!pid) return
+   145→    Promise.all([
+   146→      fetch(`/api/medicaments?pharmacieId=${pid}`).then(r => r.ok ? r.json() : []),
+   147→      fetch(`/api/ventes?pharmacieId=${pid}`).then(r => r.ok ? r.json() : []),
+   148→      fetch(`/api/patients?pharmacieId=${pid}`).then(r => r.ok ? r.json() : []),
+   149→      fetch(`/api/ordonnances?pharmacieId=${pid}&statut=VALIDEE`).then(r => r.ok ? r.json() : []),
+   150→      fetch(`/api/sessions-caisse?pharmacieId=${pid}&statut=ouverte`).then(r => r.ok ? r.json() : []),
+   151→    ]).then(([meds, vents, pats, ordos, sessions]) => {
+   152→      setMedicaments(meds)
+   153→      setVentes(vents)
+   154→      setPatients(pats)
+   155→      setOrdonnances(ordos)
+   156→      setSessionCaisse(sessions.length > 0 ? sessions[0] : null)
+   157→      setLoading(false)
+   158→    }).catch(() => { setLoading(false) })
+   159→  }, [pharmacie?.id])
+   160→
+   161→  const filteredMeds = useMemo(() => {
+   162→    if (!search) return medicaments.slice(0, 20)
+   163→    const q = search.toLowerCase()
+   164→    return medicaments.filter(m =>
+   165→      m.nomCommercial.toLowerCase().includes(q) ||
+   166→      m.dci.toLowerCase().includes(q)
+   167→    ).slice(0, 20)
+   168→  }, [medicaments, search])
+   169→
+   170→  const addToCart = (med: Medicament) => {
+   171→    setCart(prev => {
+   172→      const existing = prev.find(c => c.medicament.id === med.id)
+   173→      if (existing) {
+   174→        return prev.map(c =>
+   175→          c.medicament.id === med.id
+   176→            ? { ...c, quantite: c.quantite + 1 }
+   177→            : c
+   178→        )
+   179→      }
+   180→      return [...prev, { medicament: med, quantite: 1, lotId: med.lots[0]?.id || null, remise: 0 }]
+   181→    })
+   182→  }
+   183→
+   184→  const updateQuantity = (medId: string, delta: number) => {
+   185→    setCart(prev => {
+   186→      const updated = prev.map(c => {
+   187→        if (c.medicament.id === medId) {
+   188→          return { ...c, quantite: c.quantite + delta }
+   189→        }
+   190→        return c
+   191→      })
+   192→      return updated.filter(c => c.quantite > 0)
+   193→    })
+   194→  }
+   195→
+   196→  const updateRemise = (medId: string, remise: number) => {
+   197→    setCart(prev => prev.map(c =>
+   198→      c.medicament.id === medId ? { ...c, remise: Math.min(remise, 100) } : c
+   199→    ))
+   200→  }
+   201→
+   202→  const removeFromCart = (medId: string) => {
+   203→    setCart(prev => prev.filter(c => c.medicament.id !== medId))
+   204→  }
+   205→
+   206→  // Calculs
+   207→  const sousTotal = cart.reduce((sum, c) => {
+   208→    const lineTotal = c.medicament.prixVente * c.quantite
+   209→    const lineRemise = lineTotal * (c.remise / 100)
+   210→    return sum + lineTotal - lineRemise
+   211→  }, 0)
+   212→  const remiseGlobaleMontant = sousTotal * (remiseGlobale / 100)
+   213→  const totalApresRemise = sousTotal - remiseGlobaleMontant
+   214→
+   215→  // TVA
+   216→  const totalTVA = cart.reduce((sum, c) => {
+   217→    const lineTotal = c.medicament.prixVente * c.quantite
+   218→    const lineRemise = lineTotal * (c.remise / 100)
+   219→    const netLine = lineTotal - lineRemise
+   220→    return sum + (netLine * c.medicament.tva / 100)
+   221→  }, 0)
+   222→
+   223→  const totalCart = totalApresRemise
+   224→
+   225→  // Stupéfiant check
+   226→  const hasStupfiant = cart.some(c => c.medicament.estStupefiant)
+   227→  const stupfiantRequiresOrdo = hasStupfiant && !selectedOrdonnanceId
+   228→
+   229→  // Multi-paiement
+   230→  const totalPaiements = multiPaiements.reduce((s, p) => s + p.montant, 0)
+   231→  const paiementRestant = totalCart - totalPaiements
+   232→  const monnaie = paiementRestant < 0 ? Math.abs(paiementRestant) : 0
+   233→
+   234→  const addPaiement = () => {
+   235→    setMultiPaiements(prev => [...prev, { id: Date.now().toString(), modePaiement: 'ESPECES', montant: 0 }])
+   236→  }
+   237→
+   238→  const removePaiement = (id: string) => {
+   239→    setMultiPaiements(prev => prev.filter(p => p.id !== id))
+   240→  }
+   241→
+   242→  const updatePaiement = (id: string, field: 'modePaiement' | 'montant', value: string | number) => {
+   243→    setMultiPaiements(prev => prev.map(p =>
+   244→      p.id === id ? { ...p, [field]: value } : p
+   245→    ))
+   246→  }
+   247→
+   248→  // Ouvrir session caisse
+   249→  const handleOpenSession = async () => {
+   250→    if (!pharmacie?.id) return
+   251→    try {
+   252→      // Trouver une caisse disponible pour cette pharmacie
+   253→      const caissesRes = await fetch(`/api/caisses?pharmacieId=${pharmacie.id}`)
+   254→      let caisseId = 'demo-caisse'
+   255→      if (caissesRes.ok) {
+   256→        const caissesData = await caissesRes.json()
+   257→        if (caissesData.length > 0) {
+   258→          // Prendre la première caisse sans session ouverte
+   259→          const availableCaisse = caissesData.find(
+   260→            (c: { id: string; sessionsCaisse: { id: string }[] }) => !c.sessionsCaisse || c.sessionsCaisse.length === 0
+   261→          )
+   262→          caisseId = availableCaisse?.id || caissesData[0]?.id || 'demo-caisse'
+   263→        } else {
+   264→          // Créer une caisse par défaut
+   265→          const createRes = await fetch('/api/caisses', {
+   266→            method: 'POST',
+   267→            headers: { 'Content-Type': 'application/json' },
+   268→            body: JSON.stringify({
+   269→              pharmacieId: pharmacie.id,
+   270→              nom: 'Caisse Principale',
+   271→              numero: 1,
+   272→            }),
+   273→          })
+   274→          if (createRes.ok) {
+   275→            const newCaisse = await createRes.json()
+   276→            caisseId = newCaisse.id
+   277→          }
+   278→        }
+   279→      }
+   280→
+   281→      const res = await fetch('/api/sessions-caisse', {
+   282→        method: 'POST',
+   283→        headers: { 'Content-Type': 'application/json' },
+   284→        body: JSON.stringify({
+   285→          pharmacieId: pharmacie.id,
+   286→          utilisateurId: 'demo-admin',
+   287→          caisseId,
+   288→          fondDeCaisse: parseFloat(fondDeCaisse) || 0,
+   289→        }),
+   290→      })
+   291→
+   292→      if (res.ok) {
+   293→        const data = await res.json()
+   294→        setSessionCaisse(data)
+   295→        setOpenSessionDialog(false)
+   296→        toast.success('Session de caisse ouverte')
+   297→      } else {
+   298→        const err = await res.json()
+   299→        toast.error(err.error || 'Erreur ouverture session')
+   300→      }
+   301→    } catch {
+   302→      toast.error('Erreur ouverture session')
+   303→    }
+   304→  }
+   305→
+   306→  // Fermer session caisse
+   307→  const handleCloseSession = async () => {
+   308→    if (!sessionCaisse) return
+   309→    try {
+   310→      const res = await fetch(`/api/sessions-caisse/${sessionCaisse.id}`, {
+   311→        method: 'PATCH',
+   312→        headers: { 'Content-Type': 'application/json' },
+   313→        body: JSON.stringify({
+   314→          soldePhysique: soldePhysique ? parseFloat(soldePhysique) : undefined,
+   315→          ecart: soldePhysique ? undefined : 0,
+   316→        }),
+   317→      })
+   318→      if (res.ok) {
+   319→        const data = await res.json()
+   320→        setZReport(data.zReport)
+   321→        setSessionCaisse(null)
+   322→        setCloseSessionDialog(false)
+   323→        setSoldePhysique('')
+   324→        toast.success('Session fermée — Z-report généré')
+   325→      }
+   326→    } catch {
+   327→      toast.error('Erreur fermeture session')
+   328→    }
+   329→  }
+   330→
+   331→  // Valider vente
+   332→  const handleValidateSale = async () => {
+   333→    if (!pharmacie?.id || cart.length === 0) return
+   334→
+   335→    if (stupfiantRequiresOrdo) {
+   336→      setStupWarningOpen(true)
+   337→      return
+   338→    }
+   339→
+   340→    try {
+   341→      const lignes = cart.map(c => ({
+   342→        medicamentId: c.medicament.id,
+   343→        lotId: c.lotId,
+   344→        quantite: c.quantite,
+   345→        prixUnitaire: c.medicament.prixVente,
+   346→        montant: c.medicament.prixVente * c.quantite * (1 - c.remise / 100),
+   347→        remise: c.remise,
+   348→      }))
+   349→
+   350→      const paiementsToSend = multiPaiements
+   351→        .filter(p => p.montant > 0)
+   352→        .map(p => ({
+   353→          modePaiement: p.modePaiement,
+   354→          montant: p.montant,
+   355→        }))
+   356→
+   357→      if (paiementsToSend.length === 0) {
+   358→        paiementsToSend.push({
+   359→          modePaiement: 'ESPECES',
+   360→          montant: totalCart,
+   361→        })
+   362→      }
+   363→
+   364→      const res = await fetch('/api/ventes', {
+   365→        method: 'POST',
+   366→        headers: { 'Content-Type': 'application/json' },
+   367→        body: JSON.stringify({
+   368→          pharmacieId: pharmacie.id,
+   369→          utilisateurId: 'demo-admin',
+   370→          sessionId: sessionCaisse?.id || null,
+   371→          patientId: selectedPatientId || null,
+   372→          ordonnanceId: selectedOrdonnanceId || null,
+   373→          typeVente: selectedOrdonnanceId ? 'ORDONNANCE' : 'COMPTOIR',
+   374→          statut: 'VALIDEE',
+   375→          montantTotal: totalCart,
+   376→          montantRemise: remiseGlobaleMontant,
+   377→          montantPaye: Math.min(totalPaiements, totalCart),
+   378→          monnaieRendue: Math.max(0, monnaie),
+   379→          lignes,
+   380→          paiements: paiementsToSend,
+   381→        }),
+   382→      })
+   383→
+   384→      if (res.ok) {
+   385→        const venteData = await res.json()
+   386→        setLastVente(venteData)
+   387→        // Sauvegarder les données du reçu avant de vider le panier
+   388→        setReceiptCart([...cart])
+   389→        setReceiptRemise(remiseGlobaleMontant)
+   390→        setReceiptTVA(totalTVA)
+   391→        setReceiptTotal(totalCart)
+   392→        const selPatient = patients.find(p => p.id === selectedPatientId)
+   393→        setReceiptPatient(selPatient ? `${selPatient.prenom} ${selPatient.nom}` : '')
+   394→        setReceiptPaiements([...multiPaiements.filter(p => p.montant > 0)])
+   395→        setCart([])
+   396→        setPaymentDialogOpen(false)
+   397→        setMontantPaye('')
+   398→        setRemiseGlobale(0)
+   399→        setSelectedPatientId('')
+   400→        setSelectedOrdonnanceId('')
+   401→        setMultiPaiements([{ id: '1', modePaiement: 'ESPECES', montant: 0 }])
+   402→        // Afficher le reçu
+   403→        setReceiptDialogOpen(true)
+   404→        // Refresh ventes
+   405→        const ventesRes = await fetch(`/api/ventes?pharmacieId=${pharmacie.id}`)
+   406→        if (ventesRes.ok) setVentes(await ventesRes.json())
+   407→        // Refresh session
+   408→        const sessRes = await fetch(`/api/sessions-caisse?pharmacieId=${pharmacie.id}&statut=ouverte`)
+   409→        if (sessRes.ok) {
+   410→          const sessions = await sessRes.json()
+   411→          setSessionCaisse(sessions.length > 0 ? sessions[0] : null)
+   412→        }
+   413→      }
+   414→    } catch {
+   415→      toast.error('Erreur lors de la validation')
+   416→    }
+   417→  }
+   418→
+   419→  if (loading) {
+   420→    return (
+   421→      <div className="space-y-4">
+   422→        <Skeleton className="h-8 w-48" />
+   423→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   424→          <Skeleton className="h-96 lg:col-span-2" />
+   425→          <Skeleton className="h-96" />
+   426→        </div>
+   427→      </div>
+   428→    )
+   429→  }
+   430→
+   431→  return (
+   432→    <div className="space-y-4">
+   433→      {/* Header */}
+   434→      <div className="flex items-center justify-between">
+   435→        <div>
+   436→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   437→            <ShoppingCart className="w-6 h-6 text-primary" />
+   438→            Point de Vente
+   439→          </h1>
+   440→          <p className="text-sm text-muted-foreground">
+   441→            Créez une vente et encaissez
+   442→          </p>
+   443→        </div>
+   444→        <div className="flex gap-2">
+   445→          {/* Session caisse */}
+   446→          {sessionCaisse ? (
+   447→            <div className="flex items-center gap-2">
+   448→              <Badge className="bg-primary text-primary-foreground flex items-center gap-1">
+   449→                <Unlock className="w-3 h-3" />
+   450→                Caisse ouverte
+   451→              </Badge>
+   452→              <Button variant="outline" size="sm" onClick={() => setCloseSessionDialog(true)}>
+   453→                <Lock className="w-3 h-3 mr-1" /> Fermer session
+   454→              </Button>
+   455→            </div>
+   456→          ) : (
+   457→            <Button variant="outline" size="sm" onClick={() => setOpenSessionDialog(true)}>
+   458→              <Unlock className="w-3 h-3 mr-1" /> Ouvrir session
+   459→            </Button>
+   460→          )}
+   461→          <Button
+   462→            variant={activeTab === 'pos' ? 'default' : 'outline'}
+   463→            size="sm"
+   464→            onClick={() => setActiveTab('pos')}
+   465→          >
+   466→            Caisse
+   467→          </Button>
+   468→          <Button
+   469→            variant={activeTab === 'historique' ? 'default' : 'outline'}
+   470→            size="sm"
+   471→            onClick={() => setActiveTab('historique')}
+   472→          >
+   473→            Historique
+   474→          </Button>
+   475→        </div>
+   476→      </div>
+   477→
+   478→      {/* Session info bar */}
+   479→      {sessionCaisse && (
+   480→        <Card className="bg-primary/5 border-primary/20">
+   481→          <CardContent className="p-3 flex items-center justify-between text-sm">
+   482→            <div className="flex items-center gap-4">
+   483→              <span className="text-muted-foreground">Caisse: <strong>{sessionCaisse.caisse?.nom || 'Principale'}</strong></span>
+   484→              <span className="text-muted-foreground">Ouverte: <strong>{new Date(sessionCaisse.dateOuverture).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong></span>
+   485→              <span className="text-muted-foreground">Fond: <strong>{formatFCFA(sessionCaisse.fondDeCaisse)}</strong></span>
+   486→              <span className="text-muted-foreground">Entrées: <strong className="text-primary">{formatFCFA(sessionCaisse.totalEntrees)}</strong></span>
+   487→            </div>
+   488→            <span className="text-muted-foreground">
+   489→              Opérateur: <strong>{sessionCaisse.utilisateur?.prenom} {sessionCaisse.utilisateur?.nom}</strong>
+   490→            </span>
+   491→          </CardContent>
+   492→        </Card>
+   493→      )}
+   494→
+   495→      {activeTab === 'pos' ? (
+   496→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   497→          {/* Product Search / List */}
+   498→          <div className="lg:col-span-2 space-y-4">
+   499→            <div className="relative">
+   500→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   501→              <Input
+   502→                placeholder="Rechercher par nom, DCI ou code-barres..."
+   503→                className="pl-9 h-11"
+   504→                value={search}
+   505→                onChange={e => setSearch(e.target.value)}
+   506→              />
+   507→            </div>
+   508→
+   509→            <ScrollArea className="h-[calc(100vh-360px)]">
+   510→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   511→                {filteredMeds.map(med => {
+   512→                  const totalStock = med.lots.reduce((s, l) => s + l.quantite, 0)
+   513→                  const inCart = cart.find(c => c.medicament.id === med.id)
+   514→
+   515→                  return (
+   516→                    <Card
+   517→                      key={med.id}
+   518→                      className={`cursor-pointer transition-all hover:shadow-md ${inCart ? 'ring-2 ring-primary' : ''}`}
+   519→                      onClick={() => addToCart(med)}
+   520→                    >
+   521→                      <CardContent className="p-3">
+   522→                        <div className="flex justify-between items-start">
+   523→                          <div className="flex-1 min-w-0">
+   524→                            <div className="flex items-center gap-1">
+   525→                              <span className="font-medium text-sm truncate">{med.nomCommercial}</span>
+   526→                              {med.estStupefiant && (
+   527→                                <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />
+   528→                              )}
+   529→                            </div>
+   530→                            <span className="text-xs text-muted-foreground">{med.dci} — {med.dosage}</span>
+   531→                          </div>
+   532→                          <div className="text-right shrink-0 ml-2">
+   533→                            <span className="font-bold text-sm text-primary">{formatFCFA(med.prixVente)}</span>
+   534→                            <span className={`text-xs block ${totalStock <= 5 ? 'text-destructive' : 'text-muted-foreground'}`}>
+   535→                              Stock: {totalStock}
+   536→                            </span>
+   537→                            {med.tva > 0 && (
+   538→                              <span className="text-[10px] text-muted-foreground">TVA {med.tva}%</span>
+   539→                            )}
+   540→                          </div>
+   541→                        </div>
+   542→                        {inCart && (
+   543→                          <Badge className="mt-1 text-[9px] bg-primary text-primary-foreground">
+   544→                            ×{inCart.quantite} dans le panier
+   545→                          </Badge>
+   546→                        )}
+   547→                      </CardContent>
+   548→                    </Card>
+   549→                  )
+   550→                })}
+   551→              </div>
+   552→            </ScrollArea>
+   553→          </div>
+   554→
+   555→          {/* Cart */}
+   556→          <Card className="lg:col-span-1 flex flex-col">
+   557→            <CardHeader className="pb-2">
+   558→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   559→                <Receipt className="w-4 h-4" />
+   560→                Panier ({cart.length} article{cart.length > 1 ? 's' : ''})
+   561→              </CardTitle>
+   562→            </CardHeader>
+   563→            <CardContent className="flex-1 flex flex-col">
+   564→              <ScrollArea className="flex-1 max-h-64">
+   565→                {cart.length === 0 ? (
+   566→                  <div className="text-center py-8 text-muted-foreground text-sm">
+   567→                    Panier vide
+   568→                  </div>
+   569→                ) : (
+   570→                  <div className="flex flex-col gap-2">
+   571→                    {cart.map(item => (
+   572→                      <div key={item.medicament.id} className={`p-2 rounded-lg ${item.medicament.estStupefiant ? 'bg-destructive/5 border border-destructive/20' : 'bg-muted/30'}`}>
+   573→                        <div className="flex items-center gap-2">
+   574→                          <div className="flex-1 min-w-0">
+   575→                            <div className="flex items-center gap-1">
+   576→                              <span className="text-sm font-medium truncate">{item.medicament.nomCommercial}</span>
+   577→                              {item.medicament.estStupefiant && <AlertTriangle className="w-3 h-3 text-destructive shrink-0" />}
+   578→                            </div>
+   579→                            <span className="text-xs text-muted-foreground">
+   580→                              {formatFCFA(item.medicament.prixVente)} × {item.quantite}
+   581→                              {item.medicament.tva > 0 && <span className="ml-1">+TVA {item.medicament.tva}%</span>}
+   582→                            </span>
+   583→                          </div>
+   584→                          <div className="flex items-center gap-1">
+   585→                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.medicament.id, -1)}>
+   586→                              <Minus className="w-3 h-3" />
+   587→                            </Button>
+   588→                            <span className="text-sm font-semibold w-6 text-center">{item.quantite}</span>
+   589→                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.medicament.id, 1)}>
+   590→                              <Plus className="w-3 h-3" />
+   591→                            </Button>
+   592→                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.medicament.id)}>
+   593→                              <Trash2 className="w-3 h-3" />
+   594→                            </Button>
+   595→                          </div>
+   596→                        </div>
+   597→                        {/* Remise par ligne */}
+   598→                        <div className="flex items-center gap-1 mt-1">
+   599→                          <Percent className="w-3 h-3 text-muted-foreground" />
+   600→                          <Input
+   601→                            type="number"
+   602→                            min={0}
+   603→                            max={100}
+   604→                            className="h-6 w-14 text-xs"
+   605→                            value={item.remise || ''}
+   606→                            placeholder="0"
+   607→                            onChange={e => updateRemise(item.medicament.id, parseFloat(e.target.value) || 0)}
+   608→                          />
+   609→                          <span className="text-[10px] text-muted-foreground">% remise</span>
+   610→                          <span className="text-xs font-semibold ml-auto">
+   611→                            {formatFCFA(item.medicament.prixVente * item.quantite * (1 - item.remise / 100))}
+   612→                          </span>
+   613→                        </div>
+   614→                      </div>
+   615→                    ))}
+   616→                  </div>
+   617→                )}
+   618→              </ScrollArea>
+   619→
+   620→              <Separator className="my-3" />
+   621→
+   622→              {/* Patient & Ordonnance */}
+   623→              <div className="space-y-2 mb-3">
+   624→                <div className="flex items-center gap-2">
+   625→                  <User className="w-3 h-3 text-muted-foreground shrink-0" />
+   626→                  <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+   627→                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Patient (optionnel)" /></SelectTrigger>
+   628→                    <SelectContent>
+   629→                      <SelectItem value="none">Aucun patient</SelectItem>
+   630→                      {patients.map(p => (
+   631→                        <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}{p.telephone ? ` — ${p.telephone}` : ''}</SelectItem>
+   632→                      ))}
+   633→                    </SelectContent>
+   634→                  </Select>
+   635→                </div>
+   636→                <div className="flex items-center gap-2">
+   637→                  <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+   638→                  <Select value={selectedOrdonnanceId} onValueChange={setSelectedOrdonnanceId}>
+   639→                    <SelectTrigger className={`h-8 text-xs ${stupfiantRequiresOrdo ? 'border-destructive' : ''}`}>
+   640→                      <SelectValue placeholder={stupfiantRequiresOrdo ? '⚠ Ordonnance requise (stupéfiant)' : 'Ordonnance (optionnel)'} />
+   641→                    </SelectTrigger>
+   642→                    <SelectContent>
+   643→                      <SelectItem value="none">Aucune ordonnance</SelectItem>
+   644→                      {ordonnances.map(o => (
+   645→                        <SelectItem key={o.id} value={o.id}>Dr. {o.prescripteurNom} — {new Date(o.dateOrdonnance).toLocaleDateString('fr-FR')}</SelectItem>
+   646→                      ))}
+   647→                    </SelectContent>
+   648→                  </Select>
+   649→                </div>
+   650→              </div>
+   651→
+   652→              {/* Remise globale */}
+   653→              <div className="flex items-center gap-2 mb-3">
+   654→                <Percent className="w-3 h-3 text-muted-foreground" />
+   655→                <Input
+   656→                  type="number"
+   657→                  min={0}
+   658→                  max={100}
+   659→                  className="h-8 w-16 text-xs"
+   660→                  value={remiseGlobale || ''}
+   661→                  placeholder="0"
+   662→                  onChange={e => setRemiseGlobale(parseFloat(e.target.value) || 0)}
+   663→                />
+   664→                <span className="text-xs text-muted-foreground">% remise globale</span>
+   665→                {remiseGlobaleMontant > 0 && (
+   666→                  <span className="text-xs text-destructive ml-auto">-{formatFCFA(remiseGlobaleMontant)}</span>
+   667→                )}
+   668→              </div>
+   669→
+   670→              {/* Totals */}
+   671→              <div className="space-y-1 mb-3">
+   672→                <div className="flex items-center justify-between text-xs text-muted-foreground">
+   673→                  <span>Sous-total</span>
+   674→                  <span>{formatFCFA(sousTotal)}</span>
+   675→                </div>
+   676→                {remiseGlobaleMontant > 0 && (
+   677→                  <div className="flex items-center justify-between text-xs text-destructive">
+   678→                    <span>Remise globale ({remiseGlobale}%)</span>
+   679→                    <span>-{formatFCFA(remiseGlobaleMontant)}</span>
+   680→                  </div>
+   681→                )}
+   682→                {totalTVA > 0 && (
+   683→                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+   684→                    <span>Dont TVA</span>
+   685→                    <span>{formatFCFA(totalTVA)}</span>
+   686→                  </div>
+   687→                )}
+   688→                <div className="flex items-center justify-between">
+   689→                  <span className="font-semibold">Total</span>
+   690→                  <span className="text-xl font-bold text-primary">{formatFCFA(totalCart)}</span>
+   691→                </div>
+   692→              </div>
+   693→
+   694→              <Button
+   695→                className="w-full gap-2"
+   696→                disabled={cart.length === 0 || stupfiantRequiresOrdo}
+   697→                onClick={() => {
+   698→                  if (stupfiantRequiresOrdo) {
+   699→                    setStupWarningOpen(true)
+   700→                  } else {
+   701→                    setPaymentDialogOpen(true)
+   702→                    setMultiPaiements([{ id: '1', modePaiement: 'ESPECES', montant: totalCart }])
+   703→                  }
+   704→                }}
+   705→              >
+   706→                <CreditCard className="w-4 h-4" />
+   707→                Encaisser
+   708→              </Button>
+   709→            </CardContent>
+   710→          </Card>
+   711→        </div>
+   712→      ) : (
+   713→        /* Historique des ventes */
+   714→        <Card>
+   715→          <CardContent className="p-0">
+   716→            <div className="overflow-x-auto">
+   717→              <table className="w-full">
+   718→                <thead>
+   719→                  <tr className="border-b">
+   720→                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date</th>
+   721→                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Type</th>
+   722→                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Articles</th>
+   723→                    <th className="text-right p-3 text-xs font-medium text-muted-foreground">Montant</th>
+   724→                    <th className="text-right p-3 text-xs font-medium text-muted-foreground">Remise</th>
+   725→                    <th className="text-center p-3 text-xs font-medium text-muted-foreground">Statut</th>
+   726→                    <th className="text-center p-3 text-xs font-medium text-muted-foreground">Actions</th>
+   727→                  </tr>
+   728→                </thead>
+   729→                <tbody>
+   730→                  {(ventes as { id: string; createdAt: string; typeVente: string; montantTotal: number; montantRemise: number; statut: string; lignes: unknown[] }[]).length === 0 ? (
+   731→                    <tr>
+   732→                      <td colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+   733→                        Aucune vente enregistrée
+   734→                      </td>
+   735→                    </tr>
+   736→                  ) : (
+   737→                    (ventes as { id: string; createdAt: string; typeVente: string; montantTotal: number; montantRemise: number; statut: string; lignes: unknown[] }[]).slice(0, 20).map(v => (
+   738→                      <tr key={v.id} className="border-b last:border-0 hover:bg-muted/30">
+   739→                        <td className="p-3 text-sm">
+   740→                          {new Date(v.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+   741→                        </td>
+   742→                        <td className="p-3 text-sm">{v.typeVente}</td>
+   743→                        <td className="p-3 text-sm">{v.lignes?.length || 0} article(s)</td>
+   744→                        <td className="p-3 text-sm text-right font-semibold">{formatFCFA(v.montantTotal)}</td>
+   745→                        <td className="p-3 text-sm text-right">{v.montantRemise > 0 ? `-${formatFCFA(v.montantRemise)}` : '—'}</td>
+   746→                        <td className="p-3 text-center">
+   747→                          <Badge
+   748→                            variant={v.statut === 'VALIDEE' ? 'default' : 'outline'}
+   749→                            className="text-[10px]"
+   750→                          >
+   751→                            {v.statut}
+   752→                          </Badge>
+   753→                        </td>
+   754→                        <td className="p-3 text-center">
+   755→                          {v.statut === 'VALIDEE' && (
+   756→                            <Button
+   757→                              variant="ghost"
+   758→                              size="sm"
+   759→                              className="gap-1 text-xs h-7"
+   760→                              onClick={async () => {
+   761→                                setTicketLoading(true)
+   762→                                setTicketDialogOpen(true)
+   763→                                try {
+   764→                                  const res = await fetch(`/api/ticket?venteId=${v.id}`)
+   765→                                  if (res.ok) {
+   766→                                    const data = await res.json()
+   767→                                    setTicketData(data)
+   768→                                  } else {
+   769→                                    toast.error('Erreur lors du chargement du ticket')
+   770→                                    setTicketDialogOpen(false)
+   771→                                  }
+   772→                                } catch {
+   773→                                  toast.error('Erreur lors du chargement du ticket')
+   774→                                  setTicketDialogOpen(false)
+   775→                                } finally {
+   776→                                  setTicketLoading(false)
+   777→                                }
+   778→                              }}
+   779→                            >
+   780→                              <Printer className="w-3 h-3" />
+   781→                              Ticket
+   782→                            </Button>
+   783→                          )}
+   784→                        </td>
+   785→                      </tr>
+   786→                    ))
+   787→                  )}
+   788→                </tbody>
+   789→              </table>
+   790→            </div>
+   791→          </CardContent>
+   792→        </Card>
+   793→      )}
+   794→
+   795→      {/* Stupéfiant Warning Dialog */}
+   796→      <Dialog open={stupWarningOpen} onOpenChange={setStupWarningOpen}>
+   797→        <DialogContent className="max-w-md">
+   798→          <DialogHeader>
+   799→            <DialogTitle className="flex items-center gap-2 text-destructive">
+   800→              <AlertTriangle className="w-5 h-5" />
+   801→              Stupéfiant détecté
+   802→            </DialogTitle>
+   803→          </DialogHeader>
+   804→          <div className="space-y-4">
+   805→            <p className="text-sm">
+   806→              Votre panier contient un médicament classé comme stupéfiant. La réglementation exige qu&apos;une ordonnance soit obligatoirement attachée à cette vente.
+   807→            </p>
+   808→            <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3">
+   809→              <p className="text-sm font-medium text-destructive">Médicaments stupéfiants dans le panier :</p>
+   810→              <ul className="text-sm mt-1">
+   811→                {cart.filter(c => c.medicament.estStupefiant).map(c => (
+   812→                  <li key={c.medicament.id}>• {c.medicament.nomCommercial} ({c.medicament.dci})</li>
+   813→                ))}
+   814→              </ul>
+   815→            </div>
+   816→            <p className="text-sm text-muted-foreground">
+   817→              Veuillez sélectionner une ordonnance dans le panier pour continuer.
+   818→            </p>
+   819→            <Button variant="outline" className="w-full" onClick={() => setStupWarningOpen(false)}>
+   820→              Compris
+   821→            </Button>
+   822→          </div>
+   823→        </DialogContent>
+   824→      </Dialog>
+   825→
+   826→      {/* Payment Dialog — Multi-paiement */}
+   827→      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+   828→        <DialogContent className="max-w-md">
+   829→          <DialogHeader>
+   830→            <DialogTitle className="flex items-center gap-2">
+   831→              <CreditCard className="w-5 h-5 text-primary" />
+   832→              Paiement
+   833→            </DialogTitle>
+   834→          </DialogHeader>
+   835→          <div className="space-y-4">
+   836→            <div className="text-center py-3 bg-muted/30 rounded-lg">
+   837→              <span className="text-sm text-muted-foreground">Total à payer</span>
+   838→              <span className="text-2xl font-bold text-primary block">{formatFCFA(totalCart)}</span>
+   839→            </div>
+   840→
+   841→            {/* Multi-paiement */}
+   842→            <div className="space-y-3">
+   843→              <div className="flex items-center justify-between">
+   844→                <Label className="text-sm font-medium">Modes de paiement</Label>
+   845→                <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={addPaiement}>
+   846→                  <Plus className="w-3 h-3" /> Ajouter
+   847→                </Button>
+   848→              </div>
+   849→              {multiPaiements.map((p, i) => (
+   850→                <div key={p.id} className="flex items-center gap-2">
+   851→                  <Select value={p.modePaiement} onValueChange={v => updatePaiement(p.id, 'modePaiement', v)}>
+   852→                    <SelectTrigger className="h-9 text-xs flex-1"><SelectValue /></SelectTrigger>
+   853→                    <SelectContent>
+   854→                      <SelectItem value="ESPECES"><span className="flex items-center gap-1"><Banknote className="w-3 h-3" /> Espèces</span></SelectItem>
+   855→                      <SelectItem value="WAVE"><span className="flex items-center gap-1"><Smartphone className="w-3 h-3" /> Wave</span></SelectItem>
+   856→                      <SelectItem value="MTN_MONEY"><span className="flex items-center gap-1"><Smartphone className="w-3 h-3" /> MTN Money</span></SelectItem>
+   857→                      <SelectItem value="MOOV_MONEY"><span className="flex items-center gap-1"><Smartphone className="w-3 h-3" /> Moov Money</span></SelectItem>
+   858→                      <SelectItem value="CARTE"><span className="flex items-center gap-1"><CreditCard className="w-3 h-3" /> Carte</span></SelectItem>
+   859→                    </SelectContent>
+   860→                  </Select>
+   861→                  <Input
+   862→                    type="number"
+   863→                    className="h-9 w-28 text-xs"
+   864→                    placeholder="Montant"
+   865→                    value={p.montant || ''}
+   866→                    onChange={e => updatePaiement(p.id, 'montant', parseFloat(e.target.value) || 0)}
+   867→                  />
+   868→                  {multiPaiements.length > 1 && (
+   869→                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removePaiement(p.id)}>
+   870→                      <Trash2 className="w-3 h-3" />
+   871→                    </Button>
+   872→                  )}
+   873→                </div>
+   874→              ))}
+   875→            </div>
+   876→
+   877→            {/* Résumé paiement */}
+   878→            <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+   879→              <div className="flex justify-between">
+   880→                <span>Total paiements</span>
+   881→                <span className="font-semibold">{formatFCFA(totalPaiements)}</span>
+   882→              </div>
+   883→              {paiementRestant > 0 && (
+   884→                <div className="flex justify-between text-destructive">
+   885→                  <span>Reste à payer</span>
+   886→                  <span className="font-semibold">{formatFCFA(paiementRestant)}</span>
+   887→                </div>
+   888→              )}
+   889→              {monnaie > 0 && (
+   890→                <div className="flex justify-between text-primary">
+   891→                  <span>Monnaie à rendre</span>
+   892→                  <span className="font-semibold">{formatFCFA(monnaie)}</span>
+   893→                </div>
+   894→              )}
+   895→            </div>
+   896→
+   897→            <Button
+   898→              className="w-full"
+   899→              onClick={handleValidateSale}
+   900→              disabled={cart.length === 0 || totalPaiements < totalCart}
+   901→            >
+   902→              Valider la vente
+   903→            </Button>
+   904→          </div>
+   905→        </DialogContent>
+   906→      </Dialog>
+   907→
+   908→      {/* Receipt Dialog */}
+   909→      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+   910→        <DialogContent className="max-w-sm">
+   911→          <DialogHeader>
+   912→            <DialogTitle className="flex items-center gap-2">
+   913→              <Printer className="w-5 h-5 text-primary" />
+   914→              Reçu de vente
+   915→            </DialogTitle>
+   916→          </DialogHeader>
+   917→          <div className="space-y-3 text-sm" id="receipt">
+   918→            <div className="text-center border-b pb-3">
+   919→              <p className="font-bold text-base">{pharmacie?.nom || 'Pharmacie'}</p>
+   920→              <p className="text-xs text-muted-foreground">{pharmacie?.adresse}</p>
+   921→              <p className="text-xs text-muted-foreground">{pharmacie?.telephone}</p>
+   922→            </div>
+   923→            <div className="text-xs text-muted-foreground flex justify-between">
+   924→              <span>N° {lastVente?.id ? String(lastVente.id).substring(0, 8) : ''}</span>
+   925→              <span>{new Date().toLocaleDateString('fr-FR')} {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+   926→            </div>
+   927→            {receiptPatient && (
+   928→              <div className="text-xs text-muted-foreground">
+   929→                <User className="w-3 h-3 inline mr-1" />Client: {receiptPatient}
+   930→              </div>
+   931→            )}
+   932→            <Separator />
+   933→            <div className="space-y-1">
+   934→              {receiptCart.map((item, i) => (
+   935→                <div key={i} className="space-y-0.5">
+   936→                  <div className="flex justify-between text-xs">
+   937→                    <span className="font-medium">{item.medicament.nomCommercial} ×{item.quantite}</span>
+   938→                    <span>{formatFCFA(item.medicament.prixVente * item.quantite)}</span>
+   939→                  </div>
+   940→                  {item.remise > 0 && (
+   941→                    <div className="flex justify-between text-[10px] text-destructive">
+   942→                      <span>  Remise {item.remise}%</span>
+   943→                      <span>-{formatFCFA(item.medicament.prixVente * item.quantite * item.remise / 100)}</span>
+   944→                    </div>
+   945→                  )}
+   946→                  {item.medicament.tva > 0 && (
+   947→                    <div className="flex justify-between text-[10px] text-muted-foreground">
+   948→                      <span>  TVA {item.medicament.tva}%</span>
+   949→                      <span>{formatFCFA(item.medicament.prixVente * item.quantite * (1 - item.remise / 100) * item.medicament.tva / 100)}</span>
+   950→                    </div>
+   951→                  )}
+   952→                </div>
+   953→              ))}
+   954→            </div>
+   955→            <Separator />
+   956→            <div className="space-y-1">
+   957→              <div className="flex justify-between font-semibold">
+   958→                <span>Total</span>
+   959→                <span>{formatFCFA(receiptTotal || Number(lastVente?.montantTotal || 0))}</span>
+   960→              </div>
+   961→              {receiptRemise > 0 && (
+   962→                <div className="flex justify-between text-destructive text-xs">
+   963→                  <span>Remise</span>
+   964→                  <span>-{formatFCFA(receiptRemise)}</span>
+   965→                </div>
+   966→              )}
+   967→              {receiptTVA > 0 && (
+   968→                <div className="flex justify-between text-xs text-muted-foreground">
+   969→                  <span>Dont TVA</span>
+   970→                  <span>{formatFCFA(receiptTVA)}</span>
+   971→                </div>
+   972→              )}
+   973→            </div>
+   974→            {/* Paiements */}
+   975→            {receiptPaiements.length > 0 && (
+   976→              <div className="border-t pt-2 space-y-1">
+   977→                <p className="text-xs font-semibold">Paiement</p>
+   978→                {receiptPaiements.map((p, i) => (
+   979→                  <div key={i} className="flex justify-between text-xs text-muted-foreground">
+   980→                    <span>{p.modePaiement === 'ESPECES' ? 'Espèces' : p.modePaiement === 'WAVE' ? 'Wave' : p.modePaiement === 'MTN_MONEY' ? 'MTN Money' : p.modePaiement === 'MOOV_MONEY' ? 'Moov Money' : p.modePaiement === 'CARTE' ? 'Carte' : p.modePaiement}</span>
+   981→                    <span>{formatFCFA(p.montant)}</span>
+   982→                  </div>
+   983→                ))}
+   984→              </div>
+   985→            )}
+   986→            <div className="text-center text-xs text-muted-foreground pt-2 border-t">
+   987→              <p>Merci pour votre achat !</p>
+   988→              <p>MédiHelm — Pharmacie intelligente</p>
+   989→            </div>
+   990→          </div>
+   991→          <div className="flex gap-2">
+   992→            <Button variant="outline" className="flex-1 gap-1" onClick={() => setReceiptDialogOpen(false)}>
+   993→              Fermer
+   994→            </Button>
+   995→            <Button className="flex-1 gap-1" onClick={() => toast.success('Reçu imprimé')}>
+   996→              <Printer className="w-4 h-4" /> Imprimer
+   997→            </Button>
+   998→          </div>
+   999→        </DialogContent>
+  1000→      </Dialog>
+  1001→
+  1002→      {/* Open Session Dialog */}
+  1003→      <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}>
+  1004→        <DialogContent className="max-w-sm">
+  1005→          <DialogHeader>
+  1006→            <DialogTitle className="flex items-center gap-2">
+  1007→              <Unlock className="w-5 h-5 text-primary" />
+  1008→              Ouvrir une session de caisse
+  1009→            </DialogTitle>
+  1010→          </DialogHeader>
+  1011→          <div className="space-y-4">
+  1012→            <div>
+  1013→              <Label>Fond de caisse</Label>
+  1014→              <Input
+  1015→                type="number"
+  1016→                value={fondDeCaisse}
+  1017→                onChange={e => setFondDeCaisse(e.target.value)}
+  1018→                placeholder="0"
+  1019→              />
+  1020→            </div>
+  1021→            <Button className="w-full" onClick={handleOpenSession}>
+  1022→              Ouvrir la session
+  1023→            </Button>
+  1024→          </div>
+  1025→        </DialogContent>
+  1026→      </Dialog>
+  1027→
+  1028→      {/* Close Session / Z-Report Dialog */}
+  1029→      <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}>
+  1030→        <DialogContent className="max-w-md">
+  1031→          <DialogHeader>
+  1032→            <DialogTitle className="flex items-center gap-2">
+  1033→              <Lock className="w-5 h-5 text-primary" />
+  1034→              Fermer la session — Z-Report
+  1035→            </DialogTitle>
+  1036→          </DialogHeader>
+  1037→          {zReport ? (
+  1038→            <div className="space-y-3 text-sm">
+  1039→              <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+  1040→                <div className="flex justify-between"><span>Fond de caisse</span><span className="font-semibold">{formatFCFA(Number(zReport.fondDeCaisse))}</span></div>
+  1041→                <div className="flex justify-between"><span>Total entrées</span><span className="font-semibold text-primary">{formatFCFA(Number(zReport.totalEntrees))}</span></div>
+  1042→                <div className="flex justify-between"><span>Total sorties</span><span className="font-semibold">{formatFCFA(Number(zReport.totalSorties))}</span></div>
+  1043→                <div className="flex justify-between"><span>Théorique</span><span className="font-semibold">{formatFCFA(Number(zReport.theorique))}</span></div>
+  1044→                <Separator />
+  1045→                <div className="flex justify-between"><span>Écart</span><span className={`font-bold ${Number(zReport.ecart) !== 0 ? 'text-destructive' : 'text-primary'}`}>{formatFCFA(Number(zReport.ecart))}</span></div>
+  1046→              </div>
+  1047→              <Button className="w-full" onClick={() => { setZReport(null); setCloseSessionDialog(false) }}>Fermer</Button>
+  1048→            </div>
+  1049→          ) : (
+  1050→            <div className="space-y-4">
+  1051→              {sessionCaisse && (
+  1052→                <div className="bg-muted/30 rounded-lg p-3 space-y-1 text-sm">
+  1053→                  <div className="flex justify-between"><span>Fond de caisse</span><span className="font-semibold">{formatFCFA(sessionCaisse.fondDeCaisse)}</span></div>
+  1054→                  <div className="flex justify-between"><span>Entrées</span><span className="font-semibold text-primary">{formatFCFA(sessionCaisse.totalEntrees)}</span></div>
+  1055→                  <div className="flex justify-between"><span>Sorties</span><span className="font-semibold">{formatFCFA(sessionCaisse.totalSorties)}</span></div>
+  1056→                </div>
+  1057→              )}
+  1058→              <div>
+  1059→                <Label>Solde physique (comptage)</Label>
+  1060→                <Input
+  1061→                  type="number"
+  1062→                  placeholder="Saisir le solde compté..."
+  1063→                  value={soldePhysique}
+  1064→                  onChange={e => setSoldePhysique(e.target.value)}
+  1065→                />
+  1066→                <p className="text-xs text-muted-foreground mt-1">
+  1067→                  L'écart sera calculé automatiquement: Théorique − Physique
+  1068→                </p>
+  1069→              </div>
+  1070→              <div className="flex gap-2">
+  1071→                <Button variant="outline" className="flex-1" onClick={() => { setCloseSessionDialog(false); setSoldePhysique('') }}>Annuler</Button>
+  1072→                <Button className="flex-1" onClick={handleCloseSession}>Fermer la session</Button>
+  1073→              </div>
+  1074→            </div>
+  1075→          )}
+  1076→        </DialogContent>
+  1077→      </Dialog>
+  1078→
+  1079→      {/* Ticket Detail Dialog (from historique) */}
+  1080→      <Dialog open={ticketDialogOpen} onOpenChange={setTicketDialogOpen}>
+  1081→        <DialogContent className="max-w-md">
+  1082→          <DialogHeader>
+  1083→            <DialogTitle className="flex items-center gap-2">
+  1084→              <Printer className="w-5 h-5 text-primary" />
+  1085→              Ticket de Caisse
+  1086→            </DialogTitle>
+  1087→          </DialogHeader>
+  1088→          {ticketLoading ? (
+  1089→            <div className="flex items-center justify-center py-8">
+  1090→              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+  1091→            </div>
+  1092→          ) : ticketData ? (
+  1093→            <div className="space-y-3 text-sm">
+  1094→              <div className="text-center border-b pb-3">
+  1095→                <p className="font-bold text-base">{(ticketData.pharmacie as Record<string, string>)?.nom || 'Pharmacie'}</p>
+  1096→                <p className="text-xs text-muted-foreground">{(ticketData.pharmacie as Record<string, string>)?.adresse}</p>
+  1097→                <p className="text-xs text-muted-foreground">{(ticketData.pharmacie as Record<string, string>)?.telephone}</p>
+  1098→              </div>
+  1099→              <div className="text-xs text-muted-foreground flex justify-between">
+  1100→                <span>N° {(ticketData.vente as Record<string, string>)?.numeroCourt || ''}</span>
+  1101→                <span>
+  1102→                  {(ticketData.vente as Record<string, string>)?.date
+  1103→                    ? new Date((ticketData.vente as Record<string, string>).date).toLocaleDateString('fr-FR')
+  1104→                    : ''}
+  1105→                </span>
+  1106→              </div>
+  1107→              {(ticketData.patient as Record<string, string> | null)?.nom && (
+  1108→                <div className="text-xs text-muted-foreground">
+  1109→                  <User className="w-3 h-3 inline mr-1" />
+  1110→                  Client: {(ticketData.patient as Record<string, string>).nom}
+  1111→                </div>
+  1112→              )}
+  1113→              <Separator />
+  1114→              <div className="space-y-1">
+  1115→                {((ticketData.lignes as Array<Record<string, unknown>> || []).map((item, i) => (
+  1116→                  <div key={i} className="space-y-0.5">
+  1117→                    <div className="flex justify-between text-xs">
+  1118→                      <span className="font-medium">{String(item.medicament || '')} ×{String(item.quantite || '')}</span>
+  1119→                      <span>{formatFCFA(Number(item.montant || 0))}</span>
+  1120→                    </div>
+  1121→                    {Number(item.remise) > 0 && (
+  1122→                      <div className="flex justify-between text-[10px] text-destructive">
+  1123→                        <span>  Remise {item.remise}%</span>
+  1124→                        <span>-{formatFCFA(Number(item.prixUnitaire || 0) * Number(item.quantite || 0) * Number(item.remise || 0) / 100)}</span>
+  1125→                      </div>
+  1126→                    )}
+  1127→                  </div>
+  1128→                )))}
+  1129→              </div>
+  1130→              <Separator />
+  1131→              <div className="space-y-1">
+  1132→                <div className="flex justify-between font-semibold">
+  1133→                  <span>Total</span>
+  1134→                  <span>{formatFCFA(Number((ticketData.totaux as Record<string, number>)?.montantTotal || 0))}</span>
+  1135→                </div>
+  1136→                {Number((ticketData.totaux as Record<string, number>)?.montantRemise || 0) > 0 && (
+  1137→                  <div className="flex justify-between text-destructive text-xs">
+  1138→                    <span>Remise</span>
+  1139→                    <span>-{formatFCFA(Number((ticketData.totaux as Record<string, number>)?.montantRemise || 0))}</span>
+  1140→                  </div>
+  1141→                )}
+  1142→              </div>
+  1143→              {((ticketData.paiements as Array<Record<string, unknown>> || []).length > 0) && (
+  1144→                <div className="border-t pt-2 space-y-1">
+  1145→                  <p className="text-xs font-semibold">Paiement</p>
+  1146→                  {(ticketData.paiements as Array<Record<string, unknown>>).map((p, i) => (
+  1147→                    <div key={i} className="flex justify-between text-xs text-muted-foreground">
+  1148→                      <span>{String(p.mode === 'ESPECES' ? 'Espèces' : p.mode === 'WAVE' ? 'Wave' : p.mode === 'MTN_MONEY' ? 'MTN Money' : p.mode === 'MOOV_MONEY' ? 'Moov Money' : p.mode === 'CARTE' ? 'Carte' : p.mode)}</span>
+  1149→                      <span>{formatFCFA(Number(p.montant || 0))}</span>
+  1150→                    </div>
+  1151→                  ))}
+  1152→                </div>
+  1153→              )}
+  1154→              <div className="text-center text-xs text-muted-foreground pt-2 border-t">
+  1155→                <p>Merci pour votre achat !</p>
+  1156→                <p>MédiHelm — Pharmacie intelligente</p>
+  1157→              </div>
+  1158→            </div>
+  1159→          ) : null}
+  1160→          <div className="flex gap-2">
+  1161→            <Button variant="outline" className="flex-1" onClick={() => setTicketDialogOpen(false)}>
+  1162→              Fermer
+  1163→            </Button>
+  1164→            <Button className="flex-1 gap-1" onClick={() => toast.success('Ticket imprimé')}>
+  1165→              <Printer className="w-4 h-4" /> Imprimer
+  1166→            </Button>
+  1167→          </div>
+  1168→        </DialogContent>
+  1169→      </Dialog>
+  1170→    </div>
+  1171→  )
+  1172→}
+  1173→

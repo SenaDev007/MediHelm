@@ -1,0 +1,1128 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react'
+     4→import { useAuth } from '@/app/pro/auth-context'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     9→import { Badge } from '@/components/ui/badge'
+    10→import { Separator } from '@/components/ui/separator'
+    11→import {
+    12→  Dialog,
+    13→  DialogContent,
+    14→  DialogHeader,
+    15→  DialogTitle,
+    16→  DialogFooter,
+    17→} from '@/components/ui/dialog'
+    18→import {
+    19→  Select,
+    20→  SelectContent,
+    21→  SelectItem,
+    22→  SelectTrigger,
+    23→  SelectValue,
+    24→} from '@/components/ui/select'
+    25→import { ScrollArea } from '@/components/ui/scroll-area'
+    26→import {
+    27→  Search,
+    28→  ShoppingCart,
+    29→  Plus,
+    30→  Minus,
+    31→  Trash2,
+    32→  CreditCard,
+    33→  Banknote,
+    34→  Smartphone,
+    35→  Receipt,
+    36→  UserPlus,
+    37→  FileText,
+    38→  Loader2,
+    39→  CheckCircle2,
+    40→  XCircle,
+    41→  Lock,
+    42→  Unlock,
+    43→  Printer,
+    44→  Package,
+    45→} from 'lucide-react'
+    46→
+    47→// === Types ===
+    48→
+    49→interface MedicamentResult {
+    50→  id: string
+    51→  dci: string
+    52→  nomCommercial: string
+    53→  codeCIP: string | null
+    54→  forme: string
+    55→  dosage: string
+    56→  prixVente: number
+    57→  tva: number
+    58→  estStupefiant: boolean
+    59→  estRemboursable: boolean
+    60→  lots: { id: string; numeroLot: string; quantite: number; dateExpiration: string }[]
+    61→}
+    62→
+    63→interface CartItem {
+    64→  medicamentId: string
+    65→  nomCommercial: string
+    66→  dci: string
+    67→  prixUnitaire: number
+    68→  quantite: number
+    69→  stock: number
+    70→  remise: number
+    71→  lotId?: string
+    72→}
+    73→
+    74→interface PatientResult {
+    75→  id: string
+    76→  nom: string
+    77→  prenom: string
+    78→  telephone: string | null
+    79→  email: string | null
+    80→}
+    81→
+    82→interface OrdonnanceResult {
+    83→  id: string
+    84→  prescripteurNom: string
+    85→  dateOrdonnance: string
+    86→  statut: string
+    87→  patient: { nom: string; prenom: string } | null
+    88→}
+    89→
+    90→interface SessionCaisseData {
+    91→  id: string
+    92→  fondDeCaisse: number
+    93→  totalEntrees: number
+    94→  totalSorties: number
+    95→  dateOuverture: string
+    96→  dateFermeture: string | null
+    97→  caisse: { id: string; nom: string; numero: number }
+    98→  utilisateur: { id: string; nom: string; prenom: string }
+    99→}
+   100→
+   101→interface CaisseData {
+   102→  id: string
+   103→  nom: string
+   104→  numero: number
+   105→  actif: boolean
+   106→  sessionsCaisse: SessionCaisseData[]
+   107→}
+   108→
+   109→type ModePaiement = 'ESPECES' | 'CARTE' | 'MOBILE_MONEY' | 'WAVE' | 'MTN_MONEY' | 'MOOV_MONEY' | 'TIERS_PAYANT'
+   110→
+   111→const modePaiementLabels: Record<ModePaiement, string> = {
+   112→  ESPECES: 'Espèces',
+   113→  CARTE: 'Carte bancaire',
+   114→  MOBILE_MONEY: 'Mobile Money',
+   115→  WAVE: 'Wave',
+   116→  MTN_MONEY: 'MTN Money',
+   117→  MOOV_MONEY: 'Moov Money',
+   118→  TIERS_PAYANT: 'Tiers payant',
+   119→}
+   120→
+   121→const modePaiementIcons: Record<ModePaiement, React.ReactNode> = {
+   122→  ESPECES: <Banknote className="h-4 w-4" />,
+   123→  CARTE: <CreditCard className="h-4 w-4" />,
+   124→  MOBILE_MONEY: <Smartphone className="h-4 w-4" />,
+   125→  WAVE: <Smartphone className="h-4 w-4" />,
+   126→  MTN_MONEY: <Smartphone className="h-4 w-4" />,
+   127→  MOOV_MONEY: <Smartphone className="h-4 w-4" />,
+   128→  TIERS_PAYANT: <FileText className="h-4 w-4" />,
+   129→}
+   130→
+   131→const fcfa = (amount: number) =>
+   132→  new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+   133→
+   134→export default function CaissePage() {
+   135→  const { user, pharmacie, isAuthenticated } = useAuth()
+   136→  const pharmacieId = pharmacie?.id || ''
+   137→
+   138→  // === Session Caisse State ===
+   139→  const [caisses, setCaisses] = useState<CaisseData[]>([])
+   140→  const [activeSession, setActiveSession] = useState<SessionCaisseData | null>(null)
+   141→  const [loadingSession, setLoadingSession] = useState(true)
+   142→  const [openSessionDialog, setOpenSessionDialog] = useState(false)
+   143→  const [selectedCaisseId, setSelectedCaisseId] = useState('')
+   144→  const [fondDeCaisse, setFondDeCaisse] = useState('10000')
+   145→
+   146→  // === Product Search State ===
+   147→  const [searchQuery, setSearchQuery] = useState('')
+   148→  const [searchResults, setSearchResults] = useState<MedicamentResult[]>([])
+   149→  const [searching, setSearching] = useState(false)
+   150→  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+   151→
+   152→  // === Cart State ===
+   153→  const [cart, setCart] = useState<CartItem[]>([])
+   154→  const [globalRemise, setGlobalRemise] = useState(0)
+   155→
+   156→  // === Patient/Ordonnance Linking ===
+   157→  const [patientSearch, setPatientSearch] = useState('')
+   158→  const [patientResults, setPatientResults] = useState<PatientResult[]>([])
+   159→  const [selectedPatient, setSelectedPatient] = useState<PatientResult | null>(null)
+   160→  const [ordonnances, setOrdonnances] = useState<OrdonnanceResult[]>([])
+   161→  const [selectedOrdonnance, setSelectedOrdonnance] = useState<OrdonnanceResult | null>(null)
+   162→
+   163→  // === Payment State ===
+   164→  const [paymentDialog, setPaymentDialog] = useState(false)
+   165→  const [paiements, setPaiements] = useState<{ mode: ModePaiement; montant: string }[]>([
+   166→    { mode: 'ESPECES', montant: '' },
+   167→  ])
+   168→  const [processingSale, setProcessingSale] = useState(false)
+   169→
+   170→  // === Sale Result State ===
+   171→  const [saleResult, setSaleResult] = useState<{ success: boolean; venteId?: string; error?: string } | null>(null)
+   172→  const [venteType, setVenteType] = useState<'COMPTOIR' | 'ORDONNANCE'>('COMPTOIR')
+   173→
+   174→  // === Close Session State ===
+   175→  const [closeSessionDialog, setCloseSessionDialog] = useState(false)
+   176→  const [soldePhysique, setSoldePhysique] = useState('')
+   177→  const [closingSession, setClosingSession] = useState(false)
+   178→
+   179→  // === Fetch Caisses and Active Session ===
+   180→  const fetchCaissesAndSession = useCallback(async () => {
+   181→    if (!pharmacieId) return
+   182→    setLoadingSession(true)
+   183→    try {
+   184→      const [caissesRes, sessionsRes] = await Promise.all([
+   185→        fetch(`/api/caisses?pharmacieId=${pharmacieId}`),
+   186→        fetch(`/api/sessions-caisse?pharmacieId=${pharmacieId}&statut=ouverte`),
+   187→      ])
+   188→      if (caissesRes.ok) setCaisses(await caissesRes.json())
+   189→      if (sessionsRes.ok) {
+   190→        const sessions: SessionCaisseData[] = await sessionsRes.json()
+   191→        const mySession = sessions.find((s: SessionCaisseData) => s.utilisateur.id === user?.id)
+   192→        setActiveSession(mySession || sessions[0] || null)
+   193→      }
+   194→    } catch (err) {
+   195→      console.error('Erreur chargement caisses:', err)
+   196→    } finally {
+   197→      setLoadingSession(false)
+   198→    }
+   199→  }, [pharmacieId, user?.id])
+   200→
+   201→  useEffect(() => {
+   202→    fetchCaissesAndSession()
+   203→  }, [fetchCaissesAndSession])
+   204→
+   205→  // === Fetch Ordonnances ===
+   206→  useEffect(() => {
+   207→    if (!pharmacieId) return
+   208→    fetch(`/api/ordonnances?pharmacieId=${pharmacieId}&statut=VALIDEE`)
+   209→      .then((r) => r.json())
+   210→      .then(setOrdonnances)
+   211→      .catch(() => {})
+   212→  }, [pharmacieId])
+   213→
+   214→  // === Product Search (debounced) ===
+   215→  const searchProducts = useCallback(
+   216→    async (query: string) => {
+   217→      if (!pharmacieId || query.length < 2) {
+   218→        setSearchResults([])
+   219→        return
+   220→      }
+   221→      setSearching(true)
+   222→      try {
+   223→        const res = await fetch(`/api/medicaments?pharmacieId=${pharmacieId}&search=${encodeURIComponent(query)}`)
+   224→        if (res.ok) setSearchResults(await res.json())
+   225→      } catch {
+   226→        setSearchResults([])
+   227→      } finally {
+   228→        setSearching(false)
+   229→      }
+   230→    },
+   231→    [pharmacieId]
+   232→  )
+   233→
+   234→  useEffect(() => {
+   235→    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+   236→    searchTimeoutRef.current = setTimeout(() => searchProducts(searchQuery), 300)
+   237→    return () => {
+   238→      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+   239→    }
+   240→  }, [searchQuery, searchProducts])
+   241→
+   242→  // === Patient Search (debounced) ===
+   243→  const searchPatients = useCallback(
+   244→    async (query: string) => {
+   245→      if (!pharmacieId || query.length < 2) {
+   246→        setPatientResults([])
+   247→        return
+   248→      }
+   249→      try {
+   250→        const res = await fetch(`/api/patients?pharmacieId=${pharmacieId}&search=${encodeURIComponent(query)}`)
+   251→        if (res.ok) setPatientResults(await res.json())
+   252→      } catch {
+   253→        setPatientResults([])
+   254→      }
+   255→    },
+   256→    [pharmacieId]
+   257→  )
+   258→
+   259→  useEffect(() => {
+   260→    const timeout = setTimeout(() => searchPatients(patientSearch), 300)
+   261→    return () => clearTimeout(timeout)
+   262→  }, [patientSearch, searchPatients])
+   263→
+   264→  // === Cart Operations ===
+   265→  const addToCart = (med: MedicamentResult) => {
+   266→    const totalStock = med.lots.reduce((s, l) => s + l.quantite, 0)
+   267→    setCart((prev) => {
+   268→      const existing = prev.find((i) => i.medicamentId === med.id)
+   269→      if (existing) {
+   270→        if (existing.quantite >= totalStock) return prev
+   271→        return prev.map((i) =>
+   272→          i.medicamentId === med.id ? { ...i, quantite: i.quantite + 1 } : i
+   273→        )
+   274→      }
+   275→      const firstLot = med.lots[0]
+   276→      return [
+   277→        ...prev,
+   278→        {
+   279→          medicamentId: med.id,
+   280→          nomCommercial: med.nomCommercial,
+   281→          dci: med.dci,
+   282→          prixUnitaire: med.prixVente,
+   283→          quantite: 1,
+   284→          stock: totalStock,
+   285→          remise: 0,
+   286→          lotId: firstLot?.id,
+   287→        },
+   288→      ]
+   289→    })
+   290→    setSearchQuery('')
+   291→    setSearchResults([])
+   292→  }
+   293→
+   294→  const updateQty = (medicamentId: string, delta: number) => {
+   295→    setCart((prev) =>
+   296→      prev.map((i) => {
+   297→        if (i.medicamentId !== medicamentId) return i
+   298→        const newQty = i.quantite + delta
+   299→        if (newQty <= 0) return i
+   300→        if (newQty > i.stock) return i
+   301→        return { ...i, quantite: newQty }
+   302→      })
+   303→    )
+   304→  }
+   305→
+   306→  const removeFromCart = (medicamentId: string) => {
+   307→    setCart((prev) => prev.filter((i) => i.medicamentId !== medicamentId))
+   308→  }
+   309→
+   310→  const updateItemRemise = (medicamentId: string, remise: number) => {
+   311→    setCart((prev) =>
+   312→      prev.map((i) =>
+   313→        i.medicamentId === medicamentId
+   314→          ? { ...i, remise: Math.min(Math.max(remise, 0), i.prixUnitaire * i.quantite) }
+   315→          : i
+   316→      )
+   317→    )
+   318→  }
+   319→
+   320→  // === Totals ===
+   321→  const sousTotal = cart.reduce((s, i) => s + i.prixUnitaire * i.quantite - i.remise, 0)
+   322→  const montantRemise = globalRemise
+   323→  const montantTotal = Math.max(sousTotal - montantRemise, 0)
+   324→
+   325→  // === Open Session ===
+   326→  const handleOpenSession = async () => {
+   327→    if (!selectedCaisseId || !user?.id) return
+   328→    try {
+   329→      const res = await fetch('/api/sessions-caisse', {
+   330→        method: 'POST',
+   331→        headers: { 'Content-Type': 'application/json' },
+   332→        body: JSON.stringify({
+   333→          pharmacieId,
+   334→          utilisateurId: user.id,
+   335→          caisseId: selectedCaisseId,
+   336→          fondDeCaisse: parseFloat(fondDeCaisse) || 0,
+   337→        }),
+   338→      })
+   339→      if (res.ok) {
+   340→        const session = await res.json()
+   341→        setActiveSession(session)
+   342→        setOpenSessionDialog(false)
+   343→      }
+   344→    } catch (err) {
+   345→      console.error('Erreur ouverture session:', err)
+   346→    }
+   347→  }
+   348→
+   349→  // === Close Session ===
+   350→  const handleCloseSession = async () => {
+   351→    if (!activeSession) return
+   352→    setClosingSession(true)
+   353→    try {
+   354→      const res = await fetch(`/api/sessions-caisse/${activeSession.id}`, {
+   355→        method: 'PATCH',
+   356→        headers: { 'Content-Type': 'application/json' },
+   357→        body: JSON.stringify({
+   358→          soldePhysique: parseFloat(soldePhysique) || 0,
+   359→        }),
+   360→      })
+   361→      if (res.ok) {
+   362→        setActiveSession(null)
+   363→        setCloseSessionDialog(false)
+   364→        setSoldePhysique('')
+   365→        fetchCaissesAndSession()
+   366→      }
+   367→    } catch (err) {
+   368→      console.error('Erreur fermeture session:', err)
+   369→    } finally {
+   370→      setClosingSession(false)
+   371→    }
+   372→  }
+   373→
+   374→  // === Payment ===
+   375→  const totalPaiements = paiements.reduce((s, p) => s + (parseFloat(p.montant) || 0), 0)
+   376→  const resteAPayer = montantTotal - totalPaiements
+   377→
+   378→  const addPaiement = () => {
+   379→    setPaiements([...paiements, { mode: 'ESPECES', montant: '' }])
+   380→  }
+   381→
+   382→  const removePaiement = (idx: number) => {
+   383→    if (paiements.length <= 1) return
+   384→    setPaiements(paiements.filter((_, i) => i !== idx))
+   385→  }
+   386→
+   387→  const updatePaiement = (idx: number, field: 'mode' | 'montant', value: string) => {
+   388→    setPaiements(
+   389→      paiements.map((p, i) => (i === idx ? { ...p, [field]: value } : p))
+   390→    )
+   391→  }
+   392→
+   393→  // === Create Vente ===
+   394→  const handleCreateVente = async () => {
+   395→    if (!activeSession || !user?.id || cart.length === 0) return
+   396→    if (resteAPayer > 0.5) return // Must pay full amount
+   397→
+   398→    setProcessingSale(true)
+   399→    try {
+   400→      const lignes = cart.map((item) => ({
+   401→        medicamentId: item.medicamentId,
+   402→        lotId: item.lotId || undefined,
+   403→        quantite: item.quantite,
+   404→        prixUnitaire: item.prixUnitaire,
+   405→        montant: item.prixUnitaire * item.quantite - item.remise,
+   406→        remise: item.remise,
+   407→      }))
+   408→
+   409→      const paiementData = paiements
+   410→        .filter((p) => parseFloat(p.montant) > 0)
+   411→        .map((p) => ({
+   412→          modePaiement: p.mode,
+   413→          montant: parseFloat(p.montant),
+   414→        }))
+   415→
+   416→      const body = {
+   417→        pharmacieId,
+   418→        utilisateurId: user.id,
+   419→        sessionId: activeSession.id,
+   420→        patientId: selectedPatient?.id || undefined,
+   421→        ordonnanceId: selectedOrdonnance?.id || undefined,
+   422→        typeVente: venteType,
+   423→        statut: 'VALIDEE',
+   424→        montantTotal,
+   425→        montantRemise,
+   426→        montantPaye: totalPaiements,
+   427→        monnaieRendue: Math.max(totalPaiements - montantTotal, 0),
+   428→        lignes,
+   429→        paiements: paiementData,
+   430→      }
+   431→
+   432→      const res = await fetch('/api/ventes', {
+   433→        method: 'POST',
+   434→        headers: { 'Content-Type': 'application/json' },
+   435→        body: JSON.stringify(body),
+   436→      })
+   437→
+   438→      if (res.ok) {
+   439→        const vente = await res.json()
+   440→        setSaleResult({ success: true, venteId: vente.id })
+   441→        setCart([])
+   442→        setGlobalRemise(0)
+   443→        setSelectedPatient(null)
+   444→        setSelectedOrdonnance(null)
+   445→        setPatientSearch('')
+   446→        setPaiements([{ mode: 'ESPECES', montant: '' }])
+   447→        setPaymentDialog(false)
+   448→        fetchCaissesAndSession()
+   449→      } else {
+   450→        const err = await res.json()
+   451→        setSaleResult({ success: false, error: err.error || 'Erreur lors de la vente' })
+   452→      }
+   453→    } catch {
+   454→      setSaleResult({ success: false, error: 'Erreur réseau' })
+   455→    } finally {
+   456→      setProcessingSale(false)
+   457→    }
+   458→  }
+   459→
+   460→  // === Print Ticket ===
+   461→  const handlePrintTicket = (venteId: string) => {
+   462→    window.open(`/api/ticket?type=ticket&venteId=${venteId}`, '_blank')
+   463→  }
+   464→
+   465→  // === Quick Actions ===
+   466→  const startVenteRapide = () => {
+   467→    setVenteType('COMPTOIR')
+   468→    setSelectedPatient(null)
+   469→    setSelectedOrdonnance(null)
+   470→    setPatientSearch('')
+   471→  }
+   472→
+   473→  const startVenteOrdonnance = () => {
+   474→    setVenteType('ORDONNANCE')
+   475→  }
+   476→
+   477→  // === Loading / Unauthenticated ===
+   478→  if (!isAuthenticated) {
+   479→    return (
+   480→      <div className="flex h-full items-center justify-center">
+   481→        <p className="text-muted-foreground">Connectez-vous pour accéder à la caisse</p>
+   482→      </div>
+   483→    )
+   484→  }
+   485→
+   486→  return (
+   487→    <div className="flex flex-col h-full -m-4 md:-m-6">
+   488→      {/* === Session Caisse Banner === */}
+   489→      <div
+   490→        className="border-b px-4 py-2 flex items-center justify-between flex-wrap gap-2"
+   491→        style={{ background: activeSession ? '#E1F5EE' : '#FEF3C7' }}
+   492→      >
+   493→        <div className="flex items-center gap-3">
+   494→          {activeSession ? (
+   495→            <>
+   496→              <Unlock className="h-4 w-4 text-[#1D9E75]" />
+   497→              <span className="text-sm font-medium">
+   498→                Session ouverte — <strong>{activeSession.caisse.nom}</strong>
+   499→              </span>
+   500→              <Badge variant="outline" className="text-[#085041] border-[#1D9E75]">
+   501→                Fond : {fcfa(activeSession.fondDeCaisse)}
+   502→              </Badge>
+   503→              <span className="text-xs text-muted-foreground">
+   504→                par {activeSession.utilisateur.prenom} {activeSession.utilisateur.nom}
+   505→              </span>
+   506→            </>
+   507→          ) : (
+   508→            <>
+   509→              <Lock className="h-4 w-4 text-amber-600" />
+   510→              <span className="text-sm font-medium text-amber-800">
+   511→                Aucune session ouverte — ouvrez une session pour encaisser
+   512→              </span>
+   513→            </>
+   514→          )}
+   515→        </div>
+   516→        <div className="flex gap-2">
+   517→          {activeSession ? (
+   518→            <Button
+   519→              size="sm"
+   520→              variant="outline"
+   521→              className="border-red-300 text-red-700 hover:bg-red-50"
+   522→              onClick={() => setCloseSessionDialog(true)}
+   523→            >
+   524→              Fermer la session
+   525→            </Button>
+   526→          ) : (
+   527→            <Button
+   528→              size="sm"
+   529→              style={{ background: '#1D9E75' }}
+   530→              className="text-white hover:opacity-90"
+   531→              onClick={() => setOpenSessionDialog(true)}
+   532→            >
+   533→              Ouvrir une session
+   534→            </Button>
+   535→          )}
+   536→        </div>
+   537→      </div>
+   538→
+   539→      {/* === Quick Actions === */}
+   540→      <div className="px-4 py-2 border-b bg-background flex items-center gap-2 flex-wrap">
+   541→        <Button
+   542→          size="sm"
+   543→          variant={venteType === 'COMPTOIR' ? 'default' : 'outline'}
+   544→          style={venteType === 'COMPTOIR' ? { background: '#1D9E75' } : {}}
+   545→          onClick={startVenteRapide}
+   546→          className="text-sm"
+   547→        >
+   548→          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+   549→          Vente rapide
+   550→        </Button>
+   551→        <Button
+   552→          size="sm"
+   553→          variant={venteType === 'ORDONNANCE' ? 'default' : 'outline'}
+   554→          style={venteType === 'ORDONNANCE' ? { background: '#1D9E75' } : {}}
+   555→          onClick={startVenteOrdonnance}
+   556→          className="text-sm"
+   557→        >
+   558→          <FileText className="h-3.5 w-3.5 mr-1.5" />
+   559→          Vente ordonnance
+   560→        </Button>
+   561→
+   562→        {/* Patient linking */}
+   563→        <div className="ml-auto flex items-center gap-2">
+   564→          {selectedPatient ? (
+   565→            <Badge variant="secondary" className="gap-1 pr-1">
+   566→              <UserPlus className="h-3 w-3" />
+   567→              {selectedPatient.prenom} {selectedPatient.nom}
+   568→              <button
+   569→                className="ml-1 rounded-full hover:bg-muted p-0.5"
+   570→                onClick={() => setSelectedPatient(null)}
+   571→              >
+   572→                <XCircle className="h-3 w-3" />
+   573→              </button>
+   574→            </Badge>
+   575→          ) : (
+   576→            <div className="relative">
+   577→              <Input
+   578→                placeholder="Rechercher patient (nom/tél)..."
+   579→                value={patientSearch}
+   580→                onChange={(e) => setPatientSearch(e.target.value)}
+   581→                className="w-56 h-8 text-xs"
+   582→              />
+   583→              {patientResults.length > 0 && (
+   584→                <div className="absolute top-full left-0 z-50 mt-1 w-64 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+   585→                  {patientResults.map((p) => (
+   586→                    <button
+   587→                      key={p.id}
+   588→                      className="w-full text-left px-3 py-2 text-xs hover:bg-accent flex justify-between"
+   589→                      onClick={() => {
+   590→                        setSelectedPatient(p)
+   591→                        setPatientSearch('')
+   592→                        setPatientResults([])
+   593→                      }}
+   594→                    >
+   595→                      <span>
+   596→                        {p.prenom} {p.nom}
+   597→                      </span>
+   598→                      <span className="text-muted-foreground">{p.telephone}</span>
+   599→                    </button>
+   600→                  ))}
+   601→                </div>
+   602→              )}
+   603→            </div>
+   604→          )}
+   605→
+   606→          {/* Ordonnance linking */}
+   607→          {venteType === 'ORDONNANCE' && (
+   608→            <Select
+   609→              value={selectedOrdonnance?.id || ''}
+   610→              onValueChange={(val) => {
+   611→                const o = ordonnances.find((ord) => ord.id === val)
+   612→                setSelectedOrdonnance(o || null)
+   613→              }}
+   614→            >
+   615→              <SelectTrigger className="w-56 h-8 text-xs">
+   616→                <SelectValue placeholder="Lier une ordonnance..." />
+   617→              </SelectTrigger>
+   618→              <SelectContent>
+   619→                {ordonnances.map((o) => (
+   620→                  <SelectItem key={o.id} value={o.id}>
+   621→                    Dr. {o.prescripteurNom} — {new Date(o.dateOrdonnance).toLocaleDateString('fr-FR')}
+   622→                    {o.patient ? ` (${o.patient.nom})` : ''}
+   623→                  </SelectItem>
+   624→                ))}
+   625→              </SelectContent>
+   626→            </Select>
+   627→          )}
+   628→        </div>
+   629→      </div>
+   630→
+   631→      {/* === Main Content: Left (Search) + Right (Cart) === */}
+   632→      <div className="flex flex-1 overflow-hidden">
+   633→        {/* === Left Panel: Product Search === */}
+   634→        <div className="w-full md:w-1/2 lg:w-3/5 border-r flex flex-col">
+   635→          <div className="p-3 border-b">
+   636→            <div className="relative">
+   637→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   638→              <Input
+   639→                placeholder="Rechercher un médicament (DCI, nom commercial, code CIP)..."
+   640→                value={searchQuery}
+   641→                onChange={(e) => setSearchQuery(e.target.value)}
+   642→                className="pl-9 h-11 text-base"
+   643→                disabled={!activeSession}
+   644→              />
+   645→              {searching && (
+   646→                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+   647→              )}
+   648→            </div>
+   649→          </div>
+   650→
+   651→          <ScrollArea className="flex-1">
+   652→            {!activeSession ? (
+   653→              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+   654→                <Lock className="h-10 w-10 mb-3 opacity-40" />
+   655→                <p className="text-sm">Ouvrez une session pour commencer</p>
+   656→              </div>
+   657→            ) : searchResults.length > 0 ? (
+   658→              <div className="p-2 space-y-1">
+   659→                {searchResults.map((med) => {
+   660→                  const totalStock = med.lots.reduce((s, l) => s + l.quantite, 0)
+   661→                  return (
+   662→                    <button
+   663→                      key={med.id}
+   664→                      className="w-full text-left p-3 rounded-lg border hover:border-[#1D9E75] hover:bg-[#E1F5EE]/50 transition-colors flex items-center justify-between gap-3"
+   665→                      onClick={() => addToCart(med)}
+   666→                      disabled={totalStock === 0}
+   667→                    >
+   668→                      <div className="flex-1 min-w-0">
+   669→                        <div className="flex items-center gap-2">
+   670→                          <span className="font-medium text-sm truncate">
+   671→                            {med.nomCommercial}
+   672→                          </span>
+   673→                          {med.estStupefiant && (
+   674→                            <Badge variant="destructive" className="text-[10px] px-1 py-0">
+   675→                              Stupéfiant
+   676→                            </Badge>
+   677→                          )}
+   678→                          {med.estRemboursable && (
+   679→                            <Badge
+   680→                              variant="outline"
+   681→                              className="text-[10px] px-1 py-0 text-[#1D9E75] border-[#1D9E75]"
+   682→                            >
+   683→                              Remboursable
+   684→                            </Badge>
+   685→                          )}
+   686→                        </div>
+   687→                        <p className="text-xs text-muted-foreground truncate">
+   688→                          {med.dci} — {med.forme} {med.dosage}
+   689→                        </p>
+   690→                      </div>
+   691→                      <div className="text-right shrink-0">
+   692→                        <p className="font-semibold text-sm" style={{ color: '#085041' }}>
+   693→                          {fcfa(med.prixVente)}
+   694→                        </p>
+   695→                        <p className={`text-xs ${totalStock <= 5 ? 'text-red-500' : 'text-muted-foreground'}`}>
+   696→                          <Package className="h-3 w-3 inline mr-0.5" />
+   697→                          Stock: {totalStock}
+   698→                        </p>
+   699→                      </div>
+   700→                    </button>
+   701→                  )
+   702→                })}
+   703→              </div>
+   704→            ) : searchQuery.length >= 2 && !searching ? (
+   705→              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+   706→                <Search className="h-8 w-8 mb-2 opacity-40" />
+   707→                <p className="text-sm">Aucun résultat pour &ldquo;{searchQuery}&rdquo;</p>
+   708→              </div>
+   709→            ) : (
+   710→              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+   711→                <Package className="h-8 w-8 mb-2 opacity-40" />
+   712→                <p className="text-sm">Recherchez un médicament pour l&apos;ajouter</p>
+   713→              </div>
+   714→            )}
+   715→          </ScrollArea>
+   716→        </div>
+   717→
+   718→        {/* === Right Panel: Shopping Cart === */}
+   719→        <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col bg-muted/20">
+   720→          <div className="p-3 border-b">
+   721→            <h3 className="font-semibold text-sm flex items-center gap-2">
+   722→              <ShoppingCart className="h-4 w-4" style={{ color: '#1D9E75' }} />
+   723→              Panier
+   724→              {cart.length > 0 && (
+   725→                <Badge className="ml-1" style={{ background: '#1D9E75' }}>
+   726→                  {cart.length}
+   727→                </Badge>
+   728→              )}
+   729→            </h3>
+   730→          </div>
+   731→
+   732→          <ScrollArea className="flex-1">
+   733→            {cart.length === 0 ? (
+   734→              <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+   735→                <ShoppingCart className="h-8 w-8 mb-2 opacity-40" />
+   736→                <p className="text-sm">Panier vide</p>
+   737→              </div>
+   738→            ) : (
+   739→              <div className="p-2 space-y-2">
+   740→                {cart.map((item) => (
+   741→                  <Card key={item.medicamentId} className="p-3">
+   742→                    <div className="flex items-start justify-between gap-2">
+   743→                      <div className="flex-1 min-w-0">
+   744→                        <p className="font-medium text-sm truncate">{item.nomCommercial}</p>
+   745→                        <p className="text-xs text-muted-foreground truncate">{item.dci}</p>
+   746→                      </div>
+   747→                      <Button
+   748→                        variant="ghost"
+   749→                        size="icon"
+   750→                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-red-500"
+   751→                        onClick={() => removeFromCart(item.medicamentId)}
+   752→                      >
+   753→                        <Trash2 className="h-3.5 w-3.5" />
+   754→                      </Button>
+   755→                    </div>
+   756→                    <div className="flex items-center justify-between mt-2">
+   757→                      <div className="flex items-center gap-1">
+   758→                        <Button
+   759→                          variant="outline"
+   760→                          size="icon"
+   761→                          className="h-7 w-7"
+   762→                          onClick={() => updateQty(item.medicamentId, -1)}
+   763→                        >
+   764→                          <Minus className="h-3 w-3" />
+   765→                        </Button>
+   766→                        <span className="w-8 text-center text-sm font-medium">{item.quantite}</span>
+   767→                        <Button
+   768→                          variant="outline"
+   769→                          size="icon"
+   770→                          className="h-7 w-7"
+   771→                          onClick={() => updateQty(item.medicamentId, 1)}
+   772→                          disabled={item.quantite >= item.stock}
+   773→                        >
+   774→                          <Plus className="h-3 w-3" />
+   775→                        </Button>
+   776→                      </div>
+   777→                      <div className="text-right">
+   778→                        <p className="text-xs text-muted-foreground">
+   779→                          {fcfa(item.prixUnitaire)} × {item.quantite}
+   780→                        </p>
+   781→                        <div className="flex items-center gap-1">
+   782→                          <span className="text-xs text-muted-foreground">Remise:</span>
+   783→                          <Input
+   784→                            type="number"
+   785→                            min={0}
+   786→                            value={item.remise || ''}
+   787→                            onChange={(e) =>
+   788→                              updateItemRemise(item.medicamentId, parseFloat(e.target.value) || 0)
+   789→                            }
+   790→                            className="h-6 w-16 text-xs px-1"
+   791→                          />
+   792→                        </div>
+   793→                        <p className="font-semibold text-sm" style={{ color: '#085041' }}>
+   794→                          {fcfa(item.prixUnitaire * item.quantite - item.remise)}
+   795→                        </p>
+   796→                      </div>
+   797→                    </div>
+   798→                  </Card>
+   799→                ))}
+   800→              </div>
+   801→            )}
+   802→          </ScrollArea>
+   803→
+   804→          {/* === Cart Totals === */}
+   805→          {cart.length > 0 && (
+   806→            <div className="border-t p-3 space-y-2 bg-background">
+   807→              <div className="flex justify-between text-sm">
+   808→                <span className="text-muted-foreground">Sous-total</span>
+   809→                <span>{fcfa(sousTotal)}</span>
+   810→              </div>
+   811→              <div className="flex items-center justify-between text-sm">
+   812→                <span className="text-muted-foreground">Remise globale</span>
+   813→                <Input
+   814→                  type="number"
+   815→                  min={0}
+   816→                  value={globalRemise || ''}
+   817→                  onChange={(e) => setGlobalRemise(parseFloat(e.target.value) || 0)}
+   818→                  className="h-7 w-28 text-xs text-right px-2"
+   819→                />
+   820→              </div>
+   821→              <Separator />
+   822→              <div className="flex justify-between font-bold text-lg">
+   823→                <span>Total</span>
+   824→                <span style={{ color: '#1D9E75' }}>{fcfa(montantTotal)}</span>
+   825→              </div>
+   826→
+   827→              <Button
+   828→                className="w-full h-11 text-base font-semibold"
+   829→                style={{ background: '#1D9E75' }}
+   830→                disabled={!activeSession || cart.length === 0}
+   831→                onClick={() => {
+   832→                  setPaiements([{ mode: 'ESPECES', montant: montantTotal.toString() }])
+   833→                  setPaymentDialog(true)
+   834→                }}
+   835→              >
+   836→                <CreditCard className="h-4 w-4 mr-2" />
+   837→                Encaisser {fcfa(montantTotal)}
+   838→              </Button>
+   839→            </div>
+   840→          )}
+   841→        </div>
+   842→      </div>
+   843→
+   844→      {/* === Open Session Dialog === */}
+   845→      <Dialog open={openSessionDialog} onOpenChange={setOpenSessionDialog}>
+   846→        <DialogContent className="sm:max-w-md">
+   847→          <DialogHeader>
+   848→            <DialogTitle className="flex items-center gap-2">
+   849→              <Unlock className="h-5 w-5" style={{ color: '#1D9E75' }} />
+   850→              Ouvrir une session de caisse
+   851→            </DialogTitle>
+   852→          </DialogHeader>
+   853→          <div className="space-y-4 py-2">
+   854→            <div className="space-y-2">
+   855→              <Label>Caisse</Label>
+   856→              <Select value={selectedCaisseId} onValueChange={setSelectedCaisseId}>
+   857→                <SelectTrigger>
+   858→                  <SelectValue placeholder="Sélectionner une caisse" />
+   859→                </SelectTrigger>
+   860→                <SelectContent>
+   861→                  {caisses
+   862→                    .filter((c) => c.actif)
+   863→                    .map((c) => (
+   864→                      <SelectItem key={c.id} value={c.id}>
+   865→                        {c.nom} (#{c.numero})
+   866→                      </SelectItem>
+   867→                    ))}
+   868→                </SelectContent>
+   869→              </Select>
+   870→            </div>
+   871→            <div className="space-y-2">
+   872→              <Label>Fond de caisse (FCFA)</Label>
+   873→              <Input
+   874→                type="number"
+   875→                value={fondDeCaisse}
+   876→                onChange={(e) => setFondDeCaisse(e.target.value)}
+   877→                placeholder="10000"
+   878→              />
+   879→            </div>
+   880→          </div>
+   881→          <DialogFooter>
+   882→            <Button variant="outline" onClick={() => setOpenSessionDialog(false)}>
+   883→              Annuler
+   884→            </Button>
+   885→            <Button
+   886→              style={{ background: '#1D9E75' }}
+   887→              className="text-white"
+   888→              onClick={handleOpenSession}
+   889→              disabled={!selectedCaisseId}
+   890→            >
+   891→              Ouvrir la session
+   892→            </Button>
+   893→          </DialogFooter>
+   894→        </DialogContent>
+   895→      </Dialog>
+   896→
+   897→      {/* === Close Session Dialog === */}
+   898→      <Dialog open={closeSessionDialog} onOpenChange={setCloseSessionDialog}>
+   899→        <DialogContent className="sm:max-w-md">
+   900→          <DialogHeader>
+   901→            <DialogTitle className="flex items-center gap-2">
+   902→              <Lock className="h-5 w-5 text-amber-600" />
+   903→              Fermer la session de caisse
+   904→            </DialogTitle>
+   905→          </DialogHeader>
+   906→          {activeSession && (
+   907→            <div className="space-y-4 py-2">
+   908→              <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
+   909→                <div className="flex justify-between">
+   910→                  <span className="text-muted-foreground">Caisse</span>
+   911→                  <span className="font-medium">{activeSession.caisse.nom}</span>
+   912→                </div>
+   913→                <div className="flex justify-between">
+   914→                  <span className="text-muted-foreground">Fond de caisse</span>
+   915→                  <span>{fcfa(activeSession.fondDeCaisse)}</span>
+   916→                </div>
+   917→                <div className="flex justify-between">
+   918→                  <span className="text-muted-foreground">Total entrées</span>
+   919→                  <span className="text-[#1D9E75] font-medium">{fcfa(activeSession.totalEntrees)}</span>
+   920→                </div>
+   921→                <Separator className="my-1" />
+   922→                <div className="flex justify-between font-semibold">
+   923→                  <span>Solde théorique</span>
+   924→                  <span>{fcfa(activeSession.fondDeCaisse + activeSession.totalEntrees - activeSession.totalSorties)}</span>
+   925→                </div>
+   926→              </div>
+   927→              <div className="space-y-2">
+   928→                <Label>Solde physique compté (FCFA)</Label>
+   929→                <Input
+   930→                  type="number"
+   931→                  value={soldePhysique}
+   932→                  onChange={(e) => setSoldePhysique(e.target.value)}
+   933→                  placeholder="0"
+   934→                />
+   935→              </div>
+   936→            </div>
+   937→          )}
+   938→          <DialogFooter>
+   939→            <Button variant="outline" onClick={() => setCloseSessionDialog(false)}>
+   940→              Annuler
+   941→            </Button>
+   942→            <Button
+   943→              variant="destructive"
+   944→              onClick={handleCloseSession}
+   945→              disabled={closingSession}
+   946→            >
+   947→              {closingSession ? (
+   948→                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+   949→              ) : null}
+   950→              Fermer la session
+   951→            </Button>
+   952→          </DialogFooter>
+   953→        </DialogContent>
+   954→      </Dialog>
+   955→
+   956→      {/* === Payment Dialog === */}
+   957→      <Dialog open={paymentDialog} onOpenChange={setPaymentDialog}>
+   958→        <DialogContent className="sm:max-w-lg">
+   959→          <DialogHeader>
+   960→            <DialogTitle className="flex items-center gap-2">
+   961→              <CreditCard className="h-5 w-5" style={{ color: '#1D9E75' }} />
+   962→              Paiement
+   963→            </DialogTitle>
+   964→          </DialogHeader>
+   965→          <div className="space-y-4 py-2">
+   966→            {/* Total */}
+   967→            <div className="p-3 rounded-lg text-center" style={{ background: '#E1F5EE' }}>
+   968→              <p className="text-sm text-muted-foreground">Total à payer</p>
+   969→              <p className="text-2xl font-bold" style={{ color: '#085041' }}>
+   970→                {fcfa(montantTotal)}
+   971→              </p>
+   972→            </div>
+   973→
+   974→            {/* Payment Lines */}
+   975→            <div className="space-y-3">
+   976→              {paiements.map((p, idx) => (
+   977→                <div key={idx} className="flex items-center gap-2">
+   978→                  <Select
+   979→                    value={p.mode}
+   980→                    onValueChange={(val) => updatePaiement(idx, 'mode', val)}
+   981→                  >
+   982→                    <SelectTrigger className="w-44">
+   983→                      <SelectValue />
+   984→                    </SelectTrigger>
+   985→                    <SelectContent>
+   986→                      {(Object.keys(modePaiementLabels) as ModePaiement[]).map((mode) => (
+   987→                        <SelectItem key={mode} value={mode}>
+   988→                          <span className="flex items-center gap-2">
+   989→                            {modePaiementIcons[mode]}
+   990→                            {modePaiementLabels[mode]}
+   991→                          </span>
+   992→                        </SelectItem>
+   993→                      ))}
+   994→                    </SelectContent>
+   995→                  </Select>
+   996→                  <div className="relative flex-1">
+   997→                    <Input
+   998→                      type="number"
+   999→                      min={0}
+  1000→                      placeholder="Montant"
+  1001→                      value={p.montant}
+  1002→                      onChange={(e) => updatePaiement(idx, 'montant', e.target.value)}
+  1003→                      className="pr-2"
+  1004→                    />
+  1005→                  </div>
+  1006→                  {paiements.length > 1 && (
+  1007→                    <Button
+  1008→                      variant="ghost"
+  1009→                      size="icon"
+  1010→                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-500"
+  1011→                      onClick={() => removePaiement(idx)}
+  1012→                    >
+  1013→                      <XCircle className="h-4 w-4" />
+  1014→                    </Button>
+  1015→                  )}
+  1016→                </div>
+  1017→              ))}
+  1018→            </div>
+  1019→
+  1020→            <Button
+  1021→              variant="outline"
+  1022→              size="sm"
+  1023→              className="w-full"
+  1024→              onClick={addPaiement}
+  1025→            >
+  1026→              <Plus className="h-3.5 w-3.5 mr-1.5" />
+  1027→              Ajouter un mode de paiement
+  1028→            </Button>
+  1029→
+  1030→            {/* Payment Summary */}
+  1031→            <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
+  1032→              <div className="flex justify-between">
+  1033→                <span>Total payé</span>
+  1034→                <span className="font-medium">{fcfa(totalPaiements)}</span>
+  1035→              </div>
+  1036→              <div className="flex justify-between">
+  1037→                <span>Reste à payer</span>
+  1038→                <span
+  1039→                  className={`font-medium ${resteAPayer > 0.5 ? 'text-red-600' : 'text-[#1D9E75]'}`}
+  1040→                >
+  1041→                  {fcfa(Math.max(resteAPayer, 0))}
+  1042→                </span>
+  1043→              </div>
+  1044→              {totalPaiements > montantTotal && (
+  1045→                <div className="flex justify-between">
+  1046→                  <span>Monnaie à rendre</span>
+  1047→                  <span className="font-medium text-amber-600">
+  1048→                    {fcfa(totalPaiements - montantTotal)}
+  1049→                  </span>
+  1050→                </div>
+  1051→              )}
+  1052→            </div>
+  1053→          </div>
+  1054→          <DialogFooter>
+  1055→            <Button variant="outline" onClick={() => setPaymentDialog(false)}>
+  1056→              Annuler
+  1057→            </Button>
+  1058→            <Button
+  1059→              style={{ background: '#1D9E75' }}
+  1060→              className="text-white"
+  1061→              onClick={handleCreateVente}
+  1062→              disabled={processingSale || resteAPayer > 0.5 || totalPaiements === 0}
+  1063→            >
+  1064→              {processingSale ? (
+  1065→                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+  1066→              ) : (
+  1067→                <CheckCircle2 className="h-4 w-4 mr-2" />
+  1068→              )}
+  1069→              Valider la vente
+  1070→            </Button>
+  1071→          </DialogFooter>
+  1072→        </DialogContent>
+  1073→      </Dialog>
+  1074→
+  1075→      {/* === Sale Result Dialog === */}
+  1076→      <Dialog
+  1077→        open={!!saleResult}
+  1078→        onOpenChange={(open) => {
+  1079→          if (!open) setSaleResult(null)
+  1080→        }}
+  1081→      >
+  1082→        <DialogContent className="sm:max-w-md">
+  1083→          <DialogHeader>
+  1084→            <DialogTitle className="flex items-center gap-2">
+  1085→              {saleResult?.success ? (
+  1086→                <CheckCircle2 className="h-6 w-6 text-[#1D9E75]" />
+  1087→              ) : (
+  1088→                <XCircle className="h-6 w-6 text-red-500" />
+  1089→              )}
+  1090→              {saleResult?.success ? 'Vente enregistrée !' : 'Erreur'}
+  1091→            </DialogTitle>
+  1092→          </DialogHeader>
+  1093→          <div className="py-4 text-center">
+  1094→            {saleResult?.success ? (
+  1095→              <div className="space-y-4">
+  1096→                <p className="text-muted-foreground">
+  1097→                  La vente a été enregistrée avec succès.
+  1098→                </p>
+  1099→                <Button
+  1100→                  variant="outline"
+  1101→                  className="gap-2"
+  1102→                  onClick={() => {
+  1103→                    if (saleResult.venteId) handlePrintTicket(saleResult.venteId)
+  1104→                  }}
+  1105→                >
+  1106→                  <Printer className="h-4 w-4" />
+  1107→                  Imprimer le ticket
+  1108→                </Button>
+  1109→              </div>
+  1110→            ) : (
+  1111→              <p className="text-red-600">{saleResult?.error}</p>
+  1112→            )}
+  1113→          </div>
+  1114→          <DialogFooter>
+  1115→            <Button
+  1116→              style={{ background: '#1D9E75' }}
+  1117→              className="text-white"
+  1118→              onClick={() => setSaleResult(null)}
+  1119→            >
+  1120→              OK
+  1121→            </Button>
+  1122→          </DialogFooter>
+  1123→        </DialogContent>
+  1124→      </Dialog>
+  1125→    </div>
+  1126→  )
+  1127→}
+  1128→

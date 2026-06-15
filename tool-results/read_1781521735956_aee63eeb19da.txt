@@ -1,0 +1,934 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Skeleton } from '@/components/ui/skeleton'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Checkbox } from '@/components/ui/checkbox'
+    11→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    12→import {
+    13→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    14→} from '@/components/ui/dialog'
+    15→import {
+    16→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    17→} from '@/components/ui/select'
+    18→import { ScrollArea } from '@/components/ui/scroll-area'
+    19→import { Separator } from '@/components/ui/separator'
+    20→import { Textarea } from '@/components/ui/textarea'
+    21→import { Progress } from '@/components/ui/progress'
+    22→import {
+    23→  FileText, Search, CheckCircle2, Clock, AlertCircle, Eye,
+    24→  Plus, Upload, XCircle, ShoppingCart, AlertTriangle, CloudUpload, Image as ImageIcon, Loader2
+    25→} from 'lucide-react'
+    26→import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+    27→import { toast } from 'sonner'
+    28→import { useUpload } from '@/hooks/use-upload'
+    29→
+    30→interface Ordonnance {
+    31→  id: string
+    32→  prescripteurNom: string
+    33→  prescripteurInami: string | null
+    34→  dateOrdonnance: string
+    35→  dateReception: string
+    36→  statut: string
+    37→  estStupefiant: boolean
+    38→  numeroRegistre: string | null
+    39→  imageOrdonnanceUrl: string | null
+    40→  patient: { id: string; nom: string; prenom: string } | null
+    41→  lignes: {
+    42→    id: string
+    43→    medicamentId: string
+    44→    posologie: string
+    45→    duree: string
+    46→    quantite: number
+    47→    delivree: boolean
+    48→    medicament: { id: string; nomCommercial: string; dci: string; prixVente: number; estStupefiant: boolean }
+    49→  }[]
+    50→  validations: {
+    51→    id: string
+    52→    typeValidation: string
+    53→    commentaire: string | null
+    54→    createdAt: string
+    55→    utilisateur?: { id: string; nom: string; prenom: string } | null
+    56→  }[]
+    57→}
+    58→
+    59→interface Patient {
+    60→  id: string
+    61→  nom: string
+    62→  prenom: string
+    63→}
+    64→
+    65→interface Medicament {
+    66→  id: string
+    67→  nomCommercial: string
+    68→  dci: string
+    69→  prixVente: number
+    70→  estStupefiant: boolean
+    71→}
+    72→
+    73→function formatDate(dateStr: string) {
+    74→  return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+    75→}
+    76→
+    77→function formatFCFA(amount: number) {
+    78→  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+    79→}
+    80→
+    81→const statutConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+    82→  RECUE: { label: 'Reçue', color: 'bg-blue-500 text-white', icon: Clock },
+    83→  EN_COURS_VALIDATION: { label: 'En validation', color: 'bg-amber-400 text-gray-900', icon: Loader2 },
+    84→  VALIDEE: { label: 'Validée', color: 'bg-primary text-white', icon: CheckCircle2 },
+    85→  PARTIELLEMENT_DELIVREE: { label: 'Partielle', color: 'bg-orange-500 text-white', icon: AlertCircle },
+    86→  DELIVREE: { label: 'Délivrée', color: 'bg-green-600 text-white', icon: CheckCircle2 },
+    87→  REFUSEE: { label: 'Refusée', color: 'bg-destructive text-white', icon: XCircle },
+    88→}
+    89→
+    90→const statutFlow = ['RECUE', 'EN_COURS_VALIDATION', 'VALIDEE', 'DELIVREE']
+    91→
+    92→function getStatutProgress(statut: string): number {
+    93→  const idx = statutFlow.indexOf(statut)
+    94→  if (idx === -1) return 0
+    95→  return ((idx + 1) / statutFlow.length) * 100
+    96→}
+    97→
+    98→export default function OrdonnancesPage() {
+    99→  const { pharmacie } = useAuth()
+   100→  const [ordonnances, setOrdonnances] = useState<Ordonnance[]>([])
+   101→  const [patients, setPatients] = useState<Patient[]>([])
+   102→  const [medicaments, setMedicaments] = useState<Medicament[]>([])
+   103→  const [loading, setLoading] = useState(true)
+   104→  const [search, setSearch] = useState('')
+   105→  const [selected, setSelected] = useState<Ordonnance | null>(null)
+   106→  const [activeTab, setActiveTab] = useState('ordonnances')
+   107→
+   108→  // Create ordonnance dialog
+   109→  const [createOpen, setCreateOpen] = useState(false)
+   110→  const [formPatientId, setFormPatientId] = useState('')
+   111→  const [formPrescripteur, setFormPrescripteur] = useState('')
+   112→  const [formPrescripteurInami, setFormPrescripteurInami] = useState('')
+   113→  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0])
+   114→  const [formLignes, setFormLignes] = useState<Array<{ medicamentId: string; posologie: string; duree: string; quantite: string }>>([])
+   115→
+   116→  // Validation dialog
+   117→  const [validateDialogOpen, setValidateDialogOpen] = useState(false)
+   118→  const [validateType, setValidateType] = useState<'VALIDATION' | 'REFUS' | 'EN_COURS'>('VALIDATION')
+   119→  const [validateCommentaire, setValidateCommentaire] = useState('')
+   120→
+   121→  // Upload dialog with drag & drop
+   122→  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+   123→  const [uploadOrdoId, setUploadOrdoId] = useState<string | null>(null)
+   124→  const { upload, uploading, progress, error: uploadError } = useUpload()
+   125→  const [dragActive, setDragActive] = useState(false)
+   126→  const fileInputRef = useRef<HTMLInputElement>(null)
+   127→
+   128→  // Create sale from ordonnance
+   129→  const [createSaleOpen, setCreateSaleOpen] = useState(false)
+   130→
+   131→  const refreshOrdonnances = async () => {
+   132→    if (!pharmacie?.id) return
+   133→    const res = await fetch(`/api/ordonnances?pharmacieId=${pharmacie.id}`)
+   134→    if (res.ok) setOrdonnances(await res.json())
+   135→  }
+   136→
+   137→  useEffect(() => {
+   138→    if (pharmacie?.id) {
+   139→      Promise.all([
+   140→        fetch(`/api/ordonnances?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   141→        fetch(`/api/patients?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   142→        fetch(`/api/medicaments?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   143→      ]).then(([ordos, pats, meds]) => {
+   144→        setOrdonnances(ordos)
+   145→        setPatients(pats)
+   146→        setMedicaments(meds)
+   147→        setLoading(false)
+   148→      }).catch(() => { setLoading(false) })
+   149→    }
+   150→  }, [pharmacie?.id])
+   151→
+   152→  const filtered = useMemo(() => {
+   153→    if (!search) return ordonnances
+   154→    const q = search.toLowerCase()
+   155→    return ordonnances.filter(o =>
+   156→      o.prescripteurNom.toLowerCase().includes(q) ||
+   157→      (o.patient && `${o.patient.nom} ${o.patient.prenom}`.toLowerCase().includes(q)) ||
+   158→      o.numeroRegistre?.includes(q)
+   159→    )
+   160→  }, [ordonnances, search])
+   161→
+   162→  const ordoStupfiants = useMemo(() => ordonnances.filter(o => o.estStupefiant), [ordonnances])
+   163→
+   164→  // Create ordonnance
+   165→  const handleCreateOrdonnance = async () => {
+   166→    if (!pharmacie?.id || !formPrescripteur) return
+   167→    try {
+   168→      const lignes = formLignes.filter(l => l.medicamentId).map(l => ({
+   169→        medicamentId: l.medicamentId,
+   170→        posologie: l.posologie,
+   171→        duree: l.duree,
+   172→        quantite: parseInt(l.quantite) || 1,
+   173→      }))
+   174→
+   175→      const hasStupfiant = lignes.some(l => {
+   176→        const med = medicaments.find(m => m.id === l.medicamentId)
+   177→        return med?.estStupefiant
+   178→      })
+   179→
+   180→      const res = await fetch('/api/ordonnances', {
+   181→        method: 'POST',
+   182→        headers: { 'Content-Type': 'application/json' },
+   183→        body: JSON.stringify({
+   184→          pharmacieId: pharmacie.id,
+   185→          patientId: formPatientId || null,
+   186→          prescripteurNom: formPrescripteur,
+   187→          prescripteurInami: formPrescripteurInami || null,
+   188→          dateOrdonnance: formDate,
+   189→          dateReception: new Date().toISOString(),
+   190→          statut: 'RECUE',
+   191→          estStupefiant: hasStupfiant,
+   192→          lignes,
+   193→        }),
+   194→      })
+   195→
+   196→      if (res.ok) {
+   197→        toast.success('Ordonnance créée')
+   198→        setCreateOpen(false)
+   199→        setFormPatientId('')
+   200→        setFormPrescripteur('')
+   201→        setFormPrescripteurInami('')
+   202→        setFormDate(new Date().toISOString().split('T')[0])
+   203→        setFormLignes([])
+   204→        refreshOrdonnances()
+   205→      } else {
+   206→        toast.error("Erreur lors de la création")
+   207→      }
+   208→    } catch {
+   209→      toast.error("Erreur lors de la création")
+   210→    }
+   211→  }
+   212→
+   213→  // Validate/Refuse/Start validation
+   214→  const handleValidate = async () => {
+   215→    if (!selected) return
+   216→    try {
+   217→      const res = await fetch(`/api/ordonnances/${selected.id}/valider`, {
+   218→        method: 'POST',
+   219→        headers: { 'Content-Type': 'application/json' },
+   220→        body: JSON.stringify({
+   221→          typeValidation: validateType,
+   222→          commentaire: validateCommentaire || null,
+   223→          utilisateurId: 'demo-admin',
+   224→        }),
+   225→      })
+   226→      if (res.ok) {
+   227→        const labels: Record<string, string> = {
+   228→          VALIDATION: 'Ordonnance validée',
+   229→          REFUS: 'Ordonnance refusée',
+   230→          EN_COURS: 'Validation en cours',
+   231→        }
+   232→        toast.success(labels[validateType] || 'Statut mis à jour')
+   233→        setValidateDialogOpen(false)
+   234→        setValidateCommentaire('')
+   235→        refreshOrdonnances()
+   236→        setSelected(null)
+   237→      }
+   238→    } catch {
+   239→      toast.error('Erreur lors de la validation')
+   240→    }
+   241→  }
+   242→
+   243→  // Toggle line delivered
+   244→  const handleToggleDelivered = async (ligneId: string, currentDelivree: boolean) => {
+   245→    try {
+   246→      const res = await fetch(`/api/ordonnances/lignes/${ligneId}`, {
+   247→        method: 'PATCH',
+   248→        headers: { 'Content-Type': 'application/json' },
+   249→        body: JSON.stringify({ delivree: !currentDelivree }),
+   250→      })
+   251→      if (res.ok) {
+   252→        toast.success(!currentDelivree ? 'Ligne marquée comme délivrée' : 'Ligne marquée comme non délivrée')
+   253→        refreshOrdonnances()
+   254→      }
+   255→    } catch {
+   256→      if (selected) {
+   257→        const updatedLignes = selected.lignes.map(l =>
+   258→          l.id === ligneId ? { ...l, delivree: !currentDelivree } : l
+   259→        )
+   260→        setSelected({ ...selected, lignes: updatedLignes })
+   261→      }
+   262→    }
+   263→  }
+   264→
+   265→  const handleDrag = useCallback((e: React.DragEvent) => {
+   266→    e.preventDefault()
+   267→    e.stopPropagation()
+   268→    if (e.type === 'dragenter' || e.type === 'dragover') {
+   269→      setDragActive(true)
+   270→    } else if (e.type === 'dragleave') {
+   271→      setDragActive(false)
+   272→    }
+   273→  }, [])
+   274→
+   275→  const doFileUpload = useCallback(async (file: File) => {
+   276→    if (!uploadOrdoId) return
+   277→    try {
+   278→      const result = await upload(file)
+   279→      if (result) {
+   280→        await fetch(`/api/ordonnances/${uploadOrdoId}/image`, {
+   281→          method: 'POST',
+   282→          body: (() => {
+   283→            const fd = new FormData()
+   284→            fd.append('image', file)
+   285→            return fd
+   286→          })(),
+   287→        })
+   288→        toast.success('Image téléchargée avec succès')
+   289→        setUploadDialogOpen(false)
+   290→        setUploadOrdoId(null)
+   291→        refreshOrdonnances()
+   292→      }
+   293→    } catch {
+   294→      toast.error("Erreur lors du téléchargement")
+   295→    }
+   296→  }, [uploadOrdoId, upload, refreshOrdonnances])
+   297→
+   298→  const handleDrop = useCallback((e: React.DragEvent) => {
+   299→    e.preventDefault()
+   300→    e.stopPropagation()
+   301→    setDragActive(false)
+   302→    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+   303→      doFileUpload(e.dataTransfer.files[0])
+   304→    }
+   305→  }, [doFileUpload])
+   306→
+   307→  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   308→    if (e.target.files && e.target.files[0]) {
+   309→      doFileUpload(e.target.files[0])
+   310→    }
+   311→  }
+   312→
+   313→  // Create sale from ordonnance
+   314→  const handleCreateSale = async () => {
+   315→    if (!selected || !pharmacie?.id) return
+   316→    try {
+   317→      const lignes = selected.lignes
+   318→        .filter(l => !l.delivree)
+   319→        .map(l => ({
+   320→          medicamentId: l.medicamentId,
+   321→          quantite: l.quantite,
+   322→          prixUnitaire: l.medicament.prixVente,
+   323→          montant: l.medicament.prixVente * l.quantite,
+   324→        }))
+   325→
+   326→      if (lignes.length === 0) {
+   327→        toast.error('Toutes les lignes sont déjà délivrées')
+   328→        return
+   329→      }
+   330→
+   331→      const montantTotal = lignes.reduce((s, l) => s + l.montant, 0)
+   332→
+   333→      const res = await fetch('/api/ventes', {
+   334→        method: 'POST',
+   335→        headers: { 'Content-Type': 'application/json' },
+   336→        body: JSON.stringify({
+   337→          pharmacieId: pharmacie.id,
+   338→          utilisateurId: 'demo-admin',
+   339→          patientId: selected.patient?.id || null,
+   340→          ordonnanceId: selected.id,
+   341→          typeVente: 'ORDONNANCE',
+   342→          statut: 'VALIDEE',
+   343→          montantTotal,
+   344→          montantPaye: montantTotal,
+   345→          monnaieRendue: 0,
+   346→          lignes,
+   347→          paiements: [{ modePaiement: 'ESPECES', montant: montantTotal }],
+   348→        }),
+   349→      })
+   350→
+   351→      if (res.ok) {
+   352→        toast.success('Vente créée à partir de l\'ordonnance')
+   353→        setCreateSaleOpen(false)
+   354→        refreshOrdonnances()
+   355→      }
+   356→    } catch {
+   357→      toast.error('Erreur lors de la création de la vente')
+   358→    }
+   359→  }
+   360→
+   361→  if (loading) {
+   362→    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64" /></div>
+   363→  }
+   364→
+   365→  return (
+   366→    <div className="space-y-6">
+   367→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   368→        <div>
+   369→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   370→            <FileText className="w-6 h-6 text-primary" />
+   371→            Ordonnances
+   372→          </h1>
+   373→          <p className="text-sm text-muted-foreground">{ordonnances.length} ordonnances</p>
+   374→        </div>
+   375→        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+   376→          <Plus className="w-4 h-4" /> Nouvelle ordonnance
+   377→        </Button>
+   378→      </div>
+   379→
+   380→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   381→        <TabsList>
+   382→          <TabsTrigger value="ordonnances">Ordonnances</TabsTrigger>
+   383→          <TabsTrigger value="registre" className="gap-1">
+   384→            <AlertTriangle className="w-3 h-3" />
+   385→            Registre stupéfiants ({ordoStupfiants.length})
+   386→          </TabsTrigger>
+   387→        </TabsList>
+   388→
+   389→        <TabsContent value="ordonnances" className="space-y-4 mt-4">
+   390→          <div className="relative max-w-md">
+   391→            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   392→            <Input placeholder="Rechercher par prescripteur, patient..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+   393→          </div>
+   394→
+   395→          <div className="space-y-3">
+   396→            {filtered.length === 0 ? (
+   397→              <Card><CardContent className="py-12 text-center text-muted-foreground">Aucune ordonnance trouvée</CardContent></Card>
+   398→            ) : (
+   399→              filtered.map(ordo => {
+   400→                const config = statutConfig[ordo.statut] || statutConfig.RECUE
+   401→                const delivreCount = ordo.lignes.filter(l => l.delivree).length
+   402→
+   403→                return (
+   404→                  <Card key={ordo.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelected(ordo)}>
+   405→                    <CardContent className="p-4">
+   406→                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   407→                        <div className="flex items-center gap-3">
+   408→                          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+   409→                            <FileText className="w-5 h-5" />
+   410→                          </div>
+   411→                          <div>
+   412→                            <div className="flex items-center gap-2 flex-wrap">
+   413→                              <span className="font-semibold text-sm">Dr. {ordo.prescripteurNom}</span>
+   414→                              <Badge className={`text-[9px] ${config.color}`}>{config.label}</Badge>
+   415→                              {ordo.estStupefiant && <Badge variant="destructive" className="text-[9px]">Stupéfiant</Badge>}
+   416→                            </div>
+   417→                            <span className="text-xs text-muted-foreground">
+   418→                              {ordo.patient ? `${ordo.patient.prenom} ${ordo.patient.nom} • ` : ''}
+   419→                              {formatDate(ordo.dateOrdonnance)}
+   420→                              {ordo.numeroRegistre && ` • Registre: ${ordo.numeroRegistre}`}
+   421→                            </span>
+   422→                          </div>
+   423→                        </div>
+   424→                        <div className="flex items-center gap-3 text-sm">
+   425→                          <div className="text-center">
+   426→                            <span className="text-xs text-muted-foreground block">Lignes</span>
+   427→                            <span className="font-semibold">{delivreCount}/{ordo.lignes.length}</span>
+   428→                          </div>
+   429→                          <Button variant="ghost" size="sm" className="gap-1">
+   430→                            <Eye className="w-3 h-3" /> Voir
+   431→                          </Button>
+   432→                        </div>
+   433→                      </div>
+   434→                      {/* Image indicator */}
+   435→                      {ordo.imageOrdonnanceUrl && (
+   436→                        <div className="mt-2 flex items-center gap-1 text-xs text-primary">
+   437→                          <ImageIcon className="h-3 w-3" />
+   438→                          <span>Image attachée</span>
+   439→                        </div>
+   440→                      )}
+   441→                    </CardContent>
+   442→                  </Card>
+   443→                )
+   444→              })
+   445→            )}
+   446→          </div>
+   447→        </TabsContent>
+   448→
+   449→        <TabsContent value="registre" className="space-y-4 mt-4">
+   450→          <Card>
+   451→            <CardHeader className="pb-2">
+   452→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   453→                <AlertTriangle className="w-4 h-4 text-amber-500" />
+   454→                Registre des stupéfiants
+   455→              </CardTitle>
+   456→            </CardHeader>
+   457→            <CardContent>
+   458→              {ordoStupfiants.length === 0 ? (
+   459→                <p className="text-center py-8 text-muted-foreground text-sm">Aucune ordonnance stupéfiant</p>
+   460→              ) : (
+   461→                <div className="overflow-x-auto">
+   462→                  <table className="w-full">
+   463→                    <thead>
+   464→                      <tr className="border-b">
+   465→                        <th className="text-left p-2 text-xs font-medium text-muted-foreground">N° Registre</th>
+   466→                        <th className="text-left p-2 text-xs font-medium text-muted-foreground">Date</th>
+   467→                        <th className="text-left p-2 text-xs font-medium text-muted-foreground">Prescripteur</th>
+   468→                        <th className="text-left p-2 text-xs font-medium text-muted-foreground">Patient</th>
+   469→                        <th className="text-left p-2 text-xs font-medium text-muted-foreground">Médicament</th>
+   470→                        <th className="text-right p-2 text-xs font-medium text-muted-foreground">Qté sortie</th>
+   471→                        <th className="text-center p-2 text-xs font-medium text-muted-foreground">Statut</th>
+   472→                      </tr>
+   473→                    </thead>
+   474→                    <tbody>
+   475→                      {ordoStupfiants.map(ordo => (
+   476→                        ordo.lignes.map((ligne, i) => (
+   477→                          <tr key={`${ordo.id}-${ligne.id}`} className="border-b last:border-0 hover:bg-muted/30">
+   478→                            {i === 0 && (
+   479→                              <>
+   480→                                <td rowSpan={ordo.lignes.length} className="p-2 text-sm align-top">{ordo.numeroRegistre || '—'}</td>
+   481→                                <td rowSpan={ordo.lignes.length} className="p-2 text-sm align-top">{formatDate(ordo.dateOrdonnance)}</td>
+   482→                                <td rowSpan={ordo.lignes.length} className="p-2 text-sm align-top">Dr. {ordo.prescripteurNom}</td>
+   483→                                <td rowSpan={ordo.lignes.length} className="p-2 text-sm align-top">
+   484→                                  {ordo.patient ? `${ordo.patient.prenom} ${ordo.patient.nom}` : '—'}
+   485→                                </td>
+   486→                              </>
+   487→                            )}
+   488→                            <td className="p-2 text-sm">{ligne.medicament.nomCommercial}</td>
+   489→                            <td className="p-2 text-sm text-right">{ligne.delivree ? ligne.quantite : 0}</td>
+   490→                            {i === 0 && (
+   491→                              <td rowSpan={ordo.lignes.length} className="p-2 text-center align-top">
+   492→                                <Badge className={`text-[9px] ${statutConfig[ordo.statut]?.color}`}>{statutConfig[ordo.statut]?.label}</Badge>
+   493→                              </td>
+   494→                            )}
+   495→                          </tr>
+   496→                        ))
+   497→                      ))}
+   498→                    </tbody>
+   499→                  </table>
+   500→                </div>
+   501→              )}
+   502→            </CardContent>
+   503→          </Card>
+   504→        </TabsContent>
+   505→      </Tabs>
+   506→
+   507→      {/* Detail Dialog */}
+   508→      <Dialog open={!!selected && !validateDialogOpen && !createSaleOpen && !uploadDialogOpen} onOpenChange={() => setSelected(null)}>
+   509→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   510→          {selected && (
+   511→            <>
+   512→              <DialogHeader>
+   513→                <DialogTitle>Ordonnance — Dr. {selected.prescripteurNom}</DialogTitle>
+   514→              </DialogHeader>
+   515→              <ScrollArea className="max-h-[60vh]">
+   516→                <div className="space-y-4 pr-3">
+   517→                  {/* Status Progress */}
+   518→                  <div>
+   519→                    <div className="flex items-center justify-between text-xs mb-1">
+   520→                      <span className="text-muted-foreground">Progression</span>
+   521→                      <Badge className={statutConfig[selected.statut]?.color}>{statutConfig[selected.statut]?.label}</Badge>
+   522→                    </div>
+   523→                    <Progress value={getStatutProgress(selected.statut)} className="h-2" />
+   524→                    <div className="flex justify-between mt-1">
+   525→                      {statutFlow.map((s, i) => (
+   526→                        <span key={s} className={`text-[8px] ${statutFlow.indexOf(selected.statut) >= i ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+   527→                          {statutConfig[s]?.label}
+   528→                        </span>
+   529→                      ))}
+   530→                    </div>
+   531→                  </div>
+   532→
+   533→                  <div className="grid grid-cols-2 gap-3 text-sm">
+   534→                    <div><span className="text-muted-foreground">Patient</span><p className="font-medium">{selected.patient ? `${selected.patient.prenom} ${selected.patient.nom}` : '—'}</p></div>
+   535→                    <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDate(selected.dateOrdonnance)}</p></div>
+   536→                    <div><span className="text-muted-foreground">Statut</span><p><Badge className={statutConfig[selected.statut]?.color}>{statutConfig[selected.statut]?.label}</Badge></p></div>
+   537→                    <div><span className="text-muted-foreground">Registre</span><p className="font-medium">{selected.numeroRegistre || '—'}</p></div>
+   538→                  </div>
+   539→
+   540→                  {/* Image upload */}
+   541→                  <div>
+   542→                    <Label className="text-sm font-semibold">Image ordonnance</Label>
+   543→                    <div className="mt-2">
+   544→                      {selected.imageOrdonnanceUrl ? (
+   545→                        <div className="flex items-center gap-2">
+   546→                          <Badge variant="outline" className="text-xs gap-1 border-primary text-primary">
+   547→                            <CheckCircle2 className="w-3 h-3" /> Image attachée
+   548→                          </Badge>
+   549→                          <Button
+   550→                            variant="outline"
+   551→                            size="sm"
+   552→                            className="h-7 text-[10px]"
+   553→                            onClick={() => {
+   554→                              setUploadOrdoId(selected.id)
+   555→                              setUploadDialogOpen(true)
+   556→                            }}
+   557→                          >
+   558→                            <Upload className="w-3 h-3 mr-1" /> Remplacer
+   559→                          </Button>
+   560→                        </div>
+   561→                      ) : (
+   562→                        <div
+   563→                          className="border-2 border-dashed border-teal-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+   564→                          onClick={() => {
+   565→                            setUploadOrdoId(selected.id)
+   566→                            setUploadDialogOpen(true)
+   567→                          }}
+   568→                        >
+   569→                          <CloudUpload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+   570→                          <p className="text-xs text-muted-foreground">Cliquez pour télécharger une image</p>
+   571→                          <p className="text-[10px] text-muted-foreground">ou glisser-déposer (JPG, PNG, PDF)</p>
+   572→                        </div>
+   573→                      )}
+   574→                    </div>
+   575→                  </div>
+   576→
+   577→                  {/* Lignes */}
+   578→                  <div>
+   579→                    <h4 className="text-sm font-semibold mb-2">Médicaments prescrits</h4>
+   580→                    {selected.lignes.map(l => (
+   581→                      <div key={l.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+   582→                        <div className="flex-1">
+   583→                          <div className="flex items-center gap-2">
+   584→                            <Checkbox
+   585→                              checked={l.delivree}
+   586→                              onCheckedChange={() => handleToggleDelivered(l.id, l.delivree)}
+   587→                            />
+   588→                            <span className={l.delivree ? 'line-through text-muted-foreground' : 'font-medium'}>{l.medicament.nomCommercial}</span>
+   589→                            {l.medicament.estStupefiant && <AlertTriangle className="w-3 h-3 text-destructive" />}
+   590→                          </div>
+   591→                          <span className="text-xs text-muted-foreground ml-6">{l.posologie} — {l.duree}</span>
+   592→                        </div>
+   593→                        <div className="flex items-center gap-2">
+   594→                          <span className="text-xs">×{l.quantite}</span>
+   595→                          {l.delivree ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <Clock className="w-4 h-4 text-amber-500" />}
+   596→                        </div>
+   597→                      </div>
+   598→                    ))}
+   599→                  </div>
+   600→
+   601→                  {/* Validations History */}
+   602→                  {selected.validations.length > 0 && (
+   603→                    <div>
+   604→                      <h4 className="text-sm font-semibold mb-2">Historique des validations</h4>
+   605→                      <div className="space-y-2">
+   606→                        {selected.validations.map(v => (
+   607→                          <div key={v.id} className="flex items-center gap-2 py-1.5 px-2 rounded bg-muted/30 text-sm">
+   608→                            {v.typeValidation === 'VALIDATION' ? (
+   609→                              <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+   610→                            ) : v.typeValidation === 'REFUS' ? (
+   611→                              <XCircle className="w-4 h-4 text-destructive shrink-0" />
+   612→                            ) : (
+   613→                              <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+   614→                            )}
+   615→                            <div className="flex-1">
+   616→                              <span className="text-xs font-medium">
+   617→                                {v.typeValidation === 'VALIDATION' ? 'Validée' : v.typeValidation === 'REFUS' ? 'Refusée' : 'En cours de validation'}
+   618→                                {v.utilisateur && (
+   619→                                  <span className="text-muted-foreground font-normal"> par {v.utilisateur.prenom} {v.utilisateur.nom}</span>
+   620→                                )}
+   621→                              </span>
+   622→                              {v.commentaire && <p className="text-[10px] text-muted-foreground">{v.commentaire}</p>}
+   623→                            </div>
+   624→                            <span className="text-[10px] text-muted-foreground">{formatDate(v.createdAt)}</span>
+   625→                          </div>
+   626→                        ))}
+   627→                      </div>
+   628→                    </div>
+   629→                  )}
+   630→
+   631→                  {/* Action buttons */}
+   632→                  <Separator />
+   633→                  <div className="flex flex-wrap gap-2">
+   634→                    {selected.statut === 'RECUE' && (
+   635→                      <Button
+   636→                        size="sm"
+   637→                        variant="outline"
+   638→                        className="gap-1 border-amber-500 text-amber-700 hover:bg-amber-50"
+   639→                        onClick={() => {
+   640→                          setValidateType('EN_COURS')
+   641→                          setValidateDialogOpen(true)
+   642→                        }}
+   643→                      >
+   644→                        <Clock className="w-4 h-4" /> Commencer validation
+   645→                      </Button>
+   646→                    )}
+   647→                    {(selected.statut === 'RECUE' || selected.statut === 'EN_COURS_VALIDATION') && (
+   648→                      <>
+   649→                        <Button
+   650→                          size="sm"
+   651→                          className="gap-1"
+   652→                          onClick={() => {
+   653→                            setValidateType('VALIDATION')
+   654→                            setValidateDialogOpen(true)
+   655→                          }}
+   656→                        >
+   657→                          <CheckCircle2 className="w-4 h-4" /> Valider
+   658→                        </Button>
+   659→                        <Button
+   660→                          size="sm"
+   661→                          variant="destructive"
+   662→                          className="gap-1"
+   663→                          onClick={() => {
+   664→                            setValidateType('REFUS')
+   665→                            setValidateDialogOpen(true)
+   666→                          }}
+   667→                        >
+   668→                          <XCircle className="w-4 h-4" /> Refuser
+   669→                        </Button>
+   670→                      </>
+   671→                    )}
+   672→                    {(selected.statut === 'VALIDEE' || selected.statut === 'PARTIELLEMENT_DELIVREE') && (
+   673→                      <Button
+   674→                        size="sm"
+   675→                        variant="outline"
+   676→                        className="gap-1"
+   677→                        onClick={() => setCreateSaleOpen(true)}
+   678→                      >
+   679→                        <ShoppingCart className="w-4 h-4" /> Créer une vente
+   680→                      </Button>
+   681→                    )}
+   682→                    {!selected.imageOrdonnanceUrl && (
+   683→                      <Button
+   684→                        size="sm"
+   685→                        variant="outline"
+   686→                        className="gap-1"
+   687→                        onClick={() => {
+   688→                          setUploadOrdoId(selected.id)
+   689→                          setUploadDialogOpen(true)
+   690→                        }}
+   691→                      >
+   692→                        <Upload className="w-4 h-4" /> Télécharger image
+   693→                      </Button>
+   694→                    )}
+   695→                  </div>
+   696→                </div>
+   697→              </ScrollArea>
+   698→            </>
+   699→          )}
+   700→        </DialogContent>
+   701→      </Dialog>
+   702→
+   703→      {/* Upload Dialog with Drag & Drop */}
+   704→      <Dialog open={uploadDialogOpen} onOpenChange={(open) => { setUploadDialogOpen(open); if (!open) setUploadOrdoId(null) }}>
+   705→        <DialogContent>
+   706→          <DialogHeader>
+   707→            <DialogTitle className="flex items-center gap-2">
+   708→              <CloudUpload className="w-5 h-5 text-primary" />
+   709→              Télécharger l&apos;image de l&apos;ordonnance
+   710→            </DialogTitle>
+   711→          </DialogHeader>
+   712→          <div className="space-y-4">
+   713→            <div
+   714→              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+   715→                dragActive ? 'border-primary bg-primary/10' : 'border-teal-300 hover:border-primary hover:bg-primary/5'
+   716→              }`}
+   717→              onDragEnter={handleDrag}
+   718→              onDragLeave={handleDrag}
+   719→              onDragOver={handleDrag}
+   720→              onDrop={handleDrop}
+   721→            >
+   722→              {uploading ? (
+   723→                <div className="space-y-3">
+   724→                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+   725→                  <p className="text-xs text-muted-foreground">Téléchargement en cours...</p>
+   726→                  <Progress value={progress} className="h-2" />
+   727→                </div>
+   728→              ) : (
+   729→                <>
+   730→                  <CloudUpload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+   731→                  <p className="text-sm font-medium text-gray-900">Glissez-déposez votre fichier ici</p>
+   732→                  <p className="text-xs text-muted-foreground mt-1">ou cliquez pour sélectionner</p>
+   733→                  <p className="text-[10px] text-muted-foreground mt-2">JPG, PNG, WebP, PDF — Max 10 MB</p>
+   734→                  <input
+   735→                    ref={fileInputRef}
+   736→                    type="file"
+   737→                    className="hidden"
+   738→                    accept="image/jpeg,image/png,image/webp,application/pdf"
+   739→                    onChange={handleFileChange}
+   740→                  />
+   741→                  <Button
+   742→                    variant="outline"
+   743→                    className="mt-3 border-primary text-primary"
+   744→                    onClick={() => fileInputRef.current?.click()}
+   745→                  >
+   746→                    <Upload className="w-4 h-4 mr-1" />
+   747→                    Sélectionner un fichier
+   748→                  </Button>
+   749→                </>
+   750→              )}
+   751→            </div>
+   752→            {uploadError && (
+   753→              <p className="text-xs text-destructive text-center">{uploadError}</p>
+   754→            )}
+   755→          </div>
+   756→        </DialogContent>
+   757→      </Dialog>
+   758→
+   759→      {/* Create Ordonnance Dialog */}
+   760→      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   761→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   762→          <DialogHeader>
+   763→            <DialogTitle>Nouvelle ordonnance</DialogTitle>
+   764→          </DialogHeader>
+   765→          <div className="space-y-4">
+   766→            <div className="grid grid-cols-2 gap-4">
+   767→              <div>
+   768→                <Label>Patient</Label>
+   769→                <Select value={formPatientId} onValueChange={setFormPatientId}>
+   770→                  <SelectTrigger><SelectValue placeholder="Sélectionner un patient" /></SelectTrigger>
+   771→                  <SelectContent>
+   772→                    <SelectItem value="none">Aucun patient</SelectItem>
+   773→                    {patients.map(p => (
+   774→                      <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>
+   775→                    ))}
+   776→                  </SelectContent>
+   777→                </Select>
+   778→              </div>
+   779→              <div>
+   780→                <Label>Date</Label>
+   781→                <Input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
+   782→              </div>
+   783→            </div>
+   784→            <div className="grid grid-cols-2 gap-4">
+   785→              <div>
+   786→                <Label>Prescripteur</Label>
+   787→                <Input placeholder="Dr. Nom" value={formPrescripteur} onChange={e => setFormPrescripteur(e.target.value)} />
+   788→              </div>
+   789→              <div>
+   790→                <Label>N° INAMI / Ordre</Label>
+   791→                <Input placeholder="Numéro" value={formPrescripteurInami} onChange={e => setFormPrescripteurInami(e.target.value)} />
+   792→              </div>
+   793→            </div>
+   794→
+   795→            {/* Lignes */}
+   796→            <div>
+   797→              <div className="flex items-center justify-between mb-2">
+   798→                <Label className="font-semibold">Lignes d&apos;ordonnance</Label>
+   799→                <Button variant="outline" size="sm" className="gap-1" onClick={() => setFormLignes(prev => [...prev, { medicamentId: '', posologie: '', duree: '', quantite: '1' }])}>
+   800→                  <Plus className="w-3 h-3" /> Ajouter
+   801→                </Button>
+   802→              </div>
+   803→              <ScrollArea className="max-h-64">
+   804→                <div className="space-y-2">
+   805→                  {formLignes.map((ligne, i) => (
+   806→                    <div key={i} className="grid grid-cols-12 gap-2 items-end">
+   807→                      <div className="col-span-4">
+   808→                        {i === 0 && <Label className="text-[10px]">Médicament</Label>}
+   809→                        <Select value={ligne.medicamentId} onValueChange={v => {
+   810→                          const updated = [...formLignes]
+   811→                          updated[i] = { ...updated[i], medicamentId: v }
+   812→                          setFormLignes(updated)
+   813→                        }}>
+   814→                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choisir" /></SelectTrigger>
+   815→                          <SelectContent>
+   816→                            {medicaments.map(m => (
+   817→                              <SelectItem key={m.id} value={m.id}>
+   818→                                {m.nomCommercial} {m.estStupefiant && '⚠'}
+   819→                              </SelectItem>
+   820→                            ))}
+   821→                          </SelectContent>
+   822→                        </Select>
+   823→                      </div>
+   824→                      <div className="col-span-3">
+   825→                        {i === 0 && <Label className="text-[10px]">Posologie</Label>}
+   826→                        <Input className="h-8 text-xs" placeholder="1 cp/jour" value={ligne.posologie} onChange={e => {
+   827→                          const updated = [...formLignes]
+   828→                          updated[i] = { ...updated[i], posologie: e.target.value }
+   829→                          setFormLignes(updated)
+   830→                        }} />
+   831→                      </div>
+   832→                      <div className="col-span-2">
+   833→                        {i === 0 && <Label className="text-[10px]">Durée</Label>}
+   834→                        <Input className="h-8 text-xs" placeholder="7j" value={ligne.duree} onChange={e => {
+   835→                          const updated = [...formLignes]
+   836→                          updated[i] = { ...updated[i], duree: e.target.value }
+   837→                          setFormLignes(updated)
+   838→                        }} />
+   839→                      </div>
+   840→                      <div className="col-span-2">
+   841→                        {i === 0 && <Label className="text-[10px]">Qté</Label>}
+   842→                        <Input type="number" className="h-8 text-xs" value={ligne.quantite} onChange={e => {
+   843→                          const updated = [...formLignes]
+   844→                          updated[i] = { ...updated[i], quantite: e.target.value }
+   845→                          setFormLignes(updated)
+   846→                        }} />
+   847→                      </div>
+   848→                      <div className="col-span-1">
+   849→                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setFormLignes(prev => prev.filter((_, j) => j !== i))}>
+   850→                          <XCircle className="w-3 h-3" />
+   851→                        </Button>
+   852→                      </div>
+   853→                    </div>
+   854→                  ))}
+   855→                </div>
+   856→              </ScrollArea>
+   857→            </div>
+   858→
+   859→            <Button className="w-full" onClick={handleCreateOrdonnance}>Créer l&apos;ordonnance</Button>
+   860→          </div>
+   861→        </DialogContent>
+   862→      </Dialog>
+   863→
+   864→      {/* Validate/Refuse Dialog */}
+   865→      <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
+   866→        <DialogContent className="max-w-md">
+   867→          <DialogHeader>
+   868→            <DialogTitle className={validateType === 'VALIDATION' ? 'text-primary' : validateType === 'REFUS' ? 'text-destructive' : 'text-amber-600'}>
+   869→              {validateType === 'VALIDATION' ? 'Valider l\'ordonnance' : validateType === 'REFUS' ? 'Refuser l\'ordonnance' : 'Démarrer la validation'}
+   870→            </DialogTitle>
+   871→          </DialogHeader>
+   872→          <div className="space-y-4">
+   873→            <div>
+   874→              <Label>Commentaire</Label>
+   875→              <Textarea
+   876→                placeholder={validateType === 'REFUS' ? 'Motif du refus...' : 'Commentaire (optionnel)...'}
+   877→                value={validateCommentaire}
+   878→                onChange={e => setValidateCommentaire(e.target.value)}
+   879→              />
+   880→            </div>
+   881→            <div className="flex gap-2">
+   882→              <Button variant="outline" className="flex-1" onClick={() => setValidateDialogOpen(false)}>Annuler</Button>
+   883→              <Button
+   884→                className="flex-1"
+   885→                variant={validateType === 'REFUS' ? 'destructive' : 'default'}
+   886→                onClick={handleValidate}
+   887→              >
+   888→                {validateType === 'VALIDATION' ? 'Confirmer la validation' : validateType === 'REFUS' ? 'Confirmer le refus' : 'Démarrer la validation'}
+   889→              </Button>
+   890→            </div>
+   891→          </div>
+   892→        </DialogContent>
+   893→      </Dialog>
+   894→
+   895→      {/* Create Sale Dialog */}
+   896→      <Dialog open={createSaleOpen} onOpenChange={setCreateSaleOpen}>
+   897→        <DialogContent className="max-w-md">
+   898→          <DialogHeader>
+   899→            <DialogTitle className="flex items-center gap-2">
+   900→              <ShoppingCart className="w-5 h-5 text-primary" />
+   901→              Créer une vente
+   902→            </DialogTitle>
+   903→          </DialogHeader>
+   904→          {selected && (
+   905→            <div className="space-y-4">
+   906→              <p className="text-sm text-muted-foreground">
+   907→                Créer une vente à partir des lignes non délivrées de cette ordonnance.
+   908→              </p>
+   909→              <div className="space-y-2">
+   910→                {selected.lignes.filter(l => !l.delivree).map(l => (
+   911→                  <div key={l.id} className="flex justify-between text-sm p-2 rounded bg-muted/30">
+   912→                    <span>{l.medicament.nomCommercial} × {l.quantite}</span>
+   913→                    <span className="font-semibold">{formatFCFA(l.medicament.prixVente * l.quantite)}</span>
+   914→                  </div>
+   915→                ))}
+   916→              </div>
+   917→              <div className="flex justify-between font-semibold text-sm p-3 rounded-lg bg-primary/5">
+   918→                <span>Total</span>
+   919→                <span className="text-primary">
+   920→                  {formatFCFA(selected.lignes.filter(l => !l.delivree).reduce((s, l) => s + l.medicament.prixVente * l.quantite, 0))}
+   921→                </span>
+   922→              </div>
+   923→              <div className="flex gap-2">
+   924→                <Button variant="outline" className="flex-1" onClick={() => setCreateSaleOpen(false)}>Annuler</Button>
+   925→                <Button className="flex-1" onClick={handleCreateSale}>Créer la vente</Button>
+   926→              </div>
+   927→            </div>
+   928→          )}
+   929→        </DialogContent>
+   930→      </Dialog>
+   931→    </div>
+   932→  )
+   933→}
+   934→

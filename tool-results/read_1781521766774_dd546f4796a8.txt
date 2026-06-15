@@ -1,0 +1,950 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Skeleton } from '@/components/ui/skeleton'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Textarea } from '@/components/ui/textarea'
+    11→import {
+    12→  Table,
+    13→  TableBody,
+    14→  TableCell,
+    15→  TableHead,
+    16→  TableHeader,
+    17→  TableRow,
+    18→} from '@/components/ui/table'
+    19→import {
+    20→  Dialog,
+    21→  DialogContent,
+    22→  DialogDescription,
+    23→  DialogFooter,
+    24→  DialogHeader,
+    25→  DialogTitle,
+    26→} from '@/components/ui/dialog'
+    27→import {
+    28→  Select,
+    29→  SelectContent,
+    30→  SelectItem,
+    31→  SelectTrigger,
+    32→  SelectValue,
+    33→} from '@/components/ui/select'
+    34→import { Switch } from '@/components/ui/switch'
+    35→import { Search, Plus, Truck, Star, Filter, Eye, StarOff, Pencil, Trash2, Package, Users, TrendingUp } from 'lucide-react'
+    36→import { useEffect, useState, useMemo } from 'react'
+    37→import { toast } from 'sonner'
+    38→
+    39→interface ConditionAchat {
+    40→  id: string
+    41→  prixAchat: number
+    42→  remise: number | null
+    43→  delaiPaiement: number | null
+    44→  minCommande: number | null
+    45→  medicament?: { nomCommercial: string; dci: string }
+    46→}
+    47→
+    48→interface EvaluationFournisseur {
+    49→  id: string
+    50→  delaiRespecte: number
+    51→  qualiteProduit: number
+    52→  communication: number
+    53→  commentaire: string | null
+    54→  dateEvaluation: string
+    55→}
+    56→
+    57→interface Commande {
+    58→  id: string
+    59→  reference: string
+    60→  dateCommande: string
+    61→  statut: string
+    62→  montantTotal: number
+    63→}
+    64→
+    65→interface Fournisseur {
+    66→  id: string
+    67→  nom: string
+    68→  code: string
+    69→  adresse: string | null
+    70→  telephone: string | null
+    71→  email: string | null
+    72→  estGrossisteAPI: boolean
+    73→  delaiLivraison: number | null
+    74→  noteEvaluation: number | null
+    75→  actif: boolean
+    76→  conditions?: ConditionAchat[]
+    77→  evaluations?: EvaluationFournisseur[]
+    78→  commandes?: Commande[]
+    79→  _count?: { commandes: number }
+    80→}
+    81→
+    82→function formatFCFA(amount: number) {
+    83→  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+    84→}
+    85→
+    86→function StarRating({ value, max = 5 }: { value: number; max?: number }) {
+    87→  return (
+    88→    <div className="flex gap-0.5">
+    89→      {Array.from({ length: max }).map((_, i) => (
+    90→        <Star
+    91→          key={i}
+    92→          className={`w-3.5 h-3.5 ${i < value ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`}
+    93→        />
+    94→      ))}
+    95→    </div>
+    96→  )
+    97→}
+    98→
+    99→export default function FournisseursPage() {
+   100→  const { pharmacie } = useAuth()
+   101→  const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([])
+   102→  const [loading, setLoading] = useState(true)
+   103→  const [search, setSearch] = useState('')
+   104→  const [filterType, setFilterType] = useState<string>('all')
+   105→  const [filterStatus, setFilterStatus] = useState<string>('all')
+   106→
+   107→  // Dialogs
+   108→  const [addDialogOpen, setAddDialogOpen] = useState(false)
+   109→  const [editDialogOpen, setEditDialogOpen] = useState(false)
+   110→  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+   111→  const [evalDialogOpen, setEvalDialogOpen] = useState(false)
+   112→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+   113→  const [selectedFournisseur, setSelectedFournisseur] = useState<Fournisseur | null>(null)
+   114→  const [detailData, setDetailData] = useState<Fournisseur | null>(null)
+   115→  const [detailLoading, setDetailLoading] = useState(false)
+   116→
+   117→  // Add/Edit form
+   118→  const [formNom, setFormNom] = useState('')
+   119→  const [formCode, setFormCode] = useState('')
+   120→  const [formAdresse, setFormAdresse] = useState('')
+   121→  const [formTel, setFormTel] = useState('')
+   122→  const [formEmail, setFormEmail] = useState('')
+   123→  const [formDelai, setFormDelai] = useState('')
+   124→  const [formGrossiste, setFormGrossiste] = useState(false)
+   125→
+   126→  // Eval form
+   127→  const [evalDelai, setEvalDelai] = useState('3')
+   128→  const [evalQualite, setEvalQualite] = useState('3')
+   129→  const [evalCommunication, setEvalCommunication] = useState('3')
+   130→  const [evalCommentaire, setEvalCommentaire] = useState('')
+   131→
+   132→  const fetchData = async () => {
+   133→    if (!pharmacie?.id) return
+   134→    setLoading(true)
+   135→    try {
+   136→      const res = await fetch(`/api/fournisseurs?pharmacieId=${pharmacie.id}`)
+   137→      if (res.ok) {
+   138→        const data = await res.json()
+   139→        setFournisseurs(data)
+   140→      }
+   141→    } catch {
+   142→      setFournisseurs([])
+   143→    } finally {
+   144→      setLoading(false)
+   145→    }
+   146→  }
+   147→
+   148→  useEffect(() => {
+   149→    fetchData()
+   150→  }, [pharmacie?.id])
+   151→
+   152→  const filteredFournisseurs = useMemo(() => {
+   153→    let result = [...fournisseurs]
+   154→    if (search) {
+   155→      const q = search.toLowerCase()
+   156→      result = result.filter(f =>
+   157→        f.nom.toLowerCase().includes(q) || f.code.toLowerCase().includes(q)
+   158→      )
+   159→    }
+   160→    if (filterType === 'grossiste') {
+   161→      result = result.filter(f => f.estGrossisteAPI)
+   162→    } else if (filterType === 'regular') {
+   163→      result = result.filter(f => !f.estGrossisteAPI)
+   164→    }
+   165→    if (filterStatus === 'actif') {
+   166→      result = result.filter(f => f.actif)
+   167→    } else if (filterStatus === 'inactif') {
+   168→      result = result.filter(f => !f.actif)
+   169→    }
+   170→    return result
+   171→  }, [fournisseurs, search, filterType, filterStatus])
+   172→
+   173→  const handleAddFournisseur = async () => {
+   174→    if (!pharmacie?.id || !formNom) {
+   175→      toast.error('Le nom du fournisseur est requis')
+   176→      return
+   177→    }
+   178→    try {
+   179→      const res = await fetch('/api/fournisseurs', {
+   180→        method: 'POST',
+   181→        headers: { 'Content-Type': 'application/json' },
+   182→        body: JSON.stringify({
+   183→          pharmacieId: pharmacie.id,
+   184→          nom: formNom,
+   185→          code: formCode || `FOUR-${Date.now().toString(36).toUpperCase()}`,
+   186→          adresse: formAdresse || null,
+   187→          telephone: formTel || null,
+   188→          email: formEmail || null,
+   189→          delaiLivraison: formDelai ? parseInt(formDelai) : null,
+   190→          estGrossisteAPI: formGrossiste,
+   191→          actif: true,
+   192→        }),
+   193→      })
+   194→      if (res.ok) {
+   195→        toast.success('Fournisseur ajouté avec succès')
+   196→        setAddDialogOpen(false)
+   197→        resetForm()
+   198→        fetchData()
+   199→      } else {
+   200→        toast.error('Erreur lors de l\'ajout du fournisseur')
+   201→      }
+   202→    } catch {
+   203→      toast.error('Erreur lors de l\'ajout du fournisseur')
+   204→    }
+   205→  }
+   206→
+   207→  const handleEditFournisseur = async () => {
+   208→    if (!selectedFournisseur) return
+   209→    try {
+   210→      const res = await fetch(`/api/fournisseurs/${selectedFournisseur.id}`, {
+   211→        method: 'PATCH',
+   212→        headers: { 'Content-Type': 'application/json' },
+   213→        body: JSON.stringify({
+   214→          nom: formNom,
+   215→          code: formCode,
+   216→          adresse: formAdresse || null,
+   217→          telephone: formTel || null,
+   218→          email: formEmail || null,
+   219→          delaiLivraison: formDelai ? parseInt(formDelai) : null,
+   220→          estGrossisteAPI: formGrossiste,
+   221→        }),
+   222→      })
+   223→      if (res.ok) {
+   224→        toast.success('Fournisseur modifié avec succès')
+   225→        setEditDialogOpen(false)
+   226→        resetForm()
+   227→        fetchData()
+   228→      } else {
+   229→        toast.error('Erreur lors de la modification du fournisseur')
+   230→      }
+   231→    } catch {
+   232→      toast.error('Erreur lors de la modification du fournisseur')
+   233→    }
+   234→  }
+   235→
+   236→  const handleDeleteFournisseur = async () => {
+   237→    if (!selectedFournisseur) return
+   238→    try {
+   239→      const res = await fetch(`/api/fournisseurs/${selectedFournisseur.id}`, {
+   240→        method: 'DELETE',
+   241→      })
+   242→      if (res.ok) {
+   243→        toast.success('Fournisseur désactivé avec succès')
+   244→        setDeleteDialogOpen(false)
+   245→        setSelectedFournisseur(null)
+   246→        fetchData()
+   247→      } else {
+   248→        toast.error('Erreur lors de la désactivation du fournisseur')
+   249→      }
+   250→    } catch {
+   251→      toast.error('Erreur lors de la désactivation du fournisseur')
+   252→    }
+   253→  }
+   254→
+   255→  const handleViewDetail = async (fournisseur: Fournisseur) => {
+   256→    setSelectedFournisseur(fournisseur)
+   257→    setDetailDialogOpen(true)
+   258→    setDetailLoading(true)
+   259→    try {
+   260→      const res = await fetch(`/api/fournisseurs/${fournisseur.id}`)
+   261→      if (res.ok) {
+   262→        const data = await res.json()
+   263→        setDetailData(data)
+   264→      }
+   265→    } catch {
+   266→      setDetailData(fournisseur)
+   267→    } finally {
+   268→      setDetailLoading(false)
+   269→    }
+   270→  }
+   271→
+   272→  const handleOpenEdit = (fournisseur: Fournisseur) => {
+   273→    setSelectedFournisseur(fournisseur)
+   274→    setFormNom(fournisseur.nom)
+   275→    setFormCode(fournisseur.code)
+   276→    setFormAdresse(fournisseur.adresse || '')
+   277→    setFormTel(fournisseur.telephone || '')
+   278→    setFormEmail(fournisseur.email || '')
+   279→    setFormDelai(fournisseur.delaiLivraison?.toString() || '')
+   280→    setFormGrossiste(fournisseur.estGrossisteAPI)
+   281→    setEditDialogOpen(true)
+   282→  }
+   283→
+   284→  const handleOpenDelete = (fournisseur: Fournisseur) => {
+   285→    setSelectedFournisseur(fournisseur)
+   286→    setDeleteDialogOpen(true)
+   287→  }
+   288→
+   289→  const handleOpenEval = (fournisseur: Fournisseur) => {
+   290→    setSelectedFournisseur(fournisseur)
+   291→    setEvalDelai('3')
+   292→    setEvalQualite('3')
+   293→    setEvalCommunication('3')
+   294→    setEvalCommentaire('')
+   295→    setEvalDialogOpen(true)
+   296→  }
+   297→
+   298→  const handleSubmitEval = async () => {
+   299→    if (!pharmacie?.id || !selectedFournisseur) return
+   300→    try {
+   301→      const res = await fetch(`/api/fournisseurs/${selectedFournisseur.id}/evaluations`, {
+   302→        method: 'POST',
+   303→        headers: { 'Content-Type': 'application/json' },
+   304→        body: JSON.stringify({
+   305→          pharmacieId: pharmacie.id,
+   306→          delaiRespecte: parseInt(evalDelai),
+   307→          qualiteProduit: parseInt(evalQualite),
+   308→          communication: parseInt(evalCommunication),
+   309→          commentaire: evalCommentaire || null,
+   310→        }),
+   311→      })
+   312→      if (res.ok) {
+   313→        toast.success('Évaluation enregistrée avec succès')
+   314→        setEvalDialogOpen(false)
+   315→        fetchData()
+   316→      } else {
+   317→        toast.error('Erreur lors de l\'enregistrement de l\'évaluation')
+   318→      }
+   319→    } catch {
+   320→      toast.error('Erreur lors de l\'enregistrement de l\'évaluation')
+   321→    }
+   322→  }
+   323→
+   324→  const resetForm = () => {
+   325→    setFormNom('')
+   326→    setFormCode('')
+   327→    setFormAdresse('')
+   328→    setFormTel('')
+   329→    setFormEmail('')
+   330→    setFormDelai('')
+   331→    setFormGrossiste(false)
+   332→  }
+   333→
+   334→  // KPI Calculations
+   335→  const totalCount = fournisseurs.length
+   336→  const activeCount = fournisseurs.filter(f => f.actif).length
+   337→  const commandesEnCours = fournisseurs.reduce((sum, f) => sum + (f._count?.commandes || 0), 0)
+   338→  const avgNote = fournisseurs.length > 0
+   339→    ? fournisseurs.filter(f => f.noteEvaluation).length > 0
+   340→      ? fournisseurs.reduce((s, f) => s + (f.noteEvaluation || 0), 0) / fournisseurs.filter(f => f.noteEvaluation).length
+   341→      : 0
+   342→    : 0
+   343→
+   344→  if (loading) {
+   345→    return (
+   346→      <div className="space-y-4">
+   347→        <Skeleton className="h-8 w-64" />
+   348→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   349→          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+   350→        </div>
+   351→        <Skeleton className="h-12" />
+   352→        <Skeleton className="h-96" />
+   353→      </div>
+   354→    )
+   355→  }
+   356→
+   357→  return (
+   358→    <div className="space-y-6">
+   359→      {/* Header */}
+   360→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   361→        <div>
+   362→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   363→            <Truck className="w-6 h-6 text-[#1D9E75]" />
+   364→            Gestion des Fournisseurs
+   365→          </h1>
+   366→          <p className="text-sm text-muted-foreground">
+   367→            {totalCount} fournisseurs référencés • {activeCount} actifs
+   368→          </p>
+   369→        </div>
+   370→        <Button className="gap-2 bg-[#1D9E75] hover:bg-[#085041]" onClick={() => { resetForm(); setAddDialogOpen(true) }}>
+   371→          <Plus className="w-4 h-4" />
+   372→          Ajouter un fournisseur
+   373→        </Button>
+   374→      </div>
+   375→
+   376→      {/* KPI Cards */}
+   377→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   378→        <Card>
+   379→          <CardContent className="p-4">
+   380→            <div className="flex items-center justify-between">
+   381→              <div>
+   382→                <span className="text-xs text-muted-foreground uppercase">Total Fournisseurs</span>
+   383→                <span className="text-xl font-bold block">{totalCount}</span>
+   384→              </div>
+   385→              <Truck className="w-8 h-8 text-gray-400/30" />
+   386→            </div>
+   387→          </CardContent>
+   388→        </Card>
+   389→        <Card>
+   390→          <CardContent className="p-4">
+   391→            <div className="flex items-center justify-between">
+   392→              <div>
+   393→                <span className="text-xs text-muted-foreground uppercase">Fournisseurs Actifs</span>
+   394→                <span className="text-xl font-bold block text-[#1D9E75]">{activeCount}</span>
+   395→              </div>
+   396→              <Users className="w-8 h-8 text-[#1D9E75]/30" />
+   397→            </div>
+   398→          </CardContent>
+   399→        </Card>
+   400→        <Card>
+   401→          <CardContent className="p-4">
+   402→            <div className="flex items-center justify-between">
+   403→              <div>
+   404→                <span className="text-xs text-muted-foreground uppercase">Note Moyenne</span>
+   405→                <span className="text-xl font-bold block">{avgNote > 0 ? avgNote.toFixed(1) + ' / 5' : 'N/A'}</span>
+   406→              </div>
+   407→              <Star className="w-8 h-8 text-amber-400/30" />
+   408→            </div>
+   409→          </CardContent>
+   410→        </Card>
+   411→        <Card>
+   412→          <CardContent className="p-4">
+   413→            <div className="flex items-center justify-between">
+   414→              <div>
+   415→                <span className="text-xs text-muted-foreground uppercase">Commandes en cours</span>
+   416→                <span className="text-xl font-bold block text-amber-600">{commandesEnCours}</span>
+   417→              </div>
+   418→              <Package className="w-8 h-8 text-amber-400/30" />
+   419→            </div>
+   420→          </CardContent>
+   421→        </Card>
+   422→      </div>
+   423→
+   424→      {/* Filters */}
+   425→      <Card>
+   426→        <CardContent className="p-4">
+   427→          <div className="flex flex-col sm:flex-row gap-3">
+   428→            <div className="relative flex-1">
+   429→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   430→              <Input
+   431→                placeholder="Rechercher par nom, code..."
+   432→                className="pl-9"
+   433→                value={search}
+   434→                onChange={e => setSearch(e.target.value)}
+   435→              />
+   436→            </div>
+   437→            <Select value={filterStatus} onValueChange={setFilterStatus}>
+   438→              <SelectTrigger className="w-44">
+   439→                <SelectValue />
+   440→              </SelectTrigger>
+   441→              <SelectContent>
+   442→                <SelectItem value="all">Tous les statuts</SelectItem>
+   443→                <SelectItem value="actif">Actifs</SelectItem>
+   444→                <SelectItem value="inactif">Inactifs</SelectItem>
+   445→              </SelectContent>
+   446→            </Select>
+   447→            <Select value={filterType} onValueChange={setFilterType}>
+   448→              <SelectTrigger className="w-48">
+   449→                <Filter className="w-4 h-4 mr-2" />
+   450→                <SelectValue />
+   451→              </SelectTrigger>
+   452→              <SelectContent>
+   453→                <SelectItem value="all">Tous les types</SelectItem>
+   454→                <SelectItem value="grossiste">Grossistes API</SelectItem>
+   455→                <SelectItem value="regular">Fournisseurs classiques</SelectItem>
+   456→              </SelectContent>
+   457→            </Select>
+   458→          </div>
+   459→        </CardContent>
+   460→      </Card>
+   461→
+   462→      {/* Table */}
+   463→      <Card>
+   464→        <CardContent className="p-0">
+   465→          <div className="overflow-x-auto">
+   466→            <Table>
+   467→              <TableHeader>
+   468→                <TableRow>
+   469→                  <TableHead>Code</TableHead>
+   470→                  <TableHead>Nom</TableHead>
+   471→                  <TableHead>Téléphone</TableHead>
+   472→                  <TableHead>Email</TableHead>
+   473→                  <TableHead className="text-center">Délai Livraison</TableHead>
+   474→                  <TableHead className="text-center">Note</TableHead>
+   475→                  <TableHead className="text-center">Statut</TableHead>
+   476→                  <TableHead className="text-right">Actions</TableHead>
+   477→                </TableRow>
+   478→              </TableHeader>
+   479→              <TableBody>
+   480→                {filteredFournisseurs.length === 0 ? (
+   481→                  <TableRow>
+   482→                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+   483→                      Aucun fournisseur trouvé
+   484→                    </TableCell>
+   485→                  </TableRow>
+   486→                ) : (
+   487→                  filteredFournisseurs.map(f => (
+   488→                    <TableRow key={f.id} className="hover:bg-muted/30">
+   489→                      <TableCell>
+   490→                        <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{f.code}</span>
+   491→                      </TableCell>
+   492→                      <TableCell>
+   493→                        <div className="flex flex-col">
+   494→                          <span className="font-medium text-sm">{f.nom}</span>
+   495→                          {f.estGrossisteAPI && (
+   496→                            <Badge className="text-[8px] bg-[#1D9E75] text-white border-0 w-fit mt-0.5">Grossiste API</Badge>
+   497→                          )}
+   498→                        </div>
+   499→                      </TableCell>
+   500→                      <TableCell className="text-sm">{f.telephone || '—'}</TableCell>
+   501→                      <TableCell className="text-sm text-muted-foreground">{f.email || '—'}</TableCell>
+   502→                      <TableCell className="text-center text-sm">
+   503→                        {f.delaiLivraison ? `${f.delaiLivraison} jours` : '—'}
+   504→                      </TableCell>
+   505→                      <TableCell className="text-center">
+   506→                        {f.noteEvaluation ? (
+   507→                          <div className="flex items-center justify-center gap-1">
+   508→                            <StarRating value={Math.round(f.noteEvaluation)} />
+   509→                            <span className="text-xs font-medium ml-1">{f.noteEvaluation.toFixed(1)}</span>
+   510→                          </div>
+   511→                        ) : (
+   512→                          <StarOff className="w-3.5 h-3.5 text-gray-300 mx-auto" />
+   513→                        )}
+   514→                      </TableCell>
+   515→                      <TableCell className="text-center">
+   516→                        {f.actif ? (
+   517→                          <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Actif</Badge>
+   518→                        ) : (
+   519→                          <Badge className="text-[9px] bg-red-100 text-red-800 border-0">Inactif</Badge>
+   520→                        )}
+   521→                      </TableCell>
+   522→                      <TableCell className="text-right">
+   523→                        <div className="flex items-center justify-end gap-0.5">
+   524→                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleViewDetail(f)} title="Voir les détails">
+   525→                            <Eye className="w-4 h-4" />
+   526→                          </Button>
+   527→                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleOpenEdit(f)} title="Modifier">
+   528→                            <Pencil className="w-4 h-4" />
+   529→                          </Button>
+   530→                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleOpenEval(f)} title="Évaluer">
+   531→                            <Star className="w-4 h-4" />
+   532→                          </Button>
+   533→                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-red-500 hover:text-red-700" onClick={() => handleOpenDelete(f)} title="Désactiver">
+   534→                            <Trash2 className="w-4 h-4" />
+   535→                          </Button>
+   536→                        </div>
+   537→                      </TableCell>
+   538→                    </TableRow>
+   539→                  ))
+   540→                )}
+   541→              </TableBody>
+   542→            </Table>
+   543→          </div>
+   544→        </CardContent>
+   545→      </Card>
+   546→
+   547→      {/* Add Supplier Dialog */}
+   548→      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+   549→        <DialogContent className="max-w-lg">
+   550→          <DialogHeader>
+   551→            <DialogTitle className="flex items-center gap-2">
+   552→              <Plus className="w-5 h-5 text-[#1D9E75]" />
+   553→              Nouveau fournisseur
+   554→            </DialogTitle>
+   555→            <DialogDescription>Ajoutez un nouveau fournisseur à votre pharmacie</DialogDescription>
+   556→          </DialogHeader>
+   557→          <div className="grid gap-4 py-4">
+   558→            <div className="grid grid-cols-2 gap-4">
+   559→              <div>
+   560→                <Label>Nom *</Label>
+   561→                <Input placeholder="Nom du fournisseur" value={formNom} onChange={e => setFormNom(e.target.value)} />
+   562→              </div>
+   563→              <div>
+   564→                <Label>Code</Label>
+   565→                <Input placeholder="Auto-généré si vide" value={formCode} onChange={e => setFormCode(e.target.value)} />
+   566→              </div>
+   567→            </div>
+   568→            <div>
+   569→              <Label>Adresse</Label>
+   570→              <Input placeholder="Adresse du fournisseur" value={formAdresse} onChange={e => setFormAdresse(e.target.value)} />
+   571→            </div>
+   572→            <div className="grid grid-cols-2 gap-4">
+   573→              <div>
+   574→                <Label>Téléphone</Label>
+   575→                <Input placeholder="+229 97 00 00 00" value={formTel} onChange={e => setFormTel(e.target.value)} />
+   576→              </div>
+   577→              <div>
+   578→                <Label>Email</Label>
+   579→                <Input placeholder="email@fournisseur.bj" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
+   580→              </div>
+   581→            </div>
+   582→            <div className="grid grid-cols-2 gap-4">
+   583→              <div>
+   584→                <Label>Délai livraison (jours)</Label>
+   585→                <Input type="number" placeholder="7" value={formDelai} onChange={e => setFormDelai(e.target.value)} />
+   586→              </div>
+   587→              <div className="flex items-center gap-3 pt-6">
+   588→                <Switch checked={formGrossiste} onCheckedChange={setFormGrossiste} />
+   589→                <Label>Grossiste API</Label>
+   590→              </div>
+   591→            </div>
+   592→          </div>
+   593→          <DialogFooter>
+   594→            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Annuler</Button>
+   595→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleAddFournisseur} disabled={!formNom}>
+   596→              Enregistrer le fournisseur
+   597→            </Button>
+   598→          </DialogFooter>
+   599→        </DialogContent>
+   600→      </Dialog>
+   601→
+   602→      {/* Edit Supplier Dialog */}
+   603→      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+   604→        <DialogContent className="max-w-lg">
+   605→          <DialogHeader>
+   606→            <DialogTitle className="flex items-center gap-2">
+   607→              <Pencil className="w-5 h-5 text-[#1D9E75]" />
+   608→              Modifier le fournisseur
+   609→            </DialogTitle>
+   610→            <DialogDescription>Modifiez les informations de {selectedFournisseur?.nom}</DialogDescription>
+   611→          </DialogHeader>
+   612→          <div className="grid gap-4 py-4">
+   613→            <div className="grid grid-cols-2 gap-4">
+   614→              <div>
+   615→                <Label>Nom *</Label>
+   616→                <Input value={formNom} onChange={e => setFormNom(e.target.value)} />
+   617→              </div>
+   618→              <div>
+   619→                <Label>Code</Label>
+   620→                <Input value={formCode} onChange={e => setFormCode(e.target.value)} />
+   621→              </div>
+   622→            </div>
+   623→            <div>
+   624→              <Label>Adresse</Label>
+   625→              <Input value={formAdresse} onChange={e => setFormAdresse(e.target.value)} />
+   626→            </div>
+   627→            <div className="grid grid-cols-2 gap-4">
+   628→              <div>
+   629→                <Label>Téléphone</Label>
+   630→                <Input value={formTel} onChange={e => setFormTel(e.target.value)} />
+   631→              </div>
+   632→              <div>
+   633→                <Label>Email</Label>
+   634→                <Input value={formEmail} onChange={e => setFormEmail(e.target.value)} />
+   635→              </div>
+   636→            </div>
+   637→            <div className="grid grid-cols-2 gap-4">
+   638→              <div>
+   639→                <Label>Délai livraison (jours)</Label>
+   640→                <Input type="number" value={formDelai} onChange={e => setFormDelai(e.target.value)} />
+   641→              </div>
+   642→              <div className="flex items-center gap-3 pt-6">
+   643→                <Switch checked={formGrossiste} onCheckedChange={setFormGrossiste} />
+   644→                <Label>Grossiste API</Label>
+   645→              </div>
+   646→            </div>
+   647→          </div>
+   648→          <DialogFooter>
+   649→            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Annuler</Button>
+   650→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleEditFournisseur}>
+   651→              Enregistrer les modifications
+   652→            </Button>
+   653→          </DialogFooter>
+   654→        </DialogContent>
+   655→      </Dialog>
+   656→
+   657→      {/* Delete Confirmation Dialog */}
+   658→      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   659→        <DialogContent className="max-w-md">
+   660→          <DialogHeader>
+   661→            <DialogTitle className="flex items-center gap-2 text-red-600">
+   662→              <Trash2 className="w-5 h-5" />
+   663→              Désactiver le fournisseur
+   664→            </DialogTitle>
+   665→            <DialogDescription>
+   666→              Êtes-vous sûr de vouloir désactiver <strong>{selectedFournisseur?.nom}</strong> ?
+   667→              Le fournisseur ne sera pas supprimé mais marqué comme inactif.
+   668→            </DialogDescription>
+   669→          </DialogHeader>
+   670→          <DialogFooter>
+   671→            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+   672→            <Button variant="destructive" onClick={handleDeleteFournisseur}>
+   673→              Désactiver
+   674→            </Button>
+   675→          </DialogFooter>
+   676→        </DialogContent>
+   677→      </Dialog>
+   678→
+   679→      {/* Detail Dialog */}
+   680→      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+   681→        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+   682→          <DialogHeader>
+   683→            <DialogTitle className="flex items-center gap-2">
+   684→              <Truck className="w-5 h-5 text-[#1D9E75]" />
+   685→              {selectedFournisseur?.nom}
+   686→              {selectedFournisseur?.estGrossisteAPI && (
+   687→                <Badge className="text-[9px] bg-[#1D9E75] text-white border-0">Grossiste API</Badge>
+   688→              )}
+   689→              {selectedFournisseur?.actif ? (
+   690→                <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Actif</Badge>
+   691→              ) : (
+   692→                <Badge className="text-[9px] bg-red-100 text-red-800 border-0">Inactif</Badge>
+   693→              )}
+   694→            </DialogTitle>
+   695→          </DialogHeader>
+   696→          {detailLoading ? (
+   697→            <div className="space-y-4 py-4">
+   698→              <Skeleton className="h-20" />
+   699→              <Skeleton className="h-32" />
+   700→            </div>
+   701→          ) : detailData ? (
+   702→            <div className="py-4 space-y-4">
+   703→              {/* Info Grid */}
+   704→              <div className="grid grid-cols-2 gap-3">
+   705→                <div className="bg-muted/50 rounded-lg p-3">
+   706→                  <span className="text-xs text-muted-foreground">Code</span>
+   707→                  <p className="font-mono text-sm font-medium">{detailData.code}</p>
+   708→                </div>
+   709→                <div className="bg-muted/50 rounded-lg p-3">
+   710→                  <span className="text-xs text-muted-foreground">Téléphone</span>
+   711→                  <p className="font-medium text-sm">{detailData.telephone || '—'}</p>
+   712→                </div>
+   713→                <div className="bg-muted/50 rounded-lg p-3">
+   714→                  <span className="text-xs text-muted-foreground">Email</span>
+   715→                  <p className="font-medium text-sm">{detailData.email || '—'}</p>
+   716→                </div>
+   717→                <div className="bg-muted/50 rounded-lg p-3">
+   718→                  <span className="text-xs text-muted-foreground">Délai livraison</span>
+   719→                  <p className="font-medium text-sm">{detailData.delaiLivraison ? `${detailData.delaiLivraison} jours` : '—'}</p>
+   720→                </div>
+   721→              </div>
+   722→              {detailData.adresse && (
+   723→                <div className="bg-muted/50 rounded-lg p-3">
+   724→                  <span className="text-xs text-muted-foreground">Adresse</span>
+   725→                  <p className="font-medium text-sm">{detailData.adresse}</p>
+   726→                </div>
+   727→              )}
+   728→              <div className="bg-muted/50 rounded-lg p-3">
+   729→                <span className="text-xs text-muted-foreground">Note d&apos;évaluation</span>
+   730→                <div className="flex items-center gap-2 mt-1">
+   731→                  {detailData.noteEvaluation ? (
+   732→                    <>
+   733→                      <StarRating value={Math.round(detailData.noteEvaluation)} />
+   734→                      <span className="text-sm font-medium">{detailData.noteEvaluation.toFixed(1)} / 5</span>
+   735→                    </>
+   736→                  ) : (
+   737→                    <span className="text-sm text-muted-foreground">Non évalué</span>
+   738→                  )}
+   739→                </div>
+   740→              </div>
+   741→
+   742→              {/* Conditions d'achat */}
+   743→              <div>
+   744→                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   745→                  <TrendingUp className="w-4 h-4 text-[#1D9E75]" />
+   746→                  Conditions d&apos;achat
+   747→                </h3>
+   748→                {detailData.conditions && detailData.conditions.length > 0 ? (
+   749→                  <div className="space-y-2">
+   750→                    {detailData.conditions.map(c => (
+   751→                      <div key={c.id} className="bg-muted/50 rounded-lg p-3">
+   752→                        <div className="flex justify-between items-start">
+   753→                          <div>
+   754→                            <span className="font-medium text-sm">{c.medicament?.nomCommercial || 'Général'}</span>
+   755→                            {c.medicament && (
+   756→                              <span className="text-xs text-muted-foreground ml-2">({c.medicament.dci})</span>
+   757→                            )}
+   758→                          </div>
+   759→                          <span className="font-semibold text-sm text-[#1D9E75]">{formatFCFA(c.prixAchat)}</span>
+   760→                        </div>
+   761→                        <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+   762→                          {c.remise && <span>Remise: {c.remise}%</span>}
+   763→                          {c.delaiPaiement && <span>Paiement: {c.delaiPaiement} jours</span>}
+   764→                          {c.minCommande && <span>Min: {c.minCommande} unités</span>}
+   765→                        </div>
+   766→                      </div>
+   767→                    ))}
+   768→                  </div>
+   769→                ) : (
+   770→                  <div className="text-center py-4 text-muted-foreground text-sm">
+   771→                    Aucune condition d&apos;achat enregistrée
+   772→                  </div>
+   773→                )}
+   774→              </div>
+   775→
+   776→              {/* Evaluations */}
+   777→              <div>
+   778→                <div className="flex items-center justify-between mb-2">
+   779→                  <h3 className="text-sm font-semibold flex items-center gap-1">
+   780→                    <Star className="w-4 h-4 text-amber-400" />
+   781→                    Évaluations
+   782→                  </h3>
+   783→                  <Button variant="outline" size="sm" className="gap-1" onClick={() => {
+   784→                    setDetailDialogOpen(false)
+   785→                    setTimeout(() => handleOpenEval(selectedFournisseur!), 200)
+   786→                  }}>
+   787→                    <Plus className="w-3.5 h-3.5" /> Évaluer
+   788→                  </Button>
+   789→                </div>
+   790→                {detailData.evaluations && detailData.evaluations.length > 0 ? (
+   791→                  <div className="space-y-2">
+   792→                    {detailData.evaluations.map(ev => (
+   793→                      <div key={ev.id} className="bg-muted/50 rounded-lg p-3">
+   794→                        <div className="flex justify-between items-start mb-2">
+   795→                          <span className="text-xs text-muted-foreground">
+   796→                            {new Date(ev.dateEvaluation).toLocaleDateString('fr-FR')}
+   797→                          </span>
+   798→                          <div className="text-right">
+   799→                            <span className="text-xs font-medium text-[#1D9E75]">
+   800→                              {((ev.delaiRespecte + ev.qualiteProduit + ev.communication) / 3).toFixed(1)} / 5
+   801→                            </span>
+   802→                          </div>
+   803→                        </div>
+   804→                        <div className="grid grid-cols-3 gap-2">
+   805→                          <div className="text-center">
+   806→                            <span className="text-[10px] text-muted-foreground">Délai</span>
+   807→                            <StarRating value={ev.delaiRespecte} />
+   808→                          </div>
+   809→                          <div className="text-center">
+   810→                            <span className="text-[10px] text-muted-foreground">Qualité</span>
+   811→                            <StarRating value={ev.qualiteProduit} />
+   812→                          </div>
+   813→                          <div className="text-center">
+   814→                            <span className="text-[10px] text-muted-foreground">Communication</span>
+   815→                            <StarRating value={ev.communication} />
+   816→                          </div>
+   817→                        </div>
+   818→                        {ev.commentaire && (
+   819→                          <p className="text-xs text-muted-foreground mt-2 italic">&quot;{ev.commentaire}&quot;</p>
+   820→                        )}
+   821→                      </div>
+   822→                    ))}
+   823→                  </div>
+   824→                ) : (
+   825→                  <div className="text-center py-4">
+   826→                    <StarOff className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+   827→                    <p className="text-sm text-muted-foreground">Aucune évaluation</p>
+   828→                  </div>
+   829→                )}
+   830→              </div>
+   831→
+   832→              {/* Commandes History */}
+   833→              <div>
+   834→                <h3 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   835→                  <Package className="w-4 h-4 text-[#1D9E75]" />
+   836→                  Historique des commandes
+   837→                </h3>
+   838→                {detailData.commandes && detailData.commandes.length > 0 ? (
+   839→                  <div className="space-y-2">
+   840→                    {detailData.commandes.slice(0, 5).map(cmd => (
+   841→                      <div key={cmd.id} className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+   842→                        <div>
+   843→                          <span className="font-mono text-xs text-muted-foreground">{cmd.reference}</span>
+   844→                          <span className="text-xs text-muted-foreground ml-2">
+   845→                            {new Date(cmd.dateCommande).toLocaleDateString('fr-FR')}
+   846→                          </span>
+   847→                        </div>
+   848→                        <div className="flex items-center gap-2">
+   849→                          <span className="text-sm font-medium">{formatFCFA(cmd.montantTotal)}</span>
+   850→                          <Badge className="text-[8px] bg-blue-100 text-blue-800 border-0">{cmd.statut}</Badge>
+   851→                        </div>
+   852→                      </div>
+   853→                    ))}
+   854→                  </div>
+   855→                ) : (
+   856→                  <div className="text-center py-4 text-sm text-muted-foreground">
+   857→                    Aucune commande enregistrée
+   858→                  </div>
+   859→                )}
+   860→              </div>
+   861→            </div>
+   862→          ) : (
+   863→            <div className="text-center py-8 text-muted-foreground">
+   864→              Impossible de charger les détails
+   865→            </div>
+   866→          )}
+   867→        </DialogContent>
+   868→      </Dialog>
+   869→
+   870→      {/* Evaluation Dialog */}
+   871→      <Dialog open={evalDialogOpen} onOpenChange={setEvalDialogOpen}>
+   872→        <DialogContent className="max-w-md">
+   873→          <DialogHeader>
+   874→            <DialogTitle className="flex items-center gap-2">
+   875→              <Star className="w-5 h-5 text-amber-400" />
+   876→              Évaluer — {selectedFournisseur?.nom}
+   877→            </DialogTitle>
+   878→            <DialogDescription>Notez ce fournisseur sur 3 critères</DialogDescription>
+   879→          </DialogHeader>
+   880→          <div className="space-y-4 py-4">
+   881→            <div>
+   882→              <Label>Respect des délais (1-5)</Label>
+   883→              <div className="flex items-center gap-3 mt-1">
+   884→                <Select value={evalDelai} onValueChange={setEvalDelai}>
+   885→                  <SelectTrigger className="w-20">
+   886→                    <SelectValue />
+   887→                  </SelectTrigger>
+   888→                  <SelectContent>
+   889→                    {[1, 2, 3, 4, 5].map(v => (
+   890→                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+   891→                    ))}
+   892→                  </SelectContent>
+   893→                </Select>
+   894→                <StarRating value={parseInt(evalDelai)} />
+   895→              </div>
+   896→            </div>
+   897→            <div>
+   898→              <Label>Qualité des produits (1-5)</Label>
+   899→              <div className="flex items-center gap-3 mt-1">
+   900→                <Select value={evalQualite} onValueChange={setEvalQualite}>
+   901→                  <SelectTrigger className="w-20">
+   902→                    <SelectValue />
+   903→                  </SelectTrigger>
+   904→                  <SelectContent>
+   905→                    {[1, 2, 3, 4, 5].map(v => (
+   906→                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+   907→                    ))}
+   908→                  </SelectContent>
+   909→                </Select>
+   910→                <StarRating value={parseInt(evalQualite)} />
+   911→              </div>
+   912→            </div>
+   913→            <div>
+   914→              <Label>Communication (1-5)</Label>
+   915→              <div className="flex items-center gap-3 mt-1">
+   916→                <Select value={evalCommunication} onValueChange={setEvalCommunication}>
+   917→                  <SelectTrigger className="w-20">
+   918→                    <SelectValue />
+   919→                  </SelectTrigger>
+   920→                  <SelectContent>
+   921→                    {[1, 2, 3, 4, 5].map(v => (
+   922→                      <SelectItem key={v} value={String(v)}>{v}</SelectItem>
+   923→                    ))}
+   924→                  </SelectContent>
+   925→                </Select>
+   926→                <StarRating value={parseInt(evalCommunication)} />
+   927→              </div>
+   928→            </div>
+   929→            <div>
+   930→              <Label>Commentaire (optionnel)</Label>
+   931→              <Textarea
+   932→                placeholder="Votre commentaire..."
+   933→                value={evalCommentaire}
+   934→                onChange={e => setEvalCommentaire(e.target.value)}
+   935→                rows={3}
+   936→              />
+   937→            </div>
+   938→          </div>
+   939→          <DialogFooter>
+   940→            <Button variant="outline" onClick={() => setEvalDialogOpen(false)}>Annuler</Button>
+   941→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleSubmitEval}>
+   942→              Enregistrer l&apos;évaluation
+   943→            </Button>
+   944→          </DialogFooter>
+   945→        </DialogContent>
+   946→      </Dialog>
+   947→    </div>
+   948→  )
+   949→}
+   950→

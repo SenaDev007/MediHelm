@@ -1,0 +1,874 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Label } from '@/components/ui/label'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Skeleton } from '@/components/ui/skeleton'
+    10→import { Switch } from '@/components/ui/switch'
+    11→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    12→import { Progress } from '@/components/ui/progress'
+    13→import {
+    14→  Table,
+    15→  TableBody,
+    16→  TableCell,
+    17→  TableHead,
+    18→  TableHeader,
+    19→  TableRow,
+    20→} from '@/components/ui/table'
+    21→import {
+    22→  Dialog,
+    23→  DialogContent,
+    24→  DialogDescription,
+    25→  DialogFooter,
+    26→  DialogHeader,
+    27→  DialogTitle,
+    28→} from '@/components/ui/dialog'
+    29→import {
+    30→  Select,
+    31→  SelectContent,
+    32→  SelectItem,
+    33→  SelectTrigger,
+    34→  SelectValue,
+    35→} from '@/components/ui/select'
+    36→import {
+    37→  Settings,
+    38→  Store,
+    39→  Users,
+    40→  Bell,
+    41→  CreditCard,
+    42→  Link2,
+    43→  Plus,
+    44→  Pencil,
+    45→  Save,
+    46→  Calculator,
+    47→  Wifi,
+    48→  Globe,
+    49→  Shield,
+    50→} from 'lucide-react'
+    51→import { useEffect, useState } from 'react'
+    52→import { toast } from 'sonner'
+    53→
+    54→// === Types ===
+    55→
+    56→interface Caisse {
+    57→  id: string
+    58→  nom: string
+    59→  numero: number
+    60→  actif: boolean
+    61→  sessionsCaisse?: { id: string; dateOuverture: string; fondDeCaisse: number }[]
+    62→}
+    63→
+    64→interface UtilisateurItem {
+    65→  id: string
+    66→  nom: string
+    67→  prenom: string
+    68→  email: string
+    69→  telephone: string | null
+    70→  actif: boolean
+    71→  roleId: string
+    72→  role?: { id: string; nom: string }
+    73→  dernierLogin: string | null
+    74→}
+    75→
+    76→interface RoleItem {
+    77→  id: string
+    78→  nom: string
+    79→  description: string | null
+    80→}
+    81→
+    82→interface FournisseurAPI {
+    83→  id: string
+    84→  nom: string
+    85→  code: string
+    86→  grossisteId: string | null
+    87→  email: string | null
+    88→  telephone: string | null
+    89→}
+    90→
+    91→interface AbonnementItem {
+    92→  id: string
+    93→  plan: string
+    94→  periode: string
+    95→  prix: number
+    96→  debut: string
+    97→  fin: string | null
+    98→  statut: string
+    99→  essaiActif: boolean
+   100→}
+   101→
+   102→function formatFCFA(amount: number) {
+   103→  return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA'
+   104→}
+   105→
+   106→// === Main Component ===
+   107→
+   108→export default function ParametresPage() {
+   109→  const { pharmacie } = useAuth()
+   110→  const [activeTab, setActiveTab] = useState('informations')
+   111→
+   112→  // === Tab 1: Informations ===
+   113→  const [pharmacieData, setPharmacieData] = useState<Record<string, unknown> | null>(null)
+   114→  const [loadingInfo, setLoadingInfo] = useState(true)
+   115→  const [savingInfo, setSavingInfo] = useState(false)
+   116→  const [formNom, setFormNom] = useState('')
+   117→  const [formAdresse, setFormAdresse] = useState('')
+   118→  const [formVille, setFormVille] = useState('')
+   119→  const [formDepartement, setFormDepartement] = useState('')
+   120→  const [formTelephone, setFormTelephone] = useState('')
+   121→  const [formEmail, setFormEmail] = useState('')
+   122→  const [formAgrement, setFormAgrement] = useState('')
+   123→
+   124→  // === Tab 2: Caisse ===
+   125→  const [caisses, setCaisses] = useState<Caisse[]>([])
+   126→  const [loadingCaisses, setLoadingCaisses] = useState(true)
+   127→  const [addCaisseOpen, setAddCaisseOpen] = useState(false)
+   128→  const [caisseNom, setCaisseNom] = useState('')
+   129→  const [caisseNumero, setCaisseNumero] = useState('')
+   130→
+   131→  // === Tab 3: Utilisateurs ===
+   132→  const [utilisateurs, setUtilisateurs] = useState<UtilisateurItem[]>([])
+   133→  const [loadingUsers, setLoadingUsers] = useState(true)
+   134→  const [roles, setRoles] = useState<RoleItem[]>([])
+   135→  const [addUserOpen, setAddUserOpen] = useState(false)
+   136→  const [userNom, setUserNom] = useState('')
+   137→  const [userPrenom, setUserPrenom] = useState('')
+   138→  const [userEmail, setUserEmail] = useState('')
+   139→  const [userRoleId, setUserRoleId] = useState('')
+   140→
+   141→  // === Tab 4: Notifications ===
+   142→  const [notifPrefs, setNotifPrefs] = useState({
+   143→    push: true,
+   144→    sms: false,
+   145→    email: true,
+   146→    in_app: true,
+   147→  })
+   148→  const [savingNotif, setSavingNotif] = useState(false)
+   149→
+   150→  // === Tab 5: Abonnement ===
+   151→  const [abonnements, setAbonnements] = useState<AbonnementItem[]>([])
+   152→  const [loadingAbo, setLoadingAbo] = useState(true)
+   153→
+   154→  // === Tab 6: API & Intégrations ===
+   155→  const [fournisseursAPI, setFournisseursAPI] = useState<FournisseurAPI[]>([])
+   156→  const [loadingAPI, setLoadingAPI] = useState(true)
+   157→
+   158→  // === Load data ===
+   159→  useEffect(() => {
+   160→    if (!pharmacie?.id) return
+   161→
+   162→    // Load pharmacy info
+   163→    const loadPharmacie = async () => {
+   164→      setLoadingInfo(true)
+   165→      try {
+   166→        const res = await fetch(`/api/pharmacies/${pharmacie.id}`)
+   167→        if (res.ok) {
+   168→          const data = await res.json()
+   169→          setPharmacieData(data)
+   170→          setFormNom(data.nom || '')
+   171→          setFormAdresse(data.adresse || '')
+   172→          setFormVille(data.ville || '')
+   173→          setFormDepartement(data.departement || '')
+   174→          setFormTelephone(data.telephone || '')
+   175→          setFormEmail(data.email || '')
+   176→          setFormAgrement(data.numeroAgrement || '')
+   177→        }
+   178→      } catch { /* empty */ } finally {
+   179→        setLoadingInfo(false)
+   180→      }
+   181→    }
+   182→
+   183→    // Load caisses
+   184→    const loadCaisses = async () => {
+   185→      setLoadingCaisses(true)
+   186→      try {
+   187→        const res = await fetch(`/api/caisses?pharmacieId=${pharmacie.id}`)
+   188→        if (res.ok) setCaisses(await res.json())
+   189→      } catch { /* empty */ } finally {
+   190→        setLoadingCaisses(false)
+   191→      }
+   192→    }
+   193→
+   194→    // Load utilisateurs
+   195→    const loadUsers = async () => {
+   196→      setLoadingUsers(true)
+   197→      try {
+   198→        const res = await fetch(`/api/utilisateurs?pharmacieId=${pharmacie.id}`)
+   199→        if (res.ok) {
+   200→          const data = await res.json()
+   201→          setUtilisateurs(data)
+   202→        }
+   203→      } catch { /* empty */ } finally {
+   204→        setLoadingUsers(false)
+   205→      }
+   206→    }
+   207→
+   208→    // Load roles
+   209→    const loadRoles = async () => {
+   210→      try {
+   211→        const res = await fetch('/api/utilisateurs')
+   212→        if (res.ok) {
+   213→          const allUsers = await res.json()
+   214→          const uniqueRoles = new Map<string, RoleItem>()
+   215→          allUsers.forEach((u: UtilisateurItem) => {
+   216→            if (u.role && !uniqueRoles.has(u.role.id)) {
+   217→              uniqueRoles.set(u.role.id, u.role)
+   218→            }
+   219→          })
+   220→          setRoles(Array.from(uniqueRoles.values()))
+   221→        }
+   222→      } catch { /* empty */ }
+   223→    }
+   224→
+   225→    // Load abonnements
+   226→    const loadAbo = async () => {
+   227→      setLoadingAbo(true)
+   228→      try {
+   229→        const res = await fetch(`/api/abonnements?pharmacieId=${pharmacie.id}`)
+   230→        if (res.ok) setAbonnements(await res.json())
+   231→      } catch { /* empty */ } finally {
+   232→        setLoadingAbo(false)
+   233→      }
+   234→    }
+   235→
+   236→    // Load fournisseurs API
+   237→    const loadAPI = async () => {
+   238→      setLoadingAPI(true)
+   239→      try {
+   240→        const res = await fetch(`/api/fournisseurs?pharmacieId=${pharmacie.id}`)
+   241→        if (res.ok) {
+   242→          const data = await res.json()
+   243→          setFournisseursAPI(data.filter((f: FournisseurAPI & { estGrossisteAPI: boolean }) => f.estGrossisteAPI))
+   244→        }
+   245→      } catch { /* empty */ } finally {
+   246→        setLoadingAPI(false)
+   247→      }
+   248→    }
+   249→
+   250→    loadPharmacie()
+   251→    loadCaisses()
+   252→    loadUsers()
+   253→    loadRoles()
+   254→    loadAbo()
+   255→    loadAPI()
+   256→  }, [pharmacie?.id])
+   257→
+   258→  // === Handlers ===
+   259→
+   260→  const handleSavePharmacie = async () => {
+   261→    if (!pharmacie?.id) return
+   262→    setSavingInfo(true)
+   263→    try {
+   264→      const res = await fetch(`/api/pharmacies/${pharmacie.id}`, {
+   265→        method: 'PATCH',
+   266→        headers: { 'Content-Type': 'application/json' },
+   267→        body: JSON.stringify({
+   268→          nom: formNom,
+   269→          adresse: formAdresse,
+   270→          ville: formVille,
+   271→          departement: formDepartement,
+   272→          telephone: formTelephone,
+   273→          email: formEmail,
+   274→          numeroAgrement: formAgrement,
+   275→        }),
+   276→      })
+   277→      if (res.ok) {
+   278→        toast.success('Informations mises à jour avec succès')
+   279→      } else {
+   280→        toast.error('Erreur lors de la mise à jour')
+   281→      }
+   282→    } catch {
+   283→      toast.error('Erreur de connexion')
+   284→    } finally {
+   285→      setSavingInfo(false)
+   286→    }
+   287→  }
+   288→
+   289→  const handleAddCaisse = async () => {
+   290→    if (!pharmacie?.id || !caisseNom) {
+   291→      toast.error('Le nom de la caisse est requis')
+   292→      return
+   293→    }
+   294→    try {
+   295→      const res = await fetch('/api/caisses', {
+   296→        method: 'POST',
+   297→        headers: { 'Content-Type': 'application/json' },
+   298→        body: JSON.stringify({
+   299→          pharmacieId: pharmacie.id,
+   300→          nom: caisseNom,
+   301→          numero: parseInt(caisseNumero) || caisses.length + 1,
+   302→        }),
+   303→      })
+   304→      if (res.ok) {
+   305→        toast.success('Caisse ajoutée avec succès')
+   306→        setAddCaisseOpen(false)
+   307→        setCaisseNom('')
+   308→        setCaisseNumero('')
+   309→        const refreshRes = await fetch(`/api/caisses?pharmacieId=${pharmacie.id}`)
+   310→        if (refreshRes.ok) setCaisses(await refreshRes.json())
+   311→      } else {
+   312→        toast.error('Erreur lors de l\'ajout de la caisse')
+   313→      }
+   314→    } catch {
+   315→      toast.error('Erreur de connexion')
+   316→    }
+   317→  }
+   318→
+   319→  const handleAddUser = async () => {
+   320→    if (!pharmacie?.id || !userNom || !userPrenom || !userEmail || !userRoleId) {
+   321→      toast.error('Tous les champs sont requis')
+   322→      return
+   323→    }
+   324→    try {
+   325→      const res = await fetch('/api/utilisateurs', {
+   326→        method: 'POST',
+   327→        headers: { 'Content-Type': 'application/json' },
+   328→        body: JSON.stringify({
+   329→          pharmacieId: pharmacie.id,
+   330→          nom: userNom,
+   331→          prenom: userPrenom,
+   332→          email: userEmail,
+   333→          roleId: userRoleId,
+   334→          motDePasse: 'Changer@123',
+   335→        }),
+   336→      })
+   337→      if (res.ok) {
+   338→        toast.success('Utilisateur ajouté avec succès')
+   339→        setAddUserOpen(false)
+   340→        setUserNom('')
+   341→        setUserPrenom('')
+   342→        setUserEmail('')
+   343→        setUserRoleId('')
+   344→        const refreshRes = await fetch(`/api/utilisateurs?pharmacieId=${pharmacie.id}`)
+   345→        if (refreshRes.ok) setUtilisateurs(await refreshRes.json())
+   346→      } else {
+   347→        toast.error('Erreur lors de l\'ajout de l\'utilisateur')
+   348→      }
+   349→    } catch {
+   350→      toast.error('Erreur de connexion')
+   351→    }
+   352→  }
+   353→
+   354→  const handleSaveNotif = async () => {
+   355→    setSavingNotif(true)
+   356→    await new Promise(r => setTimeout(r, 800))
+   357→    toast.success('Préférences de notification enregistrées')
+   358→    setSavingNotif(false)
+   359→  }
+   360→
+   361→  // === Computed values ===
+   362→  const currentAbo = abonnements.find(a => a.statut === 'ACTIF' || a.statut === 'ESSAI')
+   363→  const planLabel = pharmacie?.plan || currentAbo?.plan || 'SEED'
+   364→  const nbUsersCurrent = utilisateurs.filter(u => u.actif).length
+   365→  const nbUsersMax = (pharmacieData?.nbUtilisateursMax as number) || 5
+   366→  const nbCaissiersMax = (pharmacieData?.nbCaissiersSimut as number) || 2
+   367→
+   368→  if (!pharmacie?.id) {
+   369→    return (
+   370→      <div className="flex items-center justify-center h-64">
+   371→        <p className="text-muted-foreground">Chargement...</p>
+   372→      </div>
+   373→    )
+   374→  }
+   375→
+   376→  return (
+   377→    <div className="space-y-6">
+   378→      {/* Header */}
+   379→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   380→        <div>
+   381→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   382→            <Settings className="w-6 h-6 text-[#1D9E75]" />
+   383→            Paramètres
+   384→          </h1>
+   385→          <p className="text-sm text-muted-foreground">
+   386→            Configuration de votre pharmacie — Plan {planLabel}
+   387→          </p>
+   388→        </div>
+   389→      </div>
+   390→
+   391→      {/* Tabs */}
+   392→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   393→        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-1 h-auto p-1">
+   394→          <TabsTrigger value="informations" className="text-xs gap-1.5">
+   395→            <Store className="w-3.5 h-3.5" /> Informations
+   396→          </TabsTrigger>
+   397→          <TabsTrigger value="caisse" className="text-xs gap-1.5">
+   398→            <Calculator className="w-3.5 h-3.5" /> Caisse
+   399→          </TabsTrigger>
+   400→          <TabsTrigger value="utilisateurs" className="text-xs gap-1.5">
+   401→            <Users className="w-3.5 h-3.5" /> Utilisateurs
+   402→          </TabsTrigger>
+   403→          <TabsTrigger value="notifications" className="text-xs gap-1.5">
+   404→            <Bell className="w-3.5 h-3.5" /> Notifications
+   405→          </TabsTrigger>
+   406→          <TabsTrigger value="abonnement" className="text-xs gap-1.5">
+   407→            <CreditCard className="w-3.5 h-3.5" /> Abonnement
+   408→          </TabsTrigger>
+   409→          <TabsTrigger value="api" className="text-xs gap-1.5">
+   410→            <Link2 className="w-3.5 h-3.5" /> API
+   411→          </TabsTrigger>
+   412→        </TabsList>
+   413→
+   414→        {/* Tab 1: Informations */}
+   415→        <TabsContent value="informations" className="space-y-4">
+   416→          <Card>
+   417→            <CardHeader>
+   418→              <CardTitle className="flex items-center gap-2 text-base">
+   419→                <Store className="w-4 h-4 text-[#1D9E75]" />
+   420→                Informations de la pharmacie
+   421→              </CardTitle>
+   422→              <CardDescription>Modifiez les informations de votre officine</CardDescription>
+   423→            </CardHeader>
+   424→            <CardContent>
+   425→              {loadingInfo ? (
+   426→                <div className="space-y-4">
+   427→                  {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10" />)}
+   428→                </div>
+   429→              ) : (
+   430→                <div className="grid gap-4">
+   431→                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   432→                    <div>
+   433→                      <Label>Nom de la pharmacie</Label>
+   434→                      <Input value={formNom} onChange={e => setFormNom(e.target.value)} />
+   435→                    </div>
+   436→                    <div>
+   437→                      <Label>N° Agrément</Label>
+   438→                      <Input value={formAgrement} onChange={e => setFormAgrement(e.target.value)} />
+   439→                    </div>
+   440→                  </div>
+   441→                  <div>
+   442→                    <Label>Adresse</Label>
+   443→                    <Input value={formAdresse} onChange={e => setFormAdresse(e.target.value)} />
+   444→                  </div>
+   445→                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+   446→                    <div>
+   447→                      <Label>Ville</Label>
+   448→                      <Input value={formVille} onChange={e => setFormVille(e.target.value)} />
+   449→                    </div>
+   450→                    <div>
+   451→                      <Label>Département</Label>
+   452→                      <Input value={formDepartement} onChange={e => setFormDepartement(e.target.value)} />
+   453→                    </div>
+   454→                    <div>
+   455→                      <Label>Téléphone</Label>
+   456→                      <Input value={formTelephone} onChange={e => setFormTelephone(e.target.value)} />
+   457→                    </div>
+   458→                  </div>
+   459→                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   460→                    <div>
+   461→                      <Label>Email</Label>
+   462→                      <Input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
+   463→                    </div>
+   464→                    <div className="flex items-end">
+   465→                      <Button
+   466→                        className="bg-[#1D9E75] hover:bg-[#085041] gap-2 w-full md:w-auto"
+   467→                        onClick={handleSavePharmacie}
+   468→                        disabled={savingInfo}
+   469→                      >
+   470→                        <Save className="w-4 h-4" />
+   471→                        {savingInfo ? 'Enregistrement...' : 'Enregistrer'}
+   472→                      </Button>
+   473→                    </div>
+   474→                  </div>
+   475→                </div>
+   476→              )}
+   477→            </CardContent>
+   478→          </Card>
+   479→        </TabsContent>
+   480→
+   481→        {/* Tab 2: Caisse */}
+   482→        <TabsContent value="caisse" className="space-y-4">
+   483→          <Card>
+   484→            <CardHeader className="flex flex-row items-center justify-between">
+   485→              <div>
+   486→                <CardTitle className="flex items-center gap-2 text-base">
+   487→                  <Calculator className="w-4 h-4 text-[#1D9E75]" />
+   488→                  Gestion des caisses
+   489→                </CardTitle>
+   490→                <CardDescription>{caisses.length} caisses configurées</CardDescription>
+   491→              </div>
+   492→              <Button className="gap-2 bg-[#1D9E75] hover:bg-[#085041]" onClick={() => setAddCaisseOpen(true)}>
+   493→                <Plus className="w-4 h-4" /> Ajouter
+   494→              </Button>
+   495→            </CardHeader>
+   496→            <CardContent>
+   497→              {loadingCaisses ? (
+   498→                <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-16" />)}</div>
+   499→              ) : caisses.length === 0 ? (
+   500→                <div className="text-center py-8 text-muted-foreground">
+   501→                  <Calculator className="w-12 h-12 mx-auto mb-3 opacity-30" />
+   502→                  <p>Aucune caisse configurée</p>
+   503→                </div>
+   504→              ) : (
+   505→                <div className="space-y-3">
+   506→                  {caisses.map(caisse => (
+   507→                    <div key={caisse.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+   508→                      <div className="flex items-center gap-3">
+   509→                        <div className="w-10 h-10 rounded-lg bg-[#1D9E75]/10 flex items-center justify-center">
+   510→                          <Calculator className="w-5 h-5 text-[#1D9E75]" />
+   511→                        </div>
+   512→                        <div>
+   513→                          <p className="font-medium text-sm">{caisse.nom}</p>
+   514→                          <p className="text-xs text-muted-foreground">N° {caisse.numero}</p>
+   515→                        </div>
+   516→                      </div>
+   517→                      <div className="flex items-center gap-2">
+   518→                        {caisse.sessionsCaisse && caisse.sessionsCaisse.length > 0 ? (
+   519→                          <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Session active</Badge>
+   520→                        ) : (
+   521→                          <Badge variant="secondary" className="text-[9px]">Fermée</Badge>
+   522→                        )}
+   523→                        {caisse.actif ? (
+   524→                          <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Active</Badge>
+   525→                        ) : (
+   526→                          <Badge className="text-[9px] bg-red-100 text-red-800 border-0">Inactive</Badge>
+   527→                        )}
+   528→                      </div>
+   529→                    </div>
+   530→                  ))}
+   531→                </div>
+   532→              )}
+   533→            </CardContent>
+   534→          </Card>
+   535→        </TabsContent>
+   536→
+   537→        {/* Tab 3: Utilisateurs */}
+   538→        <TabsContent value="utilisateurs" className="space-y-4">
+   539→          <Card>
+   540→            <CardHeader className="flex flex-row items-center justify-between">
+   541→              <div>
+   542→                <CardTitle className="flex items-center gap-2 text-base">
+   543→                  <Users className="w-4 h-4 text-[#1D9E75]" />
+   544→                  Utilisateurs
+   545→                </CardTitle>
+   546→                <CardDescription>
+   547→                  {nbUsersCurrent} / {nbUsersMax} utilisateurs
+   548→                </CardDescription>
+   549→              </div>
+   550→              <Button className="gap-2 bg-[#1D9E75] hover:bg-[#085041]" onClick={() => setAddUserOpen(true)}>
+   551→                <Plus className="w-4 h-4" /> Inviter
+   552→              </Button>
+   553→            </CardHeader>
+   554→            <CardContent>
+   555→              {loadingUsers ? (
+   556→                <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12" />)}</div>
+   557→              ) : (
+   558→                <div className="overflow-x-auto">
+   559→                  <Table>
+   560→                    <TableHeader>
+   561→                      <TableRow>
+   562→                        <TableHead>Nom</TableHead>
+   563→                        <TableHead>Email</TableHead>
+   564→                        <TableHead>Rôle</TableHead>
+   565→                        <TableHead className="text-center">Statut</TableHead>
+   566→                        <TableHead>Dernier login</TableHead>
+   567→                      </TableRow>
+   568→                    </TableHeader>
+   569→                    <TableBody>
+   570→                      {utilisateurs.length === 0 ? (
+   571→                        <TableRow>
+   572→                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+   573→                            Aucun utilisateur trouvé
+   574→                          </TableCell>
+   575→                        </TableRow>
+   576→                      ) : (
+   577→                        utilisateurs.map(u => (
+   578→                          <TableRow key={u.id}>
+   579→                            <TableCell className="font-medium text-sm">
+   580→                              {u.prenom} {u.nom}
+   581→                            </TableCell>
+   582→                            <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
+   583→                            <TableCell>
+   584→                              <Badge variant="secondary" className="text-[9px]">{u.role?.nom || '—'}</Badge>
+   585→                            </TableCell>
+   586→                            <TableCell className="text-center">
+   587→                              {u.actif ? (
+   588→                                <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Actif</Badge>
+   589→                              ) : (
+   590→                                <Badge className="text-[9px] bg-red-100 text-red-800 border-0">Inactif</Badge>
+   591→                              )}
+   592→                            </TableCell>
+   593→                            <TableCell className="text-xs text-muted-foreground">
+   594→                              {u.dernierLogin ? new Date(u.dernierLogin).toLocaleDateString('fr-FR') : 'Jamais'}
+   595→                            </TableCell>
+   596→                          </TableRow>
+   597→                        ))
+   598→                      )}
+   599→                    </TableBody>
+   600→                  </Table>
+   601→                </div>
+   602→              )}
+   603→              {/* Usage meter */}
+   604→              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+   605→                <div className="flex justify-between text-xs mb-1">
+   606→                  <span>Utilisateurs utilisés</span>
+   607→                  <span className="font-medium">{nbUsersCurrent} / {nbUsersMax}</span>
+   608→                </div>
+   609→                <Progress value={(nbUsersCurrent / nbUsersMax) * 100} className="h-2" />
+   610→              </div>
+   611→            </CardContent>
+   612→          </Card>
+   613→        </TabsContent>
+   614→
+   615→        {/* Tab 4: Notifications */}
+   616→        <TabsContent value="notifications" className="space-y-4">
+   617→          <Card>
+   618→            <CardHeader>
+   619→              <CardTitle className="flex items-center gap-2 text-base">
+   620→                <Bell className="w-4 h-4 text-[#1D9E75]" />
+   621→                Préférences de notification
+   622→              </CardTitle>
+   623→              <CardDescription>Configurez comment vous recevez les notifications</CardDescription>
+   624→            </CardHeader>
+   625→            <CardContent className="space-y-4">
+   626→              {([
+   627→                { key: 'push' as const, label: 'Notifications Push', desc: 'Notifications en temps réel sur votre navigateur', icon: Bell },
+   628→                { key: 'sms' as const, label: 'SMS', desc: 'Notifications par SMS sur votre téléphone', icon: Shield },
+   629→                { key: 'email' as const, label: 'Email', desc: 'Notifications par courrier électronique', icon: Globe },
+   630→                { key: 'in_app' as const, label: 'In-App', desc: 'Notifications dans l\'application', icon: Wifi },
+   631→              ]).map(channel => (
+   632→                <div key={channel.key} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+   633→                  <div className="flex items-center gap-3">
+   634→                    <div className="w-10 h-10 rounded-lg bg-[#1D9E75]/10 flex items-center justify-center">
+   635→                      <channel.icon className="w-5 h-5 text-[#1D9E75]" />
+   636→                    </div>
+   637→                    <div>
+   638→                      <p className="font-medium text-sm">{channel.label}</p>
+   639→                      <p className="text-xs text-muted-foreground">{channel.desc}</p>
+   640→                    </div>
+   641→                  </div>
+   642→                  <Switch
+   643→                    checked={notifPrefs[channel.key]}
+   644→                    onCheckedChange={checked => setNotifPrefs(p => ({ ...p, [channel.key]: checked }))}
+   645→                  />
+   646→                </div>
+   647→              ))}
+   648→              <div className="flex justify-end">
+   649→                <Button
+   650→                  className="bg-[#1D9E75] hover:bg-[#085041] gap-2"
+   651→                  onClick={handleSaveNotif}
+   652→                  disabled={savingNotif}
+   653→                >
+   654→                  <Save className="w-4 h-4" />
+   655→                  {savingNotif ? 'Enregistrement...' : 'Enregistrer les préférences'}
+   656→                </Button>
+   657→              </div>
+   658→            </CardContent>
+   659→          </Card>
+   660→        </TabsContent>
+   661→
+   662→        {/* Tab 5: Abonnement */}
+   663→        <TabsContent value="abonnement" className="space-y-4">
+   664→          <Card>
+   665→            <CardHeader>
+   666→              <CardTitle className="flex items-center gap-2 text-base">
+   667→                <CreditCard className="w-4 h-4 text-[#1D9E75]" />
+   668→                Abonnement actuel
+   669→              </CardTitle>
+   670→            </CardHeader>
+   671→            <CardContent>
+   672→              {loadingAbo ? (
+   673→                <Skeleton className="h-32" />
+   674→              ) : currentAbo ? (
+   675→                <div className="space-y-4">
+   676→                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+   677→                    <div className="bg-muted/50 rounded-lg p-3">
+   678→                      <span className="text-xs text-muted-foreground">Plan</span>
+   679→                      <p className="font-bold text-[#1D9E75]">{currentAbo.plan}</p>
+   680→                    </div>
+   681→                    <div className="bg-muted/50 rounded-lg p-3">
+   682→                      <span className="text-xs text-muted-foreground">Statut</span>
+   683→                      <p>
+   684→                        <Badge className={`text-[9px] border-0 ${currentAbo.statut === 'ACTIF' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-amber-100 text-amber-800'}`}>
+   685→                          {currentAbo.statut}
+   686→                        </Badge>
+   687→                      </p>
+   688→                    </div>
+   689→                    <div className="bg-muted/50 rounded-lg p-3">
+   690→                      <span className="text-xs text-muted-foreground">Période</span>
+   691→                      <p className="font-medium text-sm">{currentAbo.periode === 'MENSUEL' ? 'Mensuel' : 'Annuel'}</p>
+   692→                    </div>
+   693→                    <div className="bg-muted/50 rounded-lg p-3">
+   694→                      <span className="text-xs text-muted-foreground">Essai actif</span>
+   695→                      <p className="font-medium text-sm">{currentAbo.essaiActif ? 'Oui' : 'Non'}</p>
+   696→                    </div>
+   697→                  </div>
+   698→                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   699→                    <div className="p-3 bg-muted/50 rounded-lg">
+   700→                      <div className="flex justify-between text-xs mb-1">
+   701→                        <span>Utilisateurs</span>
+   702→                        <span className="font-medium">{nbUsersCurrent}/{nbUsersMax}</span>
+   703→                      </div>
+   704→                      <Progress value={(nbUsersCurrent / nbUsersMax) * 100} className="h-2" />
+   705→                    </div>
+   706→                    <div className="p-3 bg-muted/50 rounded-lg">
+   707→                      <div className="flex justify-between text-xs mb-1">
+   708→                        <span>Caissiers simultanés</span>
+   709→                        <span className="font-medium">—/{nbCaissiersMax}</span>
+   710→                      </div>
+   711→                      <Progress value={30} className="h-2" />
+   712→                    </div>
+   713→                    <div className="p-3 bg-muted/50 rounded-lg">
+   714→                      <div className="flex justify-between text-xs mb-1">
+   715→                        <span>Stockage documents</span>
+   716→                        <span className="font-medium">{((pharmacieData?.stockageDocuments as number) || 500)}MB</span>
+   717→                      </div>
+   718→                      <Progress value={15} className="h-2" />
+   719→                    </div>
+   720→                  </div>
+   721→                  <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={() => window.location.href = '/pro/abonnement'}>
+   722→                    Voir les offres et upgrader
+   723→                  </Button>
+   724→                </div>
+   725→              ) : (
+   726→                <div className="text-center py-8 text-muted-foreground">
+   727→                  <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
+   728→                  <p>Aucun abonnement actif trouvé</p>
+   729→                  <Button className="mt-3 bg-[#1D9E75] hover:bg-[#085041]" onClick={() => window.location.href = '/pro/abonnement'}>
+   730→                    Choisir un plan
+   731→                  </Button>
+   732→                </div>
+   733→              )}
+   734→            </CardContent>
+   735→          </Card>
+   736→        </TabsContent>
+   737→
+   738→        {/* Tab 6: API & Intégrations */}
+   739→        <TabsContent value="api" className="space-y-4">
+   740→          <Card>
+   741→            <CardHeader>
+   742→              <CardTitle className="flex items-center gap-2 text-base">
+   743→                <Link2 className="w-4 h-4 text-[#1D9E75]" />
+   744→                Grossistes API configurés
+   745→              </CardTitle>
+   746→              <CardDescription>
+   747→                {fournisseursAPI.length} / {pharmacieData?.apiGrossistesMax || 2} intégrations actives
+   748→              </CardDescription>
+   749→            </CardHeader>
+   750→            <CardContent>
+   751→              {loadingAPI ? (
+   752→                <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-20" />)}</div>
+   753→              ) : fournisseursAPI.length === 0 ? (
+   754→                <div className="text-center py-8 text-muted-foreground">
+   755→                  <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
+   756→                  <p>Aucun grossiste API configuré</p>
+   757→                  <p className="text-xs mt-1">Configurez vos grossistes dans la section Fournisseurs</p>
+   758→                </div>
+   759→              ) : (
+   760→                <div className="space-y-3">
+   761→                  {fournisseursAPI.map(f => (
+   762→                    <div key={f.id} className="p-4 bg-muted/50 rounded-lg">
+   763→                      <div className="flex items-center justify-between">
+   764→                        <div className="flex items-center gap-3">
+   765→                          <div className="w-10 h-10 rounded-lg bg-[#1D9E75]/10 flex items-center justify-center">
+   766→                            <Globe className="w-5 h-5 text-[#1D9E75]" />
+   767→                          </div>
+   768→                          <div>
+   769→                            <p className="font-medium text-sm">{f.nom}</p>
+   770→                            <p className="text-xs text-muted-foreground font-mono">{f.code}</p>
+   771→                          </div>
+   772→                        </div>
+   773→                        <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Connecté</Badge>
+   774→                      </div>
+   775→                      {f.grossisteId && (
+   776→                        <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+   777→                          <span className="font-medium">ID Grossiste:</span> {f.grossisteId}
+   778→                        </div>
+   779→                      )}
+   780→                      <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+   781→                        <span className="font-medium">Webhook URL:</span>{' '}
+   782→                        <code className="bg-muted px-1 py-0.5 rounded text-[10px]">
+   783→                          /api/webhooks/{f.code.toLowerCase()}
+   784→                        </code>
+   785→                      </div>
+   786→                    </div>
+   787→                  ))}
+   788→                </div>
+   789→              )}
+   790→            </CardContent>
+   791→          </Card>
+   792→        </TabsContent>
+   793→      </Tabs>
+   794→
+   795→      {/* Add Caisse Dialog */}
+   796→      <Dialog open={addCaisseOpen} onOpenChange={setAddCaisseOpen}>
+   797→        <DialogContent className="max-w-md">
+   798→          <DialogHeader>
+   799→            <DialogTitle className="flex items-center gap-2">
+   800→              <Plus className="w-5 h-5 text-[#1D9E75]" />
+   801→              Nouvelle caisse
+   802→            </DialogTitle>
+   803→            <DialogDescription>Ajoutez une caisse à votre pharmacie</DialogDescription>
+   804→          </DialogHeader>
+   805→          <div className="space-y-4 py-4">
+   806→            <div>
+   807→              <Label>Nom de la caisse *</Label>
+   808→              <Input placeholder="Caisse 1" value={caisseNom} onChange={e => setCaisseNom(e.target.value)} />
+   809→            </div>
+   810→            <div>
+   811→              <Label>Numéro</Label>
+   812→              <Input type="number" placeholder="Auto" value={caisseNumero} onChange={e => setCaisseNumero(e.target.value)} />
+   813→            </div>
+   814→          </div>
+   815→          <DialogFooter>
+   816→            <Button variant="outline" onClick={() => setAddCaisseOpen(false)}>Annuler</Button>
+   817→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleAddCaisse} disabled={!caisseNom}>
+   818→              Ajouter la caisse
+   819→            </Button>
+   820→          </DialogFooter>
+   821→        </DialogContent>
+   822→      </Dialog>
+   823→
+   824→      {/* Add User Dialog */}
+   825→      <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+   826→        <DialogContent className="max-w-md">
+   827→          <DialogHeader>
+   828→            <DialogTitle className="flex items-center gap-2">
+   829→              <Plus className="w-5 h-5 text-[#1D9E75]" />
+   830→              Inviter un utilisateur
+   831→            </DialogTitle>
+   832→            <DialogDescription>Un mot de passe temporaire sera généré</DialogDescription>
+   833→          </DialogHeader>
+   834→          <div className="space-y-4 py-4">
+   835→            <div className="grid grid-cols-2 gap-4">
+   836→              <div>
+   837→                <Label>Prénom *</Label>
+   838→                <Input value={userPrenom} onChange={e => setUserPrenom(e.target.value)} />
+   839→              </div>
+   840→              <div>
+   841→                <Label>Nom *</Label>
+   842→                <Input value={userNom} onChange={e => setUserNom(e.target.value)} />
+   843→              </div>
+   844→            </div>
+   845→            <div>
+   846→              <Label>Email *</Label>
+   847→              <Input type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} />
+   848→            </div>
+   849→            <div>
+   850→              <Label>Rôle *</Label>
+   851→              <Select value={userRoleId} onValueChange={setUserRoleId}>
+   852→                <SelectTrigger>
+   853→                  <SelectValue placeholder="Sélectionner un rôle" />
+   854→                </SelectTrigger>
+   855→                <SelectContent>
+   856→                  {roles.map(r => (
+   857→                    <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>
+   858→                  ))}
+   859→                </SelectContent>
+   860→              </Select>
+   861→            </div>
+   862→          </div>
+   863→          <DialogFooter>
+   864→            <Button variant="outline" onClick={() => setAddUserOpen(false)}>Annuler</Button>
+   865→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleAddUser} disabled={!userNom || !userEmail}>
+   866→              Inviter l&apos;utilisateur
+   867→            </Button>
+   868→          </DialogFooter>
+   869→        </DialogContent>
+   870→      </Dialog>
+   871→    </div>
+   872→  )
+   873→}
+   874→

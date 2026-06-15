@@ -1,0 +1,893 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Skeleton } from '@/components/ui/skeleton'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Textarea } from '@/components/ui/textarea'
+    11→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    12→import {
+    13→  Table,
+    14→  TableBody,
+    15→  TableCell,
+    16→  TableHead,
+    17→  TableHeader,
+    18→  TableRow,
+    19→} from '@/components/ui/table'
+    20→import {
+    21→  Dialog,
+    22→  DialogContent,
+    23→  DialogDescription,
+    24→  DialogFooter,
+    25→  DialogHeader,
+    26→  DialogTitle,
+    27→} from '@/components/ui/dialog'
+    28→import {
+    29→  Select,
+    30→  SelectContent,
+    31→  SelectItem,
+    32→  SelectTrigger,
+    33→  SelectValue,
+    34→} from '@/components/ui/select'
+    35→import { MessageSquare, Plus, Bell, Send, Megaphone, Search, Check, Mail, Smartphone, Monitor, Trash2, Eye, BarChart3, Radio } from 'lucide-react'
+    36→import { useEffect, useState, useMemo } from 'react'
+    37→import { toast } from 'sonner'
+    38→
+    39→interface NotificationItem {
+    40→  id: string
+    41→  titre: string
+    42→  message: string
+    43→  canal: string
+    44→  lu: boolean
+    45→  typeReference: string | null
+    46→  referenceId: string | null
+    47→  createdAt: string
+    48→  patient: { id: string; nom: string; prenom: string } | null
+    49→  utilisateur: { id: string; nom: string; prenom: string } | null
+    50→}
+    51→
+    52→interface CampagneSMS {
+    53→  id: string
+    54→  titre: string
+    55→  message: string
+    56→  destinataires: string[]
+    57→  nbEnvoyes: number
+    58→  nbDelivres: number
+    59→  dateEnvoi: string
+    60→  statut: string
+    61→  createdAt: string
+    62→}
+    63→
+    64→interface Patient {
+    65→  id: string
+    66→  nom: string
+    67→  prenom: string
+    68→  telephone: string | null
+    69→}
+    70→
+    71→export default function CommunicationPage() {
+    72→  const { pharmacie } = useAuth()
+    73→  const [activeTab, setActiveTab] = useState('notifications')
+    74→
+    75→  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+    76→  const [campagnes, setCampagnes] = useState<CampagneSMS[]>([])
+    77→  const [patients, setPatients] = useState<Patient[]>([])
+    78→  const [loading, setLoading] = useState(true)
+    79→  const [search, setSearch] = useState('')
+    80→
+    81→  // Notification filters
+    82→  const [filterCanal, setFilterCanal] = useState<string>('all')
+    83→  const [filterLu, setFilterLu] = useState<string>('all')
+    84→
+    85→  // Dialogs
+    86→  const [addNotifDialogOpen, setAddNotifDialogOpen] = useState(false)
+    87→  const [campagneDialogOpen, setCampagneDialogOpen] = useState(false)
+    88→  const [deleteNotifDialogOpen, setDeleteNotifDialogOpen] = useState(false)
+    89→  const [viewNotifDialogOpen, setViewNotifDialogOpen] = useState(false)
+    90→  const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null)
+    91→
+    92→  // Notification form
+    93→  const [notifTitre, setNotifTitre] = useState('')
+    94→  const [notifMessage, setNotifMessage] = useState('')
+    95→  const [notifCanal, setNotifCanal] = useState('IN_APP')
+    96→  const [notifPatientId, setNotifPatientId] = useState('')
+    97→
+    98→  // Campagne form
+    99→  const [campTitre, setCampTitre] = useState('')
+   100→  const [campMessage, setCampMessage] = useState('')
+   101→  const [campDestinataires, setCampDestinataires] = useState<string[]>([])
+   102→  const [campDateEnvoi, setCampDateEnvoi] = useState('now')
+   103→
+   104→  const fetchAllData = async () => {
+   105→    if (!pharmacie?.id) return
+   106→    setLoading(true)
+   107→    try {
+   108→      const [notifRes, campRes, patRes] = await Promise.all([
+   109→        fetch(`/api/notifications?pharmacieId=${pharmacie.id}`),
+   110→        fetch(`/api/campagnes-sms?pharmacieId=${pharmacie.id}`),
+   111→        fetch(`/api/patients?pharmacieId=${pharmacie.id}`),
+   112→      ])
+   113→      if (notifRes.ok) setNotifications(await notifRes.json())
+   114→      if (campRes.ok) setCampagnes(await campRes.json())
+   115→      if (patRes.ok) setPatients(await patRes.json())
+   116→    } catch {
+   117→      // silent
+   118→    } finally {
+   119→      setLoading(false)
+   120→    }
+   121→  }
+   122→
+   123→  useEffect(() => {
+   124→    fetchAllData()
+   125→  }, [pharmacie?.id])
+   126→
+   127→  const filteredNotifications = useMemo(() => {
+   128→    let result = [...notifications]
+   129→    if (search) {
+   130→      const q = search.toLowerCase()
+   131→      result = result.filter(n =>
+   132→        n.titre.toLowerCase().includes(q) ||
+   133→        n.message.toLowerCase().includes(q)
+   134→      )
+   135→    }
+   136→    if (filterCanal !== 'all') {
+   137→      result = result.filter(n => n.canal === filterCanal)
+   138→    }
+   139→    if (filterLu === 'lu') {
+   140→      result = result.filter(n => n.lu)
+   141→    } else if (filterLu === 'non_lu') {
+   142→      result = result.filter(n => !n.lu)
+   143→    }
+   144→    return result
+   145→  }, [notifications, search, filterCanal, filterLu])
+   146→
+   147→  const filteredCampagnes = useMemo(() => {
+   148→    if (!search) return campagnes
+   149→    const q = search.toLowerCase()
+   150→    return campagnes.filter(c =>
+   151→      c.titre.toLowerCase().includes(q) ||
+   152→      c.message.toLowerCase().includes(q)
+   153→    )
+   154→  }, [campagnes, search])
+   155→
+   156→  // Stats
+   157→  const unreadCount = notifications.filter(n => !n.lu).length
+   158→  const today = new Date()
+   159→  const sentToday = notifications.filter(n => {
+   160→    const d = new Date(n.createdAt)
+   161→    return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+   162→  }).length
+   163→  const pushCount = notifications.filter(n => n.canal === 'PUSH').length
+   164→  const smsCount = notifications.filter(n => n.canal === 'SMS').length
+   165→
+   166→  // Campagne stats
+   167→  const campagnesCeMois = campagnes.filter(c => {
+   168→    const d = new Date(c.dateEnvoi)
+   169→    return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+   170→  }).length
+   171→  const totalSmsEnvoyes = campagnes.reduce((s, c) => s + c.nbEnvoyes, 0)
+   172→  const tauxDelivrance = totalSmsEnvoyes > 0
+   173→    ? Math.round(campagnes.reduce((s, c) => s + c.nbDelivres, 0) / totalSmsEnvoyes * 100)
+   174→    : 0
+   175→
+   176→  const getCanalIcon = (canal: string) => {
+   177→    switch (canal) {
+   178→      case 'PUSH': return <Bell className="w-3.5 h-3.5" />
+   179→      case 'SMS': return <Smartphone className="w-3.5 h-3.5" />
+   180→      case 'EMAIL': return <Mail className="w-3.5 h-3.5" />
+   181→      case 'IN_APP': return <Monitor className="w-3.5 h-3.5" />
+   182→      default: return <Bell className="w-3.5 h-3.5" />
+   183→    }
+   184→  }
+   185→
+   186→  const getCanalBadge = (canal: string) => {
+   187→    const map: Record<string, { label: string; className: string }> = {
+   188→      PUSH: { label: 'Push', className: 'bg-blue-100 text-blue-800 border-0' },
+   189→      SMS: { label: 'SMS', className: 'bg-green-100 text-green-800 border-0' },
+   190→      EMAIL: { label: 'Email', className: 'bg-purple-100 text-purple-800 border-0' },
+   191→      IN_APP: { label: 'In-App', className: 'bg-gray-100 text-gray-800 border-0' },
+   192→    }
+   193→    const info = map[canal] || { label: canal, className: 'bg-gray-100 text-gray-800 border-0' }
+   194→    return (
+   195→      <Badge className={`text-[9px] ${info.className}`}>
+   196→        <span className="mr-1">{getCanalIcon(canal)}</span>
+   197→        {info.label}
+   198→      </Badge>
+   199→    )
+   200→  }
+   201→
+   202→  const getStatutCampagneBadge = (statut: string) => {
+   203→    const map: Record<string, { label: string; className: string }> = {
+   204→      BROUILLON: { label: 'Brouillon', className: 'bg-gray-100 text-gray-800 border-0' },
+   205→      ENVOYEE: { label: 'Envoyée', className: 'bg-blue-100 text-blue-800 border-0' },
+   206→      TERMINEE: { label: 'Terminée', className: 'bg-[#E1F5EE] text-[#085041] border-0' },
+   207→      ECHOUEE: { label: 'Échouée', className: 'bg-red-100 text-red-800 border-0' },
+   208→    }
+   209→    const info = map[statut] || { label: statut, className: 'bg-gray-100 text-gray-800 border-0' }
+   210→    return <Badge className={`text-[9px] ${info.className}`}>{info.label}</Badge>
+   211→  }
+   212→
+   213→  const handleMarkAsRead = async (id: string, lu: boolean) => {
+   214→    try {
+   215→      const res = await fetch('/api/notifications', {
+   216→        method: 'PATCH',
+   217→        headers: { 'Content-Type': 'application/json' },
+   218→        body: JSON.stringify({ id, lu }),
+   219→      })
+   220→      if (res.ok) {
+   221→        setNotifications(prev => prev.map(n => n.id === id ? { ...n, lu } : n))
+   222→        toast.success(lu ? 'Marqué comme lu' : 'Marqué comme non lu')
+   223→      }
+   224→    } catch {
+   225→      toast.error('Erreur lors de la mise à jour')
+   226→    }
+   227→  }
+   228→
+   229→  const handleMarkAllAsRead = async () => {
+   230→    if (!pharmacie?.id) return
+   231→    try {
+   232→      const res = await fetch('/api/notifications', {
+   233→        method: 'PATCH',
+   234→        headers: { 'Content-Type': 'application/json' },
+   235→        body: JSON.stringify({ markAll: true, pharmacieId: pharmacie.id }),
+   236→      })
+   237→      if (res.ok) {
+   238→        setNotifications(prev => prev.map(n => ({ ...n, lu: true })))
+   239→        toast.success('Toutes les notifications marquées comme lues')
+   240→      }
+   241→    } catch {
+   242→      toast.error('Erreur lors de la mise à jour')
+   243→    }
+   244→  }
+   245→
+   246→  const handleDeleteNotification = async () => {
+   247→    if (!selectedNotif) return
+   248→    try {
+   249→      // For now, just mark as read and remove from local state
+   250→      setNotifications(prev => prev.filter(n => n.id !== selectedNotif.id))
+   251→      toast.success('Notification supprimée')
+   252→      setDeleteNotifDialogOpen(false)
+   253→      setSelectedNotif(null)
+   254→    } catch {
+   255→      toast.error('Erreur lors de la suppression')
+   256→    }
+   257→  }
+   258→
+   259→  const handleAddNotification = async () => {
+   260→    if (!pharmacie?.id || !notifTitre || !notifMessage) {
+   261→      toast.error('Titre et message sont requis')
+   262→      return
+   263→    }
+   264→    try {
+   265→      const res = await fetch('/api/notifications', {
+   266→        method: 'POST',
+   267→        headers: { 'Content-Type': 'application/json' },
+   268→        body: JSON.stringify({
+   269→          pharmacieId: pharmacie.id,
+   270→          titre: notifTitre,
+   271→          message: notifMessage,
+   272→          canal: notifCanal,
+   273→          patientId: notifPatientId || null,
+   274→        }),
+   275→      })
+   276→      if (res.ok) {
+   277→        toast.success('Notification créée avec succès')
+   278→        setAddNotifDialogOpen(false)
+   279→        resetNotifForm()
+   280→        fetchAllData()
+   281→      } else {
+   282→        toast.error('Erreur lors de la création de la notification')
+   283→      }
+   284→    } catch {
+   285→      toast.error('Erreur lors de la création de la notification')
+   286→    }
+   287→  }
+   288→
+   289→  const handleCreateCampagne = async () => {
+   290→    if (!pharmacie?.id || !campTitre || !campMessage || campDestinataires.length === 0) {
+   291→      toast.error('Titre, message et destinataires sont requis')
+   292→      return
+   293→    }
+   294→    try {
+   295→      const res = await fetch('/api/campagnes-sms', {
+   296→        method: 'POST',
+   297→        headers: { 'Content-Type': 'application/json' },
+   298→        body: JSON.stringify({
+   299→          pharmacieId: pharmacie.id,
+   300→          titre: campTitre,
+   301→          message: campMessage,
+   302→          destinataires: campDestinataires,
+   303→          dateEnvoi: campDateEnvoi === 'now' ? new Date().toISOString() : new Date(campDateEnvoi).toISOString(),
+   304→        }),
+   305→      })
+   306→      if (res.ok) {
+   307→        toast.success('Campagne créée avec succès')
+   308→        setCampagneDialogOpen(false)
+   309→        resetCampagneForm()
+   310→        fetchAllData()
+   311→      } else {
+   312→        toast.error('Erreur lors de la création de la campagne')
+   313→      }
+   314→    } catch {
+   315→      toast.error('Erreur lors de la création de la campagne')
+   316→    }
+   317→  }
+   318→
+   319→  const resetNotifForm = () => { setNotifTitre(''); setNotifMessage(''); setNotifCanal('IN_APP'); setNotifPatientId('') }
+   320→  const resetCampagneForm = () => { setCampTitre(''); setCampMessage(''); setCampDestinataires([]); setCampDateEnvoi('now') }
+   321→
+   322→  const toggleDestinataire = (id: string) => {
+   323→    setCampDestinataires(prev =>
+   324→      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+   325→    )
+   326→  }
+   327→
+   328→  const selectAllPatients = () => {
+   329→    if (campDestinataires.length === patients.length) {
+   330→      setCampDestinataires([])
+   331→    } else {
+   332→      setCampDestinataires(patients.map(p => p.id))
+   333→    }
+   334→  }
+   335→
+   336→  if (loading) {
+   337→    return (
+   338→      <div className="space-y-4">
+   339→        <Skeleton className="h-8 w-48" />
+   340→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   341→          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+   342→        </div>
+   343→        <Skeleton className="h-96" />
+   344→      </div>
+   345→    )
+   346→  }
+   347→
+   348→  return (
+   349→    <div className="space-y-6">
+   350→      {/* Header */}
+   351→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   352→        <div>
+   353→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   354→            <MessageSquare className="w-6 h-6 text-[#1D9E75]" />
+   355→            Communication
+   356→          </h1>
+   357→          <p className="text-sm text-muted-foreground">
+   358→            Notifications, SMS et campagnes de communication
+   359→          </p>
+   360→        </div>
+   361→      </div>
+   362→
+   363→      {/* KPI Cards */}
+   364→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   365→        <Card>
+   366→          <CardContent className="p-4">
+   367→            <div className="flex items-center justify-between">
+   368→              <div>
+   369→                <span className="text-xs text-muted-foreground uppercase">Non lues</span>
+   370→                <span className="text-xl font-bold block text-amber-600">{unreadCount}</span>
+   371→              </div>
+   372→              <Bell className="w-8 h-8 text-amber-400/30" />
+   373→            </div>
+   374→          </CardContent>
+   375→        </Card>
+   376→        <Card>
+   377→          <CardContent className="p-4">
+   378→            <div className="flex items-center justify-between">
+   379→              <div>
+   380→                <span className="text-xs text-muted-foreground uppercase">Envoyées aujourd&apos;hui</span>
+   381→                <span className="text-xl font-bold block">{sentToday}</span>
+   382→              </div>
+   383→              <Send className="w-8 h-8 text-[#1D9E75]/30" />
+   384→            </div>
+   385→          </CardContent>
+   386→        </Card>
+   387→        <Card>
+   388→          <CardContent className="p-4">
+   389→            <div className="flex items-center justify-between">
+   390→              <div>
+   391→                <span className="text-xs text-muted-foreground uppercase">Push</span>
+   392→                <span className="text-xl font-bold block text-blue-600">{pushCount}</span>
+   393→              </div>
+   394→              <Radio className="w-8 h-8 text-blue-400/30" />
+   395→            </div>
+   396→          </CardContent>
+   397→        </Card>
+   398→        <Card>
+   399→          <CardContent className="p-4">
+   400→            <div className="flex items-center justify-between">
+   401→              <div>
+   402→                <span className="text-xs text-muted-foreground uppercase">SMS</span>
+   403→                <span className="text-xl font-bold block text-green-600">{smsCount}</span>
+   404→              </div>
+   405→              <Smartphone className="w-8 h-8 text-green-400/30" />
+   406→            </div>
+   407→          </CardContent>
+   408→        </Card>
+   409→      </div>
+   410→
+   411→      {/* Tabs */}
+   412→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   413→        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   414→          <TabsList>
+   415→            <TabsTrigger value="notifications" className="gap-1">
+   416→              <Bell className="w-3.5 h-3.5" />
+   417→              Notifications
+   418→              {unreadCount > 0 && (
+   419→                <Badge className="ml-1 text-[8px] bg-red-500 text-white border-0 px-1.5 py-0">{unreadCount}</Badge>
+   420→              )}
+   421→            </TabsTrigger>
+   422→            <TabsTrigger value="campagnes" className="gap-1">
+   423→              <Megaphone className="w-3.5 h-3.5" />
+   424→              Campagnes SMS
+   425→            </TabsTrigger>
+   426→          </TabsList>
+   427→          <div className="flex items-center gap-2">
+   428→            <div className="relative flex-1 min-w-[200px]">
+   429→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   430→              <Input
+   431→                placeholder="Rechercher..."
+   432→                className="pl-9"
+   433→                value={search}
+   434→                onChange={e => setSearch(e.target.value)}
+   435→              />
+   436→            </div>
+   437→            {activeTab === 'notifications' && (
+   438→              <div className="flex gap-1">
+   439→                <Button variant="outline" size="sm" className="gap-1" onClick={handleMarkAllAsRead}>
+   440→                  <Check className="w-3.5 h-3.5" /> Tout lire
+   441→                </Button>
+   442→                <Button className="gap-1 bg-[#1D9E75] hover:bg-[#085041]" size="sm" onClick={() => { resetNotifForm(); setAddNotifDialogOpen(true) }}>
+   443→                  <Plus className="w-3.5 h-3.5" /> Créer
+   444→                </Button>
+   445→              </div>
+   446→            )}
+   447→            {activeTab === 'campagnes' && (
+   448→              <Button className="gap-1 bg-[#1D9E75] hover:bg-[#085041]" size="sm" onClick={() => { resetCampagneForm(); setCampagneDialogOpen(true) }}>
+   449→                <Plus className="w-3.5 h-3.5" /> Campagne
+   450→              </Button>
+   451→            )}
+   452→          </div>
+   453→        </div>
+   454→
+   455→        {/* Notifications Tab */}
+   456→        <TabsContent value="notifications" className="mt-4">
+   457→          {/* Filters */}
+   458→          <Card className="mb-4">
+   459→            <CardContent className="p-4">
+   460→              <div className="flex flex-col sm:flex-row gap-3">
+   461→                <Select value={filterCanal} onValueChange={setFilterCanal}>
+   462→                  <SelectTrigger className="w-44">
+   463→                    <SelectValue />
+   464→                  </SelectTrigger>
+   465→                  <SelectContent>
+   466→                    <SelectItem value="all">Tous les canaux</SelectItem>
+   467→                    <SelectItem value="PUSH">Push</SelectItem>
+   468→                    <SelectItem value="SMS">SMS</SelectItem>
+   469→                    <SelectItem value="EMAIL">Email</SelectItem>
+   470→                    <SelectItem value="IN_APP">In-App</SelectItem>
+   471→                  </SelectContent>
+   472→                </Select>
+   473→                <Select value={filterLu} onValueChange={setFilterLu}>
+   474→                  <SelectTrigger className="w-44">
+   475→                    <SelectValue />
+   476→                  </SelectTrigger>
+   477→                  <SelectContent>
+   478→                    <SelectItem value="all">Tous</SelectItem>
+   479→                    <SelectItem value="lu">Lus</SelectItem>
+   480→                    <SelectItem value="non_lu">Non lus</SelectItem>
+   481→                  </SelectContent>
+   482→                </Select>
+   483→                {(filterCanal !== 'all' || filterLu !== 'all') && (
+   484→                  <Button variant="ghost" size="sm" onClick={() => { setFilterCanal('all'); setFilterLu('all') }}>
+   485→                    Réinitialiser
+   486→                  </Button>
+   487→                )}
+   488→              </div>
+   489→            </CardContent>
+   490→          </Card>
+   491→
+   492→          <Card>
+   493→            <CardContent className="p-0">
+   494→              <div className="overflow-x-auto">
+   495→                <Table>
+   496→                  <TableHeader>
+   497→                    <TableRow>
+   498→                      <TableHead className="w-8"></TableHead>
+   499→                      <TableHead>Date</TableHead>
+   500→                      <TableHead>Titre</TableHead>
+   501→                      <TableHead>Message</TableHead>
+   502→                      <TableHead className="text-center">Canal</TableHead>
+   503→                      <TableHead>Destinataire</TableHead>
+   504→                      <TableHead className="text-center">Lu</TableHead>
+   505→                      <TableHead className="text-right">Actions</TableHead>
+   506→                    </TableRow>
+   507→                  </TableHeader>
+   508→                  <TableBody>
+   509→                    {filteredNotifications.length === 0 ? (
+   510→                      <TableRow>
+   511→                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+   512→                          Aucune notification trouvée
+   513→                        </TableCell>
+   514→                      </TableRow>
+   515→                    ) : (
+   516→                      filteredNotifications.map(n => (
+   517→                        <TableRow key={n.id} className={`hover:bg-muted/30 ${!n.lu ? 'bg-[#E1F5EE]/30' : ''}`}>
+   518→                          <TableCell>
+   519→                            {!n.lu && <div className="w-2 h-2 rounded-full bg-[#1D9E75] mx-auto" />}
+   520→                          </TableCell>
+   521→                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+   522→                            {new Date(n.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+   523→                          </TableCell>
+   524→                          <TableCell>
+   525→                            <span className={`text-sm ${!n.lu ? 'font-semibold' : 'font-medium'}`}>{n.titre}</span>
+   526→                          </TableCell>
+   527→                          <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate" title={n.message}>
+   528→                            {n.message}
+   529→                          </TableCell>
+   530→                          <TableCell className="text-center">{getCanalBadge(n.canal)}</TableCell>
+   531→                          <TableCell className="text-sm">
+   532→                            {n.patient ? `${n.patient.nom} ${n.patient.prenom}` : n.utilisateur ? `${n.utilisateur.prenom} ${n.utilisateur.nom}` : '—'}
+   533→                          </TableCell>
+   534→                          <TableCell className="text-center">
+   535→                            {n.lu ? (
+   536→                              <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Lu</Badge>
+   537→                            ) : (
+   538→                              <Badge className="text-[9px] bg-amber-100 text-amber-800 border-0">Non lu</Badge>
+   539→                            )}
+   540→                          </TableCell>
+   541→                          <TableCell className="text-right">
+   542→                            <div className="flex items-center justify-end gap-0.5">
+   543→                              <Button
+   544→                                size="sm"
+   545→                                variant="ghost"
+   546→                                className="h-8 w-8 p-0"
+   547→                                onClick={() => { setSelectedNotif(n); setViewNotifDialogOpen(true) }}
+   548→                                title="Voir"
+   549→                              >
+   550→                                <Eye className="w-4 h-4" />
+   551→                              </Button>
+   552→                              <Button
+   553→                                size="sm"
+   554→                                variant="ghost"
+   555→                                className="h-8 w-8 p-0"
+   556→                                onClick={() => handleMarkAsRead(n.id, !n.lu)}
+   557→                                title={n.lu ? 'Marquer comme non lu' : 'Marquer comme lu'}
+   558→                              >
+   559→                                {n.lu ? <Mail className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+   560→                              </Button>
+   561→                              <Button
+   562→                                size="sm"
+   563→                                variant="ghost"
+   564→                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+   565→                                onClick={() => { setSelectedNotif(n); setDeleteNotifDialogOpen(true) }}
+   566→                                title="Supprimer"
+   567→                              >
+   568→                                <Trash2 className="w-4 h-4" />
+   569→                              </Button>
+   570→                            </div>
+   571→                          </TableCell>
+   572→                        </TableRow>
+   573→                      ))
+   574→                    )}
+   575→                  </TableBody>
+   576→                </Table>
+   577→              </div>
+   578→            </CardContent>
+   579→          </Card>
+   580→        </TabsContent>
+   581→
+   582→        {/* Campagnes SMS Tab */}
+   583→        <TabsContent value="campagnes" className="mt-4">
+   584→          {/* Campaign Stats */}
+   585→          <div className="grid grid-cols-3 gap-4 mb-4">
+   586→            <Card>
+   587→              <CardContent className="p-4">
+   588→                <div className="flex items-center justify-between">
+   589→                  <div>
+   590→                    <span className="text-xs text-muted-foreground uppercase">Campagnes ce mois</span>
+   591→                    <span className="text-xl font-bold block text-[#1D9E75]">{campagnesCeMois}</span>
+   592→                  </div>
+   593→                  <Megaphone className="w-8 h-8 text-[#1D9E75]/30" />
+   594→                </div>
+   595→              </CardContent>
+   596→            </Card>
+   597→            <Card>
+   598→              <CardContent className="p-4">
+   599→                <div className="flex items-center justify-between">
+   600→                  <div>
+   601→                    <span className="text-xs text-muted-foreground uppercase">SMS envoyés</span>
+   602→                    <span className="text-xl font-bold block">{totalSmsEnvoyes}</span>
+   603→                  </div>
+   604→                  <Send className="w-8 h-8 text-blue-400/30" />
+   605→                </div>
+   606→              </CardContent>
+   607→            </Card>
+   608→            <Card>
+   609→              <CardContent className="p-4">
+   610→                <div className="flex items-center justify-between">
+   611→                  <div>
+   612→                    <span className="text-xs text-muted-foreground uppercase">Taux délivrance</span>
+   613→                    <span className="text-xl font-bold block text-[#1D9E75]">{tauxDelivrance}%</span>
+   614→                  </div>
+   615→                  <BarChart3 className="w-8 h-8 text-[#1D9E75]/30" />
+   616→                </div>
+   617→              </CardContent>
+   618→            </Card>
+   619→          </div>
+   620→
+   621→          <Card>
+   622→            <CardContent className="p-0">
+   623→              <div className="overflow-x-auto">
+   624→                <Table>
+   625→                  <TableHeader>
+   626→                    <TableRow>
+   627→                      <TableHead>Titre</TableHead>
+   628→                      <TableHead>Message</TableHead>
+   629→                      <TableHead className="text-center">Destinataires</TableHead>
+   630→                      <TableHead className="text-center">Envoyés / Délivrés</TableHead>
+   631→                      <TableHead>Date envoi</TableHead>
+   632→                      <TableHead className="text-center">Statut</TableHead>
+   633→                    </TableRow>
+   634→                  </TableHeader>
+   635→                  <TableBody>
+   636→                    {filteredCampagnes.length === 0 ? (
+   637→                      <TableRow>
+   638→                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+   639→                          Aucune campagne trouvée
+   640→                        </TableCell>
+   641→                      </TableRow>
+   642→                    ) : (
+   643→                      filteredCampagnes.map(c => (
+   644→                        <TableRow key={c.id} className="hover:bg-muted/30">
+   645→                          <TableCell className="font-medium text-sm">{c.titre}</TableCell>
+   646→                          <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate" title={c.message}>{c.message}</TableCell>
+   647→                          <TableCell className="text-center text-sm">{c.destinataires.length}</TableCell>
+   648→                          <TableCell className="text-center">
+   649→                            <span className="text-sm">{c.nbEnvoyes}</span>
+   650→                            <span className="text-muted-foreground"> / </span>
+   651→                            <span className="text-sm font-medium text-[#1D9E75]">{c.nbDelivres}</span>
+   652→                          </TableCell>
+   653→                          <TableCell className="text-sm text-muted-foreground">
+   654→                            {new Date(c.dateEnvoi).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+   655→                          </TableCell>
+   656→                          <TableCell className="text-center">{getStatutCampagneBadge(c.statut)}</TableCell>
+   657→                        </TableRow>
+   658→                      ))
+   659→                    )}
+   660→                  </TableBody>
+   661→                </Table>
+   662→              </div>
+   663→            </CardContent>
+   664→          </Card>
+   665→        </TabsContent>
+   666→      </Tabs>
+   667→
+   668→      {/* Add Notification Dialog */}
+   669→      <Dialog open={addNotifDialogOpen} onOpenChange={setAddNotifDialogOpen}>
+   670→        <DialogContent className="max-w-md">
+   671→          <DialogHeader>
+   672→            <DialogTitle className="flex items-center gap-2">
+   673→              <Plus className="w-5 h-5 text-[#1D9E75]" />
+   674→              Créer une notification
+   675→            </DialogTitle>
+   676→            <DialogDescription>Envoyez une notification à un patient ou utilisateur</DialogDescription>
+   677→          </DialogHeader>
+   678→          <div className="grid gap-4 py-4">
+   679→            <div>
+   680→              <Label>Titre *</Label>
+   681→              <Input placeholder="Titre de la notification" value={notifTitre} onChange={e => setNotifTitre(e.target.value)} />
+   682→            </div>
+   683→            <div>
+   684→              <Label>Message *</Label>
+   685→              <Textarea placeholder="Contenu du message" value={notifMessage} onChange={e => setNotifMessage(e.target.value)} rows={3} />
+   686→            </div>
+   687→            <div className="grid grid-cols-2 gap-4">
+   688→              <div>
+   689→                <Label>Canal</Label>
+   690→                <Select value={notifCanal} onValueChange={setNotifCanal}>
+   691→                  <SelectTrigger>
+   692→                    <SelectValue />
+   693→                  </SelectTrigger>
+   694→                  <SelectContent>
+   695→                    <SelectItem value="IN_APP">In-App</SelectItem>
+   696→                    <SelectItem value="PUSH">Push</SelectItem>
+   697→                    <SelectItem value="SMS">SMS</SelectItem>
+   698→                    <SelectItem value="EMAIL">Email</SelectItem>
+   699→                  </SelectContent>
+   700→                </Select>
+   701→              </div>
+   702→              <div>
+   703→                <Label>Patient</Label>
+   704→                <Select value={notifPatientId} onValueChange={setNotifPatientId}>
+   705→                  <SelectTrigger>
+   706→                    <SelectValue placeholder="Optionnel" />
+   707→                  </SelectTrigger>
+   708→                  <SelectContent className="max-h-60">
+   709→                    <SelectItem value="none">Aucun</SelectItem>
+   710→                    {patients.map(p => (
+   711→                      <SelectItem key={p.id} value={p.id}>
+   712→                        {p.nom} {p.prenom}
+   713→                      </SelectItem>
+   714→                    ))}
+   715→                  </SelectContent>
+   716→                </Select>
+   717→              </div>
+   718→            </div>
+   719→          </div>
+   720→          <DialogFooter>
+   721→            <Button variant="outline" onClick={() => setAddNotifDialogOpen(false)}>Annuler</Button>
+   722→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleAddNotification} disabled={!notifTitre || !notifMessage}>
+   723→              Créer la notification
+   724→            </Button>
+   725→          </DialogFooter>
+   726→        </DialogContent>
+   727→      </Dialog>
+   728→
+   729→      {/* View Notification Dialog */}
+   730→      <Dialog open={viewNotifDialogOpen} onOpenChange={setViewNotifDialogOpen}>
+   731→        <DialogContent className="max-w-md">
+   732→          <DialogHeader>
+   733→            <DialogTitle className="flex items-center gap-2">
+   734→              <Eye className="w-5 h-5 text-[#1D9E75]" />
+   735→              {selectedNotif?.titre}
+   736→            </DialogTitle>
+   737→          </DialogHeader>
+   738→          {selectedNotif && (
+   739→            <div className="space-y-3 py-4">
+   740→              <div className="flex items-center gap-2">
+   741→                {getCanalBadge(selectedNotif.canal)}
+   742→                {selectedNotif.lu ? (
+   743→                  <Badge className="text-[9px] bg-[#E1F5EE] text-[#085041] border-0">Lu</Badge>
+   744→                ) : (
+   745→                  <Badge className="text-[9px] bg-amber-100 text-amber-800 border-0">Non lu</Badge>
+   746→                )}
+   747→              </div>
+   748→              <div className="bg-muted/50 rounded-lg p-3">
+   749→                <span className="text-xs text-muted-foreground">Message</span>
+   750→                <p className="text-sm mt-1 whitespace-pre-wrap">{selectedNotif.message}</p>
+   751→              </div>
+   752→              <div className="grid grid-cols-2 gap-3">
+   753→                <div className="bg-muted/50 rounded-lg p-3">
+   754→                  <span className="text-xs text-muted-foreground">Destinataire</span>
+   755→                  <p className="text-sm font-medium">
+   756→                    {selectedNotif.patient ? `${selectedNotif.patient.nom} ${selectedNotif.patient.prenom}` :
+   757→                     selectedNotif.utilisateur ? `${selectedNotif.utilisateur.prenom} ${selectedNotif.utilisateur.nom}` : '—'}
+   758→                  </p>
+   759→                </div>
+   760→                <div className="bg-muted/50 rounded-lg p-3">
+   761→                  <span className="text-xs text-muted-foreground">Date</span>
+   762→                  <p className="text-sm">
+   763→                    {new Date(selectedNotif.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+   764→                  </p>
+   765→                </div>
+   766→              </div>
+   767→            </div>
+   768→          )}
+   769→          <DialogFooter>
+   770→            {selectedNotif && !selectedNotif.lu && (
+   771→              <Button variant="outline" onClick={() => { handleMarkAsRead(selectedNotif.id, true); setViewNotifDialogOpen(false) }}>
+   772→                <Check className="w-4 h-4 mr-1" /> Marquer comme lu
+   773→              </Button>
+   774→            )}
+   775→            <Button variant="outline" onClick={() => setViewNotifDialogOpen(false)}>Fermer</Button>
+   776→          </DialogFooter>
+   777→        </DialogContent>
+   778→      </Dialog>
+   779→
+   780→      {/* Delete Notification Dialog */}
+   781→      <Dialog open={deleteNotifDialogOpen} onOpenChange={setDeleteNotifDialogOpen}>
+   782→        <DialogContent className="max-w-md">
+   783→          <DialogHeader>
+   784→            <DialogTitle className="flex items-center gap-2 text-red-600">
+   785→              <Trash2 className="w-5 h-5" />
+   786→              Supprimer la notification
+   787→            </DialogTitle>
+   788→            <DialogDescription>
+   789→              Êtes-vous sûr de vouloir supprimer <strong>{selectedNotif?.titre}</strong> ?
+   790→            </DialogDescription>
+   791→          </DialogHeader>
+   792→          <DialogFooter>
+   793→            <Button variant="outline" onClick={() => setDeleteNotifDialogOpen(false)}>Annuler</Button>
+   794→            <Button variant="destructive" onClick={handleDeleteNotification}>
+   795→              Supprimer
+   796→            </Button>
+   797→          </DialogFooter>
+   798→        </DialogContent>
+   799→      </Dialog>
+   800→
+   801→      {/* Create Campagne Dialog */}
+   802→      <Dialog open={campagneDialogOpen} onOpenChange={setCampagneDialogOpen}>
+   803→        <DialogContent className="max-w-lg">
+   804→          <DialogHeader>
+   805→            <DialogTitle className="flex items-center gap-2">
+   806→              <Megaphone className="w-5 h-5 text-[#1D9E75]" />
+   807→              Créer une campagne SMS
+   808→            </DialogTitle>
+   809→            <DialogDescription>Envoyez un SMS à plusieurs patients en une fois</DialogDescription>
+   810→          </DialogHeader>
+   811→          <div className="grid gap-4 py-4">
+   812→            <div>
+   813→              <Label>Titre *</Label>
+   814→              <Input placeholder="Titre de la campagne" value={campTitre} onChange={e => setCampTitre(e.target.value)} />
+   815→            </div>
+   816→            <div>
+   817→              <Label>Message *</Label>
+   818→              <div className="relative">
+   819→                <Textarea
+   820→                  placeholder="Message de la campagne..."
+   821→                  value={campMessage}
+   822→                  onChange={e => setCampMessage(e.target.value)}
+   823→                  maxLength={160}
+   824→                  rows={3}
+   825→                />
+   826→                <span className={`text-xs absolute bottom-2 right-2 ${campMessage.length >= 150 ? 'text-red-500' : 'text-muted-foreground'}`}>
+   827→                  {campMessage.length}/160
+   828→                </span>
+   829→              </div>
+   830→            </div>
+   831→            <div>
+   832→              <Label>Date d&apos;envoi</Label>
+   833→              <Select value={campDateEnvoi} onValueChange={setCampDateEnvoi}>
+   834→                <SelectTrigger>
+   835→                  <SelectValue />
+   836→                </SelectTrigger>
+   837→                <SelectContent>
+   838→                  <SelectItem value="now">Immédiat</SelectItem>
+   839→                  <SelectItem value="schedule">Planifier</SelectItem>
+   840→                </SelectContent>
+   841→              </Select>
+   842→            </div>
+   843→            {campDateEnvoi === 'schedule' && (
+   844→              <div>
+   845→                <Label>Date et heure d&apos;envoi</Label>
+   846→                <Input type="datetime-local" onChange={e => setCampDateEnvoi(e.target.value || 'now')} />
+   847→              </div>
+   848→            )}
+   849→            <div>
+   850→              <div className="flex items-center justify-between mb-2">
+   851→                <Label>Destinataires ({campDestinataires.length} sélectionnés)</Label>
+   852→                <Button variant="ghost" size="sm" className="text-xs" onClick={selectAllPatients}>
+   853→                  {campDestinataires.length === patients.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+   854→                </Button>
+   855→              </div>
+   856→              <div className="max-h-48 overflow-y-auto border rounded-lg p-2 space-y-1">
+   857→                {patients.length === 0 ? (
+   858→                  <p className="text-sm text-muted-foreground text-center py-4">Aucun patient disponible</p>
+   859→                ) : (
+   860→                  patients.map(p => (
+   861→                    <label
+   862→                      key={p.id}
+   863→                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer"
+   864→                    >
+   865→                      <input
+   866→                        type="checkbox"
+   867→                        checked={campDestinataires.includes(p.id)}
+   868→                        onChange={() => toggleDestinataire(p.id)}
+   869→                        className="rounded border-gray-300"
+   870→                      />
+   871→                      <span className="text-sm">{p.nom} {p.prenom}</span>
+   872→                      {p.telephone && (
+   873→                        <span className="text-xs text-muted-foreground ml-auto">{p.telephone}</span>
+   874→                      )}
+   875→                    </label>
+   876→                  ))
+   877→                )}
+   878→              </div>
+   879→            </div>
+   880→          </div>
+   881→          <DialogFooter>
+   882→            <Button variant="outline" onClick={() => setCampagneDialogOpen(false)}>Annuler</Button>
+   883→            <Button className="bg-[#1D9E75] hover:bg-[#085041]" onClick={handleCreateCampagne} disabled={campDestinataires.length === 0 || !campTitre || !campMessage}>
+   884→              <Megaphone className="w-4 h-4 mr-2" />
+   885→              Créer la campagne
+   886→            </Button>
+   887→          </DialogFooter>
+   888→        </DialogContent>
+   889→      </Dialog>
+   890→    </div>
+   891→  )
+   892→}
+   893→

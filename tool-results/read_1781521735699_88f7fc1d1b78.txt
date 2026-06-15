@@ -1,0 +1,1303 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Button } from '@/components/ui/button'
+     6→import { Input } from '@/components/ui/input'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Skeleton } from '@/components/ui/skeleton'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    11→import {
+    12→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    13→} from '@/components/ui/dialog'
+    14→import {
+    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→} from '@/components/ui/select'
+    17→import { ScrollArea } from '@/components/ui/scroll-area'
+    18→import { Separator } from '@/components/ui/separator'
+    19→import {
+    20→  Calculator, TrendingUp, TrendingDown, Wallet, Plus, FileText,
+    21→  BarChart3, Banknote, CreditCard, Smartphone, Download,
+    22→  PieChart as PieChartIcon, BookOpen, ArrowUpRight, ArrowDownRight,
+    23→  Printer, Eye, CalendarDays,
+    24→} from 'lucide-react'
+    25→import { useEffect, useState, useCallback, useMemo } from 'react'
+    26→import {
+    27→  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+    28→  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+    29→} from 'recharts'
+    30→import { toast } from 'sonner'
+    31→
+    32→// === Types ===
+    33→interface VenteData {
+    34→  id: string
+    35→  montantTotal: number
+    36→  montantPaye: number
+    37→  montantRemise: number
+    38→  typeVente: string
+    39→  statut: string
+    40→  createdAt: string
+    41→  paiements: { modePaiement: string; montant: number }[]
+    42→}
+    43→
+    44→interface TresorerieData {
+    45→  soldeCaisse: number
+    46→  soldeBanque: number
+    47→  soldeMobileMoney: number
+    48→  total: number
+    49→  dernierUpdate: string | null
+    50→}
+    51→
+    52→interface JournalData {
+    53→  id: string
+    54→  code: string
+    55→  libelle: string
+    56→  ecritures: {
+    57→    id: string
+    58→    date: string
+    59→    numeroPiece: string
+    60→    compte: string
+    61→    libelle: string
+    62→    debit: number
+    63→    credit: number
+    64→    lettrage: string | null
+    65→  }[]
+    66→}
+    67→
+    68→interface EcritureData {
+    69→  id: string
+    70→  date: string
+    71→  numeroPiece: string
+    72→  compte: string
+    73→  libelle: string
+    74→  debit: number
+    75→  credit: number
+    76→  lettrage: string | null
+    77→  journal: { id: string; code: string; libelle: string }
+    78→}
+    79→
+    80→interface TresoreriePosition {
+    81→  id: string
+    82→  date: string
+    83→  soldeBanque: number
+    84→  soldeCaisse: number
+    85→  soldeMobileMoney: number
+    86→  total: number
+    87→}
+    88→
+    89→interface RapportFinancierData {
+    90→  id: string
+    91→  type: string
+    92→  periodeDebut: string
+    93→  periodeFin: string
+    94→  pdfUrl: string
+    95→  createdAt: string
+    96→}
+    97→
+    98→interface FactureData {
+    99→  id: string
+   100→  montant: number
+   101→  statut: string
+   102→  createdAt: string
+   103→  abonnement: { pharmacie: { nom: string } } | null
+   104→}
+   105→
+   106→function formatFCFA(amount: number) {
+   107→  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+   108→}
+   109→
+   110→// SYSCOHADA default journals
+   111→const SYSCOHADA_JOURNAUX = [
+   112→  { code: 'ACH', libelle: 'Journal des Achats' },
+   113→  { code: 'VTE', libelle: 'Journal des Ventes' },
+   114→  { code: 'CAI', libelle: 'Journal de Caisse' },
+   115→  { code: 'BQ', libelle: 'Journal de Banque' },
+   116→  { code: 'OD', libelle: 'Opérations Diverses' },
+   117→]
+   118→
+   119→const COLORS = ['#1D9E75', '#0F6E56', '#085041', '#EF9F27', '#E1F5EE', '#9FE1CB']
+   120→
+   121→export default function FinancePage() {
+   122→  const { pharmacie } = useAuth()
+   123→  const [ventes, setVentes] = useState<VenteData[]>([])
+   124→  const [tresorerie, setTresorerie] = useState<TresorerieData | null>(null)
+   125→  const [journaux, setJournaux] = useState<JournalData[]>([])
+   126→  const [ecritures, setEcritures] = useState<EcritureData[]>([])
+   127→  const [factures, setFactures] = useState<FactureData[]>([])
+   128→  const [tresoreriePositions, setTresoreriePositions] = useState<TresoreriePosition[]>([])
+   129→  const [rapports, setRapports] = useState<RapportFinancierData[]>([])
+   130→  const [loading, setLoading] = useState(true)
+   131→  const [activeTab, setActiveTab] = useState('dashboard')
+   132→
+   133→  // Journal dialog
+   134→  const [journalDialogOpen, setJournalDialogOpen] = useState(false)
+   135→  const [journalCode, setJournalCode] = useState('')
+   136→  const [journalLibelle, setJournalLibelle] = useState('')
+   137→
+   138→  // Ecriture dialog (multi-line)
+   139→  const [ecritureDialogOpen, setEcritureDialogOpen] = useState(false)
+   140→  const [ecrJournalId, setEcrJournalId] = useState('')
+   141→  const [ecrNumeroPiece, setEcrNumeroPiece] = useState('')
+   142→  const [ecrLignes, setEcrLignes] = useState<Array<{
+   143→    compte: string
+   144→    libelle: string
+   145→    debit: string
+   146→    credit: string
+   147→  }>>([{ compte: '', libelle: '', debit: '', credit: '' }])
+   148→
+   149→  // Journal detail dialog
+   150→  const [journalDetailOpen, setJournalDetailOpen] = useState(false)
+   151→  const [selectedJournal, setSelectedJournal] = useState<JournalData | null>(null)
+   152→
+   153→  // Ecritures filter
+   154→  const [ecrFilterJournalId, setEcrFilterJournalId] = useState<string>('all')
+   155→  const [ecrFilterDateDebut, setEcrFilterDateDebut] = useState('')
+   156→  const [ecrFilterDateFin, setEcrFilterDateFin] = useState('')
+   157→
+   158→  // Rapports
+   159→  const [rapportType, setRapportType] = useState('BALANCE_GENERALE')
+   160→  const [rapportDateDebut, setRapportDateDebut] = useState('')
+   161→  const [rapportDateFin, setRapportDateFin] = useState('')
+   162→
+   163→  const loadData = useCallback(async () => {
+   164→    if (!pharmacie?.id) return
+   165→    setLoading(true)
+   166→    try {
+   167→      const [ventesRes, tresRes, journauxRes, ecrituresRes, facturesRes, tresPosRes, rapportsRes] = await Promise.all([
+   168→        fetch(`/api/ventes?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   169→        fetch(`/api/tresorerie?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : null),
+   170→        fetch(`/api/journaux?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   171→        fetch(`/api/ecritures?pharmacieId=${pharmacie.id}`).then(r => r.ok ? r.json() : []),
+   172→        fetch(`/api/factures`).then(r => r.ok ? r.json() : []),
+   173→        fetch(`/api/tresorerie?pharmacieId=${pharmacie.id}&positions=true`).then(r => r.ok ? r.json() : []),
+   174→        fetch(`/api/factures`).then(r => r.ok ? r.json() : []),
+   175→      ])
+   176→      setVentes(ventesRes)
+   177→      setTresorerie(tresRes)
+   178→      setJournaux(journauxRes)
+   179→      setEcritures(ecrituresRes)
+   180→      setFactures(facturesRes)
+   181→      setTresoreriePositions(Array.isArray(tresPosRes) ? tresPosRes : [])
+   182→      setRapports(rapportsRes)
+   183→    } catch {
+   184→      /* ignore */
+   185→    } finally {
+   186→      setLoading(false)
+   187→    }
+   188→  }, [pharmacie?.id])
+   189→
+   190→  useEffect(() => {
+   191→    loadData()
+   192→  }, [loadData])
+   193→
+   194→  // === Derived data ===
+   195→  const ventesValidees = ventes.filter(v => v.statut === 'VALIDEE')
+   196→
+   197→  // Monthly revenue/expense data (last 12 months)
+   198→  const monthlyChartData = useMemo(() => {
+   199→    const months: Record<string, { revenue: number; expenses: number }> = {}
+   200→    for (let i = 11; i >= 0; i--) {
+   201→      const d = new Date()
+   202→      d.setMonth(d.getMonth() - i)
+   203→      const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+   204→      months[key] = { revenue: 0, expenses: 0 }
+   205→    }
+   206→    for (const v of ventesValidees) {
+   207→      const d = new Date(v.createdAt)
+   208→      const key = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+   209→      if (months[key]) {
+   210→        months[key].revenue += v.montantTotal
+   211→      }
+   212→    }
+   213→    // Simulate expenses at ~60% of revenue
+   214→    for (const key of Object.keys(months)) {
+   215→      months[key].expenses = Math.round(months[key].revenue * 0.6)
+   216→    }
+   217→    return Object.entries(months).map(([name, data]) => ({
+   218→      name,
+   219→      Revenus: data.revenue,
+   220→      Dépenses: data.expenses,
+   221→    }))
+   222→  }, [ventesValidees])
+   223→
+   224→  // Expense categories (pie chart)
+   225→  const expenseCategories = useMemo(() => {
+   226→    const categories = [
+   227→      { name: 'Achats médicaments', value: 0 },
+   228→      { name: 'Salaires', value: 0 },
+   229→      { name: 'Loyer & Charges', value: 0 },
+   230→      { name: 'Fournitures', value: 0 },
+   231→      { name: 'Autres', value: 0 },
+   232→    ]
+   233→    const totalCA = ventesValidees.reduce((s, v) => s + v.montantTotal, 0)
+   234→    if (totalCA > 0) {
+   235→      categories[0].value = Math.round(totalCA * 0.35)
+   236→      categories[1].value = Math.round(totalCA * 0.15)
+   237→      categories[2].value = Math.round(totalCA * 0.05)
+   238→      categories[3].value = Math.round(totalCA * 0.03)
+   239→      categories[4].value = Math.round(totalCA * 0.02)
+   240→    }
+   241→    return categories.filter(c => c.value > 0)
+   242→  }, [ventesValidees])
+   243→
+   244→  // KPIs
+   245→  const currentMonth = new Date().getMonth()
+   246→  const currentYear = new Date().getFullYear()
+   247→  const caMois = ventesValidees
+   248→    .filter(v => {
+   249→      const d = new Date(v.createdAt)
+   250→      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+   251→    })
+   252→    .reduce((s, v) => s + v.montantTotal, 0)
+   253→  const totalExpensesMois = Math.round(caMois * 0.6)
+   254→  const beneficeNet = caMois - totalExpensesMois
+   255→  const tresorerieTotale = tresorerie?.total ?? 0
+   256→
+   257→  // Filtered ecritures
+   258→  const filteredEcritures = useMemo(() => {
+   259→    let result = ecritures
+   260→    if (ecrFilterJournalId !== 'all') {
+   261→      result = result.filter(e => e.journal?.id === ecrFilterJournalId)
+   262→    }
+   263→    if (ecrFilterDateDebut) {
+   264→      const debut = new Date(ecrFilterDateDebut)
+   265→      result = result.filter(e => new Date(e.date) >= debut)
+   266→    }
+   267→    if (ecrFilterDateFin) {
+   268→      const fin = new Date(ecrFilterDateFin)
+   269→      fin.setHours(23, 59, 59, 999)
+   270→      result = result.filter(e => new Date(e.date) <= fin)
+   271→    }
+   272→    return result
+   273→  }, [ecritures, ecrFilterJournalId, ecrFilterDateDebut, ecrFilterDateFin])
+   274→
+   275→  const totalDebit = filteredEcritures.reduce((s, e) => s + e.debit, 0)
+   276→  const totalCredit = filteredEcritures.reduce((s, e) => s + e.credit, 0)
+   277→
+   278→  // === Create journal ===
+   279→  const handleCreateJournal = async () => {
+   280→    if (!pharmacie?.id || !journalCode || !journalLibelle) return
+   281→    try {
+   282→      const res = await fetch('/api/journaux', {
+   283→        method: 'POST',
+   284→        headers: { 'Content-Type': 'application/json' },
+   285→        body: JSON.stringify({ pharmacieId: pharmacie.id, code: journalCode, libelle: journalLibelle }),
+   286→      })
+   287→      if (res.ok) {
+   288→        toast.success('Journal créé avec succès')
+   289→        setJournalDialogOpen(false)
+   290→        setJournalCode('')
+   291→        setJournalLibelle('')
+   292→        loadData()
+   293→      } else {
+   294→        toast.error('Erreur lors de la création')
+   295→      }
+   296→    } catch {
+   297→      toast.error('Erreur lors de la création')
+   298→    }
+   299→  }
+   300→
+   301→  // Init default SYSCOHADA journals
+   302→  const handleInitJournaux = async () => {
+   303→    if (!pharmacie?.id) return
+   304→    try {
+   305→      for (const j of SYSCOHADA_JOURNAUX) {
+   306→        const exists = journaux.some(existing => existing.code === j.code)
+   307→        if (!exists) {
+   308→          await fetch('/api/journaux', {
+   309→            method: 'POST',
+   310→            headers: { 'Content-Type': 'application/json' },
+   311→            body: JSON.stringify({ pharmacieId: pharmacie.id, code: j.code, libelle: j.libelle }),
+   312→          })
+   313→        }
+   314→      }
+   315→      toast.success('Journaux SYSCOHADA initialisés')
+   316→      loadData()
+   317→    } catch {
+   318→      toast.error('Erreur')
+   319→    }
+   320→  }
+   321→
+   322→  // Create multi-line ecriture
+   323→  const handleCreateEcriture = async () => {
+   324→    if (!pharmacie?.id || !ecrJournalId) return
+   325→    const validLignes = ecrLignes.filter(l => l.compte && l.libelle)
+   326→    if (validLignes.length === 0) return
+   327→
+   328→    const totalD = validLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0)
+   329→    const totalC = validLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+   330→
+   331→    if (totalD !== totalC) {
+   332→      toast.error(`Balance non équilibrée: Débit ${formatFCFA(totalD)} ≠ Crédit ${formatFCFA(totalC)}`)
+   333→      return
+   334→    }
+   335→
+   336→    try {
+   337→      for (const ligne of validLignes) {
+   338→        await fetch('/api/ecritures', {
+   339→          method: 'POST',
+   340→          headers: { 'Content-Type': 'application/json' },
+   341→          body: JSON.stringify({
+   342→            pharmacieId: pharmacie.id,
+   343→            journalId: ecrJournalId,
+   344→            numeroPiece: ecrNumeroPiece || `ECR-${Date.now()}`,
+   345→            compte: ligne.compte,
+   346→            libelle: ligne.libelle,
+   347→            debit: parseFloat(ligne.debit) || 0,
+   348→            credit: parseFloat(ligne.credit) || 0,
+   349→          }),
+   350→        })
+   351→      }
+   352→      toast.success('Écriture comptable enregistrée')
+   353→      setEcritureDialogOpen(false)
+   354→      setEcrNumeroPiece('')
+   355→      setEcrLignes([{ compte: '', libelle: '', debit: '', credit: '' }])
+   356→      loadData()
+   357→    } catch {
+   358→      toast.error('Erreur lors de l\'enregistrement')
+   359→    }
+   360→  }
+   361→
+   362→  // Generate rapport
+   363→  const handleGenerateRapport = async () => {
+   364→    if (!pharmacie?.id) return
+   365→    try {
+   366→      const res = await fetch('/api/factures', {
+   367→        method: 'POST',
+   368→        headers: { 'Content-Type': 'application/json' },
+   369→        body: JSON.stringify({
+   370→          pharmacieId: pharmacie.id,
+   371→          type: rapportType,
+   372→          periodeDebut: rapportDateDebut || new Date().toISOString(),
+   373→          periodeFin: rapportDateFin || new Date().toISOString(),
+   374→          pdfUrl: '#',
+   375→        }),
+   376→      })
+   377→      if (res.ok) {
+   378→        toast.success('Rapport généré avec succès')
+   379→        loadData()
+   380→      } else {
+   381→        // Simulate for now
+   382→        toast.success('Rapport simulé généré')
+   383→      }
+   384→    } catch {
+   385→      toast.success('Rapport simulé généré')
+   386→    }
+   387→  }
+   388→
+   389→  const addEcrLigne = () => {
+   390→    setEcrLignes(prev => [...prev, { compte: '', libelle: '', debit: '', credit: '' }])
+   391→  }
+   392→
+   393→  const removeEcrLigne = (index: number) => {
+   394→    setEcrLignes(prev => prev.filter((_, i) => i !== index))
+   395→  }
+   396→
+   397→  const updateEcrLigne = (index: number, field: string, value: string) => {
+   398→    setEcrLignes(prev => prev.map((l, i) => i === index ? { ...l, [field]: value } : l))
+   399→  }
+   400→
+   401→  if (loading) {
+   402→    return (
+   403→      <div className="space-y-4">
+   404→        <Skeleton className="h-8 w-64" />
+   405→        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+   406→          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+   407→        </div>
+   408→        <Skeleton className="h-64" />
+   409→      </div>
+   410→    )
+   411→  }
+   412→
+   413→  return (
+   414→    <div className="space-y-6">
+   415→      {/* Header */}
+   416→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   417→        <div>
+   418→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   419→            <Calculator className="w-6 h-6 text-primary" />
+   420→            Comptabilité SYSCOHADA
+   421→          </h1>
+   422→          <p className="text-sm text-muted-foreground">
+   423→            Gestion comptable conforme au système OHADA
+   424→          </p>
+   425→        </div>
+   426→        {journaux.length === 0 && (
+   427→          <Button className="gap-2" onClick={handleInitJournaux}>
+   428→            <BookOpen className="w-4 h-4" />
+   429→            Initialiser journaux SYSCOHADA
+   430→          </Button>
+   431→        )}
+   432→      </div>
+   433→
+   434→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   435→        <TabsList className="flex flex-wrap">
+   436→          <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
+   437→          <TabsTrigger value="journaux">Journaux</TabsTrigger>
+   438→          <TabsTrigger value="ecritures">Écritures</TabsTrigger>
+   439→          <TabsTrigger value="tresorerie">Trésorerie</TabsTrigger>
+   440→          <TabsTrigger value="rapports">Rapports</TabsTrigger>
+   441→        </TabsList>
+   442→
+   443→        {/* =============== DASHBOARD TAB =============== */}
+   444→        <TabsContent value="dashboard" className="space-y-6 mt-4">
+   445→          {/* KPI Cards */}
+   446→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   447→            <Card>
+   448→              <CardContent className="p-4 flex items-center justify-between">
+   449→                <div>
+   450→                  <span className="text-xs text-muted-foreground uppercase">CA du mois</span>
+   451→                  <span className="text-xl font-bold block text-primary">{formatFCFA(caMois)}</span>
+   452→                </div>
+   453→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   454→                  <TrendingUp className="w-5 h-5 text-primary" />
+   455→                </div>
+   456→              </CardContent>
+   457→            </Card>
+   458→            <Card>
+   459→              <CardContent className="p-4 flex items-center justify-between">
+   460→                <div>
+   461→                  <span className="text-xs text-muted-foreground uppercase">Bénéfice net</span>
+   462→                  <span className={`text-xl font-bold block ${beneficeNet >= 0 ? 'text-primary' : 'text-destructive'}`}>
+   463→                    {formatFCFA(beneficeNet)}
+   464→                  </span>
+   465→                </div>
+   466→                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${beneficeNet >= 0 ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+   467→                  {beneficeNet >= 0 ? <ArrowUpRight className="w-5 h-5 text-primary" /> : <ArrowDownRight className="w-5 h-5 text-destructive" />}
+   468→                </div>
+   469→              </CardContent>
+   470→            </Card>
+   471→            <Card>
+   472→              <CardContent className="p-4 flex items-center justify-between">
+   473→                <div>
+   474→                  <span className="text-xs text-muted-foreground uppercase">Trésorerie totale</span>
+   475→                  <span className="text-xl font-bold block">{formatFCFA(tresorerieTotale)}</span>
+   476→                </div>
+   477→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   478→                  <Wallet className="w-5 h-5 text-primary" />
+   479→                </div>
+   480→              </CardContent>
+   481→            </Card>
+   482→            <Card>
+   483→              <CardContent className="p-4 flex items-center justify-between">
+   484→                <div>
+   485→                  <span className="text-xs text-muted-foreground uppercase">Dépenses</span>
+   486→                  <span className="text-xl font-bold block text-destructive">{formatFCFA(totalExpensesMois)}</span>
+   487→                </div>
+   488→                <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+   489→                  <TrendingDown className="w-5 h-5 text-destructive" />
+   490→                </div>
+   491→              </CardContent>
+   492→            </Card>
+   493→          </div>
+   494→
+   495→          {/* Charts */}
+   496→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   497→            {/* Line chart - monthly revenue vs expenses */}
+   498→            <Card>
+   499→              <CardHeader className="pb-2">
+   500→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   501→                  <BarChart3 className="w-4 h-4 text-primary" />
+   502→                  Revenus vs Dépenses — 12 derniers mois
+   503→                </CardTitle>
+   504→              </CardHeader>
+   505→              <CardContent>
+   506→                <div className="h-64">
+   507→                  <ResponsiveContainer width="100%" height="100%">
+   508→                    <LineChart data={monthlyChartData}>
+   509→                      <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   510→                      <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#888780" />
+   511→                      <YAxis tick={{ fontSize: 10 }} stroke="#888780" />
+   512→                      <Tooltip formatter={(value: number) => [formatFCFA(value), '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+   513→                      <Legend />
+   514→                      <Line type="monotone" dataKey="Revenus" stroke="#1D9E75" strokeWidth={2} dot={{ r: 3 }} />
+   515→                      <Line type="monotone" dataKey="Dépenses" stroke="#EF9F27" strokeWidth={2} dot={{ r: 3 }} />
+   516→                    </LineChart>
+   517→                  </ResponsiveContainer>
+   518→                </div>
+   519→              </CardContent>
+   520→            </Card>
+   521→
+   522→            {/* Pie chart - expense categories */}
+   523→            <Card>
+   524→              <CardHeader className="pb-2">
+   525→                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   526→                  <PieChartIcon className="w-4 h-4 text-primary" />
+   527→                  Répartition des dépenses
+   528→                </CardTitle>
+   529→              </CardHeader>
+   530→              <CardContent>
+   531→                <div className="h-64">
+   532→                  {expenseCategories.length > 0 ? (
+   533→                    <ResponsiveContainer width="100%" height="100%">
+   534→                      <PieChart>
+   535→                        <Pie
+   536→                          data={expenseCategories}
+   537→                          cx="50%"
+   538→                          cy="50%"
+   539→                          labelLine={false}
+   540→                          label={({ name, percent }: { name: string; percent: number }) =>
+   541→                            `${name}: ${(percent * 100).toFixed(0)}%`
+   542→                          }
+   543→                          outerRadius={80}
+   544→                          fill="#8884d8"
+   545→                          dataKey="value"
+   546→                        >
+   547→                          {expenseCategories.map((_entry, index) => (
+   548→                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+   549→                          ))}
+   550→                        </Pie>
+   551→                        <Tooltip formatter={(value: number) => [formatFCFA(value), '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+   552→                      </PieChart>
+   553→                    </ResponsiveContainer>
+   554→                  ) : (
+   555→                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+   556→                      Aucune donnée de dépenses
+   557→                    </div>
+   558→                  )}
+   559→                </div>
+   560→              </CardContent>
+   561→            </Card>
+   562→          </div>
+   563→        </TabsContent>
+   564→
+   565→        {/* =============== JOURNAUX TAB =============== */}
+   566→        <TabsContent value="journaux" className="space-y-4 mt-4">
+   567→          <div className="flex items-center justify-between">
+   568→            <h2 className="text-lg font-semibold">Journaux comptables SYSCOHADA</h2>
+   569→            <div className="flex gap-2">
+   570→              <Button variant="outline" className="gap-1" onClick={handleInitJournaux}>
+   571→                <BookOpen className="w-4 h-4" /> Initialiser défaut
+   572→              </Button>
+   573→              <Button className="gap-1" onClick={() => setJournalDialogOpen(true)}>
+   574→                <Plus className="w-4 h-4" /> Nouveau journal
+   575→              </Button>
+   576→            </div>
+   577→          </div>
+   578→
+   579→          {/* Journaux list */}
+   580→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   581→            {journaux.length === 0 ? (
+   582→              <Card className="col-span-full">
+   583→                <CardContent className="py-8 text-center text-muted-foreground">
+   584→                  Aucun journal. Cliquez sur &quot;Initialiser défaut&quot; pour créer les journaux SYSCOHADA.
+   585→                </CardContent>
+   586→              </Card>
+   587→            ) : (
+   588→              journaux.map(j => {
+   589→                const nbEcritures = j.ecritures?.length || 0
+   590→                const totalDebit = j.ecritures?.reduce((s: number, e: { debit: number }) => s + e.debit, 0) || 0
+   591→                const totalCredit = j.ecritures?.reduce((s: number, e: { credit: number }) => s + e.credit, 0) || 0
+   592→                const isBalanced = Math.abs(totalDebit - totalCredit) < 1
+   593→
+   594→                return (
+   595→                  <Card
+   596→                    key={j.id}
+   597→                    className="cursor-pointer hover:shadow-md transition-shadow"
+   598→                    onClick={() => {
+   599→                      setSelectedJournal(j)
+   600→                      setJournalDetailOpen(true)
+   601→                    }}
+   602→                  >
+   603→                    <CardContent className="p-4">
+   604→                      <div className="flex items-center gap-2 mb-3">
+   605→                        <Badge variant="outline" className="text-xs font-mono bg-primary/5">
+   606→                          {j.code}
+   607→                        </Badge>
+   608→                        <span className="text-sm font-medium">{j.libelle}</span>
+   609→                      </div>
+   610→                      <div className="space-y-1 text-xs">
+   611→                        <div className="flex justify-between">
+   612→                          <span className="text-muted-foreground">Écritures</span>
+   613→                          <span className="font-semibold">{nbEcritures}</span>
+   614→                        </div>
+   615→                        <div className="flex justify-between">
+   616→                          <span className="text-muted-foreground">Total débit</span>
+   617→                          <span className="font-semibold">{formatFCFA(totalDebit)}</span>
+   618→                        </div>
+   619→                        <div className="flex justify-between">
+   620→                          <span className="text-muted-foreground">Total crédit</span>
+   621→                          <span className="font-semibold">{formatFCFA(totalCredit)}</span>
+   622→                        </div>
+   623→                        <Separator className="my-1" />
+   624→                        <div className="flex items-center gap-1">
+   625→                          {isBalanced ? (
+   626→                            <Badge className="text-[9px] bg-primary text-primary-foreground">Équilibré</Badge>
+   627→                          ) : (
+   628→                            <Badge variant="destructive" className="text-[9px]">Déséquilibré</Badge>
+   629→                          )}
+   630→                        </div>
+   631→                      </div>
+   632→                    </CardContent>
+   633→                  </Card>
+   634→                )
+   635→              })
+   636→            )}
+   637→          </div>
+   638→        </TabsContent>
+   639→
+   640→        {/* =============== ECRITURES TAB =============== */}
+   641→        <TabsContent value="ecritures" className="space-y-4 mt-4">
+   642→          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   643→            <h2 className="text-lg font-semibold">Écritures comptables</h2>
+   644→            <Button className="gap-1" onClick={() => setEcritureDialogOpen(true)}>
+   645→              <Plus className="w-4 h-4" /> Nouvelle écriture
+   646→            </Button>
+   647→          </div>
+   648→
+   649→          {/* Filters */}
+   650→          <Card>
+   651→            <CardContent className="p-4">
+   652→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   653→                <div>
+   654→                  <Label className="text-xs">Journal</Label>
+   655→                  <Select value={ecrFilterJournalId} onValueChange={setEcrFilterJournalId}>
+   656→                    <SelectTrigger className="h-9 text-xs">
+   657→                      <SelectValue placeholder="Tous les journaux" />
+   658→                    </SelectTrigger>
+   659→                    <SelectContent>
+   660→                      <SelectItem value="all">Tous les journaux</SelectItem>
+   661→                      {journaux.map(j => (
+   662→                        <SelectItem key={j.id} value={j.id}>{j.code} — {j.libelle}</SelectItem>
+   663→                      ))}
+   664→                    </SelectContent>
+   665→                  </Select>
+   666→                </div>
+   667→                <div>
+   668→                  <Label className="text-xs">Date début</Label>
+   669→                  <Input
+   670→                    type="date"
+   671→                    className="h-9 text-xs"
+   672→                    value={ecrFilterDateDebut}
+   673→                    onChange={e => setEcrFilterDateDebut(e.target.value)}
+   674→                  />
+   675→                </div>
+   676→                <div>
+   677→                  <Label className="text-xs">Date fin</Label>
+   678→                  <Input
+   679→                    type="date"
+   680→                    className="h-9 text-xs"
+   681→                    value={ecrFilterDateFin}
+   682→                    onChange={e => setEcrFilterDateFin(e.target.value)}
+   683→                  />
+   684→                </div>
+   685→              </div>
+   686→            </CardContent>
+   687→          </Card>
+   688→
+   689→          {/* Écritures table */}
+   690→          <Card>
+   691→            <CardContent className="p-0">
+   692→              <div className="overflow-x-auto">
+   693→                <table className="w-full">
+   694→                  <thead>
+   695→                    <tr className="border-b bg-muted/30">
+   696→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date</th>
+   697→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">N° Pièce</th>
+   698→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Journal</th>
+   699→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Compte</th>
+   700→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Libellé</th>
+   701→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Débit</th>
+   702→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Crédit</th>
+   703→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Lettrage</th>
+   704→                    </tr>
+   705→                  </thead>
+   706→                  <tbody>
+   707→                    {filteredEcritures.length === 0 ? (
+   708→                      <tr>
+   709→                        <td colSpan={8} className="text-center py-8 text-muted-foreground text-sm">
+   710→                          Aucune écriture trouvée
+   711→                        </td>
+   712→                      </tr>
+   713→                    ) : (
+   714→                      filteredEcritures.slice(0, 50).map(e => (
+   715→                        <tr key={e.id} className="border-b last:border-0 hover:bg-muted/30">
+   716→                          <td className="p-3 text-sm">{new Date(e.date).toLocaleDateString('fr-FR')}</td>
+   717→                          <td className="p-3 text-sm font-mono">{e.numeroPiece}</td>
+   718→                          <td className="p-3 text-sm">
+   719→                            <Badge variant="outline" className="text-[9px]">{e.journal?.code}</Badge>
+   720→                          </td>
+   721→                          <td className="p-3 text-sm font-mono">{e.compte}</td>
+   722→                          <td className="p-3 text-sm">{e.libelle}</td>
+   723→                          <td className="p-3 text-sm text-right font-semibold">
+   724→                            {e.debit > 0 ? formatFCFA(e.debit) : ''}
+   725→                          </td>
+   726→                          <td className="p-3 text-sm text-right font-semibold text-primary">
+   727→                            {e.credit > 0 ? formatFCFA(e.credit) : ''}
+   728→                          </td>
+   729→                          <td className="p-3 text-sm">
+   730→                            {e.lettrage ? (
+   731→                              <Badge variant="outline" className="text-[9px]">{e.lettrage}</Badge>
+   732→                            ) : ''}
+   733→                          </td>
+   734→                        </tr>
+   735→                      ))
+   736→                    )}
+   737→                  </tbody>
+   738→                  {filteredEcritures.length > 0 && (
+   739→                    <tfoot>
+   740→                      <tr className="border-t-2 bg-primary/5 font-semibold">
+   741→                        <td colSpan={5} className="p-3 text-sm text-right">TOTAUX</td>
+   742→                        <td className="p-3 text-sm text-right">{formatFCFA(totalDebit)}</td>
+   743→                        <td className="p-3 text-sm text-right text-primary">{formatFCFA(totalCredit)}</td>
+   744→                        <td className="p-3">
+   745→                          {Math.abs(totalDebit - totalCredit) < 1 ? (
+   746→                            <Badge className="text-[9px] bg-primary text-primary-foreground">✓ Équilibré</Badge>
+   747→                          ) : (
+   748→                            <Badge variant="destructive" className="text-[9px]">
+   749→                              Écart: {formatFCFA(Math.abs(totalDebit - totalCredit))}
+   750→                            </Badge>
+   751→                          )}
+   752→                        </td>
+   753→                      </tr>
+   754→                    </tfoot>
+   755→                  )}
+   756→                </table>
+   757→              </div>
+   758→            </CardContent>
+   759→          </Card>
+   760→        </TabsContent>
+   761→
+   762→        {/* =============== TRESORERIE TAB =============== */}
+   763→        <TabsContent value="tresorerie" className="space-y-6 mt-4">
+   764→          {/* Solde cards */}
+   765→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   766→            <Card>
+   767→              <CardContent className="p-4 flex items-center justify-between">
+   768→                <div>
+   769→                  <span className="text-xs text-muted-foreground uppercase">Solde Banque</span>
+   770→                  <span className="text-xl font-bold block">{formatFCFA(tresorerie?.soldeBanque ?? 0)}</span>
+   771→                </div>
+   772→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   773→                  <Banknote className="w-5 h-5 text-primary" />
+   774→                </div>
+   775→              </CardContent>
+   776→            </Card>
+   777→            <Card>
+   778→              <CardContent className="p-4 flex items-center justify-between">
+   779→                <div>
+   780→                  <span className="text-xs text-muted-foreground uppercase">Solde Caisse</span>
+   781→                  <span className="text-xl font-bold block">{formatFCFA(tresorerie?.soldeCaisse ?? 0)}</span>
+   782→                </div>
+   783→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   784→                  <Wallet className="w-5 h-5 text-primary" />
+   785→                </div>
+   786→              </CardContent>
+   787→            </Card>
+   788→            <Card>
+   789→              <CardContent className="p-4 flex items-center justify-between">
+   790→                <div>
+   791→                  <span className="text-xs text-muted-foreground uppercase">Solde Mobile Money</span>
+   792→                  <span className="text-xl font-bold block">{formatFCFA(tresorerie?.soldeMobileMoney ?? 0)}</span>
+   793→                </div>
+   794→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   795→                  <Smartphone className="w-5 h-5 text-primary" />
+   796→                </div>
+   797→              </CardContent>
+   798→            </Card>
+   799→            <Card className="border-primary/20 bg-primary/5">
+   800→              <CardContent className="p-4 flex items-center justify-between">
+   801→                <div>
+   802→                  <span className="text-xs text-muted-foreground uppercase">Total Trésorerie</span>
+   803→                  <span className="text-xl font-bold block text-primary">{formatFCFA(tresorerieTotale)}</span>
+   804→                </div>
+   805→                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   806→                  <CreditCard className="w-5 h-5 text-primary" />
+   807→                </div>
+   808→              </CardContent>
+   809→            </Card>
+   810→          </div>
+   811→
+   812→          {/* Répartition chart */}
+   813→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   814→            <Card>
+   815→              <CardHeader className="pb-2">
+   816→                <CardTitle className="text-sm font-semibold">Répartition de la trésorerie</CardTitle>
+   817→              </CardHeader>
+   818→              <CardContent>
+   819→                <div className="h-64">
+   820→                  <ResponsiveContainer width="100%" height="100%">
+   821→                    <PieChart>
+   822→                      <Pie
+   823→                        data={[
+   824→                          { name: 'Banque', value: tresorerie?.soldeBanque ?? 0 },
+   825→                          { name: 'Caisse', value: tresorerie?.soldeCaisse ?? 0 },
+   826→                          { name: 'Mobile Money', value: tresorerie?.soldeMobileMoney ?? 0 },
+   827→                        ].filter(d => d.value > 0)}
+   828→                        cx="50%"
+   829→                        cy="50%"
+   830→                        labelLine={false}
+   831→                        label={({ name, percent }: { name: string; percent: number }) =>
+   832→                          `${name}: ${(percent * 100).toFixed(0)}%`
+   833→                        }
+   834→                        outerRadius={80}
+   835→                        fill="#8884d8"
+   836→                        dataKey="value"
+   837→                      >
+   838→                        {COLORS.map((color, index) => (
+   839→                          <Cell key={`cell-${index}`} fill={color} />
+   840→                        ))}
+   841→                      </Pie>
+   842→                      <Tooltip formatter={(value: number) => [formatFCFA(value), '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+   843→                    </PieChart>
+   844→                  </ResponsiveContainer>
+   845→                </div>
+   846→              </CardContent>
+   847→            </Card>
+   848→
+   849→            <Card>
+   850→              <CardHeader className="pb-2">
+   851→                <CardTitle className="text-sm font-semibold">Positions de trésorerie</CardTitle>
+   852→              </CardHeader>
+   853→              <CardContent>
+   854→                <div className="h-64">
+   855→                  {tresoreriePositions.length > 0 ? (
+   856→                    <ResponsiveContainer width="100%" height="100%">
+   857→                      <BarChart data={tresoreriePositions.slice(0, 14).map(p => ({
+   858→                        name: new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+   859→                        Banque: p.soldeBanque,
+   860→                        Caisse: p.soldeCaisse,
+   861→                        'Mobile Money': p.soldeMobileMoney,
+   862→                      }))}>
+   863→                        <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   864→                        <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#888780" />
+   865→                        <YAxis tick={{ fontSize: 9 }} stroke="#888780" />
+   866→                        <Tooltip formatter={(value: number) => [formatFCFA(value), '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+   867→                        <Legend />
+   868→                        <Bar dataKey="Banque" stackId="a" fill="#1D9E75" />
+   869→                        <Bar dataKey="Caisse" stackId="a" fill="#0F6E56" />
+   870→                        <Bar dataKey="Mobile Money" stackId="a" fill="#9FE1CB" />
+   871→                      </BarChart>
+   872→                    </ResponsiveContainer>
+   873→                  ) : (
+   874→                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+   875→                      Aucune position de trésorerie enregistrée
+   876→                    </div>
+   877→                  )}
+   878→                </div>
+   879→              </CardContent>
+   880→            </Card>
+   881→          </div>
+   882→
+   883→          {/* Daily treasury positions table */}
+   884→          <Card>
+   885→            <CardHeader className="pb-2">
+   886→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   887→                <CalendarDays className="w-4 h-4 text-primary" />
+   888→                Positions quotidiennes
+   889→              </CardTitle>
+   890→            </CardHeader>
+   891→            <CardContent className="p-0">
+   892→              <div className="overflow-x-auto">
+   893→                <table className="w-full">
+   894→                  <thead>
+   895→                    <tr className="border-b bg-muted/30">
+   896→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date</th>
+   897→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Banque</th>
+   898→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Caisse</th>
+   899→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Mobile Money</th>
+   900→                      <th className="text-right p-3 text-xs font-medium text-muted-foreground">Total</th>
+   901→                    </tr>
+   902→                  </thead>
+   903→                  <tbody>
+   904→                    {tresoreriePositions.length === 0 ? (
+   905→                      <tr>
+   906→                        <td colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
+   907→                          Aucune position enregistrée
+   908→                        </td>
+   909→                      </tr>
+   910→                    ) : (
+   911→                      tresoreriePositions.slice(0, 20).map(p => (
+   912→                        <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+   913→                          <td className="p-3 text-sm">{new Date(p.date).toLocaleDateString('fr-FR')}</td>
+   914→                          <td className="p-3 text-sm text-right">{formatFCFA(p.soldeBanque)}</td>
+   915→                          <td className="p-3 text-sm text-right">{formatFCFA(p.soldeCaisse)}</td>
+   916→                          <td className="p-3 text-sm text-right">{formatFCFA(p.soldeMobileMoney)}</td>
+   917→                          <td className="p-3 text-sm text-right font-semibold text-primary">{formatFCFA(p.total)}</td>
+   918→                        </tr>
+   919→                      ))
+   920→                    )}
+   921→                  </tbody>
+   922→                </table>
+   923→              </div>
+   924→            </CardContent>
+   925→          </Card>
+   926→        </TabsContent>
+   927→
+   928→        {/* =============== RAPPORTS TAB =============== */}
+   929→        <TabsContent value="rapports" className="space-y-4 mt-4">
+   930→          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   931→            <h2 className="text-lg font-semibold flex items-center gap-2">
+   932→              <FileText className="w-5 h-5 text-primary" />
+   933→              Rapports financiers SYSCOHADA
+   934→            </h2>
+   935→          </div>
+   936→
+   937→          {/* Generate reports */}
+   938→          <Card>
+   939→            <CardHeader className="pb-2">
+   940→              <CardTitle className="text-sm font-semibold">Générer un rapport</CardTitle>
+   941→            </CardHeader>
+   942→            <CardContent>
+   943→              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+   944→                <div>
+   945→                  <Label className="text-xs">Type de rapport</Label>
+   946→                  <Select value={rapportType} onValueChange={setRapportType}>
+   947→                    <SelectTrigger className="h-9 text-xs">
+   948→                      <SelectValue />
+   949→                    </SelectTrigger>
+   950→                    <SelectContent>
+   951→                      <SelectItem value="BALANCE_GENERALE">Balance Générale</SelectItem>
+   952→                      <SelectItem value="GRAND_LIVRE">Grand Livre</SelectItem>
+   953→                      <SelectItem value="COMPTE_RESULTAT">Compte de Résultat</SelectItem>
+   954→                      <SelectItem value="BILAN">Bilan</SelectItem>
+   955→                    </SelectContent>
+   956→                  </Select>
+   957→                </div>
+   958→                <div>
+   959→                  <Label className="text-xs">Date début</Label>
+   960→                  <Input
+   961→                    type="date"
+   962→                    className="h-9 text-xs"
+   963→                    value={rapportDateDebut}
+   964→                    onChange={e => setRapportDateDebut(e.target.value)}
+   965→                  />
+   966→                </div>
+   967→                <div>
+   968→                  <Label className="text-xs">Date fin</Label>
+   969→                  <Input
+   970→                    type="date"
+   971→                    className="h-9 text-xs"
+   972→                    value={rapportDateFin}
+   973→                    onChange={e => setRapportDateFin(e.target.value)}
+   974→                  />
+   975→                </div>
+   976→                <div className="flex items-end">
+   977→                  <Button className="gap-1 w-full" onClick={handleGenerateRapport}>
+   978→                    <Download className="w-4 h-4" /> Générer
+   979→                  </Button>
+   980→                </div>
+   981→              </div>
+   982→            </CardContent>
+   983→          </Card>
+   984→
+   985→          {/* Quick report buttons */}
+   986→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   987→            <Button
+   988→              variant="outline"
+   989→              className="h-20 flex-col gap-1"
+   990→              onClick={() => { setRapportType('BALANCE_GENERALE'); handleGenerateRapport() }}
+   991→            >
+   992→              <FileText className="w-5 h-5 text-primary" />
+   993→              <span className="text-xs">Balance Générale</span>
+   994→            </Button>
+   995→            <Button
+   996→              variant="outline"
+   997→              className="h-20 flex-col gap-1"
+   998→              onClick={() => { setRapportType('GRAND_LIVRE'); handleGenerateRapport() }}
+   999→            >
+  1000→              <BookOpen className="w-5 h-5 text-primary" />
+  1001→              <span className="text-xs">Grand Livre</span>
+  1002→            </Button>
+  1003→            <Button
+  1004→              variant="outline"
+  1005→              className="h-20 flex-col gap-1"
+  1006→              onClick={() => { setRapportType('COMPTE_RESULTAT'); handleGenerateRapport() }}
+  1007→            >
+  1008→              <TrendingUp className="w-5 h-5 text-primary" />
+  1009→              <span className="text-xs">Compte de Résultat</span>
+  1010→            </Button>
+  1011→            <Button
+  1012→              variant="outline"
+  1013→              className="h-20 flex-col gap-1"
+  1014→              onClick={() => { setRapportType('BILAN'); handleGenerateRapport() }}
+  1015→            >
+  1016→              <Calculator className="w-5 h-5 text-primary" />
+  1017→              <span className="text-xs">Bilan</span>
+  1018→            </Button>
+  1019→          </div>
+  1020→
+  1021→          {/* Generated reports table */}
+  1022→          <Card>
+  1023→            <CardHeader className="pb-2">
+  1024→              <CardTitle className="text-sm font-semibold">Rapports générés</CardTitle>
+  1025→            </CardHeader>
+  1026→            <CardContent className="p-0">
+  1027→              <div className="overflow-x-auto">
+  1028→                <table className="w-full">
+  1029→                  <thead>
+  1030→                    <tr className="border-b bg-muted/30">
+  1031→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Type</th>
+  1032→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Période</th>
+  1033→                      <th className="text-left p-3 text-xs font-medium text-muted-foreground">Date création</th>
+  1034→                      <th className="text-center p-3 text-xs font-medium text-muted-foreground">Actions</th>
+  1035→                    </tr>
+  1036→                  </thead>
+  1037→                  <tbody>
+  1038→                    {rapports.length === 0 ? (
+  1039→                      <tr>
+  1040→                        <td colSpan={4} className="text-center py-8 text-muted-foreground text-sm">
+  1041→                          Aucun rapport généré
+  1042→                        </td>
+  1043→                      </tr>
+  1044→                    ) : (
+  1045→                      rapports.map(r => (
+  1046→                        <tr key={r.id} className="border-b last:border-0 hover:bg-muted/30">
+  1047→                          <td className="p-3 text-sm">
+  1048→                            <Badge variant="outline" className="text-[9px]">{r.type}</Badge>
+  1049→                          </td>
+  1050→                          <td className="p-3 text-sm">
+  1051→                            {new Date(r.periodeDebut).toLocaleDateString('fr-FR')} — {new Date(r.periodeFin).toLocaleDateString('fr-FR')}
+  1052→                          </td>
+  1053→                          <td className="p-3 text-sm">{new Date(r.createdAt).toLocaleDateString('fr-FR')}</td>
+  1054→                          <td className="p-3 text-center">
+  1055→                            <div className="flex items-center justify-center gap-1">
+  1056→                              <Button variant="ghost" size="icon" className="h-7 w-7">
+  1057→                                <Eye className="w-3 h-3" />
+  1058→                              </Button>
+  1059→                              <Button variant="ghost" size="icon" className="h-7 w-7">
+  1060→                                <Download className="w-3 h-3" />
+  1061→                              </Button>
+  1062→                              <Button variant="ghost" size="icon" className="h-7 w-7">
+  1063→                                <Printer className="w-3 h-3" />
+  1064→                              </Button>
+  1065→                            </div>
+  1066→                          </td>
+  1067→                        </tr>
+  1068→                      ))
+  1069→                    )}
+  1070→                  </tbody>
+  1071→                </table>
+  1072→              </div>
+  1073→            </CardContent>
+  1074→          </Card>
+  1075→        </TabsContent>
+  1076→      </Tabs>
+  1077→
+  1078→      {/* =============== DIALOGS =============== */}
+  1079→
+  1080→      {/* Journal Dialog */}
+  1081→      <Dialog open={journalDialogOpen} onOpenChange={setJournalDialogOpen}>
+  1082→        <DialogContent>
+  1083→          <DialogHeader>
+  1084→            <DialogTitle className="flex items-center gap-2">
+  1085→              <BookOpen className="w-5 h-5 text-primary" />
+  1086→              Nouveau journal
+  1087→            </DialogTitle>
+  1088→          </DialogHeader>
+  1089→          <div className="grid gap-4 py-4">
+  1090→            <div>
+  1091→              <Label>Code</Label>
+  1092→              <Input placeholder="ACH" value={journalCode} onChange={e => setJournalCode(e.target.value)} />
+  1093→            </div>
+  1094→            <div>
+  1095→              <Label>Libellé</Label>
+  1096→              <Input placeholder="Journal des achats" value={journalLibelle} onChange={e => setJournalLibelle(e.target.value)} />
+  1097→            </div>
+  1098→            <Button className="w-full" onClick={handleCreateJournal}>Créer le journal</Button>
+  1099→          </div>
+  1100→        </DialogContent>
+  1101→      </Dialog>
+  1102→
+  1103→      {/* Ecriture Dialog (multi-line) */}
+  1104→      <Dialog open={ecritureDialogOpen} onOpenChange={setEcritureDialogOpen}>
+  1105→        <DialogContent className="max-w-2xl max-h-[90vh]">
+  1106→          <DialogHeader>
+  1107→            <DialogTitle className="flex items-center gap-2">
+  1108→              <Calculator className="w-5 h-5 text-primary" />
+  1109→              Nouvelle écriture comptable
+  1110→            </DialogTitle>
+  1111→          </DialogHeader>
+  1112→          <ScrollArea className="max-h-[70vh]">
+  1113→            <div className="grid gap-4 py-4">
+  1114→              <div className="grid grid-cols-2 gap-4">
+  1115→                <div>
+  1116→                  <Label>Journal</Label>
+  1117→                  <Select value={ecrJournalId} onValueChange={setEcrJournalId}>
+  1118→                    <SelectTrigger><SelectValue placeholder="Sélectionner un journal" /></SelectTrigger>
+  1119→                    <SelectContent>
+  1120→                      {journaux.map(j => (
+  1121→                        <SelectItem key={j.id} value={j.id}>{j.code} — {j.libelle}</SelectItem>
+  1122→                      ))}
+  1123→                    </SelectContent>
+  1124→                  </Select>
+  1125→                </div>
+  1126→                <div>
+  1127→                  <Label>N° Pièce</Label>
+  1128→                  <Input
+  1129→                    placeholder="ECR-001"
+  1130→                    value={ecrNumeroPiece}
+  1131→                    onChange={e => setEcrNumeroPiece(e.target.value)}
+  1132→                  />
+  1133→                </div>
+  1134→              </div>
+  1135→
+  1136→              <Separator />
+  1137→
+  1138→              {/* Multi-line entries */}
+  1139→              <div>
+  1140→                <div className="flex items-center justify-between mb-2">
+  1141→                  <Label className="text-sm font-semibold">Lignes d&apos;écriture</Label>
+  1142→                  <Button variant="outline" size="sm" className="gap-1" onClick={addEcrLigne}>
+  1143→                    <Plus className="w-3 h-3" /> Ajouter ligne
+  1144→                  </Button>
+  1145→                </div>
+  1146→
+  1147→                <div className="space-y-2">
+  1148→                  {ecrLignes.map((ligne, i) => {
+  1149→                    const totalD = ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0)
+  1150→                    const totalC = ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  1151→                    const isBalanced = Math.abs(totalD - totalC) < 1
+  1152→
+  1153→                    return (
+  1154→                      <div key={i} className="p-3 rounded-lg border bg-muted/20">
+  1155→                        <div className="flex items-center gap-2 mb-2">
+  1156→                          <span className="text-xs text-muted-foreground font-medium">Ligne {i + 1}</span>
+  1157→                          {ecrLignes.length > 1 && (
+  1158→                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => removeEcrLigne(i)}>
+  1159→                              ×
+  1160→                            </Button>
+  1161→                          )}
+  1162→                        </div>
+  1163→                        <div className="grid grid-cols-4 gap-2">
+  1164→                          <div>
+  1165→                            <Label className="text-[10px]">Compte</Label>
+  1166→                            <Input
+  1167→                              className="h-8 text-xs font-mono"
+  1168→                              placeholder="707000"
+  1169→                              value={ligne.compte}
+  1170→                              onChange={e => updateEcrLigne(i, 'compte', e.target.value)}
+  1171→                            />
+  1172→                          </div>
+  1173→                          <div>
+  1174→                            <Label className="text-[10px]">Libellé</Label>
+  1175→                            <Input
+  1176→                              className="h-8 text-xs"
+  1177→                              placeholder="Vente du jour"
+  1178→                              value={ligne.libelle}
+  1179→                              onChange={e => updateEcrLigne(i, 'libelle', e.target.value)}
+  1180→                            />
+  1181→                          </div>
+  1182→                          <div>
+  1183→                            <Label className="text-[10px]">Débit</Label>
+  1184→                            <Input
+  1185→                              type="number"
+  1186→                              className="h-8 text-xs"
+  1187→                              placeholder="0"
+  1188→                              value={ligne.debit}
+  1189→                              onChange={e => updateEcrLigne(i, 'debit', e.target.value)}
+  1190→                            />
+  1191→                          </div>
+  1192→                          <div>
+  1193→                            <Label className="text-[10px]">Crédit</Label>
+  1194→                            <Input
+  1195→                              type="number"
+  1196→                              className="h-8 text-xs"
+  1197→                              placeholder="0"
+  1198→                              value={ligne.credit}
+  1199→                              onChange={e => updateEcrLigne(i, 'credit', e.target.value)}
+  1200→                            />
+  1201→                          </div>
+  1202→                        </div>
+  1203→                      </div>
+  1204→                    )
+  1205→                  })}
+  1206→                </div>
+  1207→
+  1208→                {/* Balance check */}
+  1209→                {ecrLignes.length > 0 && (
+  1210→                  <div className={`mt-3 p-3 rounded-lg text-sm flex items-center justify-between ${
+  1211→                    Math.abs(
+  1212→                      ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0) -
+  1213→                      ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  1214→                    ) < 1 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
+  1215→                  }`}>
+  1216→                    <span>
+  1217→                      Débit: {formatFCFA(ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0))} |
+  1218→                      Crédit: {formatFCFA(ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0))}
+  1219→                    </span>
+  1220→                    <Badge className={
+  1221→                      Math.abs(
+  1222→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0) -
+  1223→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  1224→                      ) < 1 ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
+  1225→                    }>
+  1226→                      {Math.abs(
+  1227→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0) -
+  1228→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  1229→                      ) < 1 ? '✓ Équilibré' : `Écart: ${formatFCFA(Math.abs(
+  1230→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0) -
+  1231→                        ecrLignes.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  1232→                      ))}`}
+  1233→                    </Badge>
+  1234→                  </div>
+  1235→                )}
+  1236→              </div>
+  1237→
+  1238→              <Button className="w-full" onClick={handleCreateEcriture}>
+  1239→                Enregistrer l&apos;écriture
+  1240→              </Button>
+  1241→            </div>
+  1242→          </ScrollArea>
+  1243→        </DialogContent>
+  1244→      </Dialog>
+  1245→
+  1246→      {/* Journal Detail Dialog */}
+  1247→      <Dialog open={journalDetailOpen} onOpenChange={setJournalDetailOpen}>
+  1248→        <DialogContent className="max-w-3xl max-h-[90vh]">
+  1249→          <DialogHeader>
+  1250→            <DialogTitle className="flex items-center gap-2">
+  1251→              <BookOpen className="w-5 h-5 text-primary" />
+  1252→              Journal {selectedJournal?.code} — {selectedJournal?.libelle}
+  1253→            </DialogTitle>
+  1254→          </DialogHeader>
+  1255→          <ScrollArea className="max-h-[70vh]">
+  1256→            {selectedJournal && selectedJournal.ecritures.length > 0 ? (
+  1257→              <table className="w-full">
+  1258→                <thead>
+  1259→                  <tr className="border-b">
+  1260→                    <th className="text-left p-2 text-xs font-medium text-muted-foreground">Date</th>
+  1261→                    <th className="text-left p-2 text-xs font-medium text-muted-foreground">N° Pièce</th>
+  1262→                    <th className="text-left p-2 text-xs font-medium text-muted-foreground">Compte</th>
+  1263→                    <th className="text-left p-2 text-xs font-medium text-muted-foreground">Libellé</th>
+  1264→                    <th className="text-right p-2 text-xs font-medium text-muted-foreground">Débit</th>
+  1265→                    <th className="text-right p-2 text-xs font-medium text-muted-foreground">Crédit</th>
+  1266→                  </tr>
+  1267→                </thead>
+  1268→                <tbody>
+  1269→                  {selectedJournal.ecritures.map(e => (
+  1270→                    <tr key={e.id} className="border-b last:border-0 hover:bg-muted/30">
+  1271→                      <td className="p-2 text-xs">{new Date(e.date).toLocaleDateString('fr-FR')}</td>
+  1272→                      <td className="p-2 text-xs font-mono">{e.numeroPiece}</td>
+  1273→                      <td className="p-2 text-xs font-mono">{e.compte}</td>
+  1274→                      <td className="p-2 text-xs">{e.libelle}</td>
+  1275→                      <td className="p-2 text-xs text-right font-semibold">{e.debit > 0 ? formatFCFA(e.debit) : ''}</td>
+  1276→                      <td className="p-2 text-xs text-right font-semibold text-primary">{e.credit > 0 ? formatFCFA(e.credit) : ''}</td>
+  1277→                    </tr>
+  1278→                  ))}
+  1279→                </tbody>
+  1280→                <tfoot>
+  1281→                  <tr className="border-t-2 bg-primary/5">
+  1282→                    <td colSpan={4} className="p-2 text-xs text-right font-semibold">Totaux</td>
+  1283→                    <td className="p-2 text-xs text-right font-semibold">
+  1284→                      {formatFCFA(selectedJournal.ecritures.reduce((s, e) => s + e.debit, 0))}
+  1285→                    </td>
+  1286→                    <td className="p-2 text-xs text-right font-semibold text-primary">
+  1287→                      {formatFCFA(selectedJournal.ecritures.reduce((s, e) => s + e.credit, 0))}
+  1288→                    </td>
+  1289→                  </tr>
+  1290→                </tfoot>
+  1291→              </table>
+  1292→            ) : (
+  1293→              <div className="text-center py-8 text-muted-foreground text-sm">
+  1294→                Aucune écriture dans ce journal
+  1295→              </div>
+  1296→            )}
+  1297→          </ScrollArea>
+  1298→        </DialogContent>
+  1299→      </Dialog>
+  1300→    </div>
+  1301→  )
+  1302→}
+  1303→

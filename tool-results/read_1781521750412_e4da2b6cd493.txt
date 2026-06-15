@@ -1,0 +1,845 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     5→import { Badge } from '@/components/ui/badge'
+     6→import { Button } from '@/components/ui/button'
+     7→import {
+     8→  Select,
+     9→  SelectContent,
+    10→  SelectItem,
+    11→  SelectTrigger,
+    12→  SelectValue,
+    13→} from '@/components/ui/select'
+    14→import { Progress } from '@/components/ui/progress'
+    15→import { BarChart3, TrendingUp, Package, DollarSign, Download, Brain, Shield, HeartPulse, AlertTriangle, ShoppingCart, Loader2, RefreshCw } from 'lucide-react'
+    16→import { useEffect, useState, useCallback } from 'react'
+    17→import {
+    18→  BarChart,
+    19→  Bar,
+    20→  XAxis,
+    21→  YAxis,
+    22→  CartesianGrid,
+    23→  Tooltip,
+    24→  ResponsiveContainer,
+    25→  LineChart,
+    26→  Line,
+    27→  RadarChart,
+    28→  Radar,
+    29→  PolarGrid,
+    30→  PolarAngleAxis,
+    31→  PolarRadiusAxis,
+    32→  PieChart,
+    33→  Pie,
+    34→  Cell,
+    35→  AreaChart,
+    36→  Area,
+    37→} from 'recharts'
+    38→import { toast } from 'sonner'
+    39→
+    40→function formatFCFA(amount: number) {
+    41→  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)) + ' FCFA'
+    42→}
+    43→
+    44→interface EIStats {
+    45→  total: number
+    46→  leger: number
+    47→  modere: number
+    48→  grave: number
+    49→  fatal: number
+    50→  enAttente: number
+    51→  soumis: number
+    52→}
+    53→
+    54→interface ConformiteData {
+    55→  scoreTotal: number
+    56→  scoreRegistreStup: number
+    57→  scoreAlerteDPMED: number
+    58→  scoreDocuments: number
+    59→  scorePharmacovigi: number
+    60→  scoreDestructions: number
+    61→  certificationDPMED: boolean
+    62→  pendingAlertesDPMED: number
+    63→  documentsExpirant: number
+    64→}
+    65→
+    66→interface StockPrediction {
+    67→  medicamentId: string
+    68→  medicamentNom: string
+    69→  predictedDemand: number
+    70→  confidence: number
+    71→  currentStock: number
+    72→  reorderNeeded: boolean
+    73→  suggestedOrderQty: number
+    74→}
+    75→
+    76→interface RevenuePrediction {
+    77→  month: string
+    78→  predicted: number
+    79→  lowerBound: number
+    80→  upperBound: number
+    81→}
+    82→
+    83→interface DashboardData {
+    84→  caDuJour: number
+    85→  nbVentesJour: number
+    86→  ventesRecentes: { montantTotal: number; createdAt: string }[]
+    87→  topProduits: {
+    88→    id: string
+    89→    nom: string
+    90→    dci: string
+    91→    quantite: number
+    92→    montant: number
+    93→  }[]
+    94→  scorePharmacie: {
+    95→    scoreSante: number
+    96→    scoreStock: number
+    97→    scoreFinance: number
+    98→    scoreConformite: number
+    99→    scoreRH: number
+   100→    scorePharmacovigilance: number
+   101→    scoreQualite: number
+   102→  } | null
+   103→  predictions?: {
+   104→    domaine: string
+   105→    typePrediction: string
+   106→    valeur: number
+   107→    confiance: number
+   108→    periodeCible: string
+   109→  }[]
+   110→  eiStats: EIStats
+   111→  surveillancesActives: number
+   112→  conformiteData: ConformiteData
+   113→}
+   114→
+   115→const COLORS = ['#1D9E75', '#0F6E56', '#EF9F27', '#378ADD', '#085041', '#9FE1CB', '#E24B4A']
+   116→
+   117→export default function AnalyticsPage() {
+   118→  const { pharmacie } = useAuth()
+   119→  const [data, setData] = useState<DashboardData | null>(null)
+   120→  const [loading, setLoading] = useState(true)
+   121→  const [periode, setPeriode] = useState('7j')
+   122→  const [stockPredictions, setStockPredictions] = useState<StockPrediction[]>([])
+   123→  const [revenuePredictions, setRevenuePredictions] = useState<RevenuePrediction[]>([])
+   124→  const [predLoading, setPredLoading] = useState(false)
+   125→
+   126→  const loadData = useCallback(async () => {
+   127→    if (!pharmacie?.id) return
+   128→    setLoading(true)
+   129→    try {
+   130→      const res = await fetch(`/api/pro/dashboard?pharmacieId=${pharmacie.id}&periode=${periode}`)
+   131→      if (res.ok) {
+   132→        const d = await res.json()
+   133→        setData(d)
+   134→      }
+   135→    } catch { /* ignore */ } finally {
+   136→      setLoading(false)
+   137→    }
+   138→  }, [pharmacie?.id, periode])
+   139→
+   140→  const loadPredictions = useCallback(async () => {
+   141→    if (!pharmacie?.id) return
+   142→    setPredLoading(true)
+   143→    try {
+   144→      const [stockRes, revenueRes] = await Promise.all([
+   145→        fetch(`/api/ai/predictions?type=stock&pharmacieId=${pharmacie.id}`),
+   146→        fetch(`/api/ai/predictions?type=revenue&pharmacieId=${pharmacie.id}`),
+   147→      ])
+   148→      if (stockRes.ok) {
+   149→        const stockData = await stockRes.json()
+   150→        setStockPredictions(stockData.data || [])
+   151→      }
+   152→      if (revenueRes.ok) {
+   153→        const revData = await revenueRes.json()
+   154→        setRevenuePredictions(revData.data || [])
+   155→      }
+   156→    } catch { /* ignore */ } finally {
+   157→      setPredLoading(false)
+   158→    }
+   159→  }, [pharmacie?.id])
+   160→
+   161→  useEffect(() => {
+   162→    loadData()
+   163→  }, [loadData])
+   164→
+   165→  useEffect(() => {
+   166→    if (pharmacie?.id) {
+   167→      loadPredictions()
+   168→    }
+   169→  }, [pharmacie?.id, loadPredictions])
+   170→
+   171→  // Sales trend chart data
+   172→  const salesTrendData = (() => {
+   173→    if (!data?.ventesRecentes) return []
+   174→    const dayMap = new Map<string, { ca: number; count: number }>()
+   175→    const days = periode === '30j' ? 30 : periode === '14j' ? 14 : 7
+   176→    for (let i = days - 1; i >= 0; i--) {
+   177→      const d = new Date()
+   178→      d.setDate(d.getDate() - i)
+   179→      const key = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+   180→      dayMap.set(key, { ca: 0, count: 0 })
+   181→    }
+   182→    for (const v of data.ventesRecentes) {
+   183→      const key = new Date(v.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+   184→      if (dayMap.has(key)) {
+   185→        const entry = dayMap.get(key)!
+   186→        entry.ca += v.montantTotal
+   187→        entry.count += 1
+   188→      }
+   189→    }
+   190→    return Array.from(dayMap.entries()).map(([name, val]) => ({
+   191→      name,
+   192→      ca: val.ca,
+   193→      ventes: val.count,
+   194→    }))
+   195→  })()
+   196→
+   197→  // Top products chart
+   198→  const topProductsData = (data?.topProduits || []).map(p => ({
+   199→    name: p.nom.length > 15 ? p.nom.substring(0, 15) + '...' : p.nom,
+   200→    montant: p.montant,
+   201→    quantite: p.quantite,
+   202→  }))
+   203→
+   204→  // Radar data for pharmacy health
+   205→  const radarData = data?.scorePharmacie ? [
+   206→    { subject: 'Santé', score: data.scorePharmacie.scoreSante, fullMark: 100 },
+   207→    { subject: 'Stock', score: data.scorePharmacie.scoreStock, fullMark: 100 },
+   208→    { subject: 'Finance', score: data.scorePharmacie.scoreFinance, fullMark: 100 },
+   209→    { subject: 'Conformité', score: data.scorePharmacie.scoreConformite, fullMark: 100 },
+   210→    { subject: 'RH', score: data.scorePharmacie.scoreRH, fullMark: 100 },
+   211→    { subject: 'Pharmacovigilance', score: data.scorePharmacie.scorePharmacovigilance || 0, fullMark: 100 },
+   212→    { subject: 'Qualité', score: data.scorePharmacie.scoreQualite || 0, fullMark: 100 },
+   213→  ] : (() => {
+   214→    const conf = data?.conformiteData
+   215→    const ei = data?.eiStats
+   216→    return [
+   217→      { subject: 'Santé', score: 75, fullMark: 100 },
+   218→      { subject: 'Stock', score: 65, fullMark: 100 },
+   219→      { subject: 'Finance', score: 80, fullMark: 100 },
+   220→      { subject: 'Conformité', score: conf ? conf.scoreTotal : 70, fullMark: 100 },
+   221→      { subject: 'RH', score: 60, fullMark: 100 },
+   222→      { subject: 'Pharmacovigilance', score: ei ? Math.min(100, Math.max(0, 100 - ei.total * 10 + ei.soumis * 20)) : 55, fullMark: 100 },
+   223→      { subject: 'Qualité', score: conf ? Math.round((conf.scoreDocuments / 20) * 100) : 65, fullMark: 100 },
+   224→    ]
+   225→  })()
+   226→
+   227→  // EI stats data for chart
+   228→  const eiChartData = data?.eiStats ? [
+   229→    { name: 'Léger', count: data.eiStats.leger, fill: '#1D9E75' },
+   230→    { name: 'Modéré', count: data.eiStats.modere, fill: '#EF9F27' },
+   231→    { name: 'Grave', count: data.eiStats.grave, fill: '#E24B4A' },
+   232→    { name: 'Fatal', count: data.eiStats.fatal, fill: '#7F1D1D' },
+   233→  ] : []
+   234→
+   235→  // Conformité breakdown for chart
+   236→  const conformiteChartData = data?.conformiteData ? [
+   237→    { name: 'Registre stup.', score: data.conformiteData.scoreRegistreStup, max: 25 },
+   238→    { name: 'Alertes DPMED', score: data.conformiteData.scoreAlerteDPMED, max: 25 },
+   239→    { name: 'Documents', score: data.conformiteData.scoreDocuments, max: 20 },
+   240→    { name: 'Pharmacovigi.', score: data.conformiteData.scorePharmacovigi, max: 15 },
+   241→    { name: 'Destructions', score: data.conformiteData.scoreDestructions, max: 15 },
+   242→  ].map(item => ({ ...item, pct: Math.round((item.score / item.max) * 100) })) : []
+   243→
+   244→  // Revenue prediction chart data
+   245→  const revenueChartData = revenuePredictions.map(r => ({
+   246→    name: r.month,
+   247→    predicted: r.predicted,
+   248→    lowerBound: r.lowerBound,
+   249→    upperBound: r.upperBound,
+   250→  }))
+   251→
+   252→  // Stock predictions needing reorder
+   253→  const reorderItems = stockPredictions.filter(p => p.reorderNeeded)
+   254→
+   255→  // Predictions from dashboard
+   256→  const predictions = data?.predictions || []
+   257→
+   258→  if (loading) {
+   259→    return (
+   260→      <div className="space-y-4">
+   261→        <BarChart3 className="w-8 h-8 text-primary/30" />
+   262→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   263→          <div className="h-64 bg-muted/20 rounded-lg animate-pulse" />
+   264→          <div className="h-64 bg-muted/20 rounded-lg animate-pulse" />
+   265→        </div>
+   266→      </div>
+   267→    )
+   268→  }
+   269→
+   270→  return (
+   271→    <div className="space-y-6">
+   272→      {/* Header */}
+   273→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   274→        <div>
+   275→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   276→            <BarChart3 className="w-6 h-6 text-primary" />
+   277→            Analytics
+   278→          </h1>
+   279→          <p className="text-sm text-muted-foreground">
+   280→            Analyse détaillée de votre activité
+   281→          </p>
+   282→        </div>
+   283→        <div className="flex gap-2">
+   284→          <Select value={periode} onValueChange={setPeriode}>
+   285→            <SelectTrigger className="w-32">
+   286→              <SelectValue />
+   287→            </SelectTrigger>
+   288→            <SelectContent>
+   289→              <SelectItem value="7j">7 jours</SelectItem>
+   290→              <SelectItem value="14j">14 jours</SelectItem>
+   291→              <SelectItem value="30j">30 jours</SelectItem>
+   292→            </SelectContent>
+   293→          </Select>
+   294→          <Button variant="outline" className="gap-2" onClick={() => toast.success('Rapport PDF en cours de génération')}>
+   295→            <Download className="w-4 h-4" />
+   296→            Export PDF
+   297→          </Button>
+   298→        </div>
+   299→      </div>
+   300→
+   301→      {/* Summary Cards */}
+   302→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   303→        <Card>
+   304→          <CardContent className="p-4 flex items-center justify-between">
+   305→            <div>
+   306→              <span className="text-xs text-muted-foreground uppercase">CA total période</span>
+   307→              <span className="text-xl font-bold block text-primary">
+   308→                {formatFCFA(data?.caDuJour ?? 0)}
+   309→              </span>
+   310→            </div>
+   311→            <DollarSign className="w-8 h-8 text-primary/30" />
+   312→          </CardContent>
+   313→        </Card>
+   314→        <Card>
+   315→          <CardContent className="p-4 flex items-center justify-between">
+   316→            <div>
+   317→              <span className="text-xs text-muted-foreground uppercase">Ventes total période</span>
+   318→              <span className="text-xl font-bold block">{data?.nbVentesJour ?? 0}</span>
+   319→            </div>
+   320→            <TrendingUp className="w-8 h-8 text-primary/30" />
+   321→          </CardContent>
+   322→        </Card>
+   323→        <Card>
+   324→          <CardContent className="p-4 flex items-center justify-between">
+   325→            <div>
+   326→              <span className="text-xs text-muted-foreground uppercase">Panier moyen</span>
+   327→              <span className="text-xl font-bold block">
+   328→                {data?.nbVentesJour ? formatFCFA(data.caDuJour / data.nbVentesJour) : '0 FCFA'}
+   329→              </span>
+   330→            </div>
+   331→            <Package className="w-8 h-8 text-primary/30" />
+   332→          </CardContent>
+   333→        </Card>
+   334→      </div>
+   335→
+   336→      {/* Charts Row 1 */}
+   337→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   338→        {/* Sales Trend */}
+   339→        <Card>
+   340→          <CardHeader className="pb-2">
+   341→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   342→              <TrendingUp className="w-4 h-4 text-primary" />
+   343→              Tendance des ventes — {periode}
+   344→            </CardTitle>
+   345→          </CardHeader>
+   346→          <CardContent>
+   347→            <div className="h-64">
+   348→              <ResponsiveContainer width="100%" height="100%">
+   349→                <LineChart data={salesTrendData}>
+   350→                  <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   351→                  <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#888780" />
+   352→                  <YAxis tick={{ fontSize: 10 }} stroke="#888780" />
+   353→                  <Tooltip
+   354→                    formatter={(value: number, name: string) => [
+   355→                      name === 'ca' ? formatFCFA(value) : value,
+   356→                      name === 'ca' ? 'CA' : 'Ventes'
+   357→                    ]}
+   358→                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+   359→                  />
+   360→                  <Line type="monotone" dataKey="ca" stroke="#1D9E75" strokeWidth={2} dot={{ fill: '#1D9E75', r: 3 }} />
+   361→                </LineChart>
+   362→              </ResponsiveContainer>
+   363→            </div>
+   364→          </CardContent>
+   365→        </Card>
+   366→
+   367→        {/* Top Products */}
+   368→        <Card>
+   369→          <CardHeader className="pb-2">
+   370→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   371→              <Package className="w-4 h-4 text-primary" />
+   372→              Top produits (CA)
+   373→            </CardTitle>
+   374→          </CardHeader>
+   375→          <CardContent>
+   376→            <div className="h-64">
+   377→              <ResponsiveContainer width="100%" height="100%">
+   378→                <BarChart data={topProductsData} layout="vertical">
+   379→                  <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   380→                  <XAxis type="number" tick={{ fontSize: 10 }} stroke="#888780" />
+   381→                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} stroke="#888780" />
+   382→                  <Tooltip
+   383→                    formatter={(value: number) => [formatFCFA(value), 'CA']}
+   384→                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+   385→                  />
+   386→                  <Bar dataKey="montant" fill="#1D9E75" radius={[0, 4, 4, 0]} />
+   387→                </BarChart>
+   388→              </ResponsiveContainer>
+   389→            </div>
+   390→          </CardContent>
+   391→        </Card>
+   392→      </div>
+   393→
+   394→      {/* Charts Row 2 */}
+   395→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   396→        {/* Pharmacy Health Radar */}
+   397→        <Card>
+   398→          <CardHeader className="pb-2">
+   399→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   400→              <Shield className="w-4 h-4 text-primary" />
+   401→              Score de santé pharmacie
+   402→            </CardTitle>
+   403→          </CardHeader>
+   404→          <CardContent>
+   405→            <div className="h-64">
+   406→              <ResponsiveContainer width="100%" height="100%">
+   407→                <RadarChart data={radarData}>
+   408→                  <PolarGrid stroke="#9FE1CB" />
+   409→                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#2C2C2A' }} />
+   410→                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+   411→                  <Radar
+   412→                    name="Score"
+   413→                    dataKey="score"
+   414→                    stroke="#1D9E75"
+   415→                    fill="#1D9E75"
+   416→                    fillOpacity={0.3}
+   417→                  />
+   418→                </RadarChart>
+   419→              </ResponsiveContainer>
+   420→            </div>
+   421→          </CardContent>
+   422→        </Card>
+   423→
+   424→        {/* Sales Distribution Pie */}
+   425→        <Card>
+   426→          <CardHeader className="pb-2">
+   427→            <CardTitle className="text-sm font-semibold">Répartition du CA par produit</CardTitle>
+   428→          </CardHeader>
+   429→          <CardContent>
+   430→            <div className="h-64">
+   431→              <ResponsiveContainer width="100%" height="100%">
+   432→                <PieChart>
+   433→                  <Pie
+   434→                    data={topProductsData}
+   435→                    dataKey="montant"
+   436→                    nameKey="name"
+   437→                    cx="50%"
+   438→                    cy="50%"
+   439→                    outerRadius={80}
+   440→                    label={({ name, percent }: { name: string; percent: number }) =>
+   441→                      `${name} ${(percent * 100).toFixed(0)}%`
+   442→                    }
+   443→                    labelLine={{ stroke: '#888780' }}
+   444→                  >
+   445→                    {topProductsData.map((_, index) => (
+   446→                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+   447→                    ))}
+   448→                  </Pie>
+   449→                  <Tooltip
+   450→                    formatter={(value: number) => [formatFCFA(value), 'CA']}
+   451→                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+   452→                  />
+   453→                </PieChart>
+   454→              </ResponsiveContainer>
+   455→            </div>
+   456→          </CardContent>
+   457→        </Card>
+   458→      </div>
+   459→
+   460→      {/* Score indicators */}
+   461→      <Card>
+   462→        <CardHeader className="pb-3">
+   463→          <CardTitle className="text-sm font-semibold">Indicateurs clés</CardTitle>
+   464→        </CardHeader>
+   465→        <CardContent>
+   466→          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+   467→            {radarData.map(item => (
+   468→              <div key={item.subject} className="text-center">
+   469→                <div className="text-2xl font-bold" style={{
+   470→                  color: item.score >= 80 ? '#1D9E75' : item.score >= 60 ? '#EF9F27' : '#E24B4A'
+   471→                }}>
+   472→                  {Math.round(item.score)}%
+   473→                </div>
+   474→                <span className="text-xs text-muted-foreground">{item.subject}</span>
+   475→                <Badge
+   476→                  className="mt-1 text-[9px]"
+   477→                  variant={item.score >= 80 ? 'default' : item.score >= 60 ? 'outline' : 'destructive'}
+   478→                >
+   479→                  {item.score >= 80 ? 'Bon' : item.score >= 60 ? 'Moyen' : 'Faible'}
+   480→                </Badge>
+   481→              </div>
+   482→            ))}
+   483→          </div>
+   484→        </CardContent>
+   485→      </Card>
+   486→
+   487→      {/* Pharmacovigilance Domain */}
+   488→      <Card>
+   489→        <CardHeader className="pb-3">
+   490→          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   491→            <HeartPulse className="w-4 h-4 text-primary" />
+   492→            Domaine Pharmacovigilance
+   493→          </CardTitle>
+   494→        </CardHeader>
+   495→        <CardContent>
+   496→          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+   497→            <Card className="border">
+   498→              <CardContent className="p-4 text-center">
+   499→                <span className="text-xs text-muted-foreground uppercase">Signalements EI</span>
+   500→                <p className="text-2xl font-bold text-primary">{data?.eiStats?.total ?? 0}</p>
+   501→              </CardContent>
+   502→            </Card>
+   503→            <Card className="border">
+   504→              <CardContent className="p-4 text-center">
+   505→                <span className="text-xs text-muted-foreground uppercase">En attente envoi</span>
+   506→                <p className="text-2xl font-bold text-amber-500">{data?.eiStats?.enAttente ?? 0}</p>
+   507→              </CardContent>
+   508→            </Card>
+   509→            <Card className="border">
+   510→              <CardContent className="p-4 text-center">
+   511→                <span className="text-xs text-muted-foreground uppercase">Soumis</span>
+   512→                <p className="text-2xl font-bold text-primary">{data?.eiStats?.soumis ?? 0}</p>
+   513→              </CardContent>
+   514→            </Card>
+   515→            <Card className="border">
+   516→              <CardContent className="p-4 text-center">
+   517→                <span className="text-xs text-muted-foreground uppercase">Surveillances actives</span>
+   518→                <p className="text-2xl font-bold text-destructive">{data?.surveillancesActives ?? 0}</p>
+   519→              </CardContent>
+   520→            </Card>
+   521→          </div>
+   522→          {eiChartData.length > 0 && (
+   523→            <div className="h-48">
+   524→              <ResponsiveContainer width="100%" height="100%">
+   525→                <BarChart data={eiChartData}>
+   526→                  <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   527→                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#888780" />
+   528→                  <YAxis tick={{ fontSize: 10 }} stroke="#888780" allowDecimals={false} />
+   529→                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+   530→                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+   531→                    {eiChartData.map((entry, index) => (
+   532→                      <Cell key={`cell-${index}`} fill={entry.fill} />
+   533→                    ))}
+   534→                  </Bar>
+   535→                </BarChart>
+   536→              </ResponsiveContainer>
+   537→            </div>
+   538→          )}
+   539→        </CardContent>
+   540→      </Card>
+   541→
+   542→      {/* Conformité Domain */}
+   543→      <Card>
+   544→        <CardHeader className="pb-3">
+   545→          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   546→            <Shield className="w-4 h-4 text-primary" />
+   547→            Domaine Conformité
+   548→          </CardTitle>
+   549→        </CardHeader>
+   550→        <CardContent>
+   551→          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+   552→            <Card className="border">
+   553→              <CardContent className="p-4 text-center">
+   554→                <span className="text-xs text-muted-foreground uppercase">Score global</span>
+   555→                <p className="text-2xl font-bold text-primary">{Math.round(data?.conformiteData?.scoreTotal ?? 0)}/100</p>
+   556→              </CardContent>
+   557→            </Card>
+   558→            <Card className="border">
+   559→              <CardContent className="p-4 text-center">
+   560→                <span className="text-xs text-muted-foreground uppercase">Certifié DPMED</span>
+   561→                <p className="text-2xl font-bold">
+   562→                  {data?.conformiteData?.certificationDPMED ? (
+   563→                    <span className="text-primary">Oui</span>
+   564→                  ) : (
+   565→                    <span className="text-muted-foreground">Non</span>
+   566→                  )}
+   567→                </p>
+   568→              </CardContent>
+   569→            </Card>
+   570→            <Card className="border">
+   571→              <CardContent className="p-4 text-center">
+   572→                <span className="text-xs text-muted-foreground uppercase">Alertes DPMED</span>
+   573→                <p className="text-2xl font-bold text-amber-500">{data?.conformiteData?.pendingAlertesDPMED ?? 0}</p>
+   574→              </CardContent>
+   575→            </Card>
+   576→            <Card className="border">
+   577→              <CardContent className="p-4 text-center">
+   578→                <span className="text-xs text-muted-foreground uppercase">Docs expirant</span>
+   579→                <p className="text-2xl font-bold text-destructive">{data?.conformiteData?.documentsExpirant ?? 0}</p>
+   580→              </CardContent>
+   581→            </Card>
+   582→          </div>
+   583→          {conformiteChartData.length > 0 && (
+   584→            <div className="h-48">
+   585→              <ResponsiveContainer width="100%" height="100%">
+   586→                <BarChart data={conformiteChartData} layout="vertical">
+   587→                  <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   588→                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#888780" />
+   589→                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={110} stroke="#888780" />
+   590→                  <Tooltip
+   591→                    formatter={(value: number) => [`${value}%`, 'Conformité']}
+   592→                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+   593→                  />
+   594→                  <Bar dataKey="pct" fill="#1D9E75" radius={[0, 4, 4, 0]} />
+   595→                </BarChart>
+   596→              </ResponsiveContainer>
+   597→            </div>
+   598→          )}
+   599→        </CardContent>
+   600→      </Card>
+   601→
+   602→      {/* ===== AI Predictions Section ===== */}
+   603→      <Card>
+   604→        <CardHeader className="pb-3">
+   605→          <div className="flex items-center justify-between">
+   606→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   607→              <Brain className="w-4 h-4 text-primary" />
+   608→              Prédictions IA
+   609→            </CardTitle>
+   610→            <Button
+   611→              variant="ghost"
+   612→              size="sm"
+   613→              className="h-7 text-xs text-primary gap-1"
+   614→              onClick={loadPredictions}
+   615→              disabled={predLoading}
+   616→            >
+   617→              <RefreshCw className={`h-3 w-3 ${predLoading ? 'animate-spin' : ''}`} />
+   618→              Actualiser
+   619→            </Button>
+   620→          </div>
+   621→        </CardHeader>
+   622→        <CardContent className="space-y-6">
+   623→          {predLoading && stockPredictions.length === 0 && revenuePredictions.length === 0 ? (
+   624→            <div className="flex flex-col items-center justify-center py-8 gap-2">
+   625→              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+   626→              <p className="text-sm text-muted-foreground">Calcul des prédictions...</p>
+   627→            </div>
+   628→          ) : (
+   629→            <>
+   630→              {/* Stock Predictions Table */}
+   631→              <div>
+   632→                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+   633→                  <Package className="w-4 h-4 text-primary" />
+   634→                  Prédictions de stock
+   635→                  {reorderItems.length > 0 && (
+   636→                    <Badge variant="destructive" className="text-[9px]">
+   637→                      {reorderItems.length} réappro. nécessaire{reorderItems.length > 1 ? 's' : ''}
+   638→                    </Badge>
+   639→                  )}
+   640→                </h3>
+   641→                {stockPredictions.length > 0 ? (
+   642→                  <div className="max-h-96 overflow-y-auto rounded-lg border">
+   643→                    <table className="w-full text-xs">
+   644→                      <thead className="bg-muted/50 sticky top-0">
+   645→                        <tr>
+   646→                          <th className="text-left p-3 font-medium">Médicament</th>
+   647→                          <th className="text-center p-3 font-medium">Demande prévue</th>
+   648→                          <th className="text-center p-3 font-medium">Stock actuel</th>
+   649→                          <th className="text-center p-3 font-medium">Confiance</th>
+   650→                          <th className="text-center p-3 font-medium">Statut</th>
+   651→                          <th className="text-center p-3 font-medium">Qté suggérée</th>
+   652→                          <th className="text-center p-3 font-medium">Action</th>
+   653→                        </tr>
+   654→                      </thead>
+   655→                      <tbody>
+   656→                        {stockPredictions.map((pred) => (
+   657→                          <tr key={pred.medicamentId} className={`border-t ${pred.reorderNeeded ? 'bg-red-50/50' : ''}`}>
+   658→                            <td className="p-3 font-medium max-w-[150px] truncate">{pred.medicamentNom}</td>
+   659→                            <td className="p-3 text-center">{pred.predictedDemand}</td>
+   660→                            <td className="p-3 text-center">
+   661→                              <span className={pred.currentStock < pred.predictedDemand ? 'text-destructive font-bold' : ''}>
+   662→                                {pred.currentStock}
+   663→                              </span>
+   664→                            </td>
+   665→                            <td className="p-3 text-center">
+   666→                              <div className="flex items-center gap-1 justify-center">
+   667→                                <Progress
+   668→                                  value={pred.confidence * 100}
+   669→                                  className="h-1.5 w-12"
+   670→                                />
+   671→                                <span className={`text-[10px] ${
+   672→                                  pred.confidence >= 0.8 ? 'text-primary' : pred.confidence >= 0.6 ? 'text-amber-500' : 'text-muted-foreground'
+   673→                                }`}>
+   674→                                  {Math.round(pred.confidence * 100)}%
+   675→                                </span>
+   676→                              </div>
+   677→                            </td>
+   678→                            <td className="p-3 text-center">
+   679→                              {pred.reorderNeeded ? (
+   680→                                <Badge variant="destructive" className="text-[9px]">Réappro.</Badge>
+   681→                              ) : (
+   682→                                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary">OK</Badge>
+   683→                              )}
+   684→                            </td>
+   685→                            <td className="p-3 text-center">
+   686→                              {pred.reorderNeeded ? (
+   687→                                <span className="font-bold text-destructive">{pred.suggestedOrderQty}</span>
+   688→                              ) : (
+   689→                                <span className="text-muted-foreground">—</span>
+   690→                              )}
+   691→                            </td>
+   692→                            <td className="p-3 text-center">
+   693→                              {pred.reorderNeeded && (
+   694→                                <Button
+   695→                                  size="sm"
+   696→                                  className="h-6 text-[9px] bg-primary hover:bg-teal-700 gap-1"
+   697→                                  onClick={() => toast.success(`Commande de ${pred.suggestedOrderQty} unités de ${pred.medicamentNom} initiée`)}
+   698→                                >
+   699→                                  <ShoppingCart className="h-3 w-3" />
+   700→                                  Commander
+   701→                                </Button>
+   702→                              )}
+   703→                            </td>
+   704→                          </tr>
+   705→                        ))}
+   706→                      </tbody>
+   707→                    </table>
+   708→                  </div>
+   709→                ) : (
+   710→                  <div className="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-lg">
+   711→                    Pas assez de données pour les prédictions de stock
+   712→                  </div>
+   713→                )}
+   714→              </div>
+   715→
+   716→              {/* Revenue Prediction Chart */}
+   717→              <div>
+   718→                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+   719→                  <DollarSign className="w-4 h-4 text-primary" />
+   720→                  Prévisions de revenus (6 mois)
+   721→                </h3>
+   722→                {revenueChartData.length > 0 ? (
+   723→                  <div className="h-72">
+   724→                    <ResponsiveContainer width="100%" height="100%">
+   725→                      <AreaChart data={revenueChartData}>
+   726→                        <CartesianGrid strokeDasharray="3 3" stroke="#E1F5EE" />
+   727→                        <XAxis
+   728→                          dataKey="name"
+   729→                          tick={{ fontSize: 10 }}
+   730→                          stroke="#888780"
+   731→                          tickFormatter={(value: string) => {
+   732→                            const [y, m] = value.split('-')
+   733→                            const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+   734→                            return months[parseInt(m, 10) - 1] + ' ' + y.slice(2)
+   735→                          }}
+   736→                        />
+   737→                        <YAxis
+   738→                          tick={{ fontSize: 10 }}
+   739→                          stroke="#888780"
+   740→                          tickFormatter={(value: number) => `${(value / 1000).toFixed(0)}k`}
+   741→                        />
+   742→                        <Tooltip
+   743→                          formatter={(value: number, name: string) => {
+   744→                            const labels: Record<string, string> = {
+   745→                              predicted: 'Prévu',
+   746→                              upperBound: 'Max',
+   747→                              lowerBound: 'Min',
+   748→                            }
+   749→                            return [formatFCFA(value), labels[name] || name]
+   750→                          }}
+   751→                          labelFormatter={(label: string) => {
+   752→                            const [y, m] = String(label).split('-')
+   753→                            const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+   754→                            return months[parseInt(m, 10) - 1] + ' ' + y
+   755→                          }}
+   756→                          contentStyle={{ fontSize: 12, borderRadius: 8 }}
+   757→                        />
+   758→                        <Area
+   759→                          type="monotone"
+   760→                          dataKey="upperBound"
+   761→                          stroke="#9FE1CB"
+   762→                          fill="#9FE1CB"
+   763→                          fillOpacity={0.2}
+   764→                          strokeDasharray="4 4"
+   765→                          strokeWidth={1}
+   766→                        />
+   767→                        <Area
+   768→                          type="monotone"
+   769→                          dataKey="lowerBound"
+   770→                          stroke="#9FE1CB"
+   771→                          fill="#9FE1CB"
+   772→                          fillOpacity={0.2}
+   773→                          strokeDasharray="4 4"
+   774→                          strokeWidth={1}
+   775→                        />
+   776→                        <Area
+   777→                          type="monotone"
+   778→                          dataKey="predicted"
+   779→                          stroke="#1D9E75"
+   780→                          fill="#1D9E75"
+   781→                          fillOpacity={0.15}
+   782→                          strokeWidth={2}
+   783→                        />
+   784→                      </AreaChart>
+   785→                    </ResponsiveContainer>
+   786→                  </div>
+   787→                ) : (
+   788→                  <div className="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-lg">
+   789→                    Pas assez de données pour les prévisions de revenus
+   790→                  </div>
+   791→                )}
+   792→              </div>
+   793→
+   794→              {/* Confidence Legend */}
+   795→              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+   796→                <span className="font-medium">Indicateurs de confiance :</span>
+   797→                <span className="flex items-center gap-1">
+   798→                  <span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Élevée ({'>'}80%)
+   799→                </span>
+   800→                <span className="flex items-center gap-1">
+   801→                  <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> Moyenne (60-80%)
+   802→                </span>
+   803→                <span className="flex items-center gap-1">
+   804→                  <span className="w-3 h-3 rounded-sm bg-muted-foreground/30 inline-block" /> Faible ({'<'}60%)
+   805→                </span>
+   806→              </div>
+   807→            </>
+   808→          )}
+   809→        </CardContent>
+   810→      </Card>
+   811→
+   812→      {/* Legacy Predictions (from dashboard) */}
+   813→      {predictions.length > 0 && (
+   814→        <Card>
+   815→          <CardHeader className="pb-3">
+   816→            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   817→              <Brain className="w-4 h-4 text-primary" />
+   818→              Prédictions IA — Historique
+   819→            </CardTitle>
+   820→          </CardHeader>
+   821→          <CardContent>
+   822→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   823→              {predictions.map((pred, i) => (
+   824→                <Card key={i} className="border">
+   825→                  <CardContent className="p-4">
+   826→                    <div className="flex items-center gap-2 mb-2">
+   827→                      <Badge variant="outline" className="text-[9px]">{pred.domaine}</Badge>
+   828→                      <Badge variant="secondary" className="text-[9px]">{pred.typePrediction}</Badge>
+   829→                    </div>
+   830→                    <p className="text-xl font-bold text-primary">{formatFCFA(pred.valeur)}</p>
+   831→                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+   832→                      <span>Confiance: {Math.round(pred.confiance * 100)}%</span>
+   833→                      <span>{pred.periodeCible}</span>
+   834→                    </div>
+   835→                  </CardContent>
+   836→                </Card>
+   837→              ))}
+   838→            </div>
+   839→          </CardContent>
+   840→        </Card>
+   841→      )}
+   842→    </div>
+   843→  )
+   844→}
+   845→
