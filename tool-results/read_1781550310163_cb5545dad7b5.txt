@@ -1,0 +1,1144 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { KpiCard } from '@/components/pro/kpi-card'
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     6→import { Button } from '@/components/ui/button'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Skeleton } from '@/components/ui/skeleton'
+    11→import { ScrollArea } from '@/components/ui/scroll-area'
+    12→import { Separator } from '@/components/ui/separator'
+    13→import { Textarea } from '@/components/ui/textarea'
+    14→import {
+    15→  Dialog,
+    16→  DialogContent,
+    17→  DialogDescription,
+    18→  DialogFooter,
+    19→  DialogHeader,
+    20→  DialogTitle,
+    21→} from '@/components/ui/dialog'
+    22→import {
+    23→  Select,
+    24→  SelectContent,
+    25→  SelectItem,
+    26→  SelectTrigger,
+    27→  SelectValue,
+    28→} from '@/components/ui/select'
+    29→import {
+    30→  Table,
+    31→  TableBody,
+    32→  TableCell,
+    33→  TableHead,
+    34→  TableHeader,
+    35→  TableRow,
+    36→} from '@/components/ui/table'
+    37→import {
+    38→  Sheet,
+    39→  SheetContent,
+    40→  SheetHeader,
+    41→  SheetTitle,
+    42→} from '@/components/ui/sheet'
+    43→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    44→import {
+    45→  FileText,
+    46→  Plus,
+    47→  Search,
+    48→  ChevronLeft,
+    49→  ChevronRight,
+    50→  ArrowUpDown,
+    51→  Eye,
+    52→  CheckCircle2,
+    53→  XCircle,
+    54→  Clock,
+    55→  Filter,
+    56→  ClipboardCheck,
+    57→  AlertTriangle,
+    58→  User,
+    59→  Calendar,
+    60→  Pill,
+    61→  Stethoscope,
+    62→  Image as ImageIcon,
+    63→  Loader2,
+    64→} from 'lucide-react'
+    65→import { useEffect, useState, useCallback, useMemo } from 'react'
+    66→import { toast } from 'sonner'
+    67→
+    68→// === Types ===
+    69→
+    70→type StatutOrdonnance = 'RECUE' | 'EN_VERIFICATION' | 'VALIDEE' | 'PARTIELLEMENT_DELIVREE' | 'DELIVREE' | 'REFUSEE'
+    71→
+    72→interface LigneOrdonnance {
+    73→  id: string
+    74→  dci: string
+    75→  posologie: string | null
+    76→  quantite: number
+    77→  delivree: boolean
+    78→  medicamentId?: string | null
+    79→}
+    80→
+    81→interface Ordonnance {
+    82→  id: string
+    83→  prescripteur: string
+    84→  dateOrdonnance: string
+    85→  statut: StatutOrdonnance
+    86→  imageUrl: string | null
+    87→  notes: string | null
+    88→  verifiePar: string | null
+    89→  verifieLe: string | null
+    90→  createdAt: string
+    91→  patient?: {
+    92→    id: string
+    93→    nom: string
+    94→    prenom: string
+    95→    telephone: string
+    96→  } | null
+    97→  lignes: LigneOrdonnance[]
+    98→}
+    99→
+   100→interface PatientOption {
+   101→  id: string
+   102→  nom: string
+   103→  prenom: string
+   104→  telephone: string
+   105→}
+   106→
+   107→interface MedicamentOption {
+   108→  id: string
+   109→  dci: string
+   110→  nomCommercial: string
+   111→  forme: string
+   112→  dosage: string
+   113→}
+   114→
+   115→// === Helpers ===
+   116→
+   117→function formatDate(dateStr: string): string {
+   118→  try {
+   119→    return new Date(dateStr).toLocaleDateString('fr-FR', {
+   120→      day: '2-digit',
+   121→      month: '2-digit',
+   122→      year: 'numeric',
+   123→    })
+   124→  } catch {
+   125→    return dateStr
+   126→  }
+   127→}
+   128→
+   129→function statutOrdonnanceLabel(statut: StatutOrdonnance): string {
+   130→  const labels: Record<StatutOrdonnance, string> = {
+   131→    RECUE: 'Reçue',
+   132→    EN_VERIFICATION: 'En vérification',
+   133→    VALIDEE: 'Validée',
+   134→    PARTIELLEMENT_DELIVREE: 'Partiellement délivrée',
+   135→    DELIVREE: 'Délivrée',
+   136→    REFUSEE: 'Refusée',
+   137→  }
+   138→  return labels[statut] || statut
+   139→}
+   140→
+   141→function statutOrdonnanceVariant(statut: StatutOrdonnance): 'default' | 'secondary' | 'destructive' | 'outline' {
+   142→  switch (statut) {
+   143→    case 'RECUE':
+   144→      return 'secondary'
+   145→    case 'EN_VERIFICATION':
+   146→      return 'outline'
+   147→    case 'VALIDEE':
+   148→      return 'default'
+   149→    case 'PARTIELLEMENT_DELIVREE':
+   150→      return 'outline'
+   151→    case 'DELIVREE':
+   152→      return 'default'
+   153→    case 'REFUSEE':
+   154→      return 'destructive'
+   155→    default:
+   156→      return 'secondary'
+   157→  }
+   158→}
+   159→
+   160→function statutOrdonnanceBadge(statut: StatutOrdonnance) {
+   161→  const colorMap: Record<StatutOrdonnance, string> = {
+   162→    RECUE: 'bg-slate-100 text-slate-700 border-slate-200',
+   163→    EN_VERIFICATION: 'bg-amber-50 text-amber-700 border-amber-200',
+   164→    VALIDEE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+   165→    PARTIELLEMENT_DELIVREE: 'bg-orange-50 text-orange-700 border-orange-200',
+   166→    DELIVREE: 'bg-green-50 text-green-700 border-green-200',
+   167→    REFUSEE: 'bg-red-50 text-red-700 border-red-200',
+   168→  }
+   169→  return (
+   170→    <Badge variant={statutOrdonnanceVariant(statut)} className={`${colorMap[statut]} border`}>
+   171→      {statutOrdonnanceLabel(statut)}
+   172→    </Badge>
+   173→  )
+   174→}
+   175→
+   176→// === Main Component ===
+   177→
+   178→export default function OrdonnancesPage() {
+   179→  const { pharmacie } = useAuth()
+   180→
+   181→  // State
+   182→  const [ordonnances, setOrdonnances] = useState<Ordonnance[]>([])
+   183→  const [patients, setPatients] = useState<PatientOption[]>([])
+   184→  const [medicaments, setMedicaments] = useState<MedicamentOption[]>([])
+   185→  const [isLoading, setIsLoading] = useState(true)
+   186→  const [error, setError] = useState<string | null>(null)
+   187→
+   188→  // Filters
+   189→  const [searchTerm, setSearchTerm] = useState('')
+   190→  const [filterStatut, setFilterStatut] = useState<string>('TOUS')
+   191→  const [filterDateDebut, setFilterDateDebut] = useState('')
+   192→  const [filterDateFin, setFilterDateFin] = useState('')
+   193→  const [sortBy, setSortBy] = useState<'dateOrdonnance' | 'prescripteur' | 'statut'>('dateOrdonnance')
+   194→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+   195→
+   196→  // Pagination
+   197→  const [currentPage, setCurrentPage] = useState(1)
+   198→  const itemsPerPage = 10
+   199→
+   200→  // Dialogs
+   201→  const [showCreateDialog, setShowCreateDialog] = useState(false)
+   202→  const [showDetailSheet, setShowDetailSheet] = useState(false)
+   203→  const [selectedOrdonnance, setSelectedOrdonnance] = useState<Ordonnance | null>(null)
+   204→  const [isSubmitting, setIsSubmitting] = useState(false)
+   205→
+   206→  // New prescription form
+   207→  const [newPrescripteur, setNewPrescripteur] = useState('')
+   208→  const [newPatientId, setNewPatientId] = useState('')
+   209→  const [newDateOrdonnance, setNewDateOrdonnance] = useState(new Date().toISOString().split('T')[0])
+   210→  const [newNotes, setNewNotes] = useState('')
+   211→  const [newLignes, setNewLignes] = useState<Array<{ dci: string; posologie: string; quantite: number; medicamentId: string }>>([
+   212→    { dci: '', posologie: '', quantite: 1, medicamentId: '' },
+   213→  ])
+   214→
+   215→  // === Data Fetching ===
+   216→
+   217→  const fetchOrdonnances = useCallback(async () => {
+   218→    if (!pharmacie?.id) return
+   219→    setIsLoading(true)
+   220→    setError(null)
+   221→    try {
+   222→      const res = await fetch('/api/ordonnances')
+   223→      if (!res.ok) throw new Error('Erreur lors du chargement des ordonnances')
+   224→      const data = await res.json()
+   225→      setOrdonnances(Array.isArray(data) ? data : data.ordonnances || [])
+   226→    } catch (err) {
+   227→      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+   228→      setOrdonnances([])
+   229→    } finally {
+   230→      setIsLoading(false)
+   231→    }
+   232→  }, [pharmacie?.id])
+   233→
+   234→  const fetchPatients = useCallback(async () => {
+   235→    if (!pharmacie?.id) return
+   236→    try {
+   237→      const res = await fetch('/api/patients')
+   238→      if (res.ok) {
+   239→        const data = await res.json()
+   240→        setPatients(Array.isArray(data) ? data : data.patients || [])
+   241→      }
+   242→    } catch {
+   243→      // Silently fail - patients are for the dropdown
+   244→    }
+   245→  }, [pharmacie?.id])
+   246→
+   247→  const fetchMedicaments = useCallback(async () => {
+   248→    if (!pharmacie?.id) return
+   249→    try {
+   250→      const res = await fetch('/api/medicaments')
+   251→      if (res.ok) {
+   252→        const data = await res.json()
+   253→        setMedicaments(Array.isArray(data) ? data : data.medicaments || [])
+   254→      }
+   255→    } catch {
+   256→      // Silently fail
+   257→    }
+   258→  }, [pharmacie?.id])
+   259→
+   260→  useEffect(() => {
+   261→    fetchOrdonnances()
+   262→    fetchPatients()
+   263→    fetchMedicaments()
+   264→  }, [fetchOrdonnances, fetchPatients, fetchMedicaments])
+   265→
+   266→  // === Filtering & Sorting ===
+   267→
+   268→  const filteredOrdonnances = useMemo(() => {
+   269→    let result = [...ordonnances]
+   270→
+   271→    // Search
+   272→    if (searchTerm) {
+   273→      const lower = searchTerm.toLowerCase()
+   274→      result = result.filter(
+   275→        (o) =>
+   276→          o.prescripteur.toLowerCase().includes(lower) ||
+   277→          (o.patient?.nom || '').toLowerCase().includes(lower) ||
+   278→          (o.patient?.prenom || '').toLowerCase().includes(lower) ||
+   279→          o.lignes.some((l) => l.dci.toLowerCase().includes(lower))
+   280→      )
+   281→    }
+   282→
+   283→    // Status filter
+   284→    if (filterStatut !== 'TOUS') {
+   285→      result = result.filter((o) => o.statut === filterStatut)
+   286→    }
+   287→
+   288→    // Date range filter
+   289→    if (filterDateDebut) {
+   290→      const debut = new Date(filterDateDebut)
+   291→      result = result.filter((o) => new Date(o.dateOrdonnance) >= debut)
+   292→    }
+   293→    if (filterDateFin) {
+   294→      const fin = new Date(filterDateFin)
+   295→      fin.setHours(23, 59, 59)
+   296→      result = result.filter((o) => new Date(o.dateOrdonnance) <= fin)
+   297→    }
+   298→
+   299→    // Sort
+   300→    result.sort((a, b) => {
+   301→      let cmp = 0
+   302→      switch (sortBy) {
+   303→        case 'dateOrdonnance':
+   304→          cmp = new Date(a.dateOrdonnance).getTime() - new Date(b.dateOrdonnance).getTime()
+   305→          break
+   306→        case 'prescripteur':
+   307→          cmp = a.prescripteur.localeCompare(b.prescripteur)
+   308→          break
+   309→        case 'statut':
+   310→          cmp = a.statut.localeCompare(b.statut)
+   311→          break
+   312→      }
+   313→      return sortDir === 'desc' ? -cmp : cmp
+   314→    })
+   315→
+   316→    return result
+   317→  }, [ordonnances, searchTerm, filterStatut, filterDateDebut, filterDateFin, sortBy, sortDir])
+   318→
+   319→  // Pagination
+   320→  const totalPages = Math.max(1, Math.ceil(filteredOrdonnances.length / itemsPerPage))
+   321→  const paginatedOrdonnances = filteredOrdonnances.slice(
+   322→    (currentPage - 1) * itemsPerPage,
+   323→    currentPage * itemsPerPage
+   324→  )
+   325→
+   326→  // === KPIs ===
+   327→
+   328→  const kpis = useMemo(() => {
+   329→    const total = ordonnances.length
+   330→    const enAttente = ordonnances.filter((o) => o.statut === 'RECUE' || o.statut === 'EN_VERIFICATION').length
+   331→    const validees = ordonnances.filter((o) => o.statut === 'VALIDEE').length
+   332→    const delivrees = ordonnances.filter((o) => o.statut === 'DELIVREE').length
+   333→    const refusees = ordonnances.filter((o) => o.statut === 'REFUSEE').length
+   334→    return { total, enAttente, validees, delivrees, refusees }
+   335→  }, [ordonnances])
+   336→
+   337→  // === Handlers ===
+   338→
+   339→  const handleSort = (field: typeof sortBy) => {
+   340→    if (sortBy === field) {
+   341→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   342→    } else {
+   343→      setSortBy(field)
+   344→      setSortDir('desc')
+   345→    }
+   346→  }
+   347→
+   348→  const handleAddLigne = () => {
+   349→    setNewLignes([...newLignes, { dci: '', posologie: '', quantite: 1, medicamentId: '' }])
+   350→  }
+   351→
+   352→  const handleRemoveLigne = (index: number) => {
+   353→    if (newLignes.length <= 1) return
+   354→    setNewLignes(newLignes.filter((_, i) => i !== index))
+   355→  }
+   356→
+   357→  const handleLigneChange = (index: number, field: keyof typeof newLignes[0], value: string | number) => {
+   358→    const updated = [...newLignes]
+   359→    updated[index] = { ...updated[index], [field]: value }
+   360→    // Auto-fill DCI from medicament selection
+   361→    if (field === 'medicamentId' && value) {
+   362→      const med = medicaments.find((m) => m.id === value)
+   363→      if (med) {
+   364→        updated[index].dci = med.dci
+   365→      }
+   366→    }
+   367→    setNewLignes(updated)
+   368→  }
+   369→
+   370→  const handleCreateOrdonnance = async () => {
+   371→    if (!newPrescripteur.trim()) {
+   372→      toast.error('Veuillez renseigner le prescripteur')
+   373→      return
+   374→    }
+   375→    if (newLignes.some((l) => !l.dci.trim())) {
+   376→      toast.error('Veuillez renseigner la DCI pour chaque ligne')
+   377→      return
+   378→    }
+   379→
+   380→    setIsSubmitting(true)
+   381→    try {
+   382→      const res = await fetch('/api/ordonnances', {
+   383→        method: 'POST',
+   384→        headers: { 'Content-Type': 'application/json' },
+   385→        body: JSON.stringify({
+   386→          prescripteur: newPrescripteur,
+   387→          patientId: newPatientId || null,
+   388→          dateOrdonnance: newDateOrdonnance,
+   389→          notes: newNotes || null,
+   390→          lignes: newLignes.map((l) => ({
+   391→            dci: l.dci,
+   392→            posologie: l.posologie || null,
+   393→            quantite: l.quantite,
+   394→            medicamentId: l.medicamentId || null,
+   395→          })),
+   396→        }),
+   397→      })
+   398→      if (!res.ok) throw new Error('Erreur lors de la création')
+   399→      toast.success('Ordonnance créée avec succès')
+   400→      setShowCreateDialog(false)
+   401→      resetCreateForm()
+   402→      fetchOrdonnances()
+   403→    } catch (err) {
+   404→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création')
+   405→    } finally {
+   406→      setIsSubmitting(false)
+   407→    }
+   408→  }
+   409→
+   410→  const resetCreateForm = () => {
+   411→    setNewPrescripteur('')
+   412→    setNewPatientId('')
+   413→    setNewDateOrdonnance(new Date().toISOString().split('T')[0])
+   414→    setNewNotes('')
+   415→    setNewLignes([{ dci: '', posologie: '', quantite: 1, medicamentId: '' }])
+   416→  }
+   417→
+   418→  const handleViewDetail = (ordonnance: Ordonnance) => {
+   419→    setSelectedOrdonnance(ordonnance)
+   420→    setShowDetailSheet(true)
+   421→  }
+   422→
+   423→  const handleValidateOrdonnance = async (id: string) => {
+   424→    try {
+   425→      const res = await fetch(`/api/ordonnances/${id}`, {
+   426→        method: 'PATCH',
+   427→        headers: { 'Content-Type': 'application/json' },
+   428→        body: JSON.stringify({ statut: 'VALIDEE' }),
+   429→      })
+   430→      if (!res.ok) throw new Error('Erreur lors de la validation')
+   431→      toast.success('Ordonnance validée')
+   432→      fetchOrdonnances()
+   433→      if (selectedOrdonnance?.id === id) {
+   434→        setSelectedOrdonnance({ ...selectedOrdonnance, statut: 'VALIDEE' })
+   435→      }
+   436→    } catch (err) {
+   437→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la validation')
+   438→    }
+   439→  }
+   440→
+   441→  const handleDeliverOrdonnance = async (id: string) => {
+   442→    try {
+   443→      const res = await fetch(`/api/ordonnances/${id}`, {
+   444→        method: 'PATCH',
+   445→        headers: { 'Content-Type': 'application/json' },
+   446→        body: JSON.stringify({ statut: 'DELIVREE', lignesDelivrees: true }),
+   447→      })
+   448→      if (!res.ok) throw new Error('Erreur lors de la délivrance')
+   449→      toast.success('Ordonnance délivrée')
+   450→      fetchOrdonnances()
+   451→      if (selectedOrdonnance?.id === id) {
+   452→        setSelectedOrdonnance({
+   453→          ...selectedOrdonnance,
+   454→          statut: 'DELIVREE',
+   455→          lignes: selectedOrdonnance.lignes.map((l) => ({ ...l, delivree: true })),
+   456→        })
+   457→      }
+   458→    } catch (err) {
+   459→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la délivrance')
+   460→    }
+   461→  }
+   462→
+   463→  const handleRefuseOrdonnance = async (id: string) => {
+   464→    try {
+   465→      const res = await fetch(`/api/ordonnances/${id}`, {
+   466→        method: 'PATCH',
+   467→        headers: { 'Content-Type': 'application/json' },
+   468→        body: JSON.stringify({ statut: 'REFUSEE' }),
+   469→      })
+   470→      if (!res.ok) throw new Error('Erreur lors du refus')
+   471→      toast.success('Ordonnance refusée')
+   472→      fetchOrdonnances()
+   473→      if (selectedOrdonnance?.id === id) {
+   474→        setSelectedOrdonnance({ ...selectedOrdonnance, statut: 'REFUSEE' })
+   475→      }
+   476→    } catch (err) {
+   477→      toast.error(err instanceof Error ? err.message : 'Erreur lors du refus')
+   478→    }
+   479→  }
+   480→
+   481→  // === Loading Skeleton ===
+   482→
+   483→  if (isLoading) {
+   484→    return (
+   485→      <div className="p-6 space-y-6">
+   486→        <div className="flex items-center justify-between">
+   487→          <Skeleton className="h-8 w-48" />
+   488→          <Skeleton className="h-10 w-40" />
+   489→        </div>
+   490→        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+   491→          {Array.from({ length: 4 }).map((_, i) => (
+   492→            <Skeleton key={i} className="h-24" />
+   493→          ))}
+   494→        </div>
+   495→        <Skeleton className="h-12 w-full" />
+   496→        {Array.from({ length: 5 }).map((_, i) => (
+   497→          <Skeleton key={i} className="h-14 w-full" />
+   498→        ))}
+   499→      </div>
+   500→    )
+   501→  }
+   502→
+   503→  // === Render ===
+   504→
+   505→  return (
+   506→    <div className="p-6 space-y-6">
+   507→      {/* Header */}
+   508→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+   509→        <div>
+   510→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   511→            <FileText className="w-6 h-6 text-primary" />
+   512→            Ordonnances
+   513→          </h1>
+   514→          <p className="text-sm text-muted-foreground mt-1">
+   515→            Gestion des ordonnances et prescriptions médicales
+   516→          </p>
+   517→        </div>
+   518→        <Button onClick={() => setShowCreateDialog(true)} className="shrink-0">
+   519→          <Plus className="w-4 h-4 mr-2" />
+   520→          Nouvelle ordonnance
+   521→        </Button>
+   522→      </div>
+   523→
+   524→      {/* KPI Cards */}
+   525→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   526→        <KpiCard
+   527→          title="Total ordonnances"
+   528→          value={kpis.total}
+   529→          icon={FileText}
+   530→          variant="default"
+   531→        />
+   532→        <KpiCard
+   533→          title="En attente"
+   534→          value={kpis.enAttente}
+   535→          icon={Clock}
+   536→          variant="warning"
+   537→          subtitle="Reçues / En vérification"
+   538→        />
+   539→        <KpiCard
+   540→          title="Validées"
+   541→          value={kpis.validees}
+   542→          icon={CheckCircle2}
+   543→          variant="success"
+   544→        />
+   545→        <KpiCard
+   546→          title="Délivrées"
+   547→          value={kpis.delivrees}
+   548→          icon={ClipboardCheck}
+   549→          variant="success"
+   550→        />
+   551→      </div>
+   552→
+   553→      {/* Filters */}
+   554→      <Card>
+   555→        <CardContent className="p-4">
+   556→          <div className="flex flex-col lg:flex-row gap-3">
+   557→            <div className="relative flex-1">
+   558→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   559→              <Input
+   560→                placeholder="Rechercher par prescripteur, patient, DCI..."
+   561→                value={searchTerm}
+   562→                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1) }}
+   563→                className="pl-9"
+   564→              />
+   565→            </div>
+   566→            <Select value={filterStatut} onValueChange={(v) => { setFilterStatut(v); setCurrentPage(1) }}>
+   567→              <SelectTrigger className="w-full lg:w-48">
+   568→                <Filter className="w-4 h-4 mr-2" />
+   569→                <SelectValue placeholder="Statut" />
+   570→              </SelectTrigger>
+   571→              <SelectContent>
+   572→                <SelectItem value="TOUS">Tous les statuts</SelectItem>
+   573→                <SelectItem value="RECUE">Reçue</SelectItem>
+   574→                <SelectItem value="EN_VERIFICATION">En vérification</SelectItem>
+   575→                <SelectItem value="VALIDEE">Validée</SelectItem>
+   576→                <SelectItem value="PARTIELLEMENT_DELIVREE">Partiellement délivrée</SelectItem>
+   577→                <SelectItem value="DELIVREE">Délivrée</SelectItem>
+   578→                <SelectItem value="REFUSEE">Refusée</SelectItem>
+   579→              </SelectContent>
+   580→            </Select>
+   581→            <Input
+   582→              type="date"
+   583→              value={filterDateDebut}
+   584→              onChange={(e) => { setFilterDateDebut(e.target.value); setCurrentPage(1) }}
+   585→              className="w-full lg:w-40"
+   586→              placeholder="Date début"
+   587→            />
+   588→            <Input
+   589→              type="date"
+   590→              value={filterDateFin}
+   591→              onChange={(e) => { setFilterDateFin(e.target.value); setCurrentPage(1) }}
+   592→              className="w-full lg:w-40"
+   593→              placeholder="Date fin"
+   594→            />
+   595→          </div>
+   596→        </CardContent>
+   597→      </Card>
+   598→
+   599→      {/* Error State */}
+   600→      {error && (
+   601→        <Card className="border-destructive">
+   602→          <CardContent className="p-4 flex items-center gap-3 text-destructive">
+   603→            <AlertTriangle className="w-5 h-5 shrink-0" />
+   604→            <p>{error}</p>
+   605→            <Button variant="outline" size="sm" onClick={fetchOrdonnances} className="ml-auto">
+   606→              Réessayer
+   607→            </Button>
+   608→          </CardContent>
+   609→        </Card>
+   610→      )}
+   611→
+   612→      {/* Data Table */}
+   613→      <Card>
+   614→        <CardContent className="p-0">
+   615→          {filteredOrdonnances.length === 0 ? (
+   616→            <div className="flex flex-col items-center justify-center py-16 text-center">
+   617→              <FileText className="w-12 h-12 text-muted-foreground/40 mb-4" />
+   618→              <h3 className="text-lg font-semibold text-muted-foreground">Aucune ordonnance trouvée</h3>
+   619→              <p className="text-sm text-muted-foreground mt-1">
+   620→                {searchTerm || filterStatut !== 'TOUS'
+   621→                  ? 'Modifiez vos filtres pour voir plus de résultats'
+   622→                  : 'Créez votre première ordonnance pour commencer'}
+   623→              </p>
+   624→              {!searchTerm && filterStatut === 'TOUS' && (
+   625→                <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
+   626→                  <Plus className="w-4 h-4 mr-2" />
+   627→                  Nouvelle ordonnance
+   628→                </Button>
+   629→              )}
+   630→            </div>
+   631→          ) : (
+   632→            <>
+   633→              <div className="overflow-x-auto">
+   634→                <Table>
+   635→                  <TableHeader>
+   636→                    <TableRow>
+   637→                      <TableHead className="w-12">N°</TableHead>
+   638→                      <TableHead
+   639→                        className="cursor-pointer select-none hover:bg-muted/50"
+   640→                        onClick={() => handleSort('dateOrdonnance')}
+   641→                      >
+   642→                        <div className="flex items-center gap-1">
+   643→                          Date
+   644→                          <ArrowUpDown className="w-3 h-3" />
+   645→                        </div>
+   646→                      </TableHead>
+   647→                      <TableHead>Patient</TableHead>
+   648→                      <TableHead
+   649→                        className="cursor-pointer select-none hover:bg-muted/50"
+   650→                        onClick={() => handleSort('prescripteur')}
+   651→                      >
+   652→                        <div className="flex items-center gap-1">
+   653→                          Prescripteur
+   654→                          <ArrowUpDown className="w-3 h-3" />
+   655→                        </div>
+   656→                      </TableHead>
+   657→                      <TableHead>Médicaments</TableHead>
+   658→                      <TableHead
+   659→                        className="cursor-pointer select-none hover:bg-muted/50"
+   660→                        onClick={() => handleSort('statut')}
+   661→                      >
+   662→                        <div className="flex items-center gap-1">
+   663→                          Statut
+   664→                          <ArrowUpDown className="w-3 h-3" />
+   665→                        </div>
+   666→                      </TableHead>
+   667→                      <TableHead className="text-right">Actions</TableHead>
+   668→                    </TableRow>
+   669→                  </TableHeader>
+   670→                  <TableBody>
+   671→                    {paginatedOrdonnances.map((ordonnance, idx) => {
+   672→                      const globalIdx = (currentPage - 1) * itemsPerPage + idx + 1
+   673→                      return (
+   674→                        <TableRow
+   675→                          key={ordonnance.id}
+   676→                          className="cursor-pointer hover:bg-muted/50"
+   677→                          onClick={() => handleViewDetail(ordonnance)}
+   678→                        >
+   679→                          <TableCell className="font-mono text-xs text-muted-foreground">
+   680→                            {globalIdx}
+   681→                          </TableCell>
+   682→                          <TableCell>
+   683→                            <div className="flex items-center gap-2">
+   684→                              <Calendar className="w-3 h-3 text-muted-foreground" />
+   685→                              {formatDate(ordonnance.dateOrdonnance)}
+   686→                            </div>
+   687→                          </TableCell>
+   688→                          <TableCell>
+   689→                            {ordonnance.patient ? (
+   690→                              <div className="flex items-center gap-2">
+   691→                                <User className="w-3 h-3 text-muted-foreground" />
+   692→                                <span className="font-medium">
+   693→                                  {ordonnance.patient.prenom} {ordonnance.patient.nom}
+   694→                                </span>
+   695→                              </div>
+   696→                            ) : (
+   697→                              <span className="text-muted-foreground text-sm">—</span>
+   698→                            )}
+   699→                          </TableCell>
+   700→                          <TableCell>
+   701→                            <div className="flex items-center gap-2">
+   702→                              <Stethoscope className="w-3 h-3 text-muted-foreground" />
+   703→                              {ordonnance.prescripteur}
+   704→                            </div>
+   705→                          </TableCell>
+   706→                          <TableCell>
+   707→                            <div className="flex items-center gap-1">
+   708→                              <Pill className="w-3 h-3 text-muted-foreground" />
+   709→                              <span className="text-sm">{ordonnance.lignes.length} ligne(s)</span>
+   710→                            </div>
+   711→                          </TableCell>
+   712→                          <TableCell>{statutOrdonnanceBadge(ordonnance.statut)}</TableCell>
+   713→                          <TableCell className="text-right">
+   714→                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   715→                              <Button
+   716→                                variant="ghost"
+   717→                                size="icon"
+   718→                                className="h-8 w-8"
+   719→                                onClick={() => handleViewDetail(ordonnance)}
+   720→                                title="Voir le détail"
+   721→                              >
+   722→                                <Eye className="w-4 h-4" />
+   723→                              </Button>
+   724→                              {(ordonnance.statut === 'RECUE' || ordonnance.statut === 'EN_VERIFICATION') && (
+   725→                                <Button
+   726→                                  variant="ghost"
+   727→                                  size="icon"
+   728→                                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700"
+   729→                                  onClick={() => handleValidateOrdonnance(ordonnance.id)}
+   730→                                  title="Valider"
+   731→                                >
+   732→                                  <CheckCircle2 className="w-4 h-4" />
+   733→                                </Button>
+   734→                              )}
+   735→                              {ordonnance.statut === 'VALIDEE' && (
+   736→                                <Button
+   737→                                  variant="ghost"
+   738→                                  size="icon"
+   739→                                  className="h-8 w-8 text-green-600 hover:text-green-700"
+   740→                                  onClick={() => handleDeliverOrdonnance(ordonnance.id)}
+   741→                                  title="Délivrer"
+   742→                                >
+   743→                                  <ClipboardCheck className="w-4 h-4" />
+   744→                                </Button>
+   745→                              )}
+   746→                            </div>
+   747→                          </TableCell>
+   748→                        </TableRow>
+   749→                      )
+   750→                    })}
+   751→                  </TableBody>
+   752→                </Table>
+   753→              </div>
+   754→
+   755→              {/* Pagination */}
+   756→              <div className="flex items-center justify-between px-4 py-3 border-t">
+   757→                <p className="text-sm text-muted-foreground">
+   758→                  {filteredOrdonnances.length} ordonnance(s) trouvée(s)
+   759→                </p>
+   760→                <div className="flex items-center gap-2">
+   761→                  <Button
+   762→                    variant="outline"
+   763→                    size="icon"
+   764→                    className="h-8 w-8"
+   765→                    disabled={currentPage <= 1}
+   766→                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+   767→                  >
+   768→                    <ChevronLeft className="w-4 h-4" />
+   769→                  </Button>
+   770→                  <span className="text-sm font-medium">
+   771→                    {currentPage} / {totalPages}
+   772→                  </span>
+   773→                  <Button
+   774→                    variant="outline"
+   775→                    size="icon"
+   776→                    className="h-8 w-8"
+   777→                    disabled={currentPage >= totalPages}
+   778→                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+   779→                  >
+   780→                    <ChevronRight className="w-4 h-4" />
+   781→                  </Button>
+   782→                </div>
+   783→              </div>
+   784→            </>
+   785→          )}
+   786→        </CardContent>
+   787→      </Card>
+   788→
+   789→      {/* Create Ordonnance Dialog */}
+   790→      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+   791→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   792→          <DialogHeader>
+   793→            <DialogTitle className="flex items-center gap-2">
+   794→              <FileText className="w-5 h-5" />
+   795→              Nouvelle ordonnance
+   796→            </DialogTitle>
+   797→            <DialogDescription>
+   798→              Enregistrer une nouvelle ordonnance médicale
+   799→            </DialogDescription>
+   800→          </DialogHeader>
+   801→
+   802→          <div className="space-y-4 py-4">
+   803→            {/* Patient */}
+   804→            <div className="space-y-2">
+   805→              <Label>Patient</Label>
+   806→              <Select value={newPatientId} onValueChange={setNewPatientId}>
+   807→                <SelectTrigger>
+   808→                  <SelectValue placeholder="Sélectionner un patient (optionnel)" />
+   809→                </SelectTrigger>
+   810→                <SelectContent>
+   811→                  {patients.map((p) => (
+   812→                    <SelectItem key={p.id} value={p.id}>
+   813→                      {p.prenom} {p.nom} — {p.telephone}
+   814→                    </SelectItem>
+   815→                  ))}
+   816→                </SelectContent>
+   817→              </Select>
+   818→            </div>
+   819→
+   820→            {/* Prescripteur */}
+   821→            <div className="space-y-2">
+   822→              <Label>Prescripteur *</Label>
+   823→              <Input
+   824→                placeholder="Nom du médecin prescripteur"
+   825→                value={newPrescripteur}
+   826→                onChange={(e) => setNewPrescripteur(e.target.value)}
+   827→              />
+   828→            </div>
+   829→
+   830→            {/* Date */}
+   831→            <div className="space-y-2">
+   832→              <Label>Date de l&apos;ordonnance</Label>
+   833→              <Input
+   834→                type="date"
+   835→                value={newDateOrdonnance}
+   836→                onChange={(e) => setNewDateOrdonnance(e.target.value)}
+   837→              />
+   838→            </div>
+   839→
+   840→            <Separator />
+   841→
+   842→            {/* Lignes de médicaments */}
+   843→            <div className="space-y-3">
+   844→              <div className="flex items-center justify-between">
+   845→                <Label className="text-base font-semibold">Lignes de prescription</Label>
+   846→                <Button variant="outline" size="sm" onClick={handleAddLigne}>
+   847→                  <Plus className="w-4 h-4 mr-1" />
+   848→                  Ajouter une ligne
+   849→                </Button>
+   850→              </div>
+   851→
+   852→              {newLignes.map((ligne, idx) => (
+   853→                <Card key={idx} className="p-3">
+   854→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   855→                    <div className="space-y-1">
+   856→                      <Label className="text-xs">Médicament</Label>
+   857→                      <Select
+   858→                        value={ligne.medicamentId}
+   859→                        onValueChange={(v) => handleLigneChange(idx, 'medicamentId', v)}
+   860→                      >
+   861→                        <SelectTrigger>
+   862→                          <SelectValue placeholder="Sélectionner ou saisir DCI" />
+   863→                        </SelectTrigger>
+   864→                        <SelectContent className="max-h-48">
+   865→                          {medicaments.map((m) => (
+   866→                            <SelectItem key={m.id} value={m.id}>
+   867→                              {m.nomCommercial} ({m.dci})
+   868→                            </SelectItem>
+   869→                          ))}
+   870→                        </SelectContent>
+   871→                      </Select>
+   872→                    </div>
+   873→                    <div className="space-y-1">
+   874→                      <Label className="text-xs">DCI *</Label>
+   875→                      <Input
+   876→                        placeholder="Dénomination commune"
+   877→                        value={ligne.dci}
+   878→                        onChange={(e) => handleLigneChange(idx, 'dci', e.target.value)}
+   879→                      />
+   880→                    </div>
+   881→                    <div className="space-y-1">
+   882→                      <Label className="text-xs">Posologie</Label>
+   883→                      <Input
+   884→                        placeholder="Ex: 1 comprimé 3 fois/jour"
+   885→                        value={ligne.posologie}
+   886→                        onChange={(e) => handleLigneChange(idx, 'posologie', e.target.value)}
+   887→                      />
+   888→                    </div>
+   889→                    <div className="space-y-1">
+   890→                      <Label className="text-xs">Quantité</Label>
+   891→                      <div className="flex items-center gap-2">
+   892→                        <Input
+   893→                          type="number"
+   894→                          min={1}
+   895→                          value={ligne.quantite}
+   896→                          onChange={(e) => handleLigneChange(idx, 'quantite', parseInt(e.target.value) || 1)}
+   897→                          className="w-24"
+   898→                        />
+   899→                        {newLignes.length > 1 && (
+   900→                          <Button
+   901→                            variant="ghost"
+   902→                            size="icon"
+   903→                            className="h-8 w-8 text-destructive hover:text-destructive"
+   904→                            onClick={() => handleRemoveLigne(idx)}
+   905→                          >
+   906→                            <XCircle className="w-4 h-4" />
+   907→                          </Button>
+   908→                        )}
+   909→                      </div>
+   910→                    </div>
+   911→                  </div>
+   912→                </Card>
+   913→              ))}
+   914→            </div>
+   915→
+   916→            <Separator />
+   917→
+   918→            {/* Notes */}
+   919→            <div className="space-y-2">
+   920→              <Label>Notes</Label>
+   921→              <Textarea
+   922→                placeholder="Notes complémentaires..."
+   923→                value={newNotes}
+   924→                onChange={(e) => setNewNotes(e.target.value)}
+   925→                rows={3}
+   926→              />
+   927→            </div>
+   928→          </div>
+   929→
+   930→          <DialogFooter>
+   931→            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+   932→              Annuler
+   933→            </Button>
+   934→            <Button onClick={handleCreateOrdonnance} disabled={isSubmitting}>
+   935→              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+   936→              Créer l&apos;ordonnance
+   937→            </Button>
+   938→          </DialogFooter>
+   939→        </DialogContent>
+   940→      </Dialog>
+   941→
+   942→      {/* Detail Sheet */}
+   943→      <Sheet open={showDetailSheet} onOpenChange={setShowDetailSheet}>
+   944→        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+   945→          <SheetHeader>
+   946→            <SheetTitle className="flex items-center gap-2">
+   947→              <FileText className="w-5 h-5" />
+   948→              Détail de l&apos;ordonnance
+   949→            </SheetTitle>
+   950→          </SheetHeader>
+   951→
+   952→          {selectedOrdonnance && (
+   953→            <div className="mt-6 space-y-6">
+   954→              {/* Status & Actions */}
+   955→              <div className="flex items-center justify-between">
+   956→                {statutOrdonnanceBadge(selectedOrdonnance.statut)}
+   957→                <div className="flex gap-2">
+   958→                  {(selectedOrdonnance.statut === 'RECUE' || selectedOrdonnance.statut === 'EN_VERIFICATION') && (
+   959→                    <Button
+   960→                      size="sm"
+   961→                      onClick={() => handleValidateOrdonnance(selectedOrdonnance.id)}
+   962→                      className="bg-emerald-600 hover:bg-emerald-700"
+   963→                    >
+   964→                      <CheckCircle2 className="w-4 h-4 mr-1" />
+   965→                      Valider
+   966→                    </Button>
+   967→                  )}
+   968→                  {selectedOrdonnance.statut === 'VALIDEE' && (
+   969→                    <Button
+   970→                      size="sm"
+   971→                      onClick={() => handleDeliverOrdonnance(selectedOrdonnance.id)}
+   972→                      className="bg-green-600 hover:bg-green-700"
+   973→                    >
+   974→                      <ClipboardCheck className="w-4 h-4 mr-1" />
+   975→                      Délivrer
+   976→                    </Button>
+   977→                  )}
+   978→                  {(selectedOrdonnance.statut === 'RECUE' || selectedOrdonnance.statut === 'EN_VERIFICATION') && (
+   979→                    <Button
+   980→                      size="sm"
+   981→                      variant="destructive"
+   982→                      onClick={() => handleRefuseOrdonnance(selectedOrdonnance.id)}
+   983→                    >
+   984→                      <XCircle className="w-4 h-4 mr-1" />
+   985→                      Refuser
+   986→                    </Button>
+   987→                  )}
+   988→                </div>
+   989→              </div>
+   990→
+   991→              {/* Info Grid */}
+   992→              <div className="grid grid-cols-2 gap-4">
+   993→                <div>
+   994→                  <p className="text-xs text-muted-foreground uppercase">Date</p>
+   995→                  <p className="font-medium flex items-center gap-1">
+   996→                    <Calendar className="w-3 h-3" />
+   997→                    {formatDate(selectedOrdonnance.dateOrdonnance)}
+   998→                  </p>
+   999→                </div>
+  1000→                <div>
+  1001→                  <p className="text-xs text-muted-foreground uppercase">Prescripteur</p>
+  1002→                  <p className="font-medium flex items-center gap-1">
+  1003→                    <Stethoscope className="w-3 h-3" />
+  1004→                    {selectedOrdonnance.prescripteur}
+  1005→                  </p>
+  1006→                </div>
+  1007→                <div>
+  1008→                  <p className="text-xs text-muted-foreground uppercase">Patient</p>
+  1009→                  <p className="font-medium flex items-center gap-1">
+  1010→                    <User className="w-3 h-3" />
+  1011→                    {selectedOrdonnance.patient
+  1012→                      ? `${selectedOrdonnance.patient.prenom} ${selectedOrdonnance.patient.nom}`
+  1013→                      : 'Non renseigné'}
+  1014→                  </p>
+  1015→                </div>
+  1016→                <div>
+  1017→                  <p className="text-xs text-muted-foreground uppercase">Vérifié par</p>
+  1018→                  <p className="font-medium">
+  1019→                    {selectedOrdonnance.verifiePar || '—'}
+  1020→                  </p>
+  1021→                </div>
+  1022→              </div>
+  1023→
+  1024→              <Separator />
+  1025→
+  1026→              {/* Lignes de prescription */}
+  1027→              <div>
+  1028→                <h3 className="font-semibold mb-3 flex items-center gap-2">
+  1029→                  <Pill className="w-4 h-4" />
+  1030→                  Lignes de prescription ({selectedOrdonnance.lignes.length})
+  1031→                </h3>
+  1032→                <ScrollArea className="max-h-64">
+  1033→                  <div className="space-y-2">
+  1034→                    {selectedOrdonnance.lignes.map((ligne) => (
+  1035→                      <Card
+  1036→                        key={ligne.id}
+  1037→                        className={`p-3 ${ligne.delivree ? 'bg-green-50 border-green-200' : 'bg-white'}`}
+  1038→                      >
+  1039→                        <div className="flex items-start justify-between">
+  1040→                          <div>
+  1041→                            <p className="font-medium text-sm">{ligne.dci}</p>
+  1042→                            {ligne.posologie && (
+  1043→                              <p className="text-xs text-muted-foreground">{ligne.posologie}</p>
+  1044→                            )}
+  1045→                            <p className="text-xs text-muted-foreground">Quantité : {ligne.quantite}</p>
+  1046→                          </div>
+  1047→                          <Badge variant={ligne.delivree ? 'default' : 'secondary'} className="text-xs">
+  1048→                            {ligne.delivree ? 'Délivrée' : 'En attente'}
+  1049→                          </Badge>
+  1050→                        </div>
+  1051→                      </Card>
+  1052→                    ))}
+  1053→                  </div>
+  1054→                </ScrollArea>
+  1055→              </div>
+  1056→
+  1057→              {/* Image */}
+  1058→              {selectedOrdonnance.imageUrl && (
+  1059→                <>
+  1060→                  <Separator />
+  1061→                  <div>
+  1062→                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+  1063→                      <ImageIcon className="w-4 h-4" />
+  1064→                      Image de l&apos;ordonnance
+  1065→                    </h3>
+  1066→                    <div className="border rounded-lg p-2 bg-muted/30">
+  1067→                      <img
+  1068→                        src={selectedOrdonnance.imageUrl}
+  1069→                        alt="Ordonnance"
+  1070→                        className="max-w-full h-auto rounded"
+  1071→                      />
+  1072→                    </div>
+  1073→                  </div>
+  1074→                </>
+  1075→              )}
+  1076→
+  1077→              {/* Notes */}
+  1078→              {selectedOrdonnance.notes && (
+  1079→                <>
+  1080→                  <Separator />
+  1081→                  <div>
+  1082→                    <h3 className="font-semibold mb-2">Notes</h3>
+  1083→                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+  1084→                      {selectedOrdonnance.notes}
+  1085→                    </p>
+  1086→                  </div>
+  1087→                </>
+  1088→              )}
+  1089→
+  1090→              {/* Validation workflow */}
+  1091→              <Separator />
+  1092→              <div>
+  1093→                <h3 className="font-semibold mb-3">Workflow de validation</h3>
+  1094→                <div className="space-y-2">
+  1095→                  <div className="flex items-center gap-2">
+  1096→                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+  1097→                      ['RECUE', 'EN_VERIFICATION', 'VALIDEE', 'PARTIELLEMENT_DELIVREE', 'DELIVREE'].includes(selectedOrdonnance.statut)
+  1098→                        ? 'bg-green-100 text-green-700'
+  1099→                        : 'bg-gray-100 text-gray-400'
+  1100→                    }`}>
+  1101→                      <CheckCircle2 className="w-4 h-4" />
+  1102→                    </div>
+  1103→                    <span className="text-sm">Ordonnance reçue</span>
+  1104→                  </div>
+  1105→                  <div className="flex items-center gap-2">
+  1106→                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+  1107→                      ['VALIDEE', 'PARTIELLEMENT_DELIVREE', 'DELIVREE'].includes(selectedOrdonnance.statut)
+  1108→                        ? 'bg-green-100 text-green-700'
+  1109→                        : selectedOrdonnance.statut === 'EN_VERIFICATION'
+  1110→                          ? 'bg-amber-100 text-amber-700'
+  1111→                          : selectedOrdonnance.statut === 'REFUSEE'
+  1112→                            ? 'bg-red-100 text-red-700'
+  1113→                            : 'bg-gray-100 text-gray-400'
+  1114→                    }`}>
+  1115→                      {selectedOrdonnance.statut === 'REFUSEE' ? (
+  1116→                        <XCircle className="w-4 h-4" />
+  1117→                      ) : (
+  1118→                        <CheckCircle2 className="w-4 h-4" />
+  1119→                      )}
+  1120→                    </div>
+  1121→                    <span className="text-sm">
+  1122→                      {selectedOrdonnance.statut === 'REFUSEE' ? 'Refusée' : 'Vérification & validation'}
+  1123→                    </span>
+  1124→                  </div>
+  1125→                  <div className="flex items-center gap-2">
+  1126→                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+  1127→                      ['PARTIELLEMENT_DELIVREE', 'DELIVREE'].includes(selectedOrdonnance.statut)
+  1128→                        ? 'bg-green-100 text-green-700'
+  1129→                        : 'bg-gray-100 text-gray-400'
+  1130→                    }`}>
+  1131→                      <CheckCircle2 className="w-4 h-4" />
+  1132→                    </div>
+  1133→                    <span className="text-sm">Délivrance</span>
+  1134→                  </div>
+  1135→                </div>
+  1136→              </div>
+  1137→            </div>
+  1138→          )}
+  1139→        </SheetContent>
+  1140→      </Sheet>
+  1141→    </div>
+  1142→  )
+  1143→}
+  1144→

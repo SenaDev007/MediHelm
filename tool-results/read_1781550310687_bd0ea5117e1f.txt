@@ -1,0 +1,1211 @@
+     1→'use client'
+     2→
+     3→import { useAuth } from '@/app/pro/auth-context'
+     4→import { KpiCard } from '@/components/pro/kpi-card'
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     6→import { Button } from '@/components/ui/button'
+     7→import { Badge } from '@/components/ui/badge'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Skeleton } from '@/components/ui/skeleton'
+    11→import { ScrollArea } from '@/components/ui/scroll-area'
+    12→import { Separator } from '@/components/ui/separator'
+    13→import { Textarea } from '@/components/ui/textarea'
+    14→import {
+    15→  Dialog,
+    16→  DialogContent,
+    17→  DialogDescription,
+    18→  DialogFooter,
+    19→  DialogHeader,
+    20→  DialogTitle,
+    21→} from '@/components/ui/dialog'
+    22→import {
+    23→  Select,
+    24→  SelectContent,
+    25→  SelectItem,
+    26→  SelectTrigger,
+    27→  SelectValue,
+    28→} from '@/components/ui/select'
+    29→import {
+    30→  Table,
+    31→  TableBody,
+    32→  TableCell,
+    33→  TableHead,
+    34→  TableHeader,
+    35→  TableRow,
+    36→} from '@/components/ui/table'
+    37→import {
+    38→  Sheet,
+    39→  SheetContent,
+    40→  SheetHeader,
+    41→  SheetTitle,
+    42→} from '@/components/ui/sheet'
+    43→import {
+    44→  ClipboardList,
+    45→  Plus,
+    46→  Search,
+    47→  ChevronLeft,
+    48→  ChevronRight,
+    49→  ArrowUpDown,
+    50→  Eye,
+    51→  CheckCircle2,
+    52→  XCircle,
+    53→  Clock,
+    54→  Filter,
+    55→  Truck,
+    56→  Package,
+    57→  AlertTriangle,
+    58→  PackageCheck,
+    59→  Loader2,
+    60→  Building2,
+    61→  Calendar,
+    62→  Banknote,
+    63→  Send,
+    64→  RotateCcw,
+    65→} from 'lucide-react'
+    66→import { useEffect, useState, useCallback, useMemo } from 'react'
+    67→import { toast } from 'sonner'
+    68→
+    69→// === Types ===
+    70→
+    71→type StatutCommande = 'BROUILLON' | 'ENVOYEE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'LIVREE_PARTIELLEMENT' | 'LIVREE' | 'ANNULEE'
+    72→
+    73→interface LigneCommande {
+    74→  id: string
+    75→  dci: string
+    76→  nomCommercial: string | null
+    77→  quantite: number
+    78→  quantiteLivre: number
+    79→  prixAchat: number
+    80→  montant: number
+    81→  medicamentId?: string | null
+    82→}
+    83→
+    84→interface CommandeFournisseur {
+    85→  id: string
+    86→  nomFournisseur: string
+    87→  statut: StatutCommande
+    88→  montantTotal: number
+    89→  dateLivraisonPrevue: string | null
+    90→  dateLivraisonReelle: string | null
+    91→  notes: string | null
+    92→  createdAt: string
+    93→  updatedAt: string
+    94→  fournisseurId?: string | null
+    95→  lignes: LigneCommande[]
+    96→}
+    97→
+    98→interface FournisseurOption {
+    99→  id: string
+   100→  nom: string
+   101→  contact: string | null
+   102→  telephone: string | null
+   103→  email: string | null
+   104→}
+   105→
+   106→interface MedicamentOption {
+   107→  id: string
+   108→  dci: string
+   109→  nomCommercial: string
+   110→  forme: string
+   111→  dosage: string
+   112→  prixPublic: number
+   113→}
+   114→
+   115→// === Helpers ===
+   116→
+   117→function formatDate(dateStr: string | null): string {
+   118→  if (!dateStr) return '—'
+   119→  try {
+   120→    return new Date(dateStr).toLocaleDateString('fr-FR', {
+   121→      day: '2-digit',
+   122→      month: '2-digit',
+   123→      year: 'numeric',
+   124→    })
+   125→  } catch {
+   126→    return dateStr
+   127→  }
+   128→}
+   129→
+   130→function formatFCFA(amount: number): string {
+   131→  return new Intl.NumberFormat('fr-FR', {
+   132→    style: 'decimal',
+   133→    minimumFractionDigits: 0,
+   134→    maximumFractionDigits: 0,
+   135→  }).format(amount) + ' FCFA'
+   136→}
+   137→
+   138→function statutCommandeLabel(statut: StatutCommande): string {
+   139→  const labels: Record<StatutCommande, string> = {
+   140→    BROUILLON: 'Brouillon',
+   141→    ENVOYEE: 'Envoyée',
+   142→    CONFIRMEE: 'Confirmée',
+   143→    EN_PREPARATION: 'En préparation',
+   144→    LIVREE_PARTIELLEMENT: 'Partiellement reçue',
+   145→    LIVREE: 'Reçue',
+   146→    ANNULEE: 'Annulée',
+   147→  }
+   148→  return labels[statut] || statut
+   149→}
+   150→
+   151→function statutCommandeBadge(statut: StatutCommande) {
+   152→  const colorMap: Record<StatutCommande, string> = {
+   153→    BROUILLON: 'bg-gray-100 text-gray-700 border-gray-200',
+   154→    ENVOYEE: 'bg-blue-50 text-blue-700 border-blue-200',
+   155→    CONFIRMEE: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+   156→    EN_PREPARATION: 'bg-amber-50 text-amber-700 border-amber-200',
+   157→    LIVREE_PARTIELLEMENT: 'bg-orange-50 text-orange-700 border-orange-200',
+   158→    LIVREE: 'bg-green-50 text-green-700 border-green-200',
+   159→    ANNULEE: 'bg-red-50 text-red-700 border-red-200',
+   160→  }
+   161→  return (
+   162→    <Badge variant="outline" className={`${colorMap[statut]} border`}>
+   163→      {statutCommandeLabel(statut)}
+   164→    </Badge>
+   165→  )
+   166→}
+   167→
+   168→// === Main Component ===
+   169→
+   170→export default function CommandesPage() {
+   171→  const { pharmacie } = useAuth()
+   172→
+   173→  // State
+   174→  const [commandes, setCommandes] = useState<CommandeFournisseur[]>([])
+   175→  const [fournisseurs, setFournisseurs] = useState<FournisseurOption[]>([])
+   176→  const [medicaments, setMedicaments] = useState<MedicamentOption[]>([])
+   177→  const [isLoading, setIsLoading] = useState(true)
+   178→  const [error, setError] = useState<string | null>(null)
+   179→
+   180→  // Filters
+   181→  const [searchTerm, setSearchTerm] = useState('')
+   182→  const [filterStatut, setFilterStatut] = useState<string>('TOUS')
+   183→  const [filterFournisseur, setFilterFournisseur] = useState<string>('TOUS')
+   184→  const [sortBy, setSortBy] = useState<'createdAt' | 'montantTotal' | 'nomFournisseur' | 'statut'>('createdAt')
+   185→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+   186→
+   187→  // Pagination
+   188→  const [currentPage, setCurrentPage] = useState(1)
+   189→  const itemsPerPage = 10
+   190→
+   191→  // Dialogs
+   192→  const [showCreateDialog, setShowCreateDialog] = useState(false)
+   193→  const [showDetailSheet, setShowDetailSheet] = useState(false)
+   194→  const [selectedCommande, setSelectedCommande] = useState<CommandeFournisseur | null>(null)
+   195→  const [isSubmitting, setIsSubmitting] = useState(false)
+   196→
+   197→  // New order form
+   198→  const [newFournisseurId, setNewFournisseurId] = useState('')
+   199→  const [newNomFournisseur, setNewNomFournisseur] = useState('')
+   200→  const [newDateLivraisonPrevue, setNewDateLivraisonPrevue] = useState('')
+   201→  const [newNotes, setNewNotes] = useState('')
+   202→  const [newLignes, setNewLignes] = useState<Array<{
+   203→    dci: string
+   204→    nomCommercial: string
+   205→    quantite: number
+   206→    prixAchat: number
+   207→    medicamentId: string
+   208→  }>>([
+   209→    { dci: '', nomCommercial: '', quantite: 1, prixAchat: 0, medicamentId: '' },
+   210→  ])
+   211→
+   212→  // === Data Fetching ===
+   213→
+   214→  const fetchCommandes = useCallback(async () => {
+   215→    if (!pharmacie?.id) return
+   216→    setIsLoading(true)
+   217→    setError(null)
+   218→    try {
+   219→      const res = await fetch('/api/commandes')
+   220→      if (!res.ok) throw new Error('Erreur lors du chargement des commandes')
+   221→      const data = await res.json()
+   222→      setCommandes(Array.isArray(data) ? data : data.commandes || [])
+   223→    } catch (err) {
+   224→      setError(err instanceof Error ? err.message : 'Erreur inconnue')
+   225→      setCommandes([])
+   226→    } finally {
+   227→      setIsLoading(false)
+   228→    }
+   229→  }, [pharmacie?.id])
+   230→
+   231→  const fetchFournisseurs = useCallback(async () => {
+   232→    if (!pharmacie?.id) return
+   233→    try {
+   234→      const res = await fetch('/api/fournisseurs')
+   235→      if (res.ok) {
+   236→        const data = await res.json()
+   237→        setFournisseurs(Array.isArray(data) ? data : data.fournisseurs || [])
+   238→      }
+   239→    } catch {
+   240→      // Silently fail
+   241→    }
+   242→  }, [pharmacie?.id])
+   243→
+   244→  const fetchMedicaments = useCallback(async () => {
+   245→    if (!pharmacie?.id) return
+   246→    try {
+   247→      const res = await fetch('/api/medicaments')
+   248→      if (res.ok) {
+   249→        const data = await res.json()
+   250→        setMedicaments(Array.isArray(data) ? data : data.medicaments || [])
+   251→      }
+   252→    } catch {
+   253→      // Silently fail
+   254→    }
+   255→  }, [pharmacie?.id])
+   256→
+   257→  useEffect(() => {
+   258→    fetchCommandes()
+   259→    fetchFournisseurs()
+   260→    fetchMedicaments()
+   261→  }, [fetchCommandes, fetchFournisseurs, fetchMedicaments])
+   262→
+   263→  // === Filtering & Sorting ===
+   264→
+   265→  const filteredCommandes = useMemo(() => {
+   266→    let result = [...commandes]
+   267→
+   268→    // Search
+   269→    if (searchTerm) {
+   270→      const lower = searchTerm.toLowerCase()
+   271→      result = result.filter(
+   272→        (c) =>
+   273→          c.nomFournisseur.toLowerCase().includes(lower) ||
+   274→          c.lignes.some((l) => l.dci.toLowerCase().includes(lower) || (l.nomCommercial || '').toLowerCase().includes(lower))
+   275→      )
+   276→    }
+   277→
+   278→    // Status filter
+   279→    if (filterStatut !== 'TOUS') {
+   280→      result = result.filter((c) => c.statut === filterStatut)
+   281→    }
+   282→
+   283→    // Fournisseur filter
+   284→    if (filterFournisseur !== 'TOUS') {
+   285→      result = result.filter((c) => c.nomFournisseur === filterFournisseur)
+   286→    }
+   287→
+   288→    // Sort
+   289→    result.sort((a, b) => {
+   290→      let cmp = 0
+   291→      switch (sortBy) {
+   292→        case 'createdAt':
+   293→          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+   294→          break
+   295→        case 'montantTotal':
+   296→          cmp = a.montantTotal - b.montantTotal
+   297→          break
+   298→        case 'nomFournisseur':
+   299→          cmp = a.nomFournisseur.localeCompare(b.nomFournisseur)
+   300→          break
+   301→        case 'statut':
+   302→          cmp = a.statut.localeCompare(b.statut)
+   303→          break
+   304→      }
+   305→      return sortDir === 'desc' ? -cmp : cmp
+   306→    })
+   307→
+   308→    return result
+   309→  }, [commandes, searchTerm, filterStatut, filterFournisseur, sortBy, sortDir])
+   310→
+   311→  // Pagination
+   312→  const totalPages = Math.max(1, Math.ceil(filteredCommandes.length / itemsPerPage))
+   313→  const paginatedCommandes = filteredCommandes.slice(
+   314→    (currentPage - 1) * itemsPerPage,
+   315→    currentPage * itemsPerPage
+   316→  )
+   317→
+   318→  // === KPIs ===
+   319→
+   320→  const kpis = useMemo(() => {
+   321→    const total = commandes.length
+   322→    const enCours = commandes.filter((c) =>
+   323→      ['BROUILLON', 'ENVOYEE', 'CONFIRMEE', 'EN_PREPARATION'].includes(c.statut)
+   324→    ).length
+   325→    const livrees = commandes.filter((c) => c.statut === 'LIVREE').length
+   326→    const montantTotal = commandes.reduce((sum, c) => sum + c.montantTotal, 0)
+   327→    const enAttente = commandes.filter((c) => c.statut === 'BROUILLON' || c.statut === 'ENVOYEE').length
+   328→    return { total, enCours, livrees, montantTotal, enAttente }
+   329→  }, [commandes])
+   330→
+   331→  // === Handlers ===
+   332→
+   333→  const handleSort = (field: typeof sortBy) => {
+   334→    if (sortBy === field) {
+   335→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   336→    } else {
+   337→      setSortBy(field)
+   338→      setSortDir('desc')
+   339→    }
+   340→  }
+   341→
+   342→  const handleAddLigne = () => {
+   343→    setNewLignes([...newLignes, { dci: '', nomCommercial: '', quantite: 1, prixAchat: 0, medicamentId: '' }])
+   344→  }
+   345→
+   346→  const handleRemoveLigne = (index: number) => {
+   347→    if (newLignes.length <= 1) return
+   348→    setNewLignes(newLignes.filter((_, i) => i !== index))
+   349→  }
+   350→
+   351→  const handleLigneChange = (index: number, field: string, value: string | number) => {
+   352→    const updated = [...newLignes]
+   353→    ;(updated[index] as Record<string, string | number>)[field] = value
+   354→    // Auto-fill from medicament selection
+   355→    if (field === 'medicamentId' && typeof value === 'string' && value) {
+   356→      const med = medicaments.find((m) => m.id === value)
+   357→      if (med) {
+   358→        updated[index].dci = med.dci
+   359→        updated[index].nomCommercial = med.nomCommercial
+   360→        updated[index].prixAchat = med.prixPublic * 0.7 // Estimated purchase price
+   361→      }
+   362→    }
+   363→    setNewLignes(updated)
+   364→  }
+   365→
+   366→  const newLignesTotal = useMemo(() => {
+   367→    return newLignes.reduce((sum, l) => sum + l.quantite * l.prixAchat, 0)
+   368→  }, [newLignes])
+   369→
+   370→  const handleCreateCommande = async () => {
+   371→    if (!newNomFournisseur.trim()) {
+   372→      toast.error('Veuillez renseigner le fournisseur')
+   373→      return
+   374→    }
+   375→    if (newLignes.some((l) => !l.dci.trim())) {
+   376→      toast.error('Veuillez renseigner la DCI pour chaque ligne')
+   377→      return
+   378→    }
+   379→    if (newLignes.some((l) => l.prixAchat <= 0)) {
+   380→      toast.error('Veuillez renseigner un prix d\'achat valide pour chaque ligne')
+   381→      return
+   382→    }
+   383→
+   384→    setIsSubmitting(true)
+   385→    try {
+   386→      const res = await fetch('/api/commandes', {
+   387→        method: 'POST',
+   388→        headers: { 'Content-Type': 'application/json' },
+   389→        body: JSON.stringify({
+   390→          fournisseurId: newFournisseurId || null,
+   391→          nomFournisseur: newNomFournisseur,
+   392→          dateLivraisonPrevue: newDateLivraisonPrevue || null,
+   393→          notes: newNotes || null,
+   394→          lignes: newLignes.map((l) => ({
+   395→            dci: l.dci,
+   396→            nomCommercial: l.nomCommercial || null,
+   397→            quantite: l.quantite,
+   398→            prixAchat: l.prixAchat,
+   399→            montant: l.quantite * l.prixAchat,
+   400→            medicamentId: l.medicamentId || null,
+   401→          })),
+   402→        }),
+   403→      })
+   404→      if (!res.ok) throw new Error('Erreur lors de la création')
+   405→      toast.success('Commande créée avec succès')
+   406→      setShowCreateDialog(false)
+   407→      resetCreateForm()
+   408→      fetchCommandes()
+   409→    } catch (err) {
+   410→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création')
+   411→    } finally {
+   412→      setIsSubmitting(false)
+   413→    }
+   414→  }
+   415→
+   416→  const resetCreateForm = () => {
+   417→    setNewFournisseurId('')
+   418→    setNewNomFournisseur('')
+   419→    setNewDateLivraisonPrevue('')
+   420→    setNewNotes('')
+   421→    setNewLignes([{ dci: '', nomCommercial: '', quantite: 1, prixAchat: 0, medicamentId: '' }])
+   422→  }
+   423→
+   424→  const handleViewDetail = (commande: CommandeFournisseur) => {
+   425→    setSelectedCommande(commande)
+   426→    setShowDetailSheet(true)
+   427→  }
+   428→
+   429→  const handleSendCommande = async (id: string) => {
+   430→    try {
+   431→      const res = await fetch(`/api/commandes/${id}`, {
+   432→        method: 'PATCH',
+   433→        headers: { 'Content-Type': 'application/json' },
+   434→        body: JSON.stringify({ statut: 'ENVOYEE' }),
+   435→      })
+   436→      if (!res.ok) throw new Error('Erreur lors de l\'envoi')
+   437→      toast.success('Commande envoyée au fournisseur')
+   438→      fetchCommandes()
+   439→      if (selectedCommande?.id === id) {
+   440→        setSelectedCommande({ ...selectedCommande, statut: 'ENVOYEE' })
+   441→      }
+   442→    } catch (err) {
+   443→      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'envoi')
+   444→    }
+   445→  }
+   446→
+   447→  const handleConfirmCommande = async (id: string) => {
+   448→    try {
+   449→      const res = await fetch(`/api/commandes/${id}`, {
+   450→        method: 'PATCH',
+   451→        headers: { 'Content-Type': 'application/json' },
+   452→        body: JSON.stringify({ statut: 'CONFIRMEE' }),
+   453→      })
+   454→      if (!res.ok) throw new Error('Erreur lors de la confirmation')
+   455→      toast.success('Commande confirmée par le fournisseur')
+   456→      fetchCommandes()
+   457→      if (selectedCommande?.id === id) {
+   458→        setSelectedCommande({ ...selectedCommande, statut: 'CONFIRMEE' })
+   459→      }
+   460→    } catch (err) {
+   461→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la confirmation')
+   462→    }
+   463→  }
+   464→
+   465→  const handleMarkReceived = async (id: string) => {
+   466→    try {
+   467→      const res = await fetch(`/api/commandes/${id}`, {
+   468→        method: 'PATCH',
+   469→        headers: { 'Content-Type': 'application/json' },
+   470→        body: JSON.stringify({ statut: 'LIVREE', dateLivraisonReelle: new Date().toISOString() }),
+   471→      })
+   472→      if (!res.ok) throw new Error('Erreur lors de la réception')
+   473→      toast.success('Commande marquée comme reçue')
+   474→      fetchCommandes()
+   475→      if (selectedCommande?.id === id) {
+   476→        setSelectedCommande({
+   477→          ...selectedCommande,
+   478→          statut: 'LIVREE',
+   479→          dateLivraisonReelle: new Date().toISOString(),
+   480→        })
+   481→      }
+   482→    } catch (err) {
+   483→      toast.error(err instanceof Error ? err.message : 'Erreur lors de la réception')
+   484→    }
+   485→  }
+   486→
+   487→  const handleCancelCommande = async (id: string) => {
+   488→    try {
+   489→      const res = await fetch(`/api/commandes/${id}`, {
+   490→        method: 'PATCH',
+   491→        headers: { 'Content-Type': 'application/json' },
+   492→        body: JSON.stringify({ statut: 'ANNULEE' }),
+   493→      })
+   494→      if (!res.ok) throw new Error('Erreur lors de l\'annulation')
+   495→      toast.success('Commande annulée')
+   496→      fetchCommandes()
+   497→      if (selectedCommande?.id === id) {
+   498→        setSelectedCommande({ ...selectedCommande, statut: 'ANNULEE' })
+   499→      }
+   500→    } catch (err) {
+   501→      toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'annulation')
+   502→    }
+   503→  }
+   504→
+   505→  // === Loading Skeleton ===
+   506→
+   507→  if (isLoading) {
+   508→    return (
+   509→      <div className="p-6 space-y-6">
+   510→        <div className="flex items-center justify-between">
+   511→          <Skeleton className="h-8 w-48" />
+   512→          <Skeleton className="h-10 w-40" />
+   513→        </div>
+   514→        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+   515→          {Array.from({ length: 4 }).map((_, i) => (
+   516→            <Skeleton key={i} className="h-24" />
+   517→          ))}
+   518→        </div>
+   519→        <Skeleton className="h-12 w-full" />
+   520→        {Array.from({ length: 5 }).map((_, i) => (
+   521→          <Skeleton key={i} className="h-14 w-full" />
+   522→        ))}
+   523→      </div>
+   524→    )
+   525→  }
+   526→
+   527→  // === Render ===
+   528→
+   529→  return (
+   530→    <div className="p-6 space-y-6">
+   531→      {/* Header */}
+   532→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+   533→        <div>
+   534→          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   535→            <ClipboardList className="w-6 h-6 text-primary" />
+   536→            Commandes Fournisseurs
+   537→          </h1>
+   538→          <p className="text-sm text-muted-foreground mt-1">
+   539→            Gestion des commandes et réceptions fournisseur
+   540→          </p>
+   541→        </div>
+   542→        <Button onClick={() => setShowCreateDialog(true)} className="shrink-0">
+   543→          <Plus className="w-4 h-4 mr-2" />
+   544→          Nouvelle commande
+   545→        </Button>
+   546→      </div>
+   547→
+   548→      {/* KPI Cards */}
+   549→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   550→        <KpiCard
+   551→          title="Total commandes"
+   552→          value={kpis.total}
+   553→          icon={ClipboardList}
+   554→          variant="default"
+   555→        />
+   556→        <KpiCard
+   557→          title="En cours"
+   558→          value={kpis.enCours}
+   559→          icon={Clock}
+   560→          variant="warning"
+   561→          subtitle="Brouillons à en préparation"
+   562→        />
+   563→        <KpiCard
+   564→          title="Reçues"
+   565→          value={kpis.livrees}
+   566→          icon={PackageCheck}
+   567→          variant="success"
+   568→        />
+   569→        <KpiCard
+   570→          title="Montant total"
+   571→          value={formatFCFA(kpis.montantTotal)}
+   572→          icon={Banknote}
+   573→          variant="default"
+   574→        />
+   575→      </div>
+   576→
+   577→      {/* Filters */}
+   578→      <Card>
+   579→        <CardContent className="p-4">
+   580→          <div className="flex flex-col lg:flex-row gap-3">
+   581→            <div className="relative flex-1">
+   582→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   583→              <Input
+   584→                placeholder="Rechercher par fournisseur, DCI, médicament..."
+   585→                value={searchTerm}
+   586→                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1) }}
+   587→                className="pl-9"
+   588→              />
+   589→            </div>
+   590→            <Select value={filterStatut} onValueChange={(v) => { setFilterStatut(v); setCurrentPage(1) }}>
+   591→              <SelectTrigger className="w-full lg:w-48">
+   592→                <Filter className="w-4 h-4 mr-2" />
+   593→                <SelectValue placeholder="Statut" />
+   594→              </SelectTrigger>
+   595→              <SelectContent>
+   596→                <SelectItem value="TOUS">Tous les statuts</SelectItem>
+   597→                <SelectItem value="BROUILLON">Brouillon</SelectItem>
+   598→                <SelectItem value="ENVOYEE">Envoyée</SelectItem>
+   599→                <SelectItem value="CONFIRMEE">Confirmée</SelectItem>
+   600→                <SelectItem value="EN_PREPARATION">En préparation</SelectItem>
+   601→                <SelectItem value="LIVREE_PARTIELLEMENT">Partiellement reçue</SelectItem>
+   602→                <SelectItem value="LIVREE">Reçue</SelectItem>
+   603→                <SelectItem value="ANNULEE">Annulée</SelectItem>
+   604→              </SelectContent>
+   605→            </Select>
+   606→            <Select value={filterFournisseur} onValueChange={(v) => { setFilterFournisseur(v); setCurrentPage(1) }}>
+   607→              <SelectTrigger className="w-full lg:w-52">
+   608→                <Building2 className="w-4 h-4 mr-2" />
+   609→                <SelectValue placeholder="Fournisseur" />
+   610→              </SelectTrigger>
+   611→              <SelectContent>
+   612→                <SelectItem value="TOUS">Tous les fournisseurs</SelectItem>
+   613→                {fournisseurs.map((f) => (
+   614→                  <SelectItem key={f.id} value={f.nom}>
+   615→                    {f.nom}
+   616→                  </SelectItem>
+   617→                ))}
+   618→              </SelectContent>
+   619→            </Select>
+   620→          </div>
+   621→        </CardContent>
+   622→      </Card>
+   623→
+   624→      {/* Error State */}
+   625→      {error && (
+   626→        <Card className="border-destructive">
+   627→          <CardContent className="p-4 flex items-center gap-3 text-destructive">
+   628→            <AlertTriangle className="w-5 h-5 shrink-0" />
+   629→            <p>{error}</p>
+   630→            <Button variant="outline" size="sm" onClick={fetchCommandes} className="ml-auto">
+   631→              Réessayer
+   632→            </Button>
+   633→          </CardContent>
+   634→        </Card>
+   635→      )}
+   636→
+   637→      {/* Data Table */}
+   638→      <Card>
+   639→        <CardContent className="p-0">
+   640→          {filteredCommandes.length === 0 ? (
+   641→            <div className="flex flex-col items-center justify-center py-16 text-center">
+   642→              <ClipboardList className="w-12 h-12 text-muted-foreground/40 mb-4" />
+   643→              <h3 className="text-lg font-semibold text-muted-foreground">Aucune commande trouvée</h3>
+   644→              <p className="text-sm text-muted-foreground mt-1">
+   645→                {searchTerm || filterStatut !== 'TOUS'
+   646→                  ? 'Modifiez vos filtres pour voir plus de résultats'
+   647→                  : 'Créez votre première commande fournisseur pour commencer'}
+   648→              </p>
+   649→              {!searchTerm && filterStatut === 'TOUS' && (
+   650→                <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
+   651→                  <Plus className="w-4 h-4 mr-2" />
+   652→                  Nouvelle commande
+   653→                </Button>
+   654→              )}
+   655→            </div>
+   656→          ) : (
+   657→            <>
+   658→              <div className="overflow-x-auto">
+   659→                <Table>
+   660→                  <TableHeader>
+   661→                    <TableRow>
+   662→                      <TableHead className="w-12">N°</TableHead>
+   663→                      <TableHead
+   664→                        className="cursor-pointer select-none hover:bg-muted/50"
+   665→                        onClick={() => handleSort('createdAt')}
+   666→                      >
+   667→                        <div className="flex items-center gap-1">
+   668→                          Date
+   669→                          <ArrowUpDown className="w-3 h-3" />
+   670→                        </div>
+   671→                      </TableHead>
+   672→                      <TableHead
+   673→                        className="cursor-pointer select-none hover:bg-muted/50"
+   674→                        onClick={() => handleSort('nomFournisseur')}
+   675→                      >
+   676→                        <div className="flex items-center gap-1">
+   677→                          Fournisseur
+   678→                          <ArrowUpDown className="w-3 h-3" />
+   679→                        </div>
+   680→                      </TableHead>
+   681→                      <TableHead>Produits</TableHead>
+   682→                      <TableHead
+   683→                        className="cursor-pointer select-none hover:bg-muted/50"
+   684→                        onClick={() => handleSort('montantTotal')}
+   685→                      >
+   686→                        <div className="flex items-center gap-1">
+   687→                          Montant
+   688→                          <ArrowUpDown className="w-3 h-3" />
+   689→                        </div>
+   690→                      </TableHead>
+   691→                      <TableHead
+   692→                        className="cursor-pointer select-none hover:bg-muted/50"
+   693→                        onClick={() => handleSort('statut')}
+   694→                      >
+   695→                        <div className="flex items-center gap-1">
+   696→                          Statut
+   697→                          <ArrowUpDown className="w-3 h-3" />
+   698→                        </div>
+   699→                      </TableHead>
+   700→                      <TableHead>Livraison prévue</TableHead>
+   701→                      <TableHead className="text-right">Actions</TableHead>
+   702→                    </TableRow>
+   703→                  </TableHeader>
+   704→                  <TableBody>
+   705→                    {paginatedCommandes.map((commande, idx) => {
+   706→                      const globalIdx = (currentPage - 1) * itemsPerPage + idx + 1
+   707→                      return (
+   708→                        <TableRow
+   709→                          key={commande.id}
+   710→                          className="cursor-pointer hover:bg-muted/50"
+   711→                          onClick={() => handleViewDetail(commande)}
+   712→                        >
+   713→                          <TableCell className="font-mono text-xs text-muted-foreground">
+   714→                            {globalIdx}
+   715→                          </TableCell>
+   716→                          <TableCell>
+   717→                            <div className="flex items-center gap-2">
+   718→                              <Calendar className="w-3 h-3 text-muted-foreground" />
+   719→                              {formatDate(commande.createdAt)}
+   720→                            </div>
+   721→                          </TableCell>
+   722→                          <TableCell>
+   723→                            <div className="flex items-center gap-2">
+   724→                              <Building2 className="w-3 h-3 text-muted-foreground" />
+   725→                              <span className="font-medium">{commande.nomFournisseur}</span>
+   726→                            </div>
+   727→                          </TableCell>
+   728→                          <TableCell>
+   729→                            <div className="flex items-center gap-1">
+   730→                              <Package className="w-3 h-3 text-muted-foreground" />
+   731→                              <span className="text-sm">{commande.lignes.length} ligne(s)</span>
+   732→                            </div>
+   733→                          </TableCell>
+   734→                          <TableCell className="font-medium">
+   735→                            {formatFCFA(commande.montantTotal)}
+   736→                          </TableCell>
+   737→                          <TableCell>{statutCommandeBadge(commande.statut)}</TableCell>
+   738→                          <TableCell className="text-sm text-muted-foreground">
+   739→                            {formatDate(commande.dateLivraisonPrevue)}
+   740→                          </TableCell>
+   741→                          <TableCell className="text-right">
+   742→                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   743→                              <Button
+   744→                                variant="ghost"
+   745→                                size="icon"
+   746→                                className="h-8 w-8"
+   747→                                onClick={() => handleViewDetail(commande)}
+   748→                                title="Voir le détail"
+   749→                              >
+   750→                                <Eye className="w-4 h-4" />
+   751→                              </Button>
+   752→                              {commande.statut === 'BROUILLON' && (
+   753→                                <Button
+   754→                                  variant="ghost"
+   755→                                  size="icon"
+   756→                                  className="h-8 w-8 text-blue-600 hover:text-blue-700"
+   757→                                  onClick={() => handleSendCommande(commande.id)}
+   758→                                  title="Envoyer"
+   759→                                >
+   760→                                  <Send className="w-4 h-4" />
+   761→                                </Button>
+   762→                              )}
+   763→                              {commande.statut === 'ENVOYEE' && (
+   764→                                <Button
+   765→                                  variant="ghost"
+   766→                                  size="icon"
+   767→                                  className="h-8 w-8 text-cyan-600 hover:text-cyan-700"
+   768→                                  onClick={() => handleConfirmCommande(commande.id)}
+   769→                                  title="Confirmer"
+   770→                                >
+   771→                                  <CheckCircle2 className="w-4 h-4" />
+   772→                                </Button>
+   773→                              )}
+   774→                              {['CONFIRMEE', 'EN_PREPARATION'].includes(commande.statut) && (
+   775→                                <Button
+   776→                                  variant="ghost"
+   777→                                  size="icon"
+   778→                                  className="h-8 w-8 text-green-600 hover:text-green-700"
+   779→                                  onClick={() => handleMarkReceived(commande.id)}
+   780→                                  title="Marquer reçue"
+   781→                                >
+   782→                                  <PackageCheck className="w-4 h-4" />
+   783→                                </Button>
+   784→                              )}
+   785→                            </div>
+   786→                          </TableCell>
+   787→                        </TableRow>
+   788→                      )
+   789→                    })}
+   790→                  </TableBody>
+   791→                </Table>
+   792→              </div>
+   793→
+   794→              {/* Pagination */}
+   795→              <div className="flex items-center justify-between px-4 py-3 border-t">
+   796→                <p className="text-sm text-muted-foreground">
+   797→                  {filteredCommandes.length} commande(s) trouvée(s)
+   798→                </p>
+   799→                <div className="flex items-center gap-2">
+   800→                  <Button
+   801→                    variant="outline"
+   802→                    size="icon"
+   803→                    className="h-8 w-8"
+   804→                    disabled={currentPage <= 1}
+   805→                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+   806→                  >
+   807→                    <ChevronLeft className="w-4 h-4" />
+   808→                  </Button>
+   809→                  <span className="text-sm font-medium">
+   810→                    {currentPage} / {totalPages}
+   811→                  </span>
+   812→                  <Button
+   813→                    variant="outline"
+   814→                    size="icon"
+   815→                    className="h-8 w-8"
+   816→                    disabled={currentPage >= totalPages}
+   817→                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+   818→                  >
+   819→                    <ChevronRight className="w-4 h-4" />
+   820→                  </Button>
+   821→                </div>
+   822→              </div>
+   823→            </>
+   824→          )}
+   825→        </CardContent>
+   826→      </Card>
+   827→
+   828→      {/* Create Commande Dialog */}
+   829→      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+   830→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   831→          <DialogHeader>
+   832→            <DialogTitle className="flex items-center gap-2">
+   833→              <ClipboardList className="w-5 h-5" />
+   834→              Nouvelle commande fournisseur
+   835→            </DialogTitle>
+   836→            <DialogDescription>
+   837→              Passer une nouvelle commande à un fournisseur
+   838→            </DialogDescription>
+   839→          </DialogHeader>
+   840→
+   841→          <div className="space-y-4 py-4">
+   842→            {/* Fournisseur */}
+   843→            <div className="space-y-2">
+   844→              <Label>Fournisseur *</Label>
+   845→              <Select
+   846→                value={newFournisseurId}
+   847→                onValueChange={(v) => {
+   848→                  setNewFournisseurId(v)
+   849→                  const f = fournisseurs.find((f) => f.id === v)
+   850→                  if (f) setNewNomFournisseur(f.nom)
+   851→                }}
+   852→              >
+   853→                <SelectTrigger>
+   854→                  <SelectValue placeholder="Sélectionner un fournisseur" />
+   855→                </SelectTrigger>
+   856→                <SelectContent>
+   857→                  {fournisseurs.map((f) => (
+   858→                    <SelectItem key={f.id} value={f.id}>
+   859→                      {f.nom} {f.telephone ? `— ${f.telephone}` : ''}
+   860→                    </SelectItem>
+   861→                  ))}
+   862→                </SelectContent>
+   863→              </Select>
+   864→              {!newFournisseurId && (
+   865→                <Input
+   866→                  placeholder="Ou saisir le nom du fournisseur"
+   867→                  value={newNomFournisseur}
+   868→                  onChange={(e) => setNewNomFournisseur(e.target.value)}
+   869→                  className="mt-2"
+   870→                />
+   871→              )}
+   872→            </div>
+   873→
+   874→            {/* Date de livraison prévue */}
+   875→            <div className="space-y-2">
+   876→              <Label>Date de livraison prévue</Label>
+   877→              <Input
+   878→                type="date"
+   879→                value={newDateLivraisonPrevue}
+   880→                onChange={(e) => setNewDateLivraisonPrevue(e.target.value)}
+   881→              />
+   882→            </div>
+   883→
+   884→            <Separator />
+   885→
+   886→            {/* Lignes de commande */}
+   887→            <div className="space-y-3">
+   888→              <div className="flex items-center justify-between">
+   889→                <Label className="text-base font-semibold">Lignes de commande</Label>
+   890→                <Button variant="outline" size="sm" onClick={handleAddLigne}>
+   891→                  <Plus className="w-4 h-4 mr-1" />
+   892→                  Ajouter une ligne
+   893→                </Button>
+   894→              </div>
+   895→
+   896→              {newLignes.map((ligne, idx) => (
+   897→                <Card key={idx} className="p-3">
+   898→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   899→                    <div className="space-y-1">
+   900→                      <Label className="text-xs">Médicament</Label>
+   901→                      <Select
+   902→                        value={ligne.medicamentId}
+   903→                        onValueChange={(v) => handleLigneChange(idx, 'medicamentId', v)}
+   904→                      >
+   905→                        <SelectTrigger>
+   906→                          <SelectValue placeholder="Sélectionner ou saisir" />
+   907→                        </SelectTrigger>
+   908→                        <SelectContent className="max-h-48">
+   909→                          {medicaments.map((m) => (
+   910→                            <SelectItem key={m.id} value={m.id}>
+   911→                              {m.nomCommercial} ({m.dci})
+   912→                            </SelectItem>
+   913→                          ))}
+   914→                        </SelectContent>
+   915→                      </Select>
+   916→                    </div>
+   917→                    <div className="space-y-1">
+   918→                      <Label className="text-xs">DCI *</Label>
+   919→                      <Input
+   920→                        placeholder="Dénomination commune"
+   921→                        value={ligne.dci}
+   922→                        onChange={(e) => handleLigneChange(idx, 'dci', e.target.value)}
+   923→                      />
+   924→                    </div>
+   925→                    <div className="space-y-1">
+   926→                      <Label className="text-xs">Nom commercial</Label>
+   927→                      <Input
+   928→                        placeholder="Nom du produit"
+   929→                        value={ligne.nomCommercial}
+   930→                        onChange={(e) => handleLigneChange(idx, 'nomCommercial', e.target.value)}
+   931→                      />
+   932→                    </div>
+   933→                    <div className="space-y-1">
+   934→                      <Label className="text-xs">Quantité *</Label>
+   935→                      <Input
+   936→                        type="number"
+   937→                        min={1}
+   938→                        value={ligne.quantite}
+   939→                        onChange={(e) => handleLigneChange(idx, 'quantite', parseInt(e.target.value) || 1)}
+   940→                      />
+   941→                    </div>
+   942→                    <div className="space-y-1">
+   943→                      <Label className="text-xs">Prix d&apos;achat unitaire (FCFA) *</Label>
+   944→                      <Input
+   945→                        type="number"
+   946→                        min={0}
+   947→                        step={50}
+   948→                        value={ligne.prixAchat}
+   949→                        onChange={(e) => handleLigneChange(idx, 'prixAchat', parseFloat(e.target.value) || 0)}
+   950→                      />
+   951→                    </div>
+   952→                    <div className="space-y-1 flex items-end gap-2">
+   953→                      <div className="flex-1">
+   954→                        <Label className="text-xs">Montant</Label>
+   955→                        <p className="font-medium text-sm mt-1">
+   956→                          {formatFCFA(ligne.quantite * ligne.prixAchat)}
+   957→                        </p>
+   958→                      </div>
+   959→                      {newLignes.length > 1 && (
+   960→                        <Button
+   961→                          variant="ghost"
+   962→                          size="icon"
+   963→                          className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+   964→                          onClick={() => handleRemoveLigne(idx)}
+   965→                        >
+   966→                          <XCircle className="w-4 h-4" />
+   967→                        </Button>
+   968→                      )}
+   969→                    </div>
+   970→                  </div>
+   971→                </Card>
+   972→              ))}
+   973→
+   974→              {/* Total */}
+   975→              <div className="flex items-center justify-end gap-3 pt-2 border-t">
+   976→                <span className="text-sm font-medium text-muted-foreground">Total estimé :</span>
+   977→                <span className="text-lg font-bold">{formatFCFA(newLignesTotal)}</span>
+   978→              </div>
+   979→            </div>
+   980→
+   981→            <Separator />
+   982→
+   983→            {/* Notes */}
+   984→            <div className="space-y-2">
+   985→              <Label>Notes</Label>
+   986→              <Textarea
+   987→                placeholder="Instructions particulières..."
+   988→                value={newNotes}
+   989→                onChange={(e) => setNewNotes(e.target.value)}
+   990→                rows={3}
+   991→              />
+   992→            </div>
+   993→          </div>
+   994→
+   995→          <DialogFooter>
+   996→            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+   997→              Annuler
+   998→            </Button>
+   999→            <Button onClick={handleCreateCommande} disabled={isSubmitting}>
+  1000→              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+  1001→              Créer la commande
+  1002→            </Button>
+  1003→          </DialogFooter>
+  1004→        </DialogContent>
+  1005→      </Dialog>
+  1006→
+  1007→      {/* Detail Sheet */}
+  1008→      <Sheet open={showDetailSheet} onOpenChange={setShowDetailSheet}>
+  1009→        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+  1010→          <SheetHeader>
+  1011→            <SheetTitle className="flex items-center gap-2">
+  1012→              <ClipboardList className="w-5 h-5" />
+  1013→              Détail de la commande
+  1014→            </SheetTitle>
+  1015→          </SheetHeader>
+  1016→
+  1017→          {selectedCommande && (
+  1018→            <div className="mt-6 space-y-6">
+  1019→              {/* Status & Actions */}
+  1020→              <div className="flex items-center justify-between">
+  1021→                {statutCommandeBadge(selectedCommande.statut)}
+  1022→                <div className="flex gap-2">
+  1023→                  {selectedCommande.statut === 'BROUILLON' && (
+  1024→                    <>
+  1025→                      <Button
+  1026→                        size="sm"
+  1027→                        onClick={() => handleSendCommande(selectedCommande.id)}
+  1028→                        className="bg-blue-600 hover:bg-blue-700"
+  1029→                      >
+  1030→                        <Send className="w-4 h-4 mr-1" />
+  1031→                        Envoyer
+  1032→                      </Button>
+  1033→                      <Button
+  1034→                        size="sm"
+  1035→                        variant="destructive"
+  1036→                        onClick={() => handleCancelCommande(selectedCommande.id)}
+  1037→                      >
+  1038→                        <RotateCcw className="w-4 h-4 mr-1" />
+  1039→                        Annuler
+  1040→                      </Button>
+  1041→                    </>
+  1042→                  )}
+  1043→                  {selectedCommande.statut === 'ENVOYEE' && (
+  1044→                    <Button
+  1045→                      size="sm"
+  1046→                      onClick={() => handleConfirmCommande(selectedCommande.id)}
+  1047→                      className="bg-cyan-600 hover:bg-cyan-700"
+  1048→                    >
+  1049→                      <CheckCircle2 className="w-4 h-4 mr-1" />
+  1050→                      Confirmer
+  1051→                    </Button>
+  1052→                  )}
+  1053→                  {['CONFIRMEE', 'EN_PREPARATION'].includes(selectedCommande.statut) && (
+  1054→                    <Button
+  1055→                      size="sm"
+  1056→                      onClick={() => handleMarkReceived(selectedCommande.id)}
+  1057→                      className="bg-green-600 hover:bg-green-700"
+  1058→                    >
+  1059→                      <PackageCheck className="w-4 h-4 mr-1" />
+  1060→                      Marquer reçue
+  1061→                    </Button>
+  1062→                  )}
+  1063→                </div>
+  1064→              </div>
+  1065→
+  1066→              {/* Info Grid */}
+  1067→              <div className="grid grid-cols-2 gap-4">
+  1068→                <div>
+  1069→                  <p className="text-xs text-muted-foreground uppercase">Fournisseur</p>
+  1070→                  <p className="font-medium flex items-center gap-1">
+  1071→                    <Building2 className="w-3 h-3" />
+  1072→                    {selectedCommande.nomFournisseur}
+  1073→                  </p>
+  1074→                </div>
+  1075→                <div>
+  1076→                  <p className="text-xs text-muted-foreground uppercase">Montant total</p>
+  1077→                  <p className="font-bold text-lg flex items-center gap-1">
+  1078→                    <Banknote className="w-3 h-3" />
+  1079→                    {formatFCFA(selectedCommande.montantTotal)}
+  1080→                  </p>
+  1081→                </div>
+  1082→                <div>
+  1083→                  <p className="text-xs text-muted-foreground uppercase">Date de création</p>
+  1084→                  <p className="font-medium flex items-center gap-1">
+  1085→                    <Calendar className="w-3 h-3" />
+  1086→                    {formatDate(selectedCommande.createdAt)}
+  1087→                  </p>
+  1088→                </div>
+  1089→                <div>
+  1090→                  <p className="text-xs text-muted-foreground uppercase">Livraison prévue</p>
+  1091→                  <p className="font-medium flex items-center gap-1">
+  1092→                    <Truck className="w-3 h-3" />
+  1093→                    {formatDate(selectedCommande.dateLivraisonPrevue)}
+  1094→                  </p>
+  1095→                </div>
+  1096→                {selectedCommande.dateLivraisonReelle && (
+  1097→                  <div>
+  1098→                    <p className="text-xs text-muted-foreground uppercase">Livraison effective</p>
+  1099→                    <p className="font-medium flex items-center gap-1">
+  1100→                      <PackageCheck className="w-3 h-3" />
+  1101→                      {formatDate(selectedCommande.dateLivraisonReelle)}
+  1102→                    </p>
+  1103→                  </div>
+  1104→                )}
+  1105→              </div>
+  1106→
+  1107→              <Separator />
+  1108→
+  1109→              {/* Lignes de commande */}
+  1110→              <div>
+  1111→                <h3 className="font-semibold mb-3 flex items-center gap-2">
+  1112→                  <Package className="w-4 h-4" />
+  1113→                  Lignes de commande ({selectedCommande.lignes.length})
+  1114→                </h3>
+  1115→                <ScrollArea className="max-h-72">
+  1116→                  <Table>
+  1117→                    <TableHeader>
+  1118→                      <TableRow>
+  1119→                        <TableHead>DCI</TableHead>
+  1120→                        <TableHead>Qté</TableHead>
+  1121→                        <TableHead>Livré</TableHead>
+  1122→                        <TableHead>P.U.</TableHead>
+  1123→                        <TableHead>Montant</TableHead>
+  1124→                      </TableRow>
+  1125→                    </TableHeader>
+  1126→                    <TableBody>
+  1127→                      {selectedCommande.lignes.map((ligne) => (
+  1128→                        <TableRow key={ligne.id}>
+  1129→                          <TableCell>
+  1130→                            <div>
+  1131→                              <p className="font-medium text-sm">{ligne.dci}</p>
+  1132→                              {ligne.nomCommercial && (
+  1133→                                <p className="text-xs text-muted-foreground">{ligne.nomCommercial}</p>
+  1134→                              )}
+  1135→                            </div>
+  1136→                          </TableCell>
+  1137→                          <TableCell>{ligne.quantite}</TableCell>
+  1138→                          <TableCell>
+  1139→                            <Badge variant={ligne.quantiteLivre >= ligne.quantite ? 'default' : 'secondary'} className="text-xs">
+  1140→                              {ligne.quantiteLivre}/{ligne.quantite}
+  1141→                            </Badge>
+  1142→                          </TableCell>
+  1143→                          <TableCell className="text-sm">{formatFCFA(ligne.prixAchat)}</TableCell>
+  1144→                          <TableCell className="font-medium text-sm">{formatFCFA(ligne.montant)}</TableCell>
+  1145→                        </TableRow>
+  1146→                      ))}
+  1147→                    </TableBody>
+  1148→                  </Table>
+  1149→                </ScrollArea>
+  1150→
+  1151→                {/* Total */}
+  1152→                <div className="flex items-center justify-end gap-3 pt-3 border-t mt-2">
+  1153→                  <span className="text-sm font-medium text-muted-foreground">Total :</span>
+  1154→                  <span className="text-lg font-bold">{formatFCFA(selectedCommande.montantTotal)}</span>
+  1155→                </div>
+  1156→              </div>
+  1157→
+  1158→              {/* Notes */}
+  1159→              {selectedCommande.notes && (
+  1160→                <>
+  1161→                  <Separator />
+  1162→                  <div>
+  1163→                    <h3 className="font-semibold mb-2">Notes</h3>
+  1164→                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+  1165→                      {selectedCommande.notes}
+  1166→                    </p>
+  1167→                  </div>
+  1168→                </>
+  1169→              )}
+  1170→
+  1171→              {/* Status timeline */}
+  1172→              <Separator />
+  1173→              <div>
+  1174→                <h3 className="font-semibold mb-3">Suivi de la commande</h3>
+  1175→                <div className="space-y-2">
+  1176→                  {[
+  1177→                    { label: 'Brouillon créé', statuts: ['BROUILLON', 'ENVOYEE', 'CONFIRMEE', 'EN_PREPARATION', 'LIVREE_PARTIELLEMENT', 'LIVREE'] },
+  1178→                    { label: 'Envoyée au fournisseur', statuts: ['ENVOYEE', 'CONFIRMEE', 'EN_PREPARATION', 'LIVREE_PARTIELLEMENT', 'LIVREE'] },
+  1179→                    { label: 'Confirmée par le fournisseur', statuts: ['CONFIRMEE', 'EN_PREPARATION', 'LIVREE_PARTIELLEMENT', 'LIVREE'] },
+  1180→                    { label: 'En préparation', statuts: ['EN_PREPARATION', 'LIVREE_PARTIELLEMENT', 'LIVREE'] },
+  1181→                    { label: 'Réceptionnée', statuts: ['LIVREE_PARTIELLEMENT', 'LIVREE'] },
+  1182→                  ].map((step, idx) => {
+  1183→                    const isActive = step.statuts.includes(selectedCommande.statut)
+  1184→                    const isCancelled = selectedCommande.statut === 'ANNULEE'
+  1185→                    return (
+  1186→                      <div key={idx} className="flex items-center gap-2">
+  1187→                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+  1188→                          isCancelled
+  1189→                            ? 'bg-red-100 text-red-700'
+  1190→                            : isActive
+  1191→                              ? 'bg-green-100 text-green-700'
+  1192→                              : 'bg-gray-100 text-gray-400'
+  1193→                        }`}>
+  1194→                          {isCancelled ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+  1195→                        </div>
+  1196→                        <span className={`text-sm ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
+  1197→                          {step.label}
+  1198→                        </span>
+  1199→                      </div>
+  1200→                    )
+  1201→                  })}
+  1202→                </div>
+  1203→              </div>
+  1204→            </div>
+  1205→          )}
+  1206→        </SheetContent>
+  1207→      </Sheet>
+  1208→    </div>
+  1209→  )
+  1210→}
+  1211→

@@ -1,0 +1,467 @@
+     1→     1→YEHI OR TECH
+     2→     2→MédiHelm
+     3→     3→L'Infrastructure Pharmaceutique Numérique du Bénin
+     4→     4→CAHIER DES CHARGES  —  VERSION 2.0
+     5→     5→Intégrations institutionnelles : SoBAPS · DPMED · LNCQ · UbiPharm · Promopharma · ABRP · Chaîne de traçabilité nationale
+     6→     6→Maitre d'ouvrage
+     7→     7→YEHI OR Tech — Cotonou, Bénin
+     8→     8→Responsable produit
+     9→     9→Dawes — Fondateur & Lead Developer
+    10→    10→Profil institutionnel
+    11→    11→Ancien stagiaire LNCQ — Laboratoire National de Contrôle Qualité des Médicaments, Ministère de la Santé du Bénin
+    12→    12→Référence document
+    13→    13→MH-CDC-2025-v2.0 (remplace MH-CDC-2025-v1.0)
+    14→    14→Date de révision
+    15→    15→2025
+    16→    16→Statut
+    17→    17→Document de référence — Confidentiel
+    18→    18→Stack technique
+    19→    19→Next.js · NestJS · PostgreSQL · Prisma · Supabase · Vercel · Fedapay
+    20→    20→Document confidentiel — YEHI OR Tech © 2025 — Reproduction interdite sans autorisation
+    21→    21→Sommaire
+    22→    22→1.   Présentation générale et positionnement stratégique v2.0
+    23→    23→2.   Contexte marché et écosystème institutionnel béninois
+    24→    24→3.   Acteurs institutionnels — SoBAPS, DPMED, LNCQ, ABRP
+    25→    25→4.   Acteurs privés — UbiPharm, Promopharma, grossistes répartisseurs
+    26→    26→5.   Stratégie d'intégration et de partenariat
+    27→    27→6.   Périmètre fonctionnel enrichi — Vue d'ensemble
+    28→    28→7.   Espace Patient — MédiHelm Patient
+    29→    29→8.   Espace Pharmacie — MédiHelm Pro (15 modules + 4 nouveaux)
+    30→    30→9.   Module M16 — Contrôle Qualité et Pharmacovigilance
+    31→    31→10.  Module M17 — Intégration SoBAPS et grossistes
+    32→    32→11.  Module M18 — Alertes DPMED et rappels de lot
+    33→    33→12.  Module M19 — Conformité réglementaire et certification
+    34→    34→13.  Espace Promoteur — MédiHelm Network
+    35→    35→14.  Module Analytics IA — MédiHelm Analytics
+    36→    36→15.  Architecture technique
+    37→    37→16.  Sécurité et conformité
+    38→    38→17.  Modèle de pricing v2.0
+    39→    39→18.  Roadmap enrichie
+    40→    40→19.  Plan de partenariat institutionnel — 6 rendez-vous
+    41→    41→20.  Contraintes et risques
+    42→    42→21.  Glossaire étendu
+    43→    43→1. Présentation Générale et Positionnement Stratégique v2.0
+    44→    44→1.1 Évolution de la vision
+    45→    45→La version 2.0 du CDC MédiHelm marque un changement de niveau stratégique fondamental. MédiHelm n'est plus uniquement une plateforme SaaS de gestion pharmaceutique et d'accès patient : elle devient l'infrastructure numérique de la chaîne pharmaceutique béninoise, connectant les pharmacies privées aux institutions de tutelle (DPMED, SoBAPS, ABRP), aux grossistes répartisseurs (UbiPharm, Promopharma) et aux organismes de contrôle qualité (LNCQ).
+    46→    46→1.2 L'atout institutionnel LNCQ
+    47→    47→Le fondateur de YEHI OR Tech a effectué ses stages universitaires au Laboratoire National de Contrôle Qualité des Médicaments et Consommables Médicaux (LNCQ) au sein du Ministère de la Santé du Bénin. Cet atout confère à MédiHelm une crédibilité institutionnelle unique que nul concurrent ne peut revendiquer :
+    48→    48→Connaissance intime des procédures réglementaires de contrôle qualité pharmaceutique au Bénin.
+    49→    49→Réseau relationnel au sein du Ministère de la Santé et de la DPMED.
+    50→    50→Compréhension des formats de données et rapports requis par les autorités sanitaires béninoises.
+    51→    51→Légitimité pour proposer des partenariats institutionnels de traçabilité et de pharmacovigilance.
+    52→    52→1.3 Correction factuelle critique — La CAME n'existe plus
+    53→    53→1.4 Positionnement concurrentiel v2.0
+    54→    54→2. Contexte Marché et Ecosystème Institutionnel Béninois
+    55→    55→2.1 La chaîne pharmaceutique béninoise — acteurs et flux
+    56→    56→La chaîne pharmaceutique béninoise est structurée en 5 niveaux distincts, chacun représentant une opportunité d'intégration pour MédiHelm :
+    57→    57→2.2 Les douleurs non résolues de la chaîne
+    58→    58→Aucun système numérique ne permet à la DPMED de diffuser les alertes de rappel de lot aux 600 officines béninoises en temps réel.
+    59→    59→Les signalements de pharmacovigilance (effets indésirables, médicaments suspects) sont encore majoritairement papier.
+    60→    60→Les commandes des officines vers les grossistes (UbiPharm, Promopharma) se font encore par appel téléphonique ou visite de représentant.
+    61→    61→La SoBAPS ne dispose d'aucun outil numérique permettant de tracer ses livraisons jusqu'au stock des officines privées.
+    62→    62→Les inspecteurs DPMED arrivent en officine sans pouvoir vérifier numériquement le registre des stupéfiants ou l'historique de destruction.
+    63→    63→L'ABRP ne dispose d'aucun tableau de bord agrégé des tensions d'approvisionnement sur le territoire national.
+    64→    64→3. Acteurs Institutionnels — Profils et Besoins
+    65→    65→3.1 SoBAPS SA — Société Béninoise pour l'Approvisionnement en Produits de Santé
+    66→    66→Statut : Société d'Etat — actionnaire unique : Etat béninois
+    67→    67→Mission : Approvisionnement en médicaments essentiels génériques (MEG), réactifs, consommables médicaux
+    68→    68→Tutelle : Ministère de la Santé du Bénin
+    69→    69→Auditeurs : Fonds Mondial, UNITAID, Banque Mondiale, USAID
+    70→    70→Standard : Bonnes Pratiques de Distribution UEMOA
+    71→    71→Clients : Formations sanitaires publiques ET officines privées agréées
+    72→    72→Besoin non satisfait : la SoBAPS livre des médicaments aux officines privées sans aucun outil permettant de tracer numériquement si le produit a bien été réceptionné, enregistré en stock, et dispensé correctement. MédiHelm comble ce vide.
+    73→    73→3.2 DPMED — Direction de la Pharmacie, du Médicament et des Explorations Diagnostiques
+    74→    74→Statut : Direction centrale du Ministère de la Santé
+    75→    75→Missions : Autorisation de mise sur le marché, surveillance du marché pharmaceutique, lutte contre les médicaments contrefaits, réglementation des officines
+    76→    76→Lien LNCQ : Le LNCQ opère sous tutelle de la DPMED — c'est le lien institutionnel direct du fondateur
+    77→    77→Besoin non satisfait : aucun canal numérique rapide pour diffuser les alertes de retrait de lot ou de médicaments contrefaits aux officines. Les circulaires papier mettent des jours à atteindre les officines en dehors de Cotonou.
+    78→    78→3.3 LNCQ — Laboratoire National de Contrôle Qualité
+    79→    79→Statut : Laboratoire officiel de contrôle qualité — sous tutelle DPMED / Ministère de la Santé
+    80→    80→Missions : Tests de conformité des médicaments, détection des contrefaçons, contrôle des importations
+    81→    81→Lien MédiHelm : Le fondateur de YEHI OR Tech y a effectué ses stages universitaires — réseau relationnel direct
+    82→    82→Opportunité : le LNCQ peut devenir la source officielle qui alimente la base de données de veille qualité intégrée dans MédiHelm. Chaque alerte LNCQ est automatiquement diffusée aux pharmacies abonnées.
+    83→    83→3.4 ABRP — Agence Béninoise de Régulation Pharmaceutique
+    84→    84→Statut : Agence de régulation — référence les grossistes répartisseurs agréés
+    85→    85→Missions : Agrément des acteurs de la chaîne, surveillance de la distribution, lutte contre le marché parallèle
+    86→    86→Opportunité : MédiHelm propose à l'ABRP un tableau de bord de données agrégées et anonymisées sur les tensions d'approvisionnement par territoire et par DCI — un outil de santé publique que l'ABRP n'a pas aujourd'hui.
+    87→    87→4. Acteurs Privés — Grossistes Répartisseurs
+    88→    88→4.1 UbiPharm Bénin
+    89→    89→Groupe : UbiPharm International — présent dans 18 territoires africains
+    90→    90→Implantation Bénin : Depuis 2014
+    91→    91→Catalogue : 15 000+ références
+    92→    92→Réseau : ~600 officines livrées quotidiennement
+    93→    93→Connexion v1 : Cités comme partenaires d'AS PHARM
+    94→    94→Proposition MédiHelm v2.0 : API bidirectionnelle — les bons de commande des officines MédiHelm sont transmis automatiquement dans le système UbiPharm (zéro saisie manuelle côté grossiste). En échange, UbiPharm recommande MédiHelm à l'ensemble de son réseau béninois comme outil de gestion officiel. UbiPharm reçoit aussi un accès à un tableau de bord agrégé de la demande de ses clients MédiHelm (sans données individuelles) pour optimiser ses stocks.
+    95→    95→4.2 Promopharma (filiale Eurapharma / Laborex)
+    96→    96→Groupe : Eurapharma — filiale CFAO — présent dans 20 pays africains
+    97→    97→Marque locale : Promopharma au Bénin / Laborex dans d'autres pays
+    98→    98→Positionnement : Concurrent direct d'UbiPharm sur le marché béninois
+    99→    99→Stratégie : proposer la même intégration API à Promopharma qu'à UbiPharm. La concurrence entre les deux grossistes joue en faveur de MédiHelm — si l'un signe, l'autre suivra pour ne pas laisser le terrain.
+   100→   100→4.3 Valeur de l'accord grossiste pour MédiHelm
+   101→   101→5. Stratégie d'Intégration et de Partenariat
+   102→   102→5.1 Les 7 valeurs ajoutées décisives
+   103→   103→V1 — API bidirectionnelle avec UbiPharm et Promopharma
+   104→   104→Intégration directe des bons de commande officine vers les systèmes grossistes. Zéro friction côté grossiste, zéro appel téléphonique. Le pharmacien commande depuis MédiHelm, le grossiste reçoit la commande structurée avec quantités, références DCI, lots souhaités. En retour, le grossiste confirme et envoie la date de livraison, que MédiHelm affiche dans le tableau de bord de la pharmacie.
+   105→   105→V2 — Canal officiel de diffusion des alertes DPMED
+   106→   106→MédiHelm devient le canal numérique par lequel la DPMED et le LNCQ diffusent les alertes de retrait de lot, de médicaments contrefaits, et de non-conformité aux 600 officines béninoises abonnées. Une alerte émise par la DPMED déclenche en moins de 2 minutes une notification push et SMS à tous les pharmaciens concernés ET aux patients ayant acheté le lot ciblé. Aucun autre système ne peut faire cela au Bénin aujourd'hui.
+   107→   107→V3 — Réception automatique des livraisons SoBAPS
+   108→   108→Quand la SoBAPS livre des médicaments à une officine abonnée MédiHelm, la réception est enregistrée automatiquement dans le stock avec numéro de lot, date d'expiration, et traçabilité complète. La SoBAPS peut consulter un tableau de bord de confirmation de réception de ses livraisons — sans données commerciales sensibles des pharmacies. C'est une valeur de traçabilité directe pour ses auditeurs internationaux.
+   109→   109→V4 — Module Pharmacovigilance numérique
+   110→   110→Le pharmacien peut signaler directement depuis MédiHelm un effet indésirable médicamenteux ou une suspicion de médicament non conforme. Le rapport est structuré automatiquement au format requis par la DPMED et transmis par API. C'est la digitalisation complète du circuit de pharmacovigilance béninois — aujourd'hui entièrement papier.
+   111→   111→V5 — Tableau de bord ABRP — Santé publique
+   112→   112→MédiHelm fournit à l'ABRP un tableau de bord agrégé et anonymisé des données de stock et de dispensation : médicaments en tension nationale, districts sous-approvisionnés, DCI les plus prescrites, tendances de consommation par région. Données 100% anonymisées — zéro information individuelle d'officine. C'est un outil de pilotage sanitaire que l'ABRP n'a pas.
+   113→   113→V6 — Certification DPMED comme outil conforme
+   114→   114→MédiHelm est soumis à un processus de certification auprès de la DPMED comme outil de gestion conforme aux exigences légales béninoises : registre stupéfiants, archivage ordonnances, format des déclarations réglementaires, traçabilité des destructions. Lors d'un contrôle DPMED dans une officine, le pharmacien MédiHelm génère tous les documents requis en 30 secondes. Aucun concurrent local n'a ce niveau de conformité certifiée.
+   115→   115→V7 — Pricing universel — la conformité n'est pas un luxe
+   116→   116→Tous les modules réglementaires (stupéfiants, ordonnances, pharmacovigilance, destructions, alertes DPMED) sont inclus dans TOUS les plans, y compris STEM à 12 900 FCFA/mois. Argument institutionnel fort : la conformité réglementaire ne doit pas être réservée aux grandes officines. MédiHelm porte cette vision devant la DPMED et l'ABRP.
+   117→   117→5.2 Plan de partenariat — 6 rendez-vous prioritaires
+   118→   118→6. Périmètre Fonctionnel Enrichi — Vue d'Ensemble
+   119→   119→6.1 Les cinq espaces de la plateforme
+   120→   120→6.2 Les 19 modules de l'espace pharmacie
+   121→   121→7. Espace Patient — MédiHelm Patient
+   122→   122→7.1 Fonctionnalités de base (inchangées)
+   123→   123→F-P01 Recherche médicaments — nom commercial, DCI, pathologie, code ATC, génériques.
+   124→   124→F-P02 Géolocalisation pharmacies — carte OpenStreetMap, rayon paramétrable, filtres.
+   125→   125→F-P03 Pharmacie de garde — temps réel, planning hebdomadaire, bouton SOS urgence.
+   126→   126→F-P04 Commande pré-pharmacie — panier, confirmation, file d'attente virtuelle, paiement Fedapay.
+   127→   127→F-P05 Suivi commande temps réel — statuts push + SMS.
+   128→   128→F-P06 Profil patient — dossier santé simplifié, profils familiaux.
+   129→   129→F-P07 Ordonnances — upload, transmission, suivi renouvellements.
+   130→   130→F-P08 Notifications — rappels prise, fin traitement, disponibilité.
+   131→   131→F-P09 Fidélité — points, récompenses, badges.
+   132→   132→F-P10 Différenciants — comparateur prix, génériques, carte urgence, chat conseil, avis vérifiés.
+   133→   133→7.2 Nouvelles fonctionnalités v2.0
+   134→   134→F-P11 — Alerte rappel de lot patient
+   135→   135→Si un médicament acheté par le patient fait l'objet d'un rappel officiel DPMED / LNCQ, le patient reçoit immédiatement une notification push + SMS avec les instructions officielles.
+   136→   136→La notification inclut : nom du médicament, numéro de lot concerné, date d'achat, pharmacie d'achat, conduite à tenir officielle de la DPMED.
+   137→   137→Le patient peut confirmer depuis l'application qu'il a bien pris connaissance de l'alerte.
+   138→   138→F-P12 — Vérification d'authenticité médicament
+   139→   139→Le patient peut scanner le code-barres ou QR code d'un médicament pour vérifier s'il figure dans la base de données des médicaments agréés au Bénin ou si des alertes de contrefaçon le concernent.
+   140→   140→Résultat en 3 secondes : Médicament conforme / Alerte en cours / Non référencé (contacter pharmacien).
+   141→   141→Fonctionnalité gratuite et publique — aucun compte requis — arme anti-contrefaçon directement dans la main du patient.
+   142→   142→F-P13 — Carnet de vaccination numérique
+   143→   143→Enregistrement des vaccinations avec date, lot du vaccin, centre de santé.
+   144→   144→Rappels automatiques pour les vaccins de rappel (enfants et adultes).
+   145→   145→Partage sécurisé du carnet de vaccination avec un professionnel de santé via QR code.
+   146→   146→8. Espace Pharmacie — MédiHelm Pro
+   147→   147→8.1 Modules M01 à M15 — Inchangés
+   148→   148→Les 15 modules de la version 1.0 sont maintenus intégralement. Se référer au CDC v1.0 pour le détail de chaque module. Les évolutions notables par module sont listées ci-dessous.
+   149→   149→9. Module M16 — Contrôle Qualité et Pharmacovigilance
+   150→   150→9.1 Positionnement
+   151→   151→Le module M16 est le différenciateur absolu de MédiHelm face à toute concurrence locale. Il digitalise deux processus aujourd'hui entièrement manuels au Bénin : la veille qualité des médicaments en officine et le signalement des effets indésirables médicamenteux (pharmacovigilance). Il est alimenté par un partenariat direct avec le LNCQ et la DPMED.
+   152→   152→9.2 Veille qualité — Base de données des médicaments suspects
+   153→   153→Base de données locale et synchronisée des médicaments signalés comme suspects, contrefaits, non conformes ou retirés du marché, alimentée par la DPMED, le LNCQ, l'OMS et l'OMS-Afrique.
+   154→   154→Mise à jour mensuelle automatique depuis les sources officielles (API DPMED si disponible, sinon import manuel validé).
+   155→   155→Lors d'une vente ou d'une réception de stock, le système vérifie automatiquement si le médicament figure dans la base de vigilance.
+   156→   156→Alerte immédiate au pharmacien si un lot reçu ou en stock correspond à un médicament sous surveillance.
+   157→   157→Consultation libre depuis l'interface : le pharmacien peut rechercher n'importe quel médicament pour vérifier son statut réglementaire.
+   158→   158→9.3 Signalement d'effet indésirable — Pharmacovigilance numérique
+   159→   159→Formulaire de signalement d'effet indésirable médicamenteux (EIM) intégré dans l'interface pharmacien.
+   160→   160→Le formulaire est pré-rempli depuis la fiche patient et la fiche médicament (médicament suspect, dose, durée, description de l'EIM, gravité).
+   161→   161→Le rapport est structuré automatiquement au format requis par la DPMED Bénin et l'OMS.
+   162→   162→Transmission directe par API à la DPMED si le partenariat est actif, sinon export PDF sécurisé pour envoi manuel.
+   163→   163→Suivi du signalement : statut (soumis, en cours d'analyse, clôturé), retour d'information de la DPMED.
+   164→   164→Tableau de bord pharmacovigilance : nombre de signalements par médicament, par DCI, par période.
+   165→   165→9.4 Fiche technique DCI enrichie
+   166→   166→Chaque médicament du catalogue dispose d'une fiche DCI complète accessible en 2 clics depuis le POS : posologie standard, contre-indications, interactions majeures, effets indésirables fréquents, conditions de conservation.
+   167→   167→Les données sont issues de la base internationale WHO Essential Medicines et adaptées au contexte béninois.
+   168→   168→Alertes interactions : lors de la délivrance sur ordonnance multi-médicaments, le système signale automatiquement les interactions cliniquement significatives.
+   169→   169→Informations de substitution : générique disponible au Bénin, prix comparé, fabricant.
+   170→   170→9.5 Tableau de bord Contrôle Qualité
+   171→   171→Synthèse des alertes qualité actives concernant les médicaments en stock dans l'officine.
+   172→   172→Historique des signalements de pharmacovigilance soumis par l'officine.
+   173→   173→Score de conformité qualité de l'officine : ratio médicaments en alerte vs stock total, délai moyen de traitement des alertes.
+   174→   174→Rapport mensuel de pharmacovigilance exportable en PDF pour archivage réglementaire.
+   175→   175→10. Module M17 — Intégration SoBAPS et Grossistes
+   176→   176→10.1 Intégration SoBAPS
+   177→   177→Réception automatique des livraisons SoBAPS
+   178→   178→Quand une pharmacie abonnée MédiHelm reçoit une livraison de la SoBAPS, l'officine scanne ou saisit le bon de livraison SoBAPS et MédiHelm met à jour automatiquement le stock : médicaments réceptionnés, quantités, numéros de lot, dates d'expiration, prix d'achat SoBAPS.
+   179→   179→La SoBAPS reçoit une confirmation de réception numérique depuis MédiHelm via webhook — traçabilité complète de sa chaîne de distribution.
+   180→   180→Réconciliation automatique : si la livraison reçue diffère du bon de livraison SoBAPS, un écart est signalé immédiatement au pharmacien et à la SoBAPS.
+   181→   181→Tableau de bord SoBAPS — Portail institutionnel
+   182→   182→La SoBAPS dispose d'un portail sécurisé MédiHelm (espace MédiHelm Institutionnel) permettant de consulter les confirmations de réception agrégées de ses livraisons vers les officines abonnées.
+   183→   183→Données visibles : taux de confirmation de réception par officine, délais moyens de réception, écarts signalés.
+   184→   184→Données non visibles : stock individuel des officines, données commerciales, historique des ventes.
+   185→   185→Ce tableau de bord est un argument direct pour les audits Fonds Mondial et USAID de la SoBAPS.
+   186→   186→10.2 Intégration UbiPharm et Promopharma
+   187→   187→API de commande automatique
+   188→   188→Quand le stock d'un médicament atteint le seuil minimum et que l'option commande automatique est activée, MédiHelm génère un bon de commande structuré et le transmet via API directement dans le système de gestion des commandes d'UbiPharm ou de Promopharma.
+   189→   189→Format de la commande : référence grossiste, DCI, nom commercial, quantité demandée, pharmacie commandante, date souhaitée de livraison.
+   190→   190→Le grossiste confirme la commande (disponibilité, quantité, date de livraison) via API retour — l'information s'affiche dans MédiHelm sans aucune saisie manuelle.
+   191→   191→Le pharmacien peut passer en revue et modifier toute commande automatique avant son envoi effectif — aucune commande n'est transmise sans validation pharmacien.
+   192→   192→Catalogue grossiste synchronisé
+   193→   193→Le catalogue de médicaments d'UbiPharm et de Promopharma est synchronisé dans MédiHelm : références, prix d'achat en vigueur, disponibilité temps réel, promotions.
+   194→   194→Comparaison multi-grossiste pour un même médicament : prix, stock disponible, délai de livraison — le pharmacien choisit le meilleur fournisseur en un clic.
+   195→   195→Historique des achats par grossiste : volumes, montants, délais constatés, score de fiabilité.
+   196→   196→Tableau de bord grossiste — Portail partenaire
+   197→   197→UbiPharm et Promopharma disposent chacun d'un portail partenaire MédiHelm.
+   198→   198→Données visibles : commandes reçues des officines MédiHelm, volume agrégé par DCI, tendances de la demande sur 30/90 jours.
+   199→   199→Données non visibles : données individuelles des officines clientes, prix de vente, marges.
+   200→   200→Ce portail est l'argument central de la proposition de valeur aux grossistes.
+   201→   201→11. Module M18 — Alertes DPMED et Rappels de Lot
+   202→   202→11.1 Canal officiel de diffusion nationale
+   203→   203→MédiHelm devient le canal numérique officiel par lequel la DPMED et le LNCQ diffusent les alertes pharmaceutiques aux officines béninoises abonnées. Ce module fonctionne comme une infrastructure de diffusion d'urgence sanitaire.
+   204→   204→11.2 Types d'alertes gérées
+   205→   205→11.3 Processus technique de diffusion
+   206→   206→Entrée de l'alerte : API DPMED (si partenariat technique actif) ou saisie manuelle par l'équipe MédiHelm Admin après réception de la circulaire DPMED.
+   207→   207→Identification des officines concernées : le système identifie automatiquement toutes les pharmacies MédiHelm ayant le médicament ou le lot concerné en stock actif.
+   208→   208→Identification des patients concernés : le système identifie les patients MédiHelm ayant acheté le médicament / lot concerné dans les 90 derniers jours.
+   209→   209→Diffusion multi-canal : notification push application, SMS via AfricasTalking, email si renseigné.
+   210→   210→Accusé de réception : chaque pharmacien doit confirmer la prise en connaissance de l'alerte depuis MédiHelm. Le tableau de bord DPMED affiche le taux de prise en connaissance en temps réel.
+   211→   211→Suivi de traitement : le pharmacien documente l'action prise (mise en quarantaine, retour grossiste, destruction) directement depuis l'alerte dans MédiHelm.
+   212→   212→11.4 Portail alertes DPMED
+   213→   213→La DPMED dispose d'un portail sécurisé dans l'espace MédiHelm Institutionnel pour émettre les alertes directement.
+   214→   214→Tableau de bord DPMED : nombre d'officines notifiées, taux d'accusé de réception, actions prises par officine, lots mis en quarantaine ou détruits.
+   215→   215→Export des données de traitement au format requis pour les rapports institutionnels.
+   216→   216→12. Module M19 — Conformité Réglementaire et Certification
+   217→   217→12.1 Objectif
+   218→   218→MédiHelm vise la certification officielle auprès de la DPMED comme outil de gestion conforme aux exigences légales et réglementaires béninoises. Ce module couvre tous les documents, registres et procédures dont la conformité est vérifiée lors des inspections DPMED dans les officines.
+   219→   219→12.2 Documents générables pour inspection DPMED
+   220→   220→12.3 Processus de certification DPMED
+   221→   221→Soumission du dossier de conformité MédiHelm à la DPMED — documentation complète des modules M06, M11, M16, M18, M19.
+   222→   222→Audit technique par les inspecteurs DPMED sur une officine pilote — démonstration de toutes les fonctions réglementaires.
+   223→   223→Période d'observation — 3 mois de fonctionnement documenté sur 5 officines pilotes.
+   224→   224→Délivrance du label de conformité DPMED — MédiHelm est officiellement reconnu comme outil conforme.
+   225→   225→Communication publique : la DPMED mentionne MédiHelm dans ses communications aux officines comme outil certifié.
+   226→   226→12.4 Badge de conformité MédiHelm
+   227→   227→Toutes les officines abonnées MédiHelm affichent le badge de conformité numérique sur leur espace public MédiHelm Patient : certification DPMED, date d'inspection, modules conformes. C'est un argument de confiance directement visible par les patients.
+   228→   228→13. Espace Promoteur — MédiHelm Network
+   229→   229→13.1 Fonctionnalités inchangées
+   230→   230→Le dashboard réseau, la gestion RH multi-sites, la gestion des stocks multi-sites et le reporting consolidé de la v1.0 sont maintenus. Se référer au CDC v1.0 sections 7.1 à 7.5.
+   231→   231→13.2 Nouveautés v2.0 pour le promoteur
+   232→   232→Tableau de bord conformité réseau : score de conformité DPMED de chaque officine, alertes en attente de traitement, documents expirant.
+   233→   233→Rapport d'alertes réseau : historique des alertes DPMED reçues par chaque officine et actions prises.
+   234→   234→Commande groupée via API grossiste : le promoteur peut passer une commande groupée pour toutes ses officines en une seule opération, envoyée directement à UbiPharm ou Promopharma.
+   235→   235→Score de santé réglementaire par officine : ratio de conformité sur les modules M06, M11, M16, M18, M19.
+   236→   236→14. Module Analytics IA — MédiHelm Analytics v2.0
+   237→   237→14.1 Nouveaux domaines d'analyse
+   238→   238→14.2 Score de conformité — Calcul
+   239→   239→Registre stupéfiants à jour (0 entrée manquante) : 25 points.
+   240→   240→Taux de traitement des alertes DPMED < 24h : 25 points.
+   241→   241→Documents officiels valides (licence, diplômes) : 20 points.
+   242→   242→Signalements pharmacovigilance soumis dans les délais : 15 points.
+   243→   243→PV de destruction à jour : 15 points.
+   244→   244→Score total : 0-100. En dessous de 70 : alerte DIRECTEUR + recommandation immédiate.
+   245→   245→15. Architecture Technique
+   246→   246→15.1 Composants supplémentaires v2.0
+   247→   247→15.2 Sécurité renforcée pour les données institutionnelles
+   248→   248→Les échanges avec les portails DPMED, SoBAPS et ABRP utilisent une authentification mutuelle par certificat (mTLS) en plus du JWT.
+   249→   249→Les données des portails institutionnels sont stockées dans des schémas PostgreSQL séparés des données des pharmacies.
+   250→   250→Aucune donnée individuelle d'officine (stock, ventes, patients) n'est transmise aux institutions — uniquement des agrégats anonymisés.
+   251→   251→Les alertes DPMED en entrée sont validées par signature numérique avant diffusion — impossibilité d'injection de fausses alertes.
+   252→   252→16. Sécurité et Conformité
+   253→   253→16.1 Conformité APDP Bénin
+   254→   254→Déclaration de traitement auprès de l'APDP (Autorité de Protection des Données Personnelles du Bénin) avant le lancement.
+   255→   255→Consentement explicite du patient pour chaque type de traitement de données de santé.
+   256→   256→Droit à l'oubli : suppression complète et vérifiable sur demande.
+   257→   257→Rapport annuel de conformité APDP.
+   258→   258→16.2 Données institutionnelles — Règles absolues
+   259→   259→Aucune donnée individuelle d'officine ne transite vers les portails institutionnels — uniquement des agrégats.
+   260→   260→Les alertes DPMED sont diffusées sans révéler l'identité des officines qui ont le lot en stock aux autres officines.
+   261→   261→Les rapports de pharmacovigilance soumis par les pharmacies sont pseudonymisés avant transmission à la DPMED — seule la DPMED peut lever la pseudonymisation sur demande judiciaire.
+   262→   262→17. Modèle de Pricing v2.0
+   263→   263→17.1 Philosophie
+   264→   264→Le pricing v2.0 maintient la philosophie de la v1.0 : tous les modules dans tous les plans. Les 4 nouveaux modules institutionnels (M16, M17, M18, M19) sont inclus dans tous les plans sans supplément. La conformité réglementaire et la sécurité sanitaire ne sont pas des options premium.
+   265→   265→17.2 Plans tarifaires v2.0 — MédiHelm Pro
+   266→   266→17.3 Tarif partenaires institutionnels
+   267→   267→17.4 Remises v2.0
+   268→   268→Remise partenaires DPMED certifiés : -10% supplémentaire sur tout plan pour les officines ayant obtenu le label de conformité DPMED via MédiHelm.
+   269→   269→Remise introduction grossiste : -20% le premier trimestre pour toute officine recommandée par UbiPharm ou Promopharma.
+   270→   270→Remise réseau promoteur : -20% à -40% selon taille du réseau (maintenu depuis v1.0).
+   271→   271→Essai gratuit 30 jours BLOOM maintenu — aucune carte bancaire requise.
+   272→   272→18. Roadmap Enrichie v2.0
+   273→   273→19. Plan de Partenariat Institutionnel — Les 6 Rendez-vous
+   274→   274→19.1 Séquence et préparation
+   275→   275→Les rendez-vous institutionnels doivent être préparés avec des démonstrations concrètes et des documents de proposition formels. L'ordre ci-dessous est stratégique : commencer par la DPMED (qui légitime tout le reste) avant d'approcher les acteurs privés.
+   276→   276→19.2 Rendez-vous 1 — DPMED
+   277→   277→Timing : Dès la disponibilité d'une démo fonctionnelle du module M18 (Phase 4b)
+   278→   278→Interlocuteur cible : Directeur de la DPMED + Chef du service pharmacovigilance
+   279→   279→Levier d'entrée : Réseau relationnel LNCQ du fondateur — prise de contact directe
+   280→   280→Objet : Présentation du canal numérique de diffusion d'alertes + module pharmacovigilance
+   281→   281→Documents à apporter : Démo live MédiHelm, note de proposition partenariat 2 pages, dossier technique module M18
+   282→   282→Résultat visé : Protocole de partenariat signé — MédiHelm devient canal officiel alertes DPMED
+   283→   283→19.3 Rendez-vous 2 — SoBAPS
+   284→   284→Timing : Simultané ou juste après DPMED — Module M17 SoBAPS disponible
+   285→   285→Interlocuteur cible : Directeur Général SoBAPS + Responsable distribution
+   286→   286→Objet : Intégration traçabilité livraisons SoBAPS vers officines privées
+   287→   287→Argument principal : Valeur pour les audits Fonds Mondial et USAID : traçabilité numérique bout en bout
+   288→   288→Résultat visé : Accord de connexion API + mention partenaire officiel SoBAPS
+   289→   289→19.4 Rendez-vous 3 — UbiPharm Bénin
+   290→   290→Timing : Après signature DPMED — la crédibilité institutionnelle renforce la proposition commerciale
+   291→   291→Interlocuteur cible : Directeur UbiPharm Bénin + Responsable commercial
+   292→   292→Objet : API commande automatique + portail partenaire tableau de bord demande
+   293→   293→Argument principal : ROI direct : zéro appel téléphonique, zéro erreur de saisie, données demande en temps réel
+   294→   294→Résultat visé : Convention de partenariat + recommandation MédiHelm à leurs 600 officines clientes
+   295→   295→19.5 Rendez-vous 4 — Promopharma
+   296→   296→Timing : Immédiatement après ou simultanément à UbiPharm
+   297→   297→Objet : Même proposition qu'UbiPharm — la concurrence entre grossistes joue en faveur de MédiHelm
+   298→   298→Stratégie : Mentionner que UbiPharm est en discussion — pression concurrentielle immédiate
+   299→   299→Résultat visé : Même convention que UbiPharm — présence sur les deux grossistes majeurs
+   300→   300→19.6 Rendez-vous 5 — ABRP
+   301→   301→Timing : Après signature SoBAPS et UbiPharm — la légitimité de la chaîne est établie
+   302→   302→Objet : Tableau de bord agrégé anonymisé tensions d'approvisionnement national
+   303→   303→Argument principal : Outil de santé publique gratuit — aide à la détection des déserts pharmaceutiques
+   304→   304→Résultat visé : Accréditation outil conforme + communication officielle ABRP
+   305→   305→19.7 Rendez-vous 6 — Ordre des Pharmaciens du Bénin
+   306→   306→Timing : Dès réactivation de l'Ordre — à surveiller
+   307→   307→Objet : Premier logiciel certifié conforme par l'Ordre Professionnel
+   308→   308→Résultat visé : Recommandation officielle aux membres + label Ordre sur MédiHelm
+   309→   309→20. Contraintes et Risques v2.0
+   310→   310→20.1 Risques spécifiques aux intégrations institutionnelles
+   311→   311→21. Glossaire Etendu
+   312→   312→MédiHelm CDC v2.0  |  YEHI OR Tech © 2025  |  Document confidentiel — Reproduction interdite
+   313→   313→
+   314→   314→--- TABLES ---
+   315→   315→Vision v2.0 : MédiHelm est la couche numérique qui connecte toute la chaîne pharmaceutique béninoise — du fabricant au patient, en passant par les institutions réglementaires, les grossistes, et les pharmacies d'officine. C'est une infrastructure sanitaire nationale, pas un simple logiciel de gestion.
+   316→   316→CORRECTION v2.0 : La CAME (Centrale d'Achat des Médicaments Essentiels) a été dissoute et remplacée en septembre 2020 par la SoBAPS SA (Société Béninoise pour l'Approvisionnement en Produits de Santé), société d'Etat dont l'Etat béninois est l'actionnaire unique. Tous les documents MédiHelm antérieurs mentionnant la CAME doivent référencer la SoBAPS. La SoBAPS est auditée par le Fonds Mondial, UNITAID, la Banque Mondiale et l'USAID, et se conforme aux Bonnes Pratiques de Distribution de l'UEMOA.
+   317→   317→Axe | AS PHARM | PharMap | MédiHelm v2.0
+   318→   318→Type de solution | Logiciel back-office | App patient mobile | Infrastructure pharmaceutique nationale
+   319→   319→Back-office pharmacie | Oui | Non | Oui — exhaustif 19 modules
+   320→   320→Espace patient | Non | Oui | Oui — intégré et enrichi
+   321→   321→Intégration SoBAPS | Non | Non | Oui — réception automatique
+   322→   322→Intégration UbiPharm/Promopharma | Partielle (commandes) | Non | Oui — API bidirectionnelle
+   323→   323→Alertes DPMED temps réel | Non | Non | Oui — diffusion nationale
+   324→   324→Pharmacovigilance numérique | Non | Non | Oui — module dédié M16
+   325→   325→Contrôle qualité / LNCQ | Non | Non | Oui — base données + signalement
+   326→   326→Conformité réglementaire certifiée | Non documenté | Non | Oui — certification DPMED visée
+   327→   327→Analytics IA | Non | Non | Oui — 7 domaines + réseau
+   328→   328→Multi-officines promoteur | Non | Non | Oui — espace dédié
+   329→   329→Recommendation institutionnelle | Ubipharm, Laborex | Non | SoBAPS + DPMED + ABRP + grossistes
+   330→   330→Niveau | Acteurs | Flux principal | Intégration MédiHelm
+   331→   331→1. Réglementation | DPMED, ABRP, LNCQ, Ministère Santé | Autorisation, contrôle, surveillance | Module M18 alertes + M19 conformité
+   332→   332→2. Approvisionnement public | SoBAPS SA | MEG vers formations sanitaires et officines privées | Module M17 réception automatique SoBAPS
+   333→   333→3. Distribution privée | UbiPharm, Promopharma, Eurapharma | Médicaments vers officines privées | Module M17 API grossistes + commandes auto
+   334→   334→4. Officines | ~600 pharmacies agréées au Bénin | Dispensation au public | MédiHelm Pro — 19 modules
+   335→   335→5. Patients | Population générale | Accès aux médicaments | MédiHelm Patient — espace public
+   336→   336→MédiHelm v2.0 résout ces 6 douleurs institutionnelles. C'est la proposition de valeur qui ouvre les portes du Ministère de la Santé.
+   337→   337→Bénéfice pour MédiHelm | Bénéfice pour le grossiste
+   338→   338→Accès au réseau de 600 officines clientes du grossiste | Commandes structurées numériques — zéro appel téléphonique
+   339→   339→Recommandation active par le grossiste (force de vente externe) | Réduction des erreurs de commande et des litiges
+   340→   340→Crédibilité institutionnelle renforcée | Tableau de bord agrégé de la demande de ses clients
+   341→   341→Données de marché précieuses (anonymisées) | Fidélisation des officines clientes via un outil intégré
+   342→   342→Réduction du coût d'acquisition client | Positionnement digital moderne sur le marché béninois
+   343→   343→Priorité | Institution / Acteur | Objet de la rencontre | Livrable attendu | Levier d'entrée
+   344→   344→1 | DPMED — Direction Pharmacie | Présenter module alertes rappel de lot + pharmacovigilance numérique | Protocole de partenariat diffusion alertes | Réseau LNCQ du fondateur — accès direct
+   345→   345→2 | SoBAPS SA | Présenter intégration réception livraisons SoBAPS dans MédiHelm | Accord de connexion API + mention partenaire | Valeur traçabilité pour auditeurs FMondial/USAID
+   346→   346→3 | UbiPharm Bénin | Présenter API commande automatique + tableau de bord demande | Convention partenaire — recommandation réseau officines | Démonstration ROI : réduction appels/erreurs
+   347→   347→4 | Promopharma | Même démarche qu'UbiPharm | Convention partenaire | Pression concurrentielle avec UbiPharm
+   348→   348→5 | ABRP | Présenter tableau de bord agrégé anonymisé tensions approvisionnement | Accréditation outil conforme | Valeur santé publique — données agrégées
+   349→   349→6 | Ordre Pharmaciens Bénin | Dès réactivation — outil certifié conforme | Recommandation officielle | Certification DPMED en cours
+   350→   350→Espace | Nom produit | Accès | Canal
+   351→   351→Patient / Grand public | MédiHelm Patient | Public + compte optionnel | Web + PWA Android
+   352→   352→Pharmacie (opérations) | MédiHelm Pro | Authentifié RBAC | Web + PWA tablette/PC
+   353→   353→Promoteur multi-officines | MédiHelm Network | PROMOTEUR | Web dashboard
+   354→   354→Analytics IA | MédiHelm Analytics | Inclus Pro + Network | Onglet dédié
+   355→   355→Institutionnel | MédiHelm Institutionnel | DPMED / SoBAPS / ABRP | Portail sécurisé dédié
+   356→   356→Administration plateforme | MédiHelm Admin | YEHI OR Tech | Backoffice interne
+   357→   357→N° | Module | Domaine | Nouveauté v2.0
+   358→   358→M01 | Gestion du stock | Inventaire, lots, péremptions, alertes, CMUP | —
+   359→   359→M02 | Point de Vente (POS) | Caisse, ordonnances, reçus, multi-caissier | —
+   360→   360→M03 | Gestion des commandes | Commandes fournisseurs, réception, retours | API UbiPharm/Promopharma
+   361→   361→M04 | Gestion des fournisseurs | Référentiel, conditions, évaluation | Score qualité enrichi
+   362→   362→M05 | Gestion des patients | Dossier, historique, fidélité, crédit | Lien compte MédiHelm Patient
+   363→   363→M06 | Gestion des ordonnances | Numérisation, validation, stupéfiants | Format DPMED certifié
+   364→   364→M07 | Gestion du personnel | RH, planning, congés, pointage, paie | Multi-sites promoteur
+   365→   365→M08 | Gestion financière | Comptabilité, caisse, rapports, export | SYSCOHADA révisé
+   366→   366→M09 | Pharmacie de garde | Planning, diffusion, rapport de garde | Alertes patients enrichies
+   367→   367→M10 | Médicaments remboursables | CNSS, RAMU, assurances, tiers payant | —
+   368→   368→M11 | Retours et destructions | SAV, périmés, PV, déclaration DPMED | Format déclaration certifié
+   369→   369→M12 | Communication pharmacie-patient | Push, SMS, campagnes, rappels | Alertes DPMED relayées
+   370→   370→M13 | Gestion documentaire | Licences, diplômes, contrats, coffre-fort | Alertes expiration enrichies
+   371→   371→M14 | Tableau de bord opérationnel | KPIs, alertes temps réel | Widget alertes DPMED intégré
+   372→   372→M15 | Analytics IA | Prédictions, scores, rapports | Domaine réseau promoteur
+   373→   373→M16 | Contrôle Qualité et Pharmacovigilance | Veille qualité, alertes LNCQ, signalement EI | NOUVEAU v2.0
+   374→   374→M17 | Intégration SoBAPS et grossistes | API SoBAPS, UbiPharm, Promopharma | NOUVEAU v2.0
+   375→   375→M18 | Alertes DPMED et rappels de lot | Canal officiel diffusion nationale | NOUVEAU v2.0
+   376→   376→M19 | Conformité réglementaire | Certification DPMED, exports légaux | NOUVEAU v2.0
+   377→   377→Module | Evolution v2.0
+   378→   378→M03 Commandes fournisseurs | Transmission API directe vers UbiPharm et Promopharma — plus d'appel téléphonique
+   379→   379→M06 Ordonnances | Export au format certifié DPMED — valide lors des contrôles inspecteurs
+   380→   380→M11 Destructions | PV de destruction au format officiel DPMED — déclaration numérique directe
+   381→   381→M12 Communication | Relais automatique des alertes DPMED/LNCQ vers les patients concernés
+   382→   382→M14 Dashboard | Widget alertes institutionnelles en tête de tableau de bord — DPMED, SoBAPS, ABRP
+   383→   383→M15 Analytics IA | Nouveau domaine : Réseau promoteur + Conformité réglementaire
+   384→   384→Ce module est directement issu de l'expérience du fondateur au LNCQ. Il porte une crédibilité institutionnelle qu'aucun concurrent ne peut reproduire sans réseau équivalent au sein du Ministère de la Santé.
+   385→   385→Type d'alerte | Source | Délai de diffusion | Destinataires
+   386→   386→Rappel de lot — médicament non conforme | DPMED / LNCQ | < 2 minutes après émission | Tous pharmaciens ayant le lot en stock + patients ayant acheté
+   387→   387→Médicament contrefait détecté | DPMED / LNCQ / douanes | < 2 minutes | Tous pharmaciens + alerte publique MédiHelm Patient
+   388→   388→Médicament retiré du marché (AMM suspendue) | DPMED | < 2 minutes | Tous pharmaciens abonnés
+   389→   389→Alerte de pharmacovigilance nationale | DPMED | < 5 minutes | Pharmaciens concernés par le médicament en stock
+   390→   390→Rappel de lot — médicament reçu de SoBAPS | SoBAPS + DPMED | < 2 minutes | Pharmaciens ayant réceptionné le lot SoBAPS concerné
+   391→   391→Information réglementaire (nouvelle circulaire) | DPMED | Immédiat | Tous pharmaciens abonnés
+   392→   392→Document | Délai de génération | Format | Exigence légale
+   393→   393→Registre des stupéfiants et psychotropes | < 30 secondes | PDF signé + Excel | Obligatoire — contrôle DPMED
+   394→   394→Registre des ordonnances | < 30 secondes | PDF | Archivage 3 ans minimum
+   395→   395→Procès-verbal de destruction médicaments périmés | < 1 minute | PDF format DPMED | Obligatoire avant destruction
+   396→   396→Déclaration trimestrielle des stupéfiants | < 2 minutes | Format DPMED | Envoi trimestriel DPMED
+   397→   397→Rapport de pharmacovigilance mensuel | < 2 minutes | Format OMS/DPMED | Recommandé — obligatoire si EIM grave
+   398→   398→Etat de stock annuel | < 1 minute | Excel / PDF | Rapport annuel officine
+   399→   399→Bilan des rappels de lot traités | < 1 minute | PDF | Sur demande inspecteur
+   400→   400→Domaine v2.0 | Analyses ajoutées | Accès RBAC
+   401→   401→Conformité réglementaire | Score de conformité globale, alertes DPMED non traitées, documents expirant, signalements pharmacovigilance en retard | DIRECTEUR, PROMOTEUR
+   402→   402→Intégration grossiste | Performance des commandes automatiques, délais grossiste vs promesse, taux de confirmation, économies réalisées vs commande manuelle | DIRECTEUR, PROMOTEUR
+   403→   403→Alertes qualité | Médicaments sous surveillance en stock, historique des rappels de lot traités, score de réactivité aux alertes DPMED | DIRECTEUR, PHARMACIEN
+   404→   404→Composant | Technologie | Rôle
+   405→   405→Portail institutionnel | Next.js — espace séparé | Interface DPMED, SoBAPS, ABRP, grossistes
+   406→   406→API DPMED gateway | NestJS module dédié | Réception alertes DPMED + envoi signalements pharmacovigilance
+   407→   407→API grossistes | NestJS module dédié | Transmission commandes UbiPharm / Promopharma + réception confirmations
+   408→   408→API SoBAPS | NestJS module dédié | Réception confirmations livraisons SoBAPS + réconciliation stock
+   409→   409→Base veille qualité | PostgreSQL table dédiée + sync mensuelle | Médicaments suspects, contrefaits, rappels de lot
+   410→   410→Queue alertes | BullMQ — priorité haute | Diffusion alertes DPMED < 2 min — file prioritaire
+   411→   411→Webhook DPMED | NestJS controller dédié | Réception alertes en temps réel depuis le système DPMED
+   412→   412→Les modules M16 (Pharmacovigilance), M17 (Grossistes), M18 (Alertes DPMED) et M19 (Conformité) sont inclus dans TOUS les plans y compris STEM. C'est l'argument institutionnel central devant la DPMED et l'ABRP.
+   413→   413→STEM | BLOOM | CROWN | NETWORK
+   414→   414→Cible | < 200 tx/mois | 200-600 tx/mois | 600-1500 tx/mois | Réseau 2+ officines
+   415→   415→Prix mensuel | 12 900 FCFA | 22 900 FCFA | 38 900 FCFA | Sur devis
+   416→   416→Prix annuel (équiv. mensuel) | 10 900 FCFA | 19 500 FCFA | 33 000 FCFA | Sur devis
+   417→   417→Modules inclus | Tous les 19 | Tous les 19 | Tous les 19 | Tous 19 + multi-sites
+   418→   418→Alertes DPMED (M18) | Oui — inclus | Oui — inclus | Oui — inclus | Oui — inclus
+   419→   419→Pharmacovigilance (M16) | Oui — inclus | Oui — inclus | Oui — inclus | Oui — inclus
+   420→   420→API grossistes (M17) | 1 grossiste | 2 grossistes | Illimité | Illimité réseau
+   421→   421→Conformité DPMED (M19) | Basique | Complète | Certifiée + PV auto | Réseau certifié
+   422→   422→Utilisateurs | Jusqu'à 3 | Jusqu'à 8 | Illimité | Illimité / site
+   423→   423→Support | Email 72h | Email 24h + chat | Prioritaire + tel | Dédié + SLA
+   424→   424→Partenaire | Accès MédiHelm | Tarif | Contrepartie
+   425→   425→SoBAPS SA | Portail confirmations livraisons | Gratuit — partenariat public | Recommandation aux officines clientes + logo partenaire
+   426→   426→DPMED | Portail diffusion alertes + pharmacovigilance | Gratuit — partenariat Ministère | Label de conformité officiel + recommandation
+   427→   427→ABRP | Tableau de bord agrégé anonymisé | Gratuit — partenariat institutionnel | Accréditation outil conforme + communication officielle
+   428→   428→UbiPharm / Promopharma | Portail commandes + tableau de bord demande | Gratuit | Recommandation à leur réseau + co-marketing
+   429→   429→Ordre Pharmaciens Bénin | Accès agrégats anonymisés | Gratuit | Recommandation officielle aux membres
+   430→   430→Phase | Durée | Livraisons principales | Priorité institutionnelle
+   431→   431→Phase 0 — Fondations | S1-4 | Architecture multitenant, auth, RBAC, onboarding | —
+   432→   432→Phase 1 — Core POS & Stock | S5-10 | M01 + M02 + M14, mode offline | —
+   433→   433→Phase 2 — Gestion complète | S11-18 | M03 à M09, beta fermée 5 officines pilotes | —
+   434→   434→Phase 3 — Patient & Géoloc | S19-24 | Espace patient F-P01 à F-P05 | —
+   435→   435→Phase 4 — Analytics IA | S25-30 | M15 complet, prédictions, scores | —
+   436→   436→Phase 4b — Institutionnel | S28-34 | M16 pharmacovigilance, M18 alertes DPMED | DPMED + LNCQ — rendez-vous S20
+   437→   437→Phase 5 — Grossistes | S31-38 | M17 API UbiPharm + Promopharma + SoBAPS | UbiPharm + SoBAPS — rendez-vous S22
+   438→   438→Phase 5b — Conformité | S35-40 | M19 certification DPMED + exports légaux | DPMED — soumission dossier S36
+   439→   439→Phase 6 — Network | S37-44 | MédiHelm Network promoteur complet | —
+   440→   440→Phase 7 — Patient avancé | S45-50 | F-P11 à F-P13 : alertes, vérification, vaccination | —
+   441→   441→Certification DPMED | S40-52 | Processus certification + label officiel | DPMED — objectif fin année 1
+   442→   442→Lancement public Bénin | S28 | Go-live espace patient + plans STEM et BLOOM | —
+   443→   443→Risque | Probabilité | Impact | Mitigation
+   444→   444→DPMED refuse le partenariat ou tarde | Faible (levier LNCQ fort) | Elevé | Développer M18 indépendamment — diffusion manuelle d'alertes sans API DPMED en phase 1
+   445→   445→API UbiPharm non disponible ou fermée | Moyenne | Moyen | Intégration par email structuré (EDI simplifié) en attendant l'API — même résultat pour l'utilisateur
+   446→   446→SoBAPS non intéressée par la traçabilité | Faible (pression auditeurs) | Moyen | Intégration côté officine uniquement — la SoBAPS n'est pas bloquante
+   447→   447→Données institutionnelles mal sécurisées | Faible (architecture dédiée) | Critique | Architecture isolée, mTLS, audit sécurité mensuel, conformité APDP dès le départ
+   448→   448→Fausse alerte DPMED injectée | Très faible (signature numérique) | Critique | Validation signature + processus de confirmation humaine pour toute alerte de niveau CRITIQUE
+   449→   449→Dispersion équipe — trop de fronts | Elevée | Elevé | Phases 4b et 5 démarrent APRÈS la stabilisation du core (Phases 1-4)
+   450→   450→Terme | Définition
+   451→   451→SoBAPS | Société Béninoise pour l'Approvisionnement en Produits de Santé — remplace la CAME depuis septembre 2020
+   452→   452→DPMED | Direction de la Pharmacie, du Médicament et des Explorations Diagnostiques — Direction centrale du Ministère de la Santé Bénin
+   453→   453→LNCQ | Laboratoire National de Contrôle Qualité des Médicaments et Consommables Médicaux — sous tutelle DPMED
+   454→   454→ABRP | Agence Béninoise de Régulation Pharmaceutique — agrément et surveillance des acteurs de la chaîne
+   455→   455→UbiPharm | Grossiste répartiteur pharmaceutique — présent au Bénin depuis 2014 — 18 territoires africains
+   456→   456→Promopharma | Grossiste répartiteur au Bénin — filiale Eurapharma / groupe CFAO
+   457→   457→MEG | Médicaments Essentiels Génériques — catégorie principale distribuée par la SoBAPS
+   458→   458→EIM | Effet Indésirable Médicamenteux — objet des signalements de pharmacovigilance
+   459→   459→Pharmacovigilance | Surveillance des effets indésirables des médicaments après leur mise sur le marché
+   460→   460→Rappel de lot | Procédure de retrait d'un lot spécifique de médicaments du marché suite à une non-conformité
+   461→   461→AMM | Autorisation de Mise sur le Marché — délivrée par la DPMED
+   462→   462→mTLS | Mutual TLS — authentification mutuelle par certificat entre deux serveurs
+   463→   463→UEMOA | Union Economique et Monétaire Ouest-Africaine — référence les Bonnes Pratiques de Distribution applicables au Bénin
+   464→   464→SYSCOHADA | Système Comptable OHADA — plan comptable de référence pour l'Afrique de l'Ouest
+   465→   465→DCI | Dénomination Commune Internationale — nom générique d'un médicament
+   466→   466→CNSS | Caisse Nationale de Sécurité Sociale — Bénin
+   467→   467→APDP | Autorité de Protection des Données Personnelles — Bénin

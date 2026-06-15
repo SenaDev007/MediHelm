@@ -1,0 +1,901 @@
+     1→     1→YEHI OR TECH
+     2→     2→MédiHelm
+     3→     3→L'Infrastructure Pharmaceutique Numérique du Bénin
+     4→     4→SPECIFICATIONS TECHNIQUES ET FONCTIONNELLES  —  VERSION 2.0
+     5→     5→Modules M16-M19 · API institutionnelles · DPMED · SoBAPS · UbiPharm · Pharmacovigilance · Conformité RBAC étendu
+     6→     6→Référence document
+     7→     7→MH-SPECS-2025-v2.0 (remplace MH-SPECS-2025-v1.0)
+     8→     8→Document parent
+     9→     9→MH-CDC-2025-v2.0 (Cahier des Charges v2.0)
+    10→    10→Responsable
+    11→    11→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+    12→    12→Profil institutionnel
+    13→    13→Ancien stagiaire LNCQ — Ministère de la Santé Bénin
+    14→    14→Stack
+    15→    15→Next.js 14 · NestJS · PostgreSQL · Prisma · Supabase · Vercel · Fedapay
+    16→    16→Statut
+    17→    17→Spécifications de référence v2.0 — Confidentiel
+    18→    18→Document confidentiel — YEHI OR Tech © 2025
+    19→    19→Sommaire
+    20→    20→1.   Architecture v2.0 — Nouveaux composants institutionnels
+    21→    21→2.   Schéma Prisma v2.0 — Nouveaux modèles
+    22→    22→3.   RBAC v2.0 — Rôles institutionnels et matrice étendue
+    23→    23→4.   API REST v2.0 — Endpoints institutionnels
+    24→    24→5.   Module M16 — Pharmacovigilance : spécifications techniques
+    25→    25→6.   Module M17 — Intégrations SoBAPS et grossistes : spécifications
+    26→    26→7.   Module M18 — Alertes DPMED : spécifications et diffusion
+    27→    27→8.   Module M19 — Conformité réglementaire : spécifications
+    28→    28→9.   Portail institutionnel — Spécifications frontend
+    29→    29→10.  Sécurité renforcée — mTLS et données institutionnelles
+    30→    30→11.  Queue de diffusion d'alertes — Architecture haute priorité
+    31→    31→12.  Analytics IA v2.0 — Domaines enrichis
+    32→    32→13.  Tests v2.0 — Parcours institutionnels
+    33→    33→14.  Déploiement v2.0 — Variables d'environnement étendues
+    34→    34→1. Architecture v2.0 — Nouveaux Composants Institutionnels
+    35→    35→1.1 Vue d'ensemble enrichie
+    36→    36→La v2.0 ajoute une couche institutionnelle à l'architecture existante. Trois nouveaux modules NestJS (dpmed-gateway, grossistes-gateway, sobaps-gateway) gèrent les intégrations avec les acteurs de la chaîne pharmaceutique. Un espace frontend dédié (portail-institutionnel) est servi sur un sous-domaine séparé. Une queue BullMQ haute priorité gère la diffusion des alertes sanitaires.
+    37→    37→1.2 Nouveaux composants v2.0
+    38→    38→1.3 Architecture des schémas PostgreSQL
+    39→    39→2. Schéma Prisma v2.0 — Nouveaux Modèles
+    40→    40→2.1 Modèles — Module M16 Pharmacovigilance
+    41→    41→2.2 Modèles — Module M17 Intégrations Grossistes
+    42→    42→2.3 Modèles — Module M18 Alertes DPMED
+    43→    43→2.4 Modèles — Module M19 Conformité
+    44→    44→3. RBAC v2.0 — Rôles Institutionnels et Matrice Etendue
+    45→    45→3.1 Nouveaux rôles institutionnels
+    46→    46→3.2 Matrice RBAC étendue — Nouveaux modules
+    47→    47→4. API REST v2.0 — Endpoints Institutionnels
+    48→    48→4.1 Module M16 — Pharmacovigilance
+    49→    49→4.2 Module M17 — Intégrations Grossistes et SoBAPS
+    50→    50→4.3 Module M18 — Alertes DPMED
+    51→    51→4.4 Module M19 — Conformité
+    52→    52→5. Module M16 — Pharmacovigilance : Spécifications Techniques
+    53→    53→5.1 Vérification qualité lors de la réception de stock
+    54→    54→5.2 Signalement EI — Processus de soumission à la DPMED
+    55→    55→5.3 Vérification d'interactions médicamenteuses
+    56→    56→6. Module M17 — Intégrations SoBAPS et Grossistes : Spécifications
+    57→    57→6.1 Architecture du Grossistes Gateway
+    58→    58→6.2 Transmission d'une commande API
+    59→    59→6.3 Réception SoBAPS — Réconciliation stock
+    60→    60→7. Module M18 — Alertes DPMED : Architecture de Diffusion
+    61→    61→7.1 Queue haute priorité — Architecture BullMQ
+    62→    62→7.2 Processus de diffusion d'une alerte DPMED
+    63→    63→7.3 Webhook DPMED — Réception sécurisée
+    64→    64→8. Module M19 — Conformité Réglementaire : Spécifications
+    65→    65→8.1 Calcul du score de conformité
+    66→    66→8.2 Génération des exports réglementaires
+    67→    67→9. Portail Institutionnel — Spécifications Frontend
+    68→    68→9.1 Architecture du portail
+    69→    69→Le portail institutionnel est une application Next.js distincte, servie sur institutionnel.medihelm.com. Elle est complètement séparée de app.medihelm.com. Seuls les rôles DPMED_ADMIN, SOBAPS_VIEWER, ABRP_VIEWER et GROSSISTE_PARTNER y ont accès, sur invitation de YEHI OR Tech uniquement.
+    70→    70→9.2 Interfaces par acteur
+    71→    71→9.3 Tableau de bord ABRP — Données agrégées anonymisées
+    72→    72→10. Sécurité Renforcée — mTLS et Données Institutionnelles
+    73→    73→10.1 Authentification mutuelle mTLS
+    74→    74→10.2 Validation de la signature numérique des alertes DPMED
+    75→    75→10.3 IP Whitelist — Webhooks institutionnels
+    76→    76→11. Queue de Diffusion d'Alertes — Architecture Haute Priorité
+    77→    77→11.1 Garantie de livraison < 2 minutes
+    78→    78→11.2 Gestion des accusés de réception
+    79→    79→12. Analytics IA v2.0 — Domaines Enrichis
+    80→    80→12.1 Nouveau domaine : Conformité réglementaire
+    81→    81→12.2 Nouveau domaine : Performance intégration grossiste
+    82→    82→13. Tests v2.0 — Parcours Institutionnels
+    83→    83→13.1 Nouveaux parcours E2E critiques
+    84→    84→Alerte DPMED complète : envoi webhook DPMED > validation signature > identification pharmacies et patients concernés > diffusion push + SMS < 2 min > acquittement pharmacien > mise à jour portail DPMED.
+    85→    85→Commande API grossiste : pharmacien valide commande > transmise API UbiPharm > confirmation webhook UbiPharm > mise à jour statut dans MédiHelm > notification pharmacien.
+    86→    86→Signalement EI : pharmacien remplit formulaire > soumission API DPMED > accusé réception > référence DPMED enregistrée > mise à jour score conformité.
+    87→    87→Réception SoBAPS avec écart : scan bon livraison > saisie quantités réelles ≠ quantités BL > écart détecté > stock mis à jour du reçu > webhook écart envoyé à SoBAPS.
+    88→    88→Score conformité : vérification que le calcul des 5 composantes est correct sur données de test connues.
+    89→    89→Portail DPMED : connexion rôle DPMED_ADMIN > émission alerte > consultation taux acquittement temps réel.
+    90→    90→Sécurité webhook : envoi webhook DPMED avec signature invalide > rejet 403 > aucune alerte créée.
+    91→    91→13.2 Tests de sécurité institutionnels
+    92→    92→14. Déploiement v2.0 — Variables d'Environnement Etendues
+    93→    93→14.1 Nouvelles variables d'environnement
+    94→    94→14.2 Checklist déploiement v2.0
+    95→    95→Migrations Prisma : nouveaux schémas qualite, institutionnel, grossistes créés.
+    96→    96→Index PostgreSQL : lots.numero_lot + medicaments.dci pour recherche alertes < 10 sec.
+    97→    97→Certificats mTLS : générés et testés avec les partenaires institutionnels.
+    98→    98→Whitelists IP : configurées par environnement (staging + production).
+    99→    99→Queue BullMQ alertes : Redis dédié configuré avec priorité 1 et concurrence 20.
+   100→   100→Portail institutionnel : déployé sur sous-domaine séparé avec auth distincte.
+   101→   101→Test alerte DPMED de bout en bout sur staging avant tout déploiement production.
+   102→   102→MédiHelm Specs v2.0  |  YEHI OR Tech © 2025  |  Document confidentiel — Reproduction interdite
+   103→   103→
+   104→   104→--- TABLES ---
+   105→   105→Composant | Technologie | Rôle | URL
+   106→   106→Portail institutionnel | Next.js — sous-domaine séparé | Interface DPMED, SoBAPS, ABRP, grossistes | institutionnel.medihelm.com
+   107→   107→DPMED Gateway | NestJS module | Réception alertes DPMED + envoi signalements pharmacovigilance | Interne API
+   108→   108→Grossistes Gateway | NestJS module | API UbiPharm + Promopharma — commandes et confirmations | Interne API
+   109→   109→SoBAPS Gateway | NestJS module | Confirmations livraisons SoBAPS + réconciliation stock | Interne API
+   110→   110→Base Veille Qualité | PostgreSQL table dédiée | Médicaments suspects, contrefaits, rappels de lot | Schéma qualite
+   111→   111→Queue Alertes DPMED | BullMQ — priorité CRITICAL | Diffusion alertes < 2 min — file dédiée haute priorité | Redis queue:alertes
+   112→   112→Webhook DPMED receiver | NestJS controller | Réception alertes en temps réel depuis système DPMED | POST /webhooks/dpmed
+   113→   113→Webhook UbiPharm receiver | NestJS controller | Confirmations de commande UbiPharm | POST /webhooks/ubipharm
+   114→   114→Webhook Promopharma receiver | NestJS controller | Confirmations de commande Promopharma | POST /webhooks/promopharma
+   115→   115→Webhook SoBAPS receiver | NestJS controller | Confirmations livraisons SoBAPS | POST /webhooks/sobaps
+   116→   116→-- Séparation des schémas pour isolation des données
+   117→   117→
+   118→   118→-- Schéma principal (existant v1.0)
+   119→   119→CREATE SCHEMA pharma;
+   120→   120→-- Contient: pharmacies, utilisateurs, medicaments, ventes,
+   121→   121→--           patients, employes, commandes, etc.
+   122→   122→
+   123→   123→-- Schéma institutionnel (nouveau v2.0)
+   124→   124→CREATE SCHEMA institutionnel;
+   125→   125→-- Contient: alertes_dpmed, partenaires_institutionnels,
+   126→   126→--           confirmations_sobaps, portails_acces
+   127→   127→
+   128→   128→-- Schéma qualité (nouveau v2.0)
+   129→   129→CREATE SCHEMA qualite;
+   130→   130→-- Contient: medicaments_surveillance, signalements_ei,
+   131→   131→--           rappels_lot, fiches_dci
+   132→   132→
+   133→   133→-- Schéma grossistes (nouveau v2.0)
+   134→   134→CREATE SCHEMA grossistes;
+   135→   135→-- Contient: commandes_api, confirmations_livraison,
+   136→   136→--           catalogue_prix, partenaires_grossistes
+   137→   137→
+   138→   138→-- RLS active sur tous les schémas
+   139→   139→-- Aucune jointure directe entre schéma pharma et institutionnel
+   140→   140→// Schéma: qualite
+   141→   141→
+   142→   142→model MedicamentSurveillance {
+   143→   143→  id              String    @id @default(uuid())
+   144→   144→  dci             String
+   145→   145→  nomCommercial   String?
+   146→   146→  fabricant       String?
+   147→   147→  numeroLot       String?
+   148→   148→  typeSurveillance TypeSurv
+   149→   149→  description     String
+   150→   150→  sourceAlerte    String    // DPMED, LNCQ, OMS, ABRP
+   151→   151→  dateEmission    DateTime
+   152→   152→  dateExpiration  DateTime? // null = alerte permanente
+   153→   153→  niveauRisque    NiveauRisque
+   154→   154→  statut          StatutAlerte @default(ACTIVE)
+   155→   155→  documentUrl     String?
+   156→   156→  createdAt       DateTime  @default(now())
+   157→   157→  updatedAt       DateTime  @updatedAt
+   158→   158→  signalements    SignalementEI[]
+   159→   159→  alertesEmises   AlerteDPMED[]
+   160→   160→}
+   161→   161→
+   162→   162→enum TypeSurv    { CONTREFACON NON_CONFORME RAPPEL_LOT AMM_SUSPENDUE SOUS_SURVEILLANCE }
+   163→   163→enum NiveauRisque { CRITIQUE ELEVE MODERE INFORMATIF }
+   164→   164→enum StatutAlerte { ACTIVE LEVEE ARCHIVEE }
+   165→   165→
+   166→   166→model SignalementEI {
+   167→   167→  id                  String    @id @default(uuid())
+   168→   168→  pharmacieId         String
+   169→   169→  utilisateurId       String
+   170→   170→  patientCode         String    // pseudonymisé — jamais le nom réel
+   171→   171→  medicamentId        String?
+   172→   172→  medicamentSurvId    String?
+   173→   173→  dciConcernee        String
+   174→   174→  descriptionEI       String
+   175→   175→  gravite             GraviteEI
+   176→   176→  dateDebut           DateTime
+   177→   177→  evolution           String?
+   178→   178→  actionPrise         String?
+   179→   179→  statutEnvoi         StatutEnvoi @default(EN_ATTENTE)
+   180→   180→  refDPMED            String?   // référence attribuée par DPMED
+   181→   181→  createdAt           DateTime  @default(now())
+   182→   182→  medicamentSurv      MedicamentSurveillance? @relation(fields:[medicamentSurvId], references:[id])
+   183→   183→}
+   184→   184→
+   185→   185→enum GraviteEI  { LEGER MODERE GRAVE FATAL }
+   186→   186→enum StatutEnvoi { EN_ATTENTE SOUMIS ACCUSE_RECEPTION EN_ANALYSE CLOTURE }
+   187→   187→
+   188→   188→model FicheDCI {
+   189→   189→  id              String    @id @default(uuid())
+   190→   190→  dci             String    @unique
+   191→   191→  classeThera     String
+   192→   192→  mecanismeAction String
+   193→   193→  indicationsPrincipales String
+   194→   194→  posologie       String
+   195→   195→  contreIndications String
+   196→   196→  interactions    Json      // tableau interactions [{dci, gravite, description}]
+   197→   197→  effetsIndesirables Json   // tableau EI fréquents
+   198→   198→  conservation    String
+   199→   199→  sourceVersion   String    // WHO EML version
+   200→   200→  updatedAt       DateTime  @updatedAt
+   201→   201→}
+   202→   202→// Schéma: grossistes
+   203→   203→
+   204→   204→model PartenaireGrossiste {
+   205→   205→  id              String    @id @default(uuid())
+   206→   206→  nom             String    // UbiPharm, Promopharma
+   207→   207→  codeGrossiste   String    @unique
+   208→   208→  apiEndpoint     String
+   209→   209→  apiKeyHash      String    // jamais en clair
+   210→   210→  webhookSecret   String    // HMAC signature
+   211→   211→  actif           Boolean   @default(true)
+   212→   212→  createdAt       DateTime  @default(now())
+   213→   213→  commandesAPI    CommandeGrossiste[]
+   214→   214→  cataloguePrix   CataloguePrix[]
+   215→   215→}
+   216→   216→
+   217→   217→model CommandeGrossiste {
+   218→   218→  id                  String    @id @default(uuid())
+   219→   219→  pharmacieId         String
+   220→   220→  grossisteId         String
+   221→   221→  commandeInterne     String    // référence CommandeFournisseur interne
+   222→   222→  referenceGrossiste  String?   // attribuée par le grossiste
+   223→   223→  statut              StatutCmdAPI @default(ENVOYEE)
+   224→   224→  montantTotal        Float?
+   225→   225→  dateEnvoi           DateTime  @default(now())
+   226→   226→  dateConfirmation    DateTime?
+   227→   227→  dateLivraisonPrev   DateTime?
+   228→   228→  dateLivraisonReelle DateTime?
+   229→   229→  payload             Json      // données complètes de la commande
+   230→   230→  reponseGrossiste    Json?
+   231→   231→  grossiste           PartenaireGrossiste @relation(fields:[grossisteId], references:[id])
+   232→   232→}
+   233→   233→
+   234→   234→enum StatutCmdAPI { ENVOYEE CONFIRMEE REFUSEE EN_PREPARATION EN_LIVRAISON LIVREE LITIGE }
+   235→   235→
+   236→   236→model CataloguePrix {
+   237→   237→  id              String    @id @default(uuid())
+   238→   238→  grossisteId     String
+   239→   239→  referenceGros   String
+   240→   240→  dci             String
+   241→   241→  nomCommercial   String
+   242→   242→  forme           String
+   243→   243→  dosage          String
+   244→   244→  prixAchat       Float
+   245→   245→  disponible      Boolean   @default(true)
+   246→   246→  updatedAt       DateTime  @updatedAt
+   247→   247→  grossiste       PartenaireGrossiste @relation(fields:[grossisteId], references:[id])
+   248→   248→  @@unique([grossisteId, referenceGros])
+   249→   249→}
+   250→   250→// Schéma: institutionnel
+   251→   251→
+   252→   252→model AlerteDPMED {
+   253→   253→  id                  String    @id @default(uuid())
+   254→   254→  referenceOfficielle String    @unique // ref DPMED officielle
+   255→   255→  titre               String
+   256→   256→  description         String
+   257→   257→  typeAlerte          TypeAlerteDPMED
+   258→   258→  niveauUrgence       NiveauUrgence
+   259→   259→  medicamentSurvId    String?
+   260→   260→  dciConcernee        String?
+   261→   261→  numerosLotConcernes String[]
+   262→   262→  fabricantConcerne   String?
+   263→   263→  sourceEmission      String    // DPMED, LNCQ, SoBAPS
+   264→   264→  documentOfficielUrl String?
+   265→   265→  signatureNumerique  String    // vérification authenticité
+   266→   266→  dateEmissionDPMED   DateTime
+   267→   267→  dateReceptionMH     DateTime  @default(now())
+   268→   268→  statut              StatutAlerteMH @default(EN_DIFFUSION)
+   269→   269→  nbOfficinesNotifiees Int      @default(0)
+   270→   270→  nbOfficinesAcquittees Int     @default(0)
+   271→   271→  nbPatientsNotifies  Int       @default(0)
+   272→   272→  medicamentSurv      MedicamentSurveillance? @relation(fields:[medicamentSurvId], references:[id])
+   273→   273→  diffusions          DiffusionAlerte[]
+   274→   274→}
+   275→   275→
+   276→   276→enum TypeAlerteDPMED  { RAPPEL_LOT CONTREFACON AMM_SUSPENDUE PHARMACOVIGILANCE INFO_REGLEMENTAIRE }
+   277→   277→enum NiveauUrgence    { URGENCE_IMMEDIATE URGENT NORMAL INFORMATIF }
+   278→   278→enum StatutAlerteMH   { EN_DIFFUSION DIFFUSEE ARCHIVEE }
+   279→   279→
+   280→   280→model DiffusionAlerte {
+   281→   281→  id              String    @id @default(uuid())
+   282→   282→  alerteId        String
+   283→   283→  pharmacieId     String
+   284→   284→  lotsConcernes   String[]  // lots de cette pharmacie concernés
+   285→   285→  canalEnvoi      String[]  // ['PUSH', 'SMS', 'EMAIL']
+   286→   286→  dateEnvoi       DateTime  @default(now())
+   287→   287→  dateAcquittement DateTime?
+   288→   288→  actionPrise     String?   // quarantaine, destruction, retour grossiste
+   289→   289→  alerte          AlerteDPMED @relation(fields:[alerteId], references:[id])
+   290→   290→}
+   291→   291→
+   292→   292→model ConfirmationReceptionSoBAPS {
+   293→   293→  id              String    @id @default(uuid())
+   294→   294→  pharmacieId     String
+   295→   295→  bonLivraisonRef String    // référence bon de livraison SoBAPS
+   296→   296→  dateReception   DateTime  @default(now())
+   297→   297→  statut          StatutConf @default(CONFORME)
+   298→   298→  ecarts          Json?     // liste des écarts constatés
+   299→   299→  webhookSent     Boolean   @default(false)
+   300→   300→  webhookSentAt   DateTime?
+   301→   301→}
+   302→   302→
+   303→   303→enum StatutConf { CONFORME AVEC_ECART REFUSE }
+   304→   304→// Schéma: institutionnel
+   305→   305→
+   306→   306→model ScoreConformite {
+   307→   307→  id                    String    @id @default(uuid())
+   308→   308→  pharmacieId           String    @unique
+   309→   309→  scoreTotal            Float     // 0-100
+   310→   310→  scoreRegistreStup     Float     // 0-25
+   311→   311→  scoreAlerteDPMED      Float     // 0-25
+   312→   312→  scoreDocuments        Float     // 0-20
+   313→   313→  scorePharmacovigi     Float     // 0-15
+   314→   314→  scoreDestructions     Float     // 0-15
+   315→   315→  certificationDPMED    Boolean   @default(false)
+   316→   316→  dateCertification     DateTime?
+   317→   317→  dateExpirCertification DateTime?
+   318→   318→  calculatedAt          DateTime  @default(now())
+   319→   319→}
+   320→   320→
+   321→   321→model DocumentReglementaire {
+   322→   322→  id              String    @id @default(uuid())
+   323→   323→  pharmacieId     String
+   324→   324→  typeDocument    TypeDocReg
+   325→   325→  fileUrl         String    // Supabase Storage chiffré
+   326→   326→  dateEmission    DateTime?
+   327→   327→  dateExpiration  DateTime?
+   328→   328→  statut          StatutDoc @default(VALIDE)
+   329→   329→  alertes90j      Boolean   @default(false)
+   330→   330→  alertes60j      Boolean   @default(false)
+   331→   331→  alertes30j      Boolean   @default(false)
+   332→   332→  createdAt       DateTime  @default(now())
+   333→   333→}
+   334→   334→
+   335→   335→enum TypeDocReg { LICENCE_EXPLOITATION DIPLOME_PHARMACIEN ASSURANCE AGRÉMENT_DPMED AUTORISATION_STUPEFIANTS }
+   336→   336→enum StatutDoc  { VALIDE EXPIRE_BIENTOT EXPIRE SUSPENDU }
+   337→   337→Rôle | Périmètre | Création du compte
+   338→   338→DPMED_ADMIN | Emission d'alertes, consultation tableau de bord DPMED, gestion base veille qualité | YEHI OR Tech Admin uniquement
+   339→   339→SOBAPS_VIEWER | Consultation confirmations réception des livraisons SoBAPS — lecture seule | YEHI OR Tech Admin uniquement
+   340→   340→ABRP_VIEWER | Consultation tableau de bord agrégé anonymisé — lecture seule | YEHI OR Tech Admin uniquement
+   341→   341→GROSSISTE_PARTNER | Consultation commandes reçues + tableau de bord demande agrégée — lecture seule | YEHI OR Tech Admin uniquement
+   342→   342→PLATFORM_ADMIN | Accès total à toute la plateforme — YEHI OR Tech uniquement | Système
+   343→   343→Module | ADMIN | DPMED | SOBAPS | ABRP | GROSSISTE | DIREC | PHARMA | CAISS
+   344→   344→M16 — Veille qualité consultation | RWD | RWD | R | - | - | R | R | -
+   345→   345→M16 — Signalement pharmacovigilance | RWD | RWD | - | - | - | RW | RW | -
+   346→   346→M16 — Gestion base surveillance | RWD | RW | - | - | - | R | R | -
+   347→   347→M17 — API grossistes | RWD | - | - | - | R portail | RW | R | -
+   348→   348→M17 — Catalogue grossiste | RWD | - | - | - | RW portail | R | R | -
+   349→   349→M17 — Confirmations SoBAPS | RWD | - | R portail | - | - | RW | R | -
+   350→   350→M18 — Emission alerte DPMED | RWD | RW portail | - | - | - | - | - | -
+   351→   351→M18 — Réception alerte | RWD | R | R | - | - | R | R | R
+   352→   352→M18 — Acquittement alerte | RWD | - | - | - | - | RW | R | -
+   353→   353→M18 — Tableau de bord DPMED | RWD | R portail | - | - | - | - | - | -
+   354→   354→M18 — Tableau de bord SoBAPS | RWD | - | R portail | - | - | - | - | -
+   355→   355→M18 — Tableau de bord ABRP | RWD | - | - | R portail | - | - | - | -
+   356→   356→M19 — Score conformité | RWD | - | - | - | - | R | R | -
+   357→   357→M19 — Documents réglementaires | RWD | - | - | - | - | RW | - | -
+   358→   358→M19 — Certification DPMED | RWD | RW | - | - | - | R | - | -
+   359→   359→Méthode | Endpoint | Description | Rôles
+   360→   360→GET | /qualite/surveillance | Liste médicaments sous surveillance | DIRECTEUR, PHARMACIEN
+   361→   361→GET | /qualite/surveillance/:id | Détail médicament sous surveillance | DIRECTEUR, PHARMACIEN
+   362→   362→GET | /qualite/surveillance/check/:dci | Vérifier statut DCI | Tous rôles + Public
+   363→   363→POST | /qualite/signalements | Créer un signalement EI | DIRECTEUR, PHARMACIEN
+   364→   364→GET | /qualite/signalements | Liste signalements de l'officine | DIRECTEUR, PHARMACIEN
+   365→   365→GET | /qualite/signalements/:id | Détail signalement | DIRECTEUR, PHARMACIEN
+   366→   366→PATCH | /qualite/signalements/:id | Modifier un signalement | DIRECTEUR, PHARMACIEN
+   367→   367→POST | /qualite/signalements/:id/soumettre | Soumettre à la DPMED | DIRECTEUR, PHARMACIEN
+   368→   368→GET | /qualite/dci/:dci | Fiche DCI complète | Tous rôles pharmacie
+   369→   369→GET | /qualite/interactions | Vérifier interactions entre DCI | DIRECTEUR, PHARMACIEN
+   370→   370→GET | /qualite/score | Score contrôle qualité de l'officine | DIRECTEUR
+   371→   371→Méthode | Endpoint | Description | Rôles
+   372→   372→GET | /grossistes | Liste des grossistes partenaires | DIRECTEUR+
+   373→   373→GET | /grossistes/:id/catalogue | Catalogue produits du grossiste | DIRECTEUR, PHARMACIEN
+   374→   374→POST | /grossistes/:id/commandes | Envoyer commande via API grossiste | DIRECTEUR, PHARMACIEN
+   375→   375→GET | /grossistes/:id/commandes | Commandes envoyées à ce grossiste | DIRECTEUR
+   376→   376→GET | /grossistes/commandes/:id | Statut d'une commande API | DIRECTEUR, PHARMACIEN
+   377→   377→GET | /grossistes/compare/:dci | Comparer prix multi-grossistes | DIRECTEUR, PHARMACIEN
+   378→   378→POST | /sobaps/receptions | Enregistrer réception livraison SoBAPS | DIRECTEUR, MAGASINIER
+   379→   379→GET | /sobaps/receptions | Historique réceptions SoBAPS | DIRECTEUR, MAGASINIER
+   380→   380→GET | /sobaps/receptions/:id | Détail réception + écarts | DIRECTEUR
+   381→   381→POST | /webhooks/ubipharm | Webhook confirmations UbiPharm | Système — signature HMAC
+   382→   382→POST | /webhooks/promopharma | Webhook confirmations Promopharma | Système — signature HMAC
+   383→   383→POST | /webhooks/sobaps | Webhook confirmations SoBAPS | Système — signature HMAC
+   384→   384→Méthode | Endpoint | Description | Rôles
+   385→   385→GET | /alertes/dpmed | Alertes DPMED actives pour l'officine | Tous rôles pharmacie
+   386→   386→GET | /alertes/dpmed/:id | Détail d'une alerte | Tous rôles pharmacie
+   387→   387→POST | /alertes/dpmed/:id/acquitter | Accuser réception d'une alerte | DIRECTEUR, PHARMACIEN
+   388→   388→POST | /alertes/dpmed/:id/action | Documenter l'action prise | DIRECTEUR, PHARMACIEN
+   389→   389→GET | /alertes/dpmed/historique | Historique alertes traitées | DIRECTEUR
+   390→   390→POST | /webhooks/dpmed | Webhook réception alerte depuis DPMED | Système — signature numérique
+   391→   391→GET | /portail/dpmed/alertes | Portail DPMED — toutes alertes émises | DPMED_ADMIN
+   392→   392→POST | /portail/dpmed/alertes | Portail DPMED — émettre une alerte | DPMED_ADMIN
+   393→   393→GET | /portail/dpmed/dashboard | Tableau de bord DPMED — taux acquittement | DPMED_ADMIN
+   394→   394→GET | /portail/sobaps/confirmations | Portail SoBAPS — confirmations réceptions | SOBAPS_VIEWER
+   395→   395→GET | /portail/abrp/dashboard | Portail ABRP — agrégats anonymisés | ABRP_VIEWER
+   396→   396→GET | /portail/grossiste/commandes | Portail grossiste — commandes reçues | GROSSISTE_PARTNER
+   397→   397→Méthode | Endpoint | Description | Rôles
+   398→   398→GET | /conformite/score | Score de conformité de l'officine | DIRECTEUR
+   399→   399→GET | /conformite/documents | Liste documents réglementaires | DIRECTEUR
+   400→   400→POST | /conformite/documents | Uploader un document réglementaire | DIRECTEUR
+   401→   401→DELETE | /conformite/documents/:id | Supprimer un document | DIRECTEUR
+   402→   402→GET | /conformite/exports/stupefiants | Registre stupéfiants — format DPMED | DIRECTEUR, PHARMACIEN
+   403→   403→GET | /conformite/exports/ordonnances | Registre ordonnances — format DPMED | DIRECTEUR, PHARMACIEN
+   404→   404→GET | /conformite/exports/destructions | PV destructions — format DPMED | DIRECTEUR
+   405→   405→GET | /conformite/exports/declaration-trimestrielle | Déclaration trimestrielle stupéfiants | DIRECTEUR
+   406→   406→GET | /conformite/exports/pharmacovigilance-mensuel | Rapport PV mensuel — format OMS | DIRECTEUR, PHARMACIEN
+   407→   407→GET | /conformite/certification | Statut certification DPMED | DIRECTEUR
+   408→   408→POST | /conformite/certification/demander | Initier demande de certification DPMED | DIRECTEUR
+   409→   409→// Lors de la réception d'un lot (M03 réception commande)
+   410→   410→// Le service de veille qualité est appelé automatiquement
+   411→   411→
+   412→   412→async verifierLotRecu(numeroLot: string, dci: string) {
+   413→   413→  const alertes = await this.prisma.medicamentSurveillance.findMany({
+   414→   414→    where: {
+   415→   415→      statut: 'ACTIVE',
+   416→   416→      OR: [
+   417→   417→        { dci: { contains: dci, mode: 'insensitive' } },
+   418→   418→        { numeroLot: numeroLot }
+   419→   419→      ]
+   420→   420→    }
+   421→   421→  });
+   422→   422→
+   423→   423→  if (alertes.length > 0) {
+   424→   424→    // Bloquer la réception + notifier le pharmacien
+   425→   425→    await this.notifService.alerteReceptionBloquee({
+   426→   426→      pharmacieId, numeroLot, alertes
+   427→   427→    });
+   428→   428→    throw new ConflictException({
+   429→   429→      code: 'MH-QUAL-001',
+   430→   430→      message: 'Lot sous surveillance DPMED — réception bloquée',
+   431→   431→      alertes
+   432→   432→    });
+   433→   433→  }
+   434→   434→}
+   435→   435→// Soumission signalement EI à la DPMED
+   436→   436→async soumettreSignalement(id: string, pharmacieId: string) {
+   437→   437→  const signalement = await this.prisma.signalementEI.findUniqueOrThrow({
+   438→   438→    where: { id }, include: { medicamentSurv: true }
+   439→   439→  });
+   440→   440→
+   441→   441→  // Construction du payload format DPMED / OMS
+   442→   442→  const payload = {
+   443→   443→    source:       'MediHelm',
+   444→   444→    date:         new Date().toISOString(),
+   445→   445→    patient:      signalement.patientCode,  // pseudonymisé
+   446→   446→    medicament:   signalement.dciConcernee,
+   447→   447→    effetIndes:   signalement.descriptionEI,
+   448→   448→    gravite:      signalement.gravite,
+   449→   449→    action:       signalement.actionPrise,
+   450→   450→    pharmacieRef: pharmacieId,
+   451→   451→  };
+   452→   452→
+   453→   453→  // Si API DPMED disponible
+   454→   454→  if (this.dpmedGateway.isConnected()) {
+   455→   455→    const ref = await this.dpmedGateway.submitSignalement(payload);
+   456→   456→    await this.prisma.signalementEI.update({
+   457→   457→      where: { id },
+   458→   458→      data: { statutEnvoi: 'ACCUSE_RECEPTION', refDPMED: ref }
+   459→   459→    });
+   460→   460→  } else {
+   461→   461→    // Fallback : génération PDF format DPMED pour envoi manuel
+   462→   462→    const pdf = await this.pdfService.generateSignalement(payload);
+   463→   463→    await this.storageService.save(`signalements/${id}.pdf`, pdf);
+   464→   464→    await this.prisma.signalementEI.update({
+   465→   465→      where: { id },
+   466→   466→      data: { statutEnvoi: 'SOUMIS' }
+   467→   467→    });
+   468→   468→  }
+   469→   469→}
+   470→   470→// Vérification lors de la délivrance sur ordonnance multi-médicaments
+   471→   471→async verifierInteractions(dcis: string[]): Promise<Interaction[]> {
+   472→   472→  const interactions: Interaction[] = [];
+   473→   473→
+   474→   474→  for (let i = 0; i < dcis.length; i++) {
+   475→   475→    for (let j = i + 1; j < dcis.length; j++) {
+   476→   476→      const fiche = await this.prisma.ficheDCI.findUnique({
+   477→   477→        where: { dci: dcis[i] }
+   478→   478→      });
+   479→   479→      if (!fiche) continue;
+   480→   480→
+   481→   481→      const fiches = fiche.interactions as any[];
+   482→   482→      const inter = fiches.find(x =>
+   483→   483→        x.dci.toLowerCase().includes(dcis[j].toLowerCase())
+   484→   484→      );
+   485→   485→
+   486→   486→      if (inter && (inter.gravite === 'MAJEURE' || inter.gravite === 'MODEREE')) {
+   487→   487→        interactions.push({
+   488→   488→          dci1: dcis[i], dci2: dcis[j],
+   489→   489→          gravite: inter.gravite,
+   490→   490→          description: inter.description
+   491→   491→        });
+   492→   492→      }
+   493→   493→    }
+   494→   494→  }
+   495→   495→  return interactions; // vide = pas d'interaction connue
+   496→   496→}
+   497→   497→// NestJS Module: GrossistesGateway
+   498→   498→@Module({
+   499→   499→  providers: [
+   500→   500→    GrossistesGatewayService,
+   501→   501→    UbiPharmAdapter,
+   502→   502→    PromoPharmAdapter,
+   503→   503→  ]
+   504→   504→})
+   505→   505→export class GrossistesGatewayModule {}
+   506→   506→
+   507→   507→// Interface commune — chaque adaptateur l'implémente
+   508→   508→interface IGrossisteAdapter {
+   509→   509→  sendCommande(cmd: CommandeGrossiste): Promise<string>;  // retourne ref grossiste
+   510→   510→  getConfirmation(ref: string): Promise<ConfirmationGrossiste>;
+   511→   511→  getCatalogue(): Promise<ProduitGrossiste[]>;
+   512→   512→}
+   513→   513→
+   514→   514→// Si l'API d'un grossiste n'est pas disponible :
+   515→   515→// Fallback EDI — email structuré avec le bon de commande en pièce jointe
+   516→   516→// Format JSON embarqué dans l'email pour parsing automatique côté grossiste
+   517→   517→// Workflow complet d'une commande via API UbiPharm
+   518→   518→
+   519→   519→// 1. Pharmacien valide la commande depuis M03
+   520→   520→// 2. M03 appelle GrossistesGateway si fournisseur = partenaire API
+   521→   521→async transmettreCommandeAPI(commandeId: string) {
+   522→   522→  const cmd = await this.prisma.commandeFournisseur.findUniqueOrThrow({
+   523→   523→    where: { id: commandeId }, include: { lignes: true, fournisseur: true }
+   524→   524→  });
+   525→   525→
+   526→   526→  const grossiste = await this.prisma.partenaireGrossiste.findFirst({
+   527→   527→    where: { nom: { contains: cmd.fournisseur.nom } }
+   528→   528→  });
+   529→   529→  if (!grossiste) return;  // pas de partenariat API — flux normal
+   530→   530→
+   531→   531→  const adapter = this.getAdapter(grossiste.codeGrossiste);
+   532→   532→  const refGrossiste = await adapter.sendCommande({
+   533→   533→    pharmacieRef: cmd.pharmacieId,
+   534→   534→    lignes: cmd.lignes.map(l => ({
+   535→   535→      refGrossiste: l.refGrossiste,
+   536→   536→      dci: l.dci,
+   537→   537→      quantite: l.quantiteCommandee,
+   538→   538→      dateSouhaitee: cmd.dateLivraison
+   539→   539→    }))
+   540→   540→  });
+   541→   541→
+   542→   542→  // Enregistrer la commande API avec la référence grossiste
+   543→   543→  await this.prisma.commandeGrossiste.create({
+   544→   544→    data: { pharmacieId: cmd.pharmacieId, grossisteId: grossiste.id,
+   545→   545→            commandeInterne: commandeId, referenceGrossiste: refGrossiste,
+   546→   546→            statut: 'ENVOYEE', payload: cmd }
+   547→   547→  });
+   548→   548→
+   549→   549→  // Notification pharmacien : commande envoyée automatiquement
+   550→   550→  this.gateway.emit(cmd.pharmacieId, 'commande:api:envoyee', { commandeId, refGrossiste });
+   551→   551→}
+   552→   552→// Réception d'une livraison SoBAPS
+   553→   553→async enregistrerReceptionSoBAPS(dto: ReceptionSoBAPSDto) {
+   554→   554→  const { pharmacieId, bonLivraisonRef, lignes } = dto;
+   555→   555→
+   556→   556→  // 1. Mettre à jour le stock pour chaque médicament reçu
+   557→   557→  for (const ligne of lignes) {
+   558→   558→    await this.stockService.ajouterLot({
+   559→   559→      pharmacieId,
+   560→   560→      medicamentId: ligne.medicamentId,
+   561→   561→      numeroLot:    ligne.numeroLot,
+   562→   562→      quantite:     ligne.quantiteReelle,
+   563→   563→      prixAchat:    ligne.prixSoBAPS,
+   564→   564→      dateExpiration: ligne.dateExpiration,
+   565→   565→      fournisseur:  'SoBAPS'
+   566→   566→    });
+   567→   567→  }
+   568→   568→
+   569→   569→  // 2. Calculer les écarts bon de livraison vs reçu
+   570→   570→  const ecarts = lignes
+   571→   571→    .filter(l => l.quantiteReelle !== l.quantiteBL)
+   572→   572→    .map(l => ({ dci: l.dci, attendu: l.quantiteBL, recu: l.quantiteReelle }));
+   573→   573→
+   574→   574→  // 3. Enregistrer la confirmation
+   575→   575→  const conf = await this.prisma.confirmationReceptionSoBAPS.create({
+   576→   576→    data: { pharmacieId, bonLivraisonRef,
+   577→   577→            statut: ecarts.length === 0 ? 'CONFORME' : 'AVEC_ECART',
+   578→   578→            ecarts: ecarts.length > 0 ? ecarts : undefined }
+   579→   579→  });
+   580→   580→
+   581→   581→  // 4. Envoyer webhook à SoBAPS (si partenariat actif)
+   582→   582→  if (this.sobapsGateway.isConnected()) {
+   583→   583→    await this.sobapsGateway.confirmReception({
+   584→   584→      bonLivraisonRef, statut: conf.statut, ecarts
+   585→   585→    });
+   586→   586→  }
+   587→   587→}
+   588→   588→// Queue dédiée aux alertes — priorité CRITIQUE
+   589→   589→const alertesQueue = new Queue('alertes-dpmed', {
+   590→   590→  connection: redis,
+   591→   591→  defaultJobOptions: {
+   592→   592→    priority: 1,          // priorité maximale
+   593→   593→    attempts: 5,          // 5 tentatives en cas d'échec
+   594→   594→    backoff: { type: 'exponential', delay: 2000 },
+   595→   595→    removeOnComplete: false,  // garder les logs
+   596→   596→    removeOnFail: false
+   597→   597→  }
+   598→   598→});
+   599→   599→
+   600→   600→// Worker dédié — 20 jobs simultanés (vs 5 pour SMS normaux)
+   601→   601→const alertesWorker = new Worker('alertes-dpmed', async job => {
+   602→   602→  const { alerteId } = job.data;
+   603→   603→  await this.diffuserAlerteComplete(alerteId);
+   604→   604→}, { concurrency: 20, connection: redis });
+   605→   605→async diffuserAlerteComplete(alerteId: string) {
+   606→   606→  const alerte = await this.prisma.alerteDPMED.findUniqueOrThrow({
+   607→   607→    where: { id: alerteId }
+   608→   608→  });
+   609→   609→
+   610→   610→  // 1. Vérifier la signature numérique de l'alerte
+   611→   611→  const valid = await this.verifierSignature(alerte.signatureNumerique, alerte);
+   612→   612→  if (!valid) throw new Error('MH-SEC-001: Signature alerte invalide — diffusion annulée');
+   613→   613→
+   614→   614→  // 2. Identifier les pharmacies concernées
+   615→   615→  //    (ayant le lot concerné en stock actif)
+   616→   616→  const pharmaciesConcernees = await this.prisma.$queryRaw`
+   617→   617→    SELECT DISTINCT l.pharmacie_id, array_agg(l.numero_lot) as lots
+   618→   618→    FROM lots l
+   619→   619→    JOIN medicaments m ON l.medicament_id = m.id
+   620→   620→    WHERE l.quantite > 0
+   621→   621→    AND m.dci ILIKE ${alerte.dciConcernee}
+   622→   622→    AND l.numero_lot = ANY(${alerte.numerosLotConcernes})
+   623→   623→    GROUP BY l.pharmacie_id
+   624→   624→  `;
+   625→   625→
+   626→   626→  // 3. Identifier les patients concernés
+   627→   627→  //    (ayant acheté le lot dans les 90 derniers jours)
+   628→   628→  const patientsConcernes = await this.getPatientsConcernes(alerte, 90);
+   629→   629→
+   630→   630→  // 4. Diffusion multi-canal aux pharmaciens
+   631→   631→  for (const pharmacie of pharmaciesConcernees) {
+   632→   632→    await this.prisma.diffusionAlerte.create({
+   633→   633→      data: { alerteId, pharmacieId: pharmacie.pharmacie_id,
+   634→   634→              lotsConcernes: pharmacie.lots,
+   635→   635→              canalEnvoi: ['PUSH', 'SMS'] }
+   636→   636→    });
+   637→   637→    await this.notifService.pushAlerteDPMED(pharmacie.pharmacie_id, alerte);
+   638→   638→    await this.smsService.sendAlerteDPMED(pharmacie.pharmacie_id, alerte);
+   639→   639→  }
+   640→   640→
+   641→   641→  // 5. Diffusion aux patients concernés
+   642→   642→  for (const patient of patientsConcernes) {
+   643→   643→    await this.notifService.pushAlertePatient(patient, alerte);
+   644→   644→    if (patient.telephone) await this.smsService.sendAlertePatient(patient, alerte);
+   645→   645→  }
+   646→   646→
+   647→   647→  // 6. Mise à jour compteurs
+   648→   648→  await this.prisma.alerteDPMED.update({
+   649→   649→    where: { id: alerteId },
+   650→   650→    data: {
+   651→   651→      statut: 'DIFFUSEE',
+   652→   652→      nbOfficinesNotifiees: pharmaciesConcernees.length,
+   653→   653→      nbPatientsNotifies: patientsConcernes.length
+   654→   654→    }
+   655→   655→  });
+   656→   656→}
+   657→   657→// Endpoint de réception des alertes depuis le système DPMED
+   658→   658→@Post('/webhooks/dpmed')
+   659→   659→@UseGuards(DPMEDWebhookGuard)  // vérifie signature + IP whitelist DPMED
+   660→   660→async receiveDPMEDAlert(@Body() payload: DPMEDAlertPayload) {
+   661→   661→
+   662→   662→  // 1. Vérifier la signature numérique DPMED
+   663→   663→  const isValid = this.verifyDPMEDSignature(
+   664→   664→    payload, process.env.DPMED_PUBLIC_KEY
+   665→   665→  );
+   666→   666→  if (!isValid) throw new ForbiddenException('MH-SEC-002: Signature DPMED invalide');
+   667→   667→
+   668→   668→  // 2. Créer l'alerte en base
+   669→   669→  const alerte = await this.prisma.alerteDPMED.create({ data: { ...payload } });
+   670→   670→
+   671→   671→  // 3. Enqueuer immédiatement avec priorité CRITIQUE
+   672→   672→  await this.alertesQueue.add('diffuser', { alerteId: alerte.id }, {
+   673→   673→    priority: 1,
+   674→   674→    delay: 0  // immédiat
+   675→   675→  });
+   676→   676→
+   677→   677→  return { received: true, alerteId: alerte.id };
+   678→   678→}
+   679→   679→
+   680→   680→// En l'absence d'API DPMED : saisie manuelle via Admin MédiHelm
+   681→   681→// + confirmation humaine obligatoire avant mise en queue
+   682→   682→async calculerScoreConformite(pharmacieId: string): Promise<ScoreConformite> {
+   683→   683→
+   684→   684→  // 1. Registre stupéfiants (25 pts)
+   685→   685→  //    Vérifie que toutes les délivrances de stupéfiants ont un numéro de registre
+   686→   686→  const stupMissing = await this.prisma.vente.count({
+   687→   687→    where: { pharmacieId,
+   688→   688→             lignes: { some: { medicament: { estStupefiant: true } } },
+   689→   689→             ordonnanceId: null  // sans ordonnance liée
+   690→   690→           }
+   691→   691→  });
+   692→   692→  const scoreStup = stupMissing === 0 ? 25 : Math.max(0, 25 - stupMissing * 5);
+   693→   693→
+   694→   694→  // 2. Alertes DPMED traitées < 24h (25 pts)
+   695→   695→  const alertes = await this.prisma.diffusionAlerte.findMany({
+   696→   696→    where: { pharmacieId, dateEnvoi: { gte: subDays(new Date(), 90) } }
+   697→   697→  });
+   698→   698→  const traitees24h = alertes.filter(a =>
+   699→   699→    a.dateAcquittement &&
+   700→   700→    differenceInHours(a.dateAcquittement, a.dateEnvoi) <= 24
+   701→   701→  ).length;
+   702→   702→  const scoreAlertes = alertes.length === 0 ? 25
+   703→   703→    : Math.round((traitees24h / alertes.length) * 25);
+   704→   704→
+   705→   705→  // 3. Documents valides (20 pts)
+   706→   706→  const docsExpires = await this.prisma.documentReglementaire.count({
+   707→   707→    where: { pharmacieId, statut: { in: ['EXPIRE', 'EXPIRE_BIENTOT'] } }
+   708→   708→  });
+   709→   709→  const scoreDocs = docsExpires === 0 ? 20 : Math.max(0, 20 - docsExpires * 5);
+   710→   710→
+   711→   711→  // 4. Signalements EI soumis (15 pts)
+   712→   712→  const eiNonSoumis = await this.prisma.signalementEI.count({
+   713→   713→    where: { pharmacieId, statutEnvoi: 'EN_ATTENTE',
+   714→   714→             createdAt: { lte: subDays(new Date(), 7) } }  // > 7j non soumis
+   715→   715→  });
+   716→   716→  const scoreEI = eiNonSoumis === 0 ? 15 : Math.max(0, 15 - eiNonSoumis * 5);
+   717→   717→
+   718→   718→  // 5. PV destructions à jour (15 pts)
+   719→   719→  const destructSansVP = await this.prisma.destructionMedicament.count({
+   720→   720→    where: { pharmacieId, pvUrl: null }
+   721→   721→  });
+   722→   722→  const scoreDestr = destructSansVP === 0 ? 15 : Math.max(0, 15 - destructSansVP * 5);
+   723→   723→
+   724→   724→  const scoreTotal = scoreStup + scoreAlertes + scoreDocs + scoreEI + scoreDestr;
+   725→   725→
+   726→   726→  return this.prisma.scoreConformite.upsert({
+   727→   727→    where: { pharmacieId },
+   728→   728→    create: { pharmacieId, scoreTotal, scoreRegistreStup: scoreStup,
+   729→   729→              scoreAlerteDPMED: scoreAlertes, scoreDocuments: scoreDocs,
+   730→   730→              scorePharmacovigi: scoreEI, scoreDestructions: scoreDestr },
+   731→   731→    update: { scoreTotal, scoreRegistreStup: scoreStup,
+   732→   732→              scoreAlerteDPMED: scoreAlertes, scoreDocuments: scoreDocs,
+   733→   733→              scorePharmacovigi: scoreEI, scoreDestructions: scoreDestr,
+   734→   734→              calculatedAt: new Date() }
+   735→   735→  });
+   736→   736→}
+   737→   737→Export | Format | Librairie | Contenu clé
+   738→   738→Registre stupéfiants | PDF signé + Excel | PDFKit + ExcelJS | Date, patient pseudonymisé, médicament, lot, quantité, pharmacien, ordonnance ref
+   739→   739→Déclaration trimestrielle | PDF format DPMED | PDFKit | Synthèse stupéfiants + psychotropes par DCI sur le trimestre
+   740→   740→PV de destruction | PDF format officiel DPMED | PDFKit | Médicaments, lots, quantités, motif, date, pharmacien responsable, témoin
+   741→   741→Rapport pharmacovigilance mensuel | PDF format OMS/DPMED | PDFKit | Signalements EI du mois, gravité, DCI, évolution
+   742→   742→Etat de stock annuel | Excel | ExcelJS | Stock par DCI au 31/12, valeur CMUP, péremptions
+   743→   743→Acteur | Routes | Fonctionnalités
+   744→   744→DPMED | / alertes, /alertes/nouvelle, /alertes/:id, /dashboard, /pharmacovigilance | Emission alertes, suivi taux acquittement, consultation signalements EI anonymisés
+   745→   745→SoBAPS | / livraisons, /livraisons/:id, /dashboard | Confirmations réception, taux conformité, écarts signalés par officines
+   746→   746→ABRP | / dashboard, /tensions, /carte | Agrégats anonymisés : médicaments en tension, carte zones sous-approvisionnées
+   747→   747→UbiPharm / Promopharma | / commandes, /dashboard, /catalogue | Commandes reçues des officines MédiHelm, tendances agrégées de la demande
+   748→   748→// Requête agrégée ABRP — aucune donnée individuelle
+   749→   749→GET /portail/abrp/dashboard
+   750→   750→
+   751→   751→// Réponse : agrégats uniquement
+   752→   752→{
+   753→   753→  medicamentsEnTension: [
+   754→   754→    { dci: 'Amoxicilline 500mg', nbOfficinesEnRupture: 45, nbOfficinesTotal: 120,
+   755→   755→      tauxRupture: 0.375, tendance: 'HAUSSE' }
+   756→   756→  ],
+   757→   757→  carteApprovisionnement: [
+   758→   758→    { departement: 'Littoral', scoreApprovisionnement: 72 },
+   759→   759→    { departement: 'Alibori',  scoreApprovisionnement: 38 }  // alerte sous-approvisionnement
+   760→   760→  ],
+   761→   761→  top10DciTension: [...],
+   762→   762→  evolutionMensuelle: [...],
+   763→   763→  // JAMAIS : nom d'officine, stock individuel, données patients, CA
+   764→   764→}
+   765→   765→// mTLS entre MédiHelm API et les systèmes institutionnels
+   766→   766→// Configuration NestJS + Node.js TLS
+   767→   767→
+   768→   768→const httpsOptions = {
+   769→   769→  key:  fs.readFileSync('certs/medihelm-server.key'),
+   770→   770→  cert: fs.readFileSync('certs/medihelm-server.crt'),
+   771→   771→  ca:   fs.readFileSync('certs/dpmed-ca.crt'),   // CA du Ministère Santé
+   772→   772→  requestCert: true,
+   773→   773→  rejectUnauthorized: true  // rejette si pas de certificat client valide
+   774→   774→};
+   775→   775→
+   776→   776→// Chaque institution dispose de son propre certificat client
+   777→   777→// émis et révocable par YEHI OR Tech
+   778→   778→// dpmed.medihelm.com.crt
+   779→   779→// sobaps.medihelm.com.crt
+   780→   780→// ubipharm.medihelm.com.crt
+   781→   781→// Vérification signature RSA-256 des alertes DPMED
+   782→   782→async verifyDPMEDSignature(payload: any, signature: string): Promise<boolean> {
+   783→   783→  const publicKey = await this.keyStore.getDPMEDPublicKey();
+   784→   784→  const verify = crypto.createVerify('SHA256');
+   785→   785→  verify.update(JSON.stringify(payload));
+   786→   786→  return verify.verify(publicKey, signature, 'base64');
+   787→   787→}
+   788→   788→
+   789→   789→// En cas d'API DPMED non disponible :
+   790→   790→// Alerte saisie manuellement par YEHI OR Tech Admin
+   791→   791→// + double validation par 2 membres de l'équipe YEHI OR Tech
+   792→   792→// + notification SMS de confirmation envoyée au contact DPMED
+   793→   793→// avant mise en queue de diffusion
+   794→   794→// Guard NestJS — IP whitelist par institution
+   795→   795→@Injectable()
+   796→   796→export class InstitutionWebhookGuard implements CanActivate {
+   797→   797→  private whitelists = {
+   798→   798→    dpmed:       process.env.DPMED_IP_WHITELIST?.split(',') || [],
+   799→   799→    ubipharm:    process.env.UBIPHARM_IP_WHITELIST?.split(',') || [],
+   800→   800→    promopharma: process.env.PROMOPHARMA_IP_WHITELIST?.split(',') || [],
+   801→   801→    sobaps:      process.env.SOBAPS_IP_WHITELIST?.split(',') || [],
+   802→   802→  };
+   803→   803→
+   804→   804→  canActivate(ctx: ExecutionContext): boolean {
+   805→   805→    const req = ctx.switchToHttp().getRequest();
+   806→   806→    const institution = req.params.institution;
+   807→   807→    const clientIP = req.ip || req.connection.remoteAddress;
+   808→   808→    return this.whitelists[institution]?.includes(clientIP) ?? false;
+   809→   809→  }
+   810→   810→}
+   811→   811→Etape | Durée max | Action | Fallback
+   812→   812→Réception webhook DPMED | < 1 seconde | Validation signature + création AlerteDPMED | Rejet si signature invalide
+   813→   813→Mise en queue BullMQ priorité 1 | < 100ms | Job créé avec delay = 0 | —
+   814→   814→Identification pharmacies concernées | < 10 secondes | Query PostgreSQL sur lots actifs | Index sur lots.numero_lot + medicaments.dci
+   815→   815→Identification patients concernés | < 10 secondes | Query sur lignes_vente + commandes_patient | Index sur created_at + medicament_id
+   816→   816→Envoi push notifications | < 30 secondes | Firebase FCM batch (jusqu'à 500 tokens/batch) | Retry x3 si FCM error
+   817→   817→Envoi SMS | < 60 secondes | AfricasTalking bulk SMS | Retry x5 si timeout
+   818→   818→Total garanti | < 2 minutes | Pour jusqu'à 600 pharmacies + 10 000 patients | SLA interne
+   819→   819→// Le pharmacien acquitte une alerte depuis MédiHelm Pro
+   820→   820→PATCH /alertes/dpmed/:id/acquitter
+   821→   821→
+   822→   822→// Met à jour DiffusionAlerte.dateAcquittement
+   823→   823→// Incrémente AlerteDPMED.nbOfficinesAcquittees
+   824→   824→// Notifie le portail DPMED via WebSocket (temps réel)
+   825→   825→
+   826→   826→// Si non acquittée après 4h : relance automatique
+   827→   827→// Si non acquittée après 24h : escalade — email DIRECTEUR + SMS urgence
+   828→   828→// Si non acquittée après 72h : alerte YEHI OR Tech Admin pour contact direct
+   829→   829→// Rapport Analytics IA — Domaine CONFORMITE
+   830→   830→
+   831→   831→const rapportConformite = {
+   832→   832→  domaine: 'CONFORMITE',
+   833→   833→  scoreGlobal: scoreConformite.scoreTotal,  // recalculé quotidiennement
+   834→   834→  couleur: score >= 75 ? 'VERT' : score >= 50 ? 'AMBER' : 'ROUGE',
+   835→   835→
+   836→   836→  alertes: [
+   837→   837→    { type: 'ALERTE_DPMED_NON_TRAITEE', priorite: 'CRITIQUE',
+   838→   838→      message: '2 alertes DPMED en attente depuis > 24h', cta: '/alertes/dpmed' },
+   839→   839→    { type: 'DOCUMENT_EXPIRE', priorite: 'HAUTE',
+   840→   840→      message: 'Licence exploitation expire dans 28 jours', cta: '/conformite/documents' }
+   841→   841→  ],
+   842→   842→
+   843→   843→  recommandations: [
+   844→   844→    { titre: 'Soumettre les 3 signalements EI en attente',
+   845→   845→      description: 'Ces signalements ont plus de 7 jours sans envoi DPMED.',
+   846→   846→      impact: 'ELEVE', urgence: 'CETTE_SEMAINE' }
+   847→   847→  ],
+   848→   848→
+   849→   849→  kpis: {
+   850→   850→    scoreConformiteTotal: 68,
+   851→   851→    alertesDPMEDEnAttente: 2,
+   852→   852→    signalementsEIEnAttente: 3,
+   853→   853→    documentsExpirantBientot: 1,
+   854→   854→    certificationDPMED: false
+   855→   855→  }
+   856→   856→};
+   857→   857→// Rapport Analytics IA — Domaine INTEGRATION_GROSSISTE
+   858→   858→
+   859→   859→const rapportGrossiste = {
+   860→   860→  kpis: {
+   861→   861→    commandesViaAPI:       45,   // ce mois
+   862→   862→    commandesManuellesMois: 3,   // anomalies
+   863→   863→    delaiMoyenConfirm:     '4h', // UbiPharm ce mois
+   864→   864→    tauxConfirmation:      0.98, // 98% confirmées
+   865→   865→    economiesEstimees:     '~45 min/semaine vs commande tél',
+   866→   866→    alertesStockAutoGenerees: 12,
+   867→   867→    commandesAutoValidees: 10,
+   868→   868→    commandesAutoModifiees: 2
+   869→   869→  },
+   870→   870→  recommandations: [
+   871→   871→    { titre: 'Activer commande auto pour Amoxicilline 500mg',
+   872→   872→      description: 'Ce médicament a été en rupture 3 fois ce mois. La commande automatique éviterait ces ruptures.',
+   873→   873→      impact: 'ELEVE', urgence: 'CETTE_SEMAINE' }
+   874→   874→  ]
+   875→   875→};
+   876→   876→Test | Vecteur d'attaque | Résultat attendu
+   877→   877→Fausse alerte DPMED | Webhook sans certificat client valide | HTTP 403 — rejeté avant traitement
+   878→   878→Signature DPMED invalide | Payload modifié après signature | HTTP 403 — vérification signature échouée
+   879→   879→Accès portail DPMED sans rôle | JWT sans rôle DPMED_ADMIN | HTTP 403 — RolesGuard
+   880→   880→Injection données pharmacie dans portail ABRP | Tentative de requête données individuelles | Données agrégées uniquement — schéma séparé
+   881→   881→IP non whitelistée sur webhook | IP inconnue sur POST /webhooks/dpmed | HTTP 403 — InstitutionWebhookGuard
+   882→   882→Variable | Description | Sensible
+   883→   883→DPMED_WEBHOOK_SECRET | Secret HMAC pour webhooks DPMED entrants | Oui
+   884→   884→DPMED_PUBLIC_KEY | Clé publique RSA DPMED pour vérification signature alertes | Oui
+   885→   885→DPMED_API_URL | URL API DPMED si disponible (sinon null = mode manuel) | Non
+   886→   886→DPMED_IP_WHITELIST | IPs autorisées pour webhooks DPMED (CSV) | Oui
+   887→   887→SOBAPS_WEBHOOK_SECRET | Secret HMAC webhooks SoBAPS | Oui
+   888→   888→SOBAPS_API_URL | URL API SoBAPS | Non
+   889→   889→SOBAPS_IP_WHITELIST | IPs autorisées webhooks SoBAPS | Oui
+   890→   890→UBIPHARM_API_URL | URL API UbiPharm commandes | Non
+   891→   891→UBIPHARM_API_KEY | Clé API UbiPharm (stockée chiffrée) | Oui
+   892→   892→UBIPHARM_WEBHOOK_SECRET | Secret HMAC confirmations UbiPharm | Oui
+   893→   893→UBIPHARM_IP_WHITELIST | IPs autorisées webhooks UbiPharm | Oui
+   894→   894→PROMOPHARMA_API_URL | URL API Promopharma commandes | Non
+   895→   895→PROMOPHARMA_API_KEY | Clé API Promopharma (stockée chiffrée) | Oui
+   896→   896→PROMOPHARMA_WEBHOOK_SECRET | Secret HMAC confirmations Promopharma | Oui
+   897→   897→MTLS_CERT_PATH | Chemin certificat serveur MédiHelm (mTLS) | Oui
+   898→   898→MTLS_KEY_PATH | Chemin clé privée serveur (mTLS) | Oui
+   899→   899→MTLS_CA_PATH | Chemin CA institutionnelle (mTLS) | Oui
+   900→   900→REDIS_ALERTES_QUEUE | URL Redis dédiée queue haute priorité alertes | Oui
+   901→   901→INSTITUTIONNEL_SUBDOMAIN | Sous-domaine portail institutionnel | Non

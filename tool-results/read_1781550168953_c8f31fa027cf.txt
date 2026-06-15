@@ -1,0 +1,906 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→CONNEXION MONOREPO & PAGE /PORTAILS — PROMPT CURSOR v1.0
+     4→medihelm.com comme hub central · 4 espaces liés · 1 API partagée · Turborepo
+     5→Architecture
+     6→Monorepo Turborepo — medihelm-api/ · medihelm-public/ · medihelm-web/ · medihelm-grossiste/
+     7→API
+     8→api.medihelm.com — NestJS unique — sert tous les projets frontend
+     9→Hub central
+    10→medihelm.com — site public — point d'entrée de toute la plateforme
+    11→Espaces liés
+    12→app · grossiste · institutionnel · admin — accessibles via /portails
+    13→Auth partagée
+    14→JWT unique émis par api.medihelm.com — vérifié par tous les frontends
+    15→Document confidentiel — YEHI OR Tech © 2025
+    16→1. Architecture Globale du Monorepo
+    17→1.1 Flux d'authentification partagée
+    18→2. Variables d'Environnement — Connexions Inter-projets
+    19→2.1 medihelm-public/ (medihelm.com)
+    20→2.2 medihelm-web/ (app.medihelm.com)
+    21→2.3 medihelm-grossiste/ (grossiste.medihelm.com)
+    22→2.4 medihelm-api/ (api.medihelm.com)
+    23→3. Configuration CORS NestJS
+    24→3.1 main.ts — api NestJS
+    25→4. Package Partagé — types/ et auth/
+    26→4.1 packages/types/index.ts
+    27→4.2 packages/auth/index.ts
+    28→5. Page /portails — Le Hub Central
+    29→5.1 Rôle de cette page
+    30→La page /portails est accessible depuis le footer de medihelm.com et depuis un lien discret dans le header ('Espace professionnel'). Elle liste tous les espaces de la plateforme MédiHelm — chaque visiteur trouve l'accès qui le concerne. Elle remplace une multitude de liens éparpillés par un point d'entrée unique, clair et professionnel.
+    31→5.2 Wireframe — /portails
+    32→6. Implémentation — Page /portails
+    33→6.1 Composant PortailCard
+    34→7. Header et Footer — Liens vers /portails
+    35→7.1 Header de medihelm.com
+    36→7.2 Footer de medihelm.com
+    37→8. Lien Retour — Depuis les Apps vers medihelm.com
+    38→Chaque application (app.medihelm.com, grossiste.medihelm.com, institutionnel.medihelm.com) doit avoir un lien discret vers medihelm.com dans son header ou son footer. Cela crée une navigation cohérente dans toute la plateforme.
+    39→8.1 Dans medihelm-web/ (backoffice pharmacien)
+    40→8.2 Dans medihelm-grossiste/
+    41→9. Configuration Turborepo
+    42→9.1 package.json racine
+    43→9.2 turbo.json
+    44→9.3 Ports de développement local
+    45→MédiHelm Connexion Monorepo & /portails — Cursor Prompt v1.0  |  YEHI OR Tech © 2025  |  Confidentiel
+    46→
+    47→--- TABLES ---
+    48→Structure cible :
+    49→
+    50→medihelm/                         ← racine Turborepo
+    51→  apps/
+    52→    medihelm-api/                 ← NestJS · api.medihelm.com
+    53→    medihelm-public/              ← Next.js · medihelm.com (HUB)
+    54→    medihelm-web/                 ← Next.js · app.medihelm.com (pharmacien)
+    55→    medihelm-grossiste/           ← Next.js · grossiste.medihelm.com
+    56→  packages/
+    57→    ui/                           ← composants partagés (Button, Badge...)
+    58→    types/                        ← types TypeScript partagés entre tous
+    59→    config/                       ← tailwind.config, tsconfig partagés
+    60→    auth/                         ← helpers JWT partagés
+    61→  package.json                    ← workspaces pnpm
+    62→  turbo.json                      ← pipeline Turborepo
+    63→// Une seule API — un seul JWT — tous les frontends
+    64→//
+    65→// Chaque frontend décode le JWT pour connaître le rôle
+    66→// et afficher uniquement ce que l'utilisateur peut voir.
+    67→
+    68→// Payload JWT api.medihelm.com
+    69→interface JWTPayload {
+    70→  sub         : string;      // userId
+    71→  pharmacieId?: string;      // null si PLATFORM_ADMIN ou institutionnel
+    72→  grossisteId?: string;      // null si pas grossiste
+    73→  role        : RoleType;    // PLATFORM_ADMIN | DIRECTEUR | CAISSIER | ...
+    74→  tenantType  : TenantType;  // PHARMACIE | GROSSISTE | INSTITUTIONNEL
+    75→  iat         : number;
+    76→  exp         : number;
+    77→}
+    78→
+    79→// À la connexion réussie — redirection automatique selon le rôle
+    80→function redirectApresConnexion(payload: JWTPayload): string {
+    81→  switch (payload.tenantType) {
+    82→    case 'PHARMACIE':     return 'https://app.medihelm.com/dashboard';
+    83→    case 'GROSSISTE':     return 'https://grossiste.medihelm.com/dashboard';
+    84→    case 'INSTITUTIONNEL':return 'https://institutionnel.medihelm.com/dashboard';
+    85→    case 'PLATFORM_ADMIN':return 'https://admin.medihelm.com/dashboard';
+    86→    default:              return 'https://medihelm.com/compte';
+    87→  }
+    88→}
+    89→# apps/medihelm-public/.env.local
+    90→NEXT_PUBLIC_API_URL=https://api.medihelm.com
+    91→
+    92→# URLs des autres espaces — utilisées pour les boutons /portails
+    93→NEXT_PUBLIC_APP_URL=https://app.medihelm.com
+    94→NEXT_PUBLIC_GROSSISTE_URL=https://grossiste.medihelm.com
+    95→NEXT_PUBLIC_INSTITUTIONNEL_URL=https://institutionnel.medihelm.com
+    96→NEXT_PUBLIC_ADMIN_URL=https://admin.medihelm.com
+    97→
+    98→# En développement local
+    99→# NEXT_PUBLIC_APP_URL=http://localhost:3001
+   100→# NEXT_PUBLIC_GROSSISTE_URL=http://localhost:3002
+   101→# NEXT_PUBLIC_INSTITUTIONNEL_URL=http://localhost:3003
+   102→# NEXT_PUBLIC_ADMIN_URL=http://localhost:3004
+   103→# apps/medihelm-web/.env.local
+   104→NEXT_PUBLIC_API_URL=https://api.medihelm.com
+   105→NEXT_PUBLIC_PUBLIC_URL=https://medihelm.com
+   106→
+   107→# En développement
+   108→# NEXT_PUBLIC_API_URL=http://localhost:3000
+   109→# NEXT_PUBLIC_PUBLIC_URL=http://localhost:3010
+   110→# apps/medihelm-grossiste/.env.local
+   111→NEXT_PUBLIC_API_URL=https://api.medihelm.com
+   112→NEXT_PUBLIC_PUBLIC_URL=https://medihelm.com
+   113→# apps/medihelm-api/.env
+   114→DATABASE_URL=postgresql://...
+   115→
+   116→# CORS — autoriser tous les frontends MédiHelm
+   117→CORS_ORIGINS=https://medihelm.com,https://app.medihelm.com,https://grossiste.medihelm.com,https://institutionnel.medihelm.com,https://admin.medihelm.com
+   118→
+   119→# En développement — autoriser les ports locaux
+   120→# CORS_ORIGINS=http://localhost:3010,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+   121→
+   122→JWT_SECRET=...
+   123→JWT_EXPIRES_IN=30d
+   124→// apps/medihelm-api/src/main.ts
+   125→async function bootstrap() {
+   126→  const app = await NestFactory.create(AppModule);
+   127→
+   128→  // CORS — lire les origines depuis la variable d'env
+   129→  const origins = process.env.CORS_ORIGINS?.split(',') ?? [];
+   130→
+   131→  app.enableCors({
+   132→    origin: (origin, callback) => {
+   133→      // Autoriser les requêtes sans origin (Postman, curl, SSR Next.js)
+   134→      if (!origin) return callback(null, true);
+   135→      if (origins.includes(origin)) return callback(null, true);
+   136→      callback(new Error(`CORS bloqué : origine non autorisée — ${origin}`));
+   137→    },
+   138→    credentials: true,        // Autoriser les cookies et Authorization header
+   139→    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+   140→    allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+   141→  });
+   142→
+   143→  // Préfixe global — tous les endpoints sous /v1
+   144→  app.setGlobalPrefix('v1');
+   145→
+   146→  await app.listen(3000);
+   147→}
+   148→bootstrap();
+   149→// packages/types/index.ts
+   150→// Types partagés entre tous les apps du monorepo
+   151→// Importés par : medihelm-public, medihelm-web, medihelm-grossiste, medihelm-api
+   152→
+   153→export type RoleType =
+   154→  | 'PLATFORM_ADMIN'
+   155→  | 'OWNER' | 'PROMOTEUR' | 'DIRECTEUR'
+   156→  | 'PHARMACIEN' | 'CAISSIER' | 'MAGASINIER' | 'COMPTABLE' | 'STAGIAIRE'
+   157→  | 'DPMED_ADMIN' | 'SOBAPS_VIEWER' | 'ABRP_VIEWER'
+   158→  | 'GROSSISTE_ADMIN' | 'GROSSISTE_COMMANDES' | 'GROSSISTE_PREPARATEUR'
+   159→  | 'GROSSISTE_LIVREUR' | 'GROSSISTE_COMMERCIAL' | 'GROSSISTE_COMPTABLE';
+   160→
+   161→export type TenantType = 'PHARMACIE' | 'GROSSISTE' | 'INSTITUTIONNEL';
+   162→
+   163→export type PlanType = 'SEED' | 'GROW' | 'LEAD' | 'NETWORK';
+   164→
+   165→export interface JWTPayload {
+   166→  sub          : string;
+   167→  pharmacieId? : string;
+   168→  grossisteId? : string;
+   169→  role         : RoleType;
+   170→  tenantType   : TenantType;
+   171→  pharmacieNom?: string;
+   172→  prenom?      : string;
+   173→  iat          : number;
+   174→  exp          : number;
+   175→}
+   176→
+   177→export interface APIResponse<T> {
+   178→  data    : T;
+   179→  meta?   : Record<string, unknown>;
+   180→  error?  : string;
+   181→}
+   182→// packages/auth/index.ts
+   183→// Helpers JWT partagés — utilisés par tous les frontends
+   184→
+   185→export function decodeJWT(token: string): JWTPayload | null {
+   186→  try {
+   187→    // Décodage BASE64 du payload (sans vérification de signature)
+   188→    // La vérification de signature se fait côté API NestJS uniquement
+   189→    const base64 = token.split('.')[1];
+   190→    const decoded = JSON.parse(atob(base64));
+   191→    return decoded as JWTPayload;
+   192→  } catch {
+   193→    return null;
+   194→  }
+   195→}
+   196→
+   197→export function isTokenExpired(token: string): boolean {
+   198→  const payload = decodeJWT(token);
+   199→  if (!payload) return true;
+   200→  return payload.exp * 1000 < Date.now();
+   201→}
+   202→
+   203→export function getStoredToken(key = 'mh-token'): string | null {
+   204→  if (typeof window === 'undefined') return null;
+   205→  return localStorage.getItem(key);
+   206→}
+   207→
+   208→export function setStoredToken(token: string, key = 'mh-token'): void {
+   209→  localStorage.setItem(key, token);
+   210→}
+   211→
+   212→export function clearStoredToken(key = 'mh-token'): void {
+   213→  localStorage.removeItem(key);
+   214→}
+   215→
+   216→// Redirection après login selon le rôle
+   217→export function getRedirectUrl(payload: JWTPayload): string {
+   218→  const appUrl          = process.env.NEXT_PUBLIC_APP_URL
+   219→                       ?? 'https://app.medihelm.com';
+   220→  const grossisteUrl    = process.env.NEXT_PUBLIC_GROSSISTE_URL
+   221→                       ?? 'https://grossiste.medihelm.com';
+   222→  const institutUrl     = process.env.NEXT_PUBLIC_INSTITUTIONNEL_URL
+   223→                       ?? 'https://institutionnel.medihelm.com';
+   224→  const adminUrl        = process.env.NEXT_PUBLIC_ADMIN_URL
+   225→                       ?? 'https://admin.medihelm.com';
+   226→
+   227→  if (payload.role === 'PLATFORM_ADMIN')  return `${adminUrl}/dashboard`;
+   228→  if (payload.tenantType === 'GROSSISTE') return `${grossisteUrl}/dashboard`;
+   229→  if (['DPMED_ADMIN','SOBAPS_VIEWER','ABRP_VIEWER'].includes(payload.role))
+   230→    return `${institutUrl}/dashboard`;
+   231→  return `${appUrl}/dashboard`;
+   232→}
+   233→TÂCHE PRINCIPALE — PAGE /portails sur medihelm.com
+   234→medihelm.com/portails
+   235→
+   236→┌─────────────────────────────────────────────────────────────────────┐
+   237→│  [← medihelm.com]                                                  │
+   238→│                                                                     │
+   239→│  Accédez à votre espace MédiHelm                                    │
+   240→│  Choisissez le portail qui correspond à votre profil.               │
+   241→│                                                                     │
+   242→│  ┌──────────────────────┐  ┌──────────────────────┐                │
+   243→│  │ 🏥 PHARMACIEN        │  │ 🏭 GROSSISTE         │                │
+   244→│  │  Backoffice officine  │  │  Espace répartiteur   │                │
+   245→│  │  MédiHelm Pro         │  │  MédiHelm Grossiste   │                │
+   246→│  │  Gestion complète :   │  │  Commandes · Picking  │                │
+   247→│  │  Stock · POS · RH     │  │  Livraisons · Catalogue│               │
+   248→│  │  Finance · ORION IA   │  │  Officines partenaires│                │
+   249→│  │                      │  │                       │                │
+   250→│  │  [→ Accéder]          │  │  [→ Accéder]          │                │
+   251→│  │  app.medihelm.com     │  │  grossiste.medihelm.com│               │
+   252→│  └──────────────────────┘  └──────────────────────┘                │
+   253→│                                                                     │
+   254→│  ┌──────────────────────┐  ┌──────────────────────┐                │
+   255→│  │ 🏛 INSTITUTIONNEL    │  │ ⚙ ADMINISTRATION     │                │
+   256→│  │  DPMED · SoBAPS      │  │  YEHI OR Tech         │                │
+   257→│  │  ABRP                │  │  PLATFORM_ADMIN       │                │
+   258→│  │  Alertes · Conformité │  │  Gestion des officines│                │
+   259→│  │  Pharmacovigilance    │  │  Plans · Facturation  │                │
+   260→│  │  Livraisons SoBAPS    │  │  Supervision globale  │                │
+   261→│  │                      │  │                       │                │
+   262→│  │  [→ Accéder]          │  │  [→ Accéder]          │                │
+   263→│  │  institutionnel...    │  │  admin.medihelm.com   │                │
+   264→│  └──────────────────────┘  └──────────────────────┘                │
+   265→│                                                                     │
+   266→│  Vous êtes patient ? → Pas besoin de portail.                      │
+   267→│  Recherchez votre médicament directement sur medihelm.com           │
+   268→│  [← Retour à medihelm.com]                                         │
+   269→└─────────────────────────────────────────────────────────────────────┘
+   270→// apps/medihelm-public/app/portails/page.tsx
+   271→// Rendu : SSG — statique — pas d'API call nécessaire
+   272→
+   273→import type { Metadata } from 'next';
+   274→import Link from 'next/link';
+   275→
+   276→export const metadata: Metadata = {
+   277→  title: 'Portails MédiHelm — Accédez à votre espace',
+   278→  description: 'Pharmaciens, grossistes, institutions — accédez à votre espace MédiHelm.',
+   279→  robots: { index: false },  // Page professionnelle — pas à indexer
+   280→};
+   281→
+   282→// Données des portails — centralisées ici, faciles à maintenir
+   283→const PORTAILS = [
+   284→  {
+   285→    id: 'pharmacien',
+   286→    icon: '🏥',
+   287→    titre: 'Espace Pharmacien',
+   288→    sousTitre: 'MédiHelm Pro',
+   289→    description: 'Backoffice complet pour la gestion de votre officine.',
+   290→    features: ['Stock & péremptions', 'Point de Vente (POS)', 'RH & bulletins de paie',
+   291→               'Finance & caisse', 'Commandes fournisseurs', 'ORION — IA quotidienne'],
+   292→    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.medihelm.com',
+   293→    couleur: 'teal',         // pour le styling
+   294→    badge: null,
+   295→  },
+   296→  {
+   297→    id: 'grossiste',
+   298→    icon: '🏭',
+   299→    titre: 'Espace Grossiste',
+   300→    sousTitre: 'MédiHelm Grossiste',
+   301→    description: 'ERP complet pour les répartiteurs pharmaceutiques.',
+   302→    features: ['Catalogue & tarification', 'Commandes entrantes', 'Picking entrepôt',
+   303→               'Livraisons & signature', 'Officines partenaires', 'Analytics ventes'],
+   304→    url: process.env.NEXT_PUBLIC_GROSSISTE_URL ?? 'https://grossiste.medihelm.com',
+   305→    couleur: 'amber',
+   306→    badge: null,
+   307→  },
+   308→  {
+   309→    id: 'institutionnel',
+   310→    icon: '🏛',
+   311→    titre: 'Espace Institutionnel',
+   312→    sousTitre: 'DPMED · SoBAPS · ABRP',
+   313→    description: 'Accès institutionnel aux données de conformité et de pharmacovigilance.',
+   314→    features: ['Alertes DPMED & rappels lots', 'Score conformité officines',
+   315→               'Confirmations livraisons SoBAPS', 'Pharmacovigilance & EI',
+   316→               'Registres stupéfiants', 'Surveillance médicaments'],
+   317→    url: process.env.NEXT_PUBLIC_INSTITUTIONNEL_URL ?? 'https://institutionnel.medihelm.com',
+   318→    couleur: 'navy',
+   319→    badge: 'Accès sur invitation',
+   320→  },
+   321→  {
+   322→    id: 'admin',
+   323→    icon: '⚙',
+   324→    titre: 'Administration',
+   325→    sousTitre: 'YEHI OR Tech',
+   326→    description: 'Supervision globale de la plateforme MédiHelm.',
+   327→    features: ['Gestion des officines', 'Plans & facturation', 'Supervision ORION',
+   328→               'Logs & audit', 'Utilisateurs & rôles', 'Infrastructure'],
+   329→    url: process.env.NEXT_PUBLIC_ADMIN_URL ?? 'https://admin.medihelm.com',
+   330→    couleur: 'gray',
+   331→    badge: 'YEHI OR Tech uniquement',
+   332→  },
+   333→];
+   334→
+   335→export default function PortailsPage() {
+   336→  return (
+   337→    <div className='min-h-screen bg-mh-gray-50'>
+   338→      {/* Header page */}
+   339→      <div className='bg-mh-teal-900 text-white py-12 px-4 text-center'>
+   340→        <p className='text-mh-teal-100 text-sm font-medium tracking-widest mb-2'>
+   341→          MEDIHELM
+   342→        </p>
+   343→        <h1 className='text-3xl font-bold mb-3'>
+   344→          Accédez à votre espace
+   345→        </h1>
+   346→        <p className='text-mh-teal-100 text-lg max-w-xl mx-auto'>
+   347→          Choisissez le portail qui correspond a votre profil.
+   348→        </p>
+   349→      </div>
+   350→
+   351→      {/* Grille des portails */}
+   352→      <div className='max-w-5xl mx-auto px-4 py-12'>
+   353→        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+   354→          {PORTAILS.map(portail => (
+   355→            <PortailCard key={portail.id} portail={portail} />
+   356→          ))}
+   357→        </div>
+   358→
+   359→        {/* Séparateur patient */}
+   360→        <div className='mt-12 p-6 bg-mh-teal-50 rounded-mh-lg border border-mh-border
+   361→                        text-center'>
+   362→          <p className='text-mh-teal-900 font-semibold text-lg mb-1'>
+   363→            Vous êtes patient ?
+   364→          </p>
+   365→          <p className='text-mh-gray-700 mb-4'>
+   366→            Pas besoin de portail. Recherchez votre médicament directement
+   367→            sur medihelm.com — sans inscription.
+   368→          </p>
+   369→          <Link href='/'
+   370→            className='inline-flex items-center gap-2 bg-mh-teal-500 text-white
+   371→                       px-6 py-3 rounded-mh font-medium hover:bg-mh-teal-700
+   372→                       transition-colors'>
+   373→            ← Retour à medihelm.com
+   374→          </Link>
+   375→        </div>
+   376→      </div>
+   377→    </div>
+   378→  );
+   379→}
+   380→// components/portails/PortailCard.tsx
+   381→
+   382→const couleurs = {
+   383→  teal:  { border:'border-mh-teal-500', accent:'bg-mh-teal-500',
+   384→           badge:'bg-mh-teal-50 text-mh-teal-700', btn:'bg-mh-teal-500 hover:bg-mh-teal-700' },
+   385→  amber: { border:'border-mh-amber-500', accent:'bg-mh-amber-500',
+   386→           badge:'bg-mh-amber-50 text-mh-amber-700', btn:'bg-mh-amber-500 hover:bg-mh-amber-700' },
+   387→  navy:  { border:'border-mh-navy-900', accent:'bg-mh-navy-900',
+   388→           badge:'bg-mh-navy-50 text-mh-navy-900', btn:'bg-mh-navy-900 hover:opacity-80' },
+   389→  gray:  { border:'border-mh-gray-400', accent:'bg-mh-gray-700',
+   390→           badge:'bg-mh-gray-100 text-mh-gray-700', btn:'bg-mh-gray-700 hover:bg-mh-gray-900' },
+   391→};
+   392→
+   393→export function PortailCard({ portail }) {
+   394→  const c = couleurs[portail.couleur];
+   395→  return (
+   396→    <div className={`bg-white rounded-mh-lg shadow-mh border-t-4 ${c.border}
+   397→                     flex flex-col overflow-hidden`}>
+   398→      {/* En-tête */}
+   399→      <div className='p-6 pb-4'>
+   400→        <div className='flex items-start justify-between mb-3'>
+   401→          <span className='text-4xl'>{portail.icon}</span>
+   402→          {portail.badge && (
+   403→            <span className={`text-xs font-medium px-2 py-1 rounded-full ${c.badge}`}>
+   404→              {portail.badge}
+   405→            </span>
+   406→          )}
+   407→        </div>
+   408→        <h2 className='text-xl font-bold text-mh-teal-900 mb-0.5'>
+   409→          {portail.titre}
+   410→        </h2>
+   411→        <p className='text-sm font-medium text-mh-gray-400 mb-3'>
+   412→          {portail.sousTitre}
+   413→        </p>
+   414→        <p className='text-sm text-mh-gray-700'>
+   415→          {portail.description}
+   416→        </p>
+   417→      </div>
+   418→
+   419→      {/* Fonctionnalités */}
+   420→      <div className='px-6 pb-4 flex-1'>
+   421→        <ul className='space-y-1.5'>
+   422→          {portail.features.map(f => (
+   423→            <li key={f} className='flex items-center gap-2 text-sm text-mh-gray-700'>
+   424→              <span className={`w-1.5 h-1.5 rounded-full ${c.accent} shrink-0`} />
+   425→              {f}
+   426→            </li>
+   427→          ))}
+   428→        </ul>
+   429→      </div>
+   430→
+   431→      {/* Bouton */}
+   432→      <div className='p-6 pt-4 border-t border-mh-border'>
+   433→        <a
+   434→          href={portail.url}
+   435→          target='_self'
+   436→          rel='noopener noreferrer'
+   437→          className={`w-full flex items-center justify-center gap-2 py-3 px-4
+   438→                      rounded-mh text-white font-medium transition-colors ${c.btn}`}
+   439→        >
+   440→          Accéder à l'espace {portail.titre}
+   441→          <span aria-hidden>→</span>
+   442→        </a>
+   443→        <p className='text-xs text-mh-gray-400 text-center mt-2'>
+   444→          {portail.url.replace('https://', '')}
+   445→        </p>
+   446→      </div>
+   447→    </div>
+   448→  );
+   449→}
+   450→// components/layout/Header.tsx — modifier le header existant
+   451→// Ajouter un lien discret 'Espace professionnel' qui mène à /portails
+   452→
+   453→// Desktop — dans la barre de navigation principale
+   454→<nav className='hidden md:flex items-center gap-6'>
+   455→  <NavLink href='/recherche'>Rechercher</NavLink>
+   456→  <NavLink href='/pharmacies'>Pharmacies</NavLink>
+   457→  <NavLink href='/garde'>Garde</NavLink>
+   458→  <NavLink href='/verification'>Vérifier</NavLink>
+   459→  {/* Séparateur discret */}
+   460→  <span className='w-px h-4 bg-mh-border' />
+   461→  <Link
+   462→    href='/portails'
+   463→    className='text-sm text-mh-gray-400 hover:text-mh-teal-700
+   464→               transition-colors flex items-center gap-1'
+   465→  >
+   466→    <BuildingIcon className='w-3.5 h-3.5' />
+   467→    Espace pro
+   468→  </Link>
+   469→</nav>
+   470→
+   471→// Mobile — dans le menu hamburger, en bas de liste
+   472→<div className='border-t border-mh-border mt-4 pt-4'>
+   473→  <Link href='/portails' className='flex items-center gap-2 py-2
+   474→                                    text-sm text-mh-gray-400'>
+   475→    <BuildingIcon className='w-4 h-4' />
+   476→    Espace professionnel
+   477→  </Link>
+   478→</div>
+   479→// components/layout/Footer.tsx — ajouter une colonne 'Portails'
+   480→
+   481→<div className='grid grid-cols-2 md:grid-cols-4 gap-8'>
+   482→  {/* Colonnes existantes... */}
+   483→
+   484→  {/* Nouvelle colonne Portails */}
+   485→  <div>
+   486→    <h4 className='text-sm font-semibold text-mh-teal-900 mb-4'>
+   487→      Espaces professionnels
+   488→    </h4>
+   489→    <ul className='space-y-2 text-sm text-mh-gray-700'>
+   490→      <li>
+   491→        <a href={process.env.NEXT_PUBLIC_APP_URL}
+   492→           className='hover:text-mh-teal-500 transition-colors flex items-center gap-1.5'>
+   493→          <span className='w-1.5 h-1.5 rounded-full bg-mh-teal-500' />
+   494→          Espace Pharmacien
+   495→        </a>
+   496→      </li>
+   497→      <li>
+   498→        <a href={process.env.NEXT_PUBLIC_GROSSISTE_URL}
+   499→           className='hover:text-mh-teal-500 transition-colors flex items-center gap-1.5'>
+   500→          <span className='w-1.5 h-1.5 rounded-full bg-mh-amber-500' />
+   501→          Espace Grossiste
+   502→        </a>
+   503→      </li>
+   504→      <li>
+   505→        <a href={process.env.NEXT_PUBLIC_INSTITUTIONNEL_URL}
+   506→           className='hover:text-mh-teal-500 transition-colors flex items-center gap-1.5'>
+   507→          <span className='w-1.5 h-1.5 rounded-full bg-mh-navy-900' />
+   508→          DPMED · SoBAPS · ABRP
+   509→        </a>
+   510→      </li>
+   511→    </ul>
+   512→    <Link href='/portails'
+   513→      className='mt-4 inline-block text-xs text-mh-teal-500
+   514→                 hover:underline font-medium'>
+   515→      Voir tous les portails →
+   516→    </Link>
+   517→  </div>
+   518→</div>
+   519→// apps/medihelm-web/components/layout/Sidebar.tsx
+   520→// En bas de la sidebar, sous le bouton déconnexion
+   521→
+   522→<div className='p-4 border-t border-mh-teal-800'>
+   523→  <a
+   524→    href={process.env.NEXT_PUBLIC_PUBLIC_URL ?? 'https://medihelm.com'}
+   525→    className='flex items-center gap-2 text-xs text-mh-teal-100
+   526→               hover:text-white transition-colors'
+   527→  >
+   528→    <ArrowLeftIcon className='w-3 h-3' />
+   529→    medihelm.com
+   530→  </a>
+   531→</div>
+   532→// apps/medihelm-grossiste/components/layout/GrossisteSidebar.tsx
+   533→// Même pattern — lien vers medihelm.com en bas de sidebar
+   534→
+   535→<a href={process.env.NEXT_PUBLIC_PUBLIC_URL}
+   536→   className='text-xs text-mh-gray-400 hover:text-mh-teal-500 transition-colors'>
+   537→  ← medihelm.com
+   538→</a>
+   539→// package.json — racine du monorepo
+   540→{
+   541→  "name": "medihelm",
+   542→  "private": true,
+   543→  "workspaces": ["apps/*", "packages/*"],
+   544→  "scripts": {
+   545→    "dev":   "turbo run dev",
+   546→    "build": "turbo run build",
+   547→    "lint":  "turbo run lint",
+   548→    "test":  "turbo run test"
+   549→  },
+   550→  "devDependencies": {
+   551→    "turbo": "latest",
+   552→    "typescript": "^5"
+   553→  }
+   554→}
+   555→// turbo.json
+   556→{
+   557→  "$schema": "https://turbo.build/schema.json",
+   558→  "pipeline": {
+   559→    "build": {
+   560→      "dependsOn": ["^build"],
+   561→      "outputs": [".next/**", "dist/**"]
+   562→    },
+   563→    "dev": {
+   564→      "cache": false,
+   565→      "persistent": true
+   566→    },
+   567→    "lint": { "outputs": [] },
+   568→    "test": { "outputs": [] }
+   569→  }
+   570→}
+   571→App | Commande | Port local | URL prod
+   572→medihelm-api | nest start --watch | 3000 | api.medihelm.com
+   573→medihelm-public | next dev | 3010 | medihelm.com
+   574→medihelm-web | next dev | 3001 | app.medihelm.com
+   575→medihelm-grossiste | next dev | 3002 | grossiste.medihelm.com
+   576→PROMPT CURSOR — COPIER TOUT CE QUI SUIT
+   577→Tu travailles sur le monorepo MédiHelm (YEHI OR Tech, Parakou, Bénin).
+   578→Structure Turborepo avec pnpm workspaces :
+   579→
+   580→  apps/
+   581→    medihelm-api/       ← NestJS · api.medihelm.com (déjà implémenté)
+   582→    medihelm-public/    ← Next.js · medihelm.com (hub central)
+   583→    medihelm-web/       ← Next.js · app.medihelm.com (pharmacien)
+   584→    medihelm-grossiste/ ← Next.js · grossiste.medihelm.com
+   585→  packages/
+   586→    types/              ← types TypeScript partagés
+   587→    auth/               ← helpers JWT partagés
+   588→    ui/                 ← composants UI partagés
+   589→    config/             ← tailwind.config, tsconfig partagés
+   590→
+   591→API unique : api.medihelm.com — NestJS — sert tous les frontends.
+   592→JWT unique émis par l'API — décodé par chaque frontend pour connaître le rôle.
+   593→
+   594→══════════════════════════════════════════════════════════════
+   595→TÂCHE 1 — MONOREPO TURBOREPO (si pas encore en place)
+   596→══════════════════════════════════════════════════════════════
+   597→
+   598→Si les 3 projets Next.js et l'API NestJS sont encore dans des dossiers
+   599→séparés sans configuration Turborepo, les structurer ainsi :
+   600→
+   601→1. Créer la racine du monorepo avec package.json workspaces :
+   602→   { 'workspaces': ['apps/*', 'packages/*'] }
+   603→
+   604→2. Créer turbo.json avec le pipeline build/dev/lint.
+   605→
+   606→3. Déplacer les projets existants dans apps/ :
+   607→   medihelm-api → apps/medihelm-api/
+   608→   medihelm-public → apps/medihelm-public/
+   609→   medihelm-web → apps/medihelm-web/
+   610→   medihelm-grossiste → apps/medihelm-grossiste/
+   611→
+   612→4. Créer packages/types/index.ts avec les types partagés :
+   613→   RoleType (19 valeurs), TenantType, PlanType, JWTPayload, APIResponse<T>
+   614→
+   615→5. Créer packages/auth/index.ts avec les helpers :
+   616→   decodeJWT(), isTokenExpired(), getStoredToken(), setStoredToken(),
+   617→   clearStoredToken(), getRedirectUrl(payload: JWTPayload): string
+   618→
+   619→   getRedirectUrl retourne :
+   620→     PLATFORM_ADMIN   → process.env.NEXT_PUBLIC_ADMIN_URL + '/dashboard'
+   621→     GROSSISTE        → process.env.NEXT_PUBLIC_GROSSISTE_URL + '/dashboard'
+   622→     DPMED/SOBAPS/ABRP→ process.env.NEXT_PUBLIC_INSTITUTIONNEL_URL + '/dashboard'
+   623→     Tout autre rôle  → process.env.NEXT_PUBLIC_APP_URL + '/dashboard'
+   624→
+   625→6. Dans chaque app Next.js, remplacer les imports directs par des
+   626→   imports depuis '@medihelm/types' et '@medihelm/auth'.
+   627→
+   628→══════════════════════════════════════════════════════════════
+   629→TÂCHE 2 — CORS API NESTJS
+   630→══════════════════════════════════════════════════════════════
+   631→
+   632→Dans apps/medihelm-api/src/main.ts :
+   633→
+   634→Activer CORS avec la liste des origines autorisées depuis .env :
+   635→  CORS_ORIGINS=https://medihelm.com,https://app.medihelm.com,
+   636→               https://grossiste.medihelm.com,
+   637→               https://institutionnel.medihelm.com,
+   638→               https://admin.medihelm.com
+   639→
+   640→Configurer app.enableCors() :
+   641→  origin: fonction qui vérifie si l'origin est dans CORS_ORIGINS.split(',')
+   642→  credentials: true
+   643→  methods: GET POST PUT PATCH DELETE OPTIONS
+   644→  allowedHeaders: Content-Type Authorization X-Requested-With
+   645→
+   646→En développement local, ajouter aussi :
+   647→  http://localhost:3010 (medihelm-public)
+   648→  http://localhost:3001 (medihelm-web)
+   649→  http://localhost:3002 (medihelm-grossiste)
+   650→  http://localhost:3003 (institutionnel)
+   651→  http://localhost:3004 (admin)
+   652→
+   653→══════════════════════════════════════════════════════════════
+   654→TÂCHE 3 — VARIABLES D'ENVIRONNEMENT
+   655→══════════════════════════════════════════════════════════════
+   656→
+   657→Créer ou mettre à jour les .env.local de chaque app :
+   658→
+   659→apps/medihelm-public/.env.local :
+   660→  NEXT_PUBLIC_API_URL=https://api.medihelm.com
+   661→  NEXT_PUBLIC_APP_URL=https://app.medihelm.com
+   662→  NEXT_PUBLIC_GROSSISTE_URL=https://grossiste.medihelm.com
+   663→  NEXT_PUBLIC_INSTITUTIONNEL_URL=https://institutionnel.medihelm.com
+   664→  NEXT_PUBLIC_ADMIN_URL=https://admin.medihelm.com
+   665→
+   666→apps/medihelm-web/.env.local :
+   667→  NEXT_PUBLIC_API_URL=https://api.medihelm.com
+   668→  NEXT_PUBLIC_PUBLIC_URL=https://medihelm.com
+   669→
+   670→apps/medihelm-grossiste/.env.local :
+   671→  NEXT_PUBLIC_API_URL=https://api.medihelm.com
+   672→  NEXT_PUBLIC_PUBLIC_URL=https://medihelm.com
+   673→
+   674→Créer également des .env.development avec les URLs localhost.
+   675→
+   676→══════════════════════════════════════════════════════════════
+   677→TÂCHE 4 — PAGE /portails sur medihelm-public/
+   678→══════════════════════════════════════════════════════════════
+   679→
+   680→Créer apps/medihelm-public/app/portails/page.tsx
+   681→
+   682→Rendu : SSG (export statique — pas d'API call).
+   683→robots : { index: false } — page pro non indexée par Google.
+   684→
+   685→La page affiche une grille 2×2 de PortailCards pour les 4 espaces :
+   686→
+   687→Card 1 — PHARMACIEN (couleur teal)
+   688→  Icône 🏥 · Titre 'Espace Pharmacien' · Sous-titre 'MédiHelm Pro'
+   689→  Description : 'Backoffice complet pour la gestion de votre officine.'
+   690→  6 features : Stock & péremptions · POS · RH & bulletins · Finance &
+   691→               caisse · Commandes fournisseurs · ORION IA quotidienne
+   692→  Bouton teal → process.env.NEXT_PUBLIC_APP_URL
+   693→  URL affichée en petit sous le bouton : app.medihelm.com
+   694→
+   695→Card 2 — GROSSISTE (couleur amber)
+   696→  Icône 🏭 · Titre 'Espace Grossiste' · Sous-titre 'MédiHelm Grossiste'
+   697→  Description : 'ERP complet pour les répartiteurs pharmaceutiques.'
+   698→  6 features : Catalogue & tarification · Commandes entrantes · Picking
+   699→               entrepôt · Livraisons & signature · Officines partenaires
+   700→               · Analytics ventes
+   701→  Bouton amber → process.env.NEXT_PUBLIC_GROSSISTE_URL
+   702→  URL : grossiste.medihelm.com
+   703→  Pas de badge
+   704→
+   705→Card 3 — INSTITUTIONNEL (couleur navy)
+   706→  Icône 🏛 · Titre 'Espace Institutionnel'
+   707→  Sous-titre 'DPMED · SoBAPS · ABRP'
+   708→  Description : 'Accès institutionnel aux données de conformité.'
+   709→  6 features : Alertes DPMED & rappels lots · Score conformité · 
+   710→               Confirmations livraisons SoBAPS · Pharmacovigilance & EI
+   711→               · Registres stupéfiants · Surveillance médicaments
+   712→  Bouton navy → process.env.NEXT_PUBLIC_INSTITUTIONNEL_URL
+   713→  URL : institutionnel.medihelm.com
+   714→  Badge : 'Accès sur invitation' (petit badge navy en haut à droite)
+   715→
+   716→Card 4 — ADMINISTRATION (couleur gray)
+   717→  Icône ⚙ · Titre 'Administration'
+   718→  Sous-titre 'YEHI OR Tech'
+   719→  Description : 'Supervision globale de la plateforme MédiHelm.'
+   720→  6 features : Gestion des officines · Plans & facturation · Supervision
+   721→               ORION · Logs & audit · Utilisateurs & rôles · Infrastructure
+   722→  Bouton gris foncé → process.env.NEXT_PUBLIC_ADMIN_URL
+   723→  URL : admin.medihelm.com
+   724→  Badge : 'YEHI OR Tech uniquement'
+   725→
+   726→Sous la grille :
+   727→  Encadré teal clair avec message pour les patients :
+   728→  'Vous êtes patient ? Pas besoin de portail.'
+   729→  'Recherchez votre médicament directement sur medihelm.com — sans inscription.'
+   730→  Bouton teal → / (retour à la landing)
+   731→
+   732→Créer le composant PortailCard dans :
+   733→  apps/medihelm-public/components/portails/PortailCard.tsx
+   734→
+   735→Chaque card :
+   736→  - bg-white rounded-mh-lg shadow-mh
+   737→  - bordure supérieure colorée épaisse (border-t-4) selon la couleur du portail
+   738→  - icône grande (text-4xl) en haut à gauche
+   739→  - badge optionnel en haut à droite
+   740→  - titre h2 bold + sous-titre texte secondaire
+   741→  - description texte sm
+   742→  - liste features avec puces colorées (w-1.5 h-1.5 rounded-full)
+   743→  - séparateur horizontal
+   744→  - bouton pleine largeur avec couleur du portail + flèche →
+   745→  - URL affichée en xs en dessous du bouton
+   746→
+   747→══════════════════════════════════════════════════════════════
+   748→TÂCHE 5 — HEADER medihelm-public/ — LIEN 'Espace pro'
+   749→══════════════════════════════════════════════════════════════
+   750→
+   751→Modifier apps/medihelm-public/components/layout/Header.tsx :
+   752→
+   753→Desktop — après les liens de navigation principaux (Rechercher, Garde...),
+   754→ajouter un séparateur vertical (1px bg-mh-border) puis un lien discret :
+   755→  Texte : 'Espace pro'
+   756→  Icône : Building2 de lucide-react (w-3.5 h-3.5)
+   757→  Style : text-sm text-mh-gray-400 hover:text-mh-teal-700 transition-colors
+   758→  Href : /portails
+   759→
+   760→Mobile — dans le menu hamburger, ajouter en bas de liste après
+   761→un séparateur (border-t border-mh-border) :
+   762→  Texte : 'Espace professionnel'
+   763→  Même icône Building2
+   764→  Href : /portails
+   765→
+   766→══════════════════════════════════════════════════════════════
+   767→TÂCHE 6 — FOOTER medihelm-public/ — COLONNE 'Portails'
+   768→══════════════════════════════════════════════════════════════
+   769→
+   770→Modifier apps/medihelm-public/components/layout/Footer.tsx :
+   771→
+   772→Ajouter une colonne 'Espaces professionnels' dans la grille du footer :
+   773→  Titre h4 : 'Espaces professionnels'
+   774→  Lien 1 : puce teal + 'Espace Pharmacien' → NEXT_PUBLIC_APP_URL
+   775→  Lien 2 : puce amber + 'Espace Grossiste' → NEXT_PUBLIC_GROSSISTE_URL
+   776→  Lien 3 : puce navy + 'DPMED · SoBAPS · ABRP' → NEXT_PUBLIC_INSTITUTIONNEL_URL
+   777→  Lien final : 'Voir tous les portails →' text-mh-teal-500 → /portails
+   778→
+   779→NE PAS afficher le lien admin dans le footer public.
+   780→
+   781→══════════════════════════════════════════════════════════════
+   782→TÂCHE 7 — LIEN RETOUR VERS medihelm.com DEPUIS LES APPS
+   783→══════════════════════════════════════════════════════════════
+   784→
+   785→Dans apps/medihelm-web/components/layout/Sidebar.tsx :
+   786→  En bas de la sidebar (sous le bouton déconnexion, bordure supérieure),
+   787→  ajouter un lien ← medihelm.com
+   788→  href : process.env.NEXT_PUBLIC_PUBLIC_URL
+   789→  Style : text-xs text-mh-teal-100 hover:text-white flex items-center gap-1
+   790→  Icône : ArrowLeft de lucide-react (w-3 h-3)
+   791→
+   792→Dans apps/medihelm-grossiste/ — même pattern dans la sidebar grossiste.
+   793→
+   794→══════════════════════════════════════════════════════════════
+   795→TÂCHE 8 — PAGE /connexion COMMUNE sur medihelm-public/
+   796→══════════════════════════════════════════════════════════════
+   797→
+   798→Créer apps/medihelm-public/app/connexion/page.tsx
+   799→
+   800→Cette page est le point d'entrée de connexion pour TOUS les professionnels.
+   801→Les patients ont leur propre /compte/login avec OTP — cette page est
+   802→pour les professionnels (pharmaciens, grossistes, institutions, admin).
+   803→
+   804→Contenu de la page :
+   805→  Titre : 'Connexion à votre espace MédiHelm'
+   806→  Formulaire : email + mot de passe
+   807→  Bouton : 'Se connecter'
+   808→  Lien : 'Mot de passe oublié ?'
+   809→
+   810→Action du formulaire :
+   811→  POST api.medihelm.com/v1/auth/login
+   812→  Body : { email, password }
+   813→  Réponse : { token: string, user: JWTPayload }
+   814→
+   815→onSuccess :
+   816→  1. Stocker le token : localStorage.setItem('mh-token', token)
+   817→  2. Décoder le payload : decodeJWT(token) depuis packages/auth
+   818→  3. Rediriger vers getRedirectUrl(payload) depuis packages/auth
+   819→     → app.medihelm.com, grossiste.medihelm.com, institutionnel, admin
+   820→     selon le rôle et le tenantType du JWT
+   821→
+   822→onError :
+   823→  Afficher toast.error avec le message de l'API
+   824→
+   825→Lien depuis /portails :
+   826→  Le bouton 'Accéder' de chaque PortailCard redirige vers /connexion
+   827→  UNIQUEMENT si l'utilisateur n'est pas connecté.
+   828→  Si l'utilisateur est déjà connecté (token valide dans localStorage),
+   829→  il est redirigé directement vers son espace sans repasser par /connexion.
+   830→
+   831→Logique token existant :
+   832→  Au chargement de /connexion, vérifier localStorage('mh-token')
+   833→  Si token présent et non expiré : appeler getRedirectUrl et redirect
+   834→  Si token expiré : clearStoredToken + afficher le formulaire normalement
+   835→
+   836→══════════════════════════════════════════════════════════════
+   837→TÂCHE 9 — MISE À JOUR /portails — BOUTONS INTELLIGENTS
+   838→══════════════════════════════════════════════════════════════
+   839→
+   840→Mettre à jour PortailCard pour un comportement intelligent :
+   841→
+   842→Au chargement côté client (useEffect) :
+   843→  Lire le token depuis localStorage
+   844→  Décoder le JWT avec decodeJWT()
+   845→  Si le token est valide et non expiré :
+   846→    → Calculer getRedirectUrl(payload)
+   847→    → Si l'URL de redirection correspond à ce portail :
+   848→       Changer le texte du bouton : 'Aller à mon espace →'
+   849→       Changer href vers l'URL directe (pas /connexion)
+   850→    → Si l'URL correspond à un autre portail :
+   851→       Garder le bouton normal (l'utilisateur peut voir les autres portails)
+   852→  Si pas de token ou token expiré :
+   853→    → href du bouton = '/connexion'
+   854→    → Texte : 'Accéder à l'espace ...'
+   855→
+   856→══════════════════════════════════════════════════════════════
+   857→CONTRAINTES GLOBALES
+   858→══════════════════════════════════════════════════════════════
+   859→
+   860→JAMAIS de redirection vers app.medihelm.com depuis le code côté serveur
+   861→(Server Component) — toujours côté client pour les redirections JWT.
+   862→
+   863→Les variables NEXT_PUBLIC_* sont exposées au navigateur.
+   864→Ne jamais y mettre de secrets (clés API, JWT_SECRET, etc.).
+   865→
+   866→Le lien 'Espace pro' dans le header doit être DISCRET —
+   867→il ne doit pas concurrencer visuellement la barre de recherche
+   868→qui est le CTA principal de medihelm.com.
+   869→
+   870→La page /portails ne nécessite AUCUN appel API — tout est statique.
+   871→Les URLs proviennent des variables d'environnement Next.js.
+   872→
+   873→Le lien admin.medihelm.com ne doit apparaître que sur /portails,
+   874→JAMAIS dans le header ni le footer public.
+   875→
+   876→ORDRE D'IMPLÉMENTATION :
+   877→  1. packages/types/index.ts
+   878→  2. packages/auth/index.ts
+   879→  3. CORS NestJS (main.ts)
+   880→  4. Variables d'env tous les projets
+   881→  5. Page /portails + PortailCard
+   882→  6. Modification Header (lien Espace pro)
+   883→  7. Modification Footer (colonne portails)
+   884→  8. Liens retour dans medihelm-web/ et medihelm-grossiste/
+   885→  9. Page /connexion commune
+   886→ 10. PortailCard intelligente (token check côté client)
+   887→
+   888→npm run build après chaque tâche — zéro erreur TypeScript.
+   889→Résultat attendu après implémentation :
+   890→
+   891→→ medihelm.com est le hub central — un visiteur peut atteindre n'importe
+   892→  quel espace professionnel depuis le header ou le footer.
+   893→
+   894→→ /portails liste les 4 espaces avec des boutons intelligents :
+   895→  connecté → redirection directe vers l'espace correspondant
+   896→  non connecté → /connexion → redirection automatique selon le rôle JWT
+   897→
+   898→→ Tous les frontends partagent les mêmes types et helpers auth
+   899→  via les packages Turborepo.
+   900→
+   901→→ L'API reçoit des requêtes depuis tous les frontends sans erreur CORS.
+   902→
+   903→→ Un pharmacien qui visite medihelm.com voit le lien 'Espace pro' en haut.
+   904→  Il clique → /portails → Card pharmacien → Se connecte → app.medihelm.com.
+   905→  La prochaine fois il clique → /portails → bouton 'Aller à mon espace'
+   906→  → redirection directe sans repasser par /connexion.
