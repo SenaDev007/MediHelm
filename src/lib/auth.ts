@@ -82,13 +82,16 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Retourner l'objet utilisateur (sera encodé dans le JWT)
+        // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
+        const roleName = utilisateur.role === 'OWNER' ? 'ADMIN' : utilisateur.role
+
         return {
           id: utilisateur.id,
           email: utilisateur.email,
           name: `${utilisateur.prenom} ${utilisateur.nom}`,
           nom: utilisateur.nom,
           prenom: utilisateur.prenom,
-          roleName: utilisateur.role,
+          roleName,
           pharmacieId: utilisateur.pharmacieId,
           pharmacieNom: utilisateur.pharmacie.nom,
         }

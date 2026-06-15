@@ -1,9 +1,17 @@
+// ============================================================
+// MédiHelm — Health Check / API Info
+// GET /api
+// Point d'entrée de l'API — statut et version
+// ============================================================
+
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  return NextResponse.json([])
-}
-
-export async function POST() {
-  return NextResponse.json({ message: 'Module en cours de développement' }, { status: 501 })
+  return NextResponse.json({
+    status: 'ok',
+    version: '2.0.0',
+    timestamp: new Date().toISOString(),
+    service: 'MédiHelm API',
+    environment: process.env.NODE_ENV || 'development',
+  })
 }

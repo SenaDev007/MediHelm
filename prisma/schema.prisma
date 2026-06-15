@@ -334,7 +334,7 @@ model Pharmacie {
   credits             Credit[]
   ecritures           EcritureComptable[]
   bulletinsPaie       BulletinPaie[]
-  conges              Cone[]
+  conges              Conge[]
   presences           Presence[]
   tierPayantLinks     PharmacieTierPayant[]
   campagnesSms        CampagneSms[]
@@ -344,6 +344,7 @@ model Pharmacie {
   receptions          ReceptionGrossiste[]
   commandesPatient    CommandePatient[]
   vaccinations        Vaccination[]
+  tickets             Ticket[]
 }
 
 model Utilisateur {
@@ -366,6 +367,7 @@ model Utilisateur {
   ventes           Vente[]
   sessionsCaisse   SessionCaisse[]
   patients         Patient[]
+  tickets          Ticket[]
 }
 
 model UtilisateurTenant {
@@ -745,7 +747,7 @@ model Employe {
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
 }
 
-model Cone {
+model Conge {
   id          String     @id @default(uuid())
   pharmacieId String
   type        TypeConge  @default(ANNUEL)
@@ -1204,4 +1206,20 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, lue])
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  pharmacieId String
+  userId      String
+  sujet       String
+  description String
+  categorie   String   @default("AUTRE")
+  priorite    String   @default("NORMALE")
+  statut      String   @default("OUVERT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pharmacie Pharmacie  @relation(fields: [pharmacieId], references: [id])
+  utilisateur Utilisateur @relation(fields: [userId], references: [id])
 }

@@ -67,13 +67,17 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
       return null
     }
 
+    // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
+    const rawRoleName = (token as Record<string, unknown>).roleName as string
+    const roleName = rawRoleName === 'OWNER' ? 'ADMIN' : rawRoleName
+
     return {
       id: token.id as string,
       email: token.email as string,
       nom: (token as Record<string, unknown>).nom as string,
       prenom: (token as Record<string, unknown>).prenom as string,
       roleId: (token as Record<string, unknown>).roleId as string,
-      roleName: (token as Record<string, unknown>).roleName as string,
+      roleName,
       pharmacieId: (token as Record<string, unknown>).pharmacieId as string,
       pharmacieNom: (token as Record<string, unknown>).pharmacieNom as string,
       avatarUrl: (token as Record<string, unknown>).avatarUrl as string | undefined,
@@ -103,13 +107,17 @@ function decodeBearerToken(token: string): AuthUser | null {
 
     if (!payload?.id) return null
 
+    // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
+    const rawRoleName = (payload.roleName ?? '') as string
+    const roleName = rawRoleName === 'OWNER' ? 'ADMIN' : rawRoleName
+
     return {
       id: payload.id as string,
       email: (payload.email ?? '') as string,
       nom: (payload.nom ?? '') as string,
       prenom: (payload.prenom ?? '') as string,
       roleId: (payload.roleId ?? '') as string,
-      roleName: (payload.roleName ?? '') as string,
+      roleName,
       pharmacieId: (payload.pharmacieId ?? '') as string,
       pharmacieNom: (payload.pharmacieNom ?? '') as string,
       avatarUrl: payload.avatarUrl as string | undefined,

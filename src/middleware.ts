@@ -19,7 +19,7 @@ const GROSSISTE_ROLES = ['GROSSISTE_PARTNER', 'PLATFORM_ADMIN']
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
-const PUBLIC_PATHS = ['/', '/patient', '/connexion']
+const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/api']
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/patient/', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {
@@ -40,7 +40,10 @@ function hasSessionCookie(request: NextRequest): { authenticated: boolean; roleN
     const parts = sessionCookie.value.split('.')
     if (parts.length !== 3) return { authenticated: false }
     const payload = JSON.parse(atob(parts[1]))
-    return { authenticated: true, roleName: payload.roleName as string | undefined }
+    // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
+    let roleName = payload.roleName as string | undefined
+    if (roleName === 'OWNER') roleName = 'ADMIN'
+    return { authenticated: true, roleName }
   } catch {
     return { authenticated: false }
   }
