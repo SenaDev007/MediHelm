@@ -1,0 +1,1268 @@
+     1→YEHI OR TECH
+     2→MédiHelm
+     3→DOCUMENTATION SCHEMA.PRISMA — RÉFÉRENCE COMPLÈTE
+     4→47 modèles · 29 enums · Schéma Pharma + Schéma Grossiste + ORION + Institutionnel
+     5→Référence
+     6→MH-SCHEMA-2025-v1.0
+     7→Specs parent
+     8→MH-SPECS-2025-v2.0 · MH-GROS-SPECS-2025-v1.0
+     9→Schémas couverts
+    10→pharma · grossiste · qualite · institutionnel
+    11→Stack
+    12→Prisma ORM · PostgreSQL 15 · Supabase (RLS)
+    13→Total
+    14→47 modèles · 29 enums
+    15→Responsable
+    16→Dawes — Fondateur & Lead Developer, YEHI OR Tech
+    17→Document confidentiel — YEHI OR Tech © 2025
+    18→Sommaire
+    19→1.   Configuration Prisma (datasource + generator)
+    20→2.   Enums globaux — Plateforme & Auth
+    21→3.   Schéma PHARMA — MédiHelm Pro
+    22→3.1  Plateforme & Auth
+    23→3.2  Stock & Médicaments
+    24→3.3  Ventes & POS
+    25→3.4  Patients & Ordonnances
+    26→3.5  Fournisseurs & Commandes
+    27→3.6  RH
+    28→3.7  Finance
+    29→3.8  Garde & Communication
+    30→3.9  Documents & Conformité
+    31→3.10 Commandes Patient
+    32→3.11 Intégrations Grossiste
+    33→4.   Schéma GROSSISTE — MédiHelm Grossiste
+    34→5.   Schéma ORION — Agent IA
+    35→6.   Schéma INSTITUTIONNEL — DPMED · SoBAPS · Pharmacovigilance
+    36→7.   Index complet des modèles
+    37→8.   Index complet des enums
+    38→9.   Relations entre modèles
+    39→10.  Conventions et règles du schéma
+    40→1. Configuration Prisma
+    41→2. Enums Globaux — Plateforme & Auth
+    42→enum  PlanType
+    43→Plans d'abonnement MédiHelm Pro
+    44→enum  RoleType
+    45→Rôles utilisateurs de la plateforme complète
+    46→enum  TenantType
+    47→Types de tenants de la plateforme
+    48→3.1 Plateforme & Auth
+    49→model  Pharmacie  {
+    50→Tenant principal — chaque officine pharmaceutique est un tenant isolé
+    51→Isolation RLS : pharmacie_id injecté dans chaque requête via middleware NestJS.
+    52→Le slug est utilisé pour les URLs publiques : medihelm.com/pharmacies/:slug.
+    53→modeGardeActif est activé par cron à l'heure de début de garde ou manuellement par le DIRECTEUR.
+    54→model  Utilisateur  {
+    55→Utilisateur lié à un tenant pharmacie
+    56→PLATFORM_ADMIN crée le compte OWNER. OWNER crée DIRECTEUR et PROMOTEUR.
+    57→DIRECTEUR crée les rôles opérationnels (PHARMACIEN, CAISSIER, MAGASINIER, COMPTABLE, STAGIAIRE).
+    58→supabaseUid est l'identifiant technique Supabase Auth — différent du id MédiHelm.
+    59→model  UtilisateurTenant  {
+    60→Relation many-to-many — OWNER/PROMOTEUR multi-officines
+    61→@@id([utilisateurId, pharmacieId]) — clé composite.
+    62→Nécessaire pour les promoteurs gérant plusieurs officines sous un même compte.
+    63→Un utilisateur peut avoir DIRECTEUR dans une officine et PROMOTEUR dans une autre.
+    64→model  Promoteur  {
+    65→Propriétaire réseau multi-officines
+    66→model  PromoPharmacieLink  {
+    67→Table de jonction Promoteur ↔ Pharmacie
+    68→@@id([promoteurId, pharmacieId]) — clé composite.
+    69→3.2 Stock & Médicaments
+    70→model  Medicament  {
+    71→Référentiel produits de l'officine — un enregistrement par DCI/forme/dosage
+    72→Le stock disponible n'est PAS stocké ici — il est calculé dynamiquement depuis les Lots.
+    73→stockDisponible = SUM(lots.quantite) WHERE dateExpiration > NOW() AND quantite > 0
+    74→FEFO : décrémentation prioritaire des lots les plus proches de la date d'expiration.
+    75→model  Lot  {
+    76→Lot physique d'un médicament — tracé par numéro de lot
+    77→CMUP recalculé à chaque réception : (ancienStock × ancienCMUP + qtéReçue × prixAchat) / (ancienStock + qtéReçue).
+    78→Un lot avec quantite=0 reste en base pour la traçabilité historique.
+    79→Les lots périmés (dateExpiration < NOW()) ne sont jamais servis en vente.
+    80→model  AjustementStock  {
+    81→Traçabilité de chaque modification manuelle du stock
+    82→model  InventaireSession  {
+    83→Session d'inventaire physique
+    84→Un inventaire crée un snapshot du stock théorique au moment de l'initiation.
+    85→La validation calcule les écarts et crée des AjustementStock pour chaque différence.
+    86→model  TransfertStock  {
+    87→Transfert de stock inter-officines (réseau promoteur)
+    88→Le stock source est décrémenté immédiatement à l'initiation.
+    89→Le stock destination n'est incrémenté qu'à la confirmation par le DIRECTEUR destination.
+    90→Seuls PROMOTEUR et PLATFORM_ADMIN peuvent initier un transfert inter-sites.
+    91→3.3 Ventes & POS
+    92→enum  StatutVente
+    93→États d'une vente
+    94→enum  ModePaiement
+    95→Modes de paiement acceptés
+    96→enum  StatutCaisse
+    97→États de la caisse journalière
+    98→model  Vente  {
+    99→Transaction de vente — une ligne par passage en caisse
+   100→synchedAt = null signifie que la vente a été créée en mode offline SQLite.
+   101→La synchronisation batch se fait via POST /ventes/sync au retour de connexion.
+   102→Le stock est décrémenté en règle FEFO à la validation de la vente.
+   103→model  LigneVente  {
+   104→Ligne de produit dans une vente
+   105→model  Paiement  {
+   106→Paiement(s) associé(s) à une vente — plusieurs modes possibles
+   107→Une vente peut avoir plusieurs Paiement (paiement mixte espèces + mobile money).
+   108→model  CaisseJournaliere  {
+   109→Caisse ouverte/fermée par journée et par caissier
+   110→3.4 Patients & Ordonnances
+   111→enum  StatutOrd
+   112→États d'une ordonnance
+   113→model  Patient  {
+   114→Fiche patient de l'officine
+   115→Les données patients sont strictement isolées par tenant — RLS obligatoire.
+   116→Un patient peut exister dans plusieurs officines sans lien entre les fiches.
+   117→comptePatId crée le lien entre la fiche officine et le compte public MédiHelm Patient.
+   118→model  Ordonnance  {
+   119→Ordonnance numérisée — scan ou saisie manuelle
+   120→model  LigneOrdonnance  {
+   121→Médicament prescrit sur l'ordonnance
+   122→model  RegistreStupefiant  {
+   123→Registre légal des stupéfiants et psychotropes délivrés
+   124→Données exigées par la réglementation DPMED Bénin.
+   125→Exportable en PDF format officiel pour inspection DPMED.
+   126→model  ComptePatient  {
+   127→Compte grand public MédiHelm Patient
+   128→Modèle global — pas isolé par pharmacie.
+   129→Lié aux fiches Patient des officines via Patient.comptePatId.
+   130→3.5 Fournisseurs & Commandes
+   131→enum  StatutCmd
+   132→États d'une commande fournisseur
+   133→enum  CanalTransmission
+   134→Canal de transmission d'une commande grossiste
+   135→model  Fournisseur  {
+   136→Fournisseur/grossiste référencé par une officine
+   137→scoreFiabilite = (commandesLivreesAtemps/total)×40 + (sansEcart/total)×35 + (sansRetour/total)×25
+   138→model  CommandeFournisseur  {
+   139→Commande passée à un fournisseur
+   140→model  LigneCommande  {
+   141→Ligne produit d'une commande fournisseur
+   142→model  RetourFournisseur  {
+   143→Retour de marchandises non conformes
+   144→model  PartenaireGrossiste  {
+   145→Configuration canal de transmission par grossiste — cascade fallback
+   146→Si nbEchecsConsecutifs >= 3 : alerte YEHI OR Tech + bascule automatique canal suivant.
+   147→model  CommandeGrossiste  {
+   148→Commande transmise via MédiHelm Grossiste — suivi transmission
+   149→3.6 RH
+   150→enum  TypeContrat
+   151→Types de contrats de travail
+   152→enum  TypePointage
+   153→Types d'événements de pointage
+   154→model  Employe  {
+   155→Fiche employé de l'officine
+   156→cnss_patronal = salaireBrut × 0.154 (15,4% — charge de l'officine).
+   157→netAPayer = salaireBrut - cnss_salarie - IRPP.
+   158→IRPP : barème progressif DGI Bénin — vérifier barème actuel avant déploiement.
+   159→model  Pointage  {
+   160→Enregistrement de présence journalier
+   161→model  Conge  {
+   162→Demande et suivi de congés
+   163→model  BulletinPaie  {
+   164→Bulletin de paie mensuel généré
+   165→model  Planning  {
+   166→Planning de shifts et gardes
+   167→3.7 Finance
+   168→enum  CatCharge
+   169→Catégories de charges de l'officine
+   170→model  Charge  {
+   171→Charge de l'officine — dépenses opérationnelles
+   172→model  Assurance  {
+   173→Mutuelle ou assurance santé pour tiers payant
+   174→model  TiersPayant  {
+   175→Prise en charge assurance sur une vente spécifique
+   176→3.8 Garde & Communication
+   177→model  Garde  {
+   178→Planning de pharmacie de garde
+   179→Publié en lecture via GET /public/gardes — visible sans authentification.
+   180→Cron 19h00 WAT : notification push + SMS à tous les patients de la zone.
+   181→model  Notification  {
+   182→Notification envoyée à un patient ou à l'équipe
+   183→model  CampagneSMS  {
+   184→Campagne SMS vers les patients de l'officine
+   185→3.9 Documents & Conformité
+   186→enum  TypeDocReg
+   187→Types de documents réglementaires
+   188→enum  StatutDoc
+   189→États d'un document réglementaire
+   190→model  Document  {
+   191→Document officiel avec suivi d'expiration
+   192→model  PVDestruction  {
+   193→Procès-verbal de destruction de médicaments
+   194→3.10 Commandes Patient — MédiHelm Patient
+   195→enum  StatutCmdPat
+   196→États d'une commande patient
+   197→model  CommandePatient  {
+   198→Commande passée depuis l'espace grand public MédiHelm Patient
+   199→Quand statut passe à RECUPEREE : une Vente est automatiquement créée et liée via commandePatId.
+   200→model  LigneCmdPat  {
+   201→Ligne produit d'une commande patient
+   202→3.11 Intégrations Grossiste — côté MédiHelm Pro
+   203→Les modèles Fournisseur, CommandeFournisseur, LigneCommande, PartenaireGrossiste et CommandeGrossiste couvrent côté officine la gestion des commandes vers les grossistes avec la cascade de fallback API REST → Email EDI → WhatsApp → Form Automation → PDF. Voir section 3.5 pour le détail de ces modèles.
+   204→4. Modèles MédiHelm Grossiste
+   205→enum  PlanGrossiste
+   206→Plans d'abonnement MédiHelm Grossiste
+   207→enum  StatutProduit
+   208→États d'un produit dans le catalogue grossiste
+   209→enum  SourceCommande
+   210→Origine d'une commande reçue par le grossiste
+   211→enum  StatutCmdGros
+   212→États d'une commande côté grossiste
+   213→enum  StatutLivraison
+   214→États d'une livraison grossiste
+   215→enum  StatutLot
+   216→États d'un lot en entrepôt grossiste
+   217→model  GrossisteTenant  {
+   218→Tenant grossiste répartiteur
+   219→model  ProduitGrossiste  {
+   220→Produit dans le catalogue du grossiste
+   221→Synchronisé vers les officines MédiHelm Pro via WebSocket à chaque modification.
+   222→model  TarifGrossiste  {
+   223→Tarification multi-niveaux du grossiste
+   224→model  LotGrossiste  {
+   225→Lot en entrepôt grossiste
+   226→model  CommandeGrossiste  {
+   227→Commande entrante d'une officine — côté grossiste
+   228→model  LigneCmdGros  {
+   229→Ligne produit d'une commande entrante
+   230→model  LivraisonGrossiste  {
+   231→Livraison planifiée et suivi
+   232→signatureAt + signatureUrl = preuve de livraison non répudiable.
+   233→Quand statut LIVREE : le stock de l'officine MédiHelm Pro est mis à jour automatiquement.
+   234→model  ClientOfficine  {
+   235→Fiche client officine chez le grossiste
+   236→model  EmployeGrossiste  {
+   237→Personnel du grossiste
+   238→enum  RoleGrossiste
+   239→Rôles spécifiques au grossiste
+   240→model  CataloguePrix  {
+   241→Catalogue de prix publié vers les officines MédiHelm
+   242→@@unique([grossisteId, referenceGros]) — contrainte d'unicité.
+   243→Synchronisé automatiquement vers les officines MédiHelm Pro partenaires.
+   244→5. Modèles ORION — Agent IA MédiHelm
+   245→enum  ActionMode
+   246→Modes d'action de l'agent ORION
+   247→enum  StatutAction
+   248→États d'une action ORION
+   249→enum  DomaineIA
+   250→Domaines d'analyse et d'action de l'agent ORION
+   251→model  OrionAction  {
+   252→Log de chaque action ORION — autonome ou soumise à approbation
+   253→Toute action ORION est loggée ici — audit complet disponible au DIRECTEUR et à YEHI OR Tech.
+   254→La classification autonome/approbation/bloquée est déterministe (OrionTaxonomie) — jamais via LLM.
+   255→model  OrionConversation  {
+   256→Historique de conversation avec l'agent ORION
+   257→Rétention 90 jours puis suppression automatique.
+   258→Les messages incluent les questions de l'utilisateur ET les réponses d'ORION.
+   259→model  OrionBriefing  {
+   260→Briefing quotidien généré par ORION à 06h00 WAT
+   261→Rétention 30 jours puis suppression automatique.
+   262→Envoyé par cron à 06h00 WAT — heure paramétrable via ORION_BRIEFING_CRON.
+   263→model  AnalyticsReport  {
+   264→Rapport d'analyse IA par domaine
+   265→@@unique([pharmacieId, domaine]) — un seul rapport actif par domaine par officine.
+   266→Généré par BullMQ cron 05h00 WAT ou manuellement (cooldown 30 min).
+   267→model  CronJob  {
+   268→État du cron analytics par officine
+   269→6. Modèles Institutionnels
+   270→enum  TypeAlerteDPMED
+   271→Types d'alertes DPMED
+   272→enum  NiveauUrgence
+   273→Niveaux d'urgence des alertes DPMED
+   274→model  MedicamentSurveillance  {
+   275→Base nationale des médicaments sous surveillance DPMED
+   276→model  SignalementEI  {
+   277→Signalement d'effet indésirable vers la DPMED
+   278→model  FicheDCI  {
+   279→Base de données DCI nationale — interactions et contre-indications
+   280→model  AlerteDPMED  {
+   281→Alerte officielle émise par la DPMED — diffusée à toutes les officines
+   282→model  DiffusionAlerte  {
+   283→Diffusion d'une alerte DPMED vers une officine spécifique
+   284→model  ConfirmationReceptionSoBAPS  {
+   285→Confirmation de réception d'une livraison SoBAPS
+   286→model  ScoreConformite  {
+   287→Score de conformité DPMED de l'officine — calculé quotidiennement
+   288→7. Index Complet des Modèles
+   289→8. Index Complet des Enums
+   290→10. Conventions et Règles du Schéma
+   291→10.1 Identifiants
+   292→Tous les ids sont des UUID v4 générés par @default(uuid()) — pas d'auto-increment.
+   293→Pas d'exposé des ids internes dans les URLs publiques — utiliser le slug ou la reference.
+   294→supabaseUid est l'identifiant Supabase Auth — distinct du id MédiHelm.
+   295→10.2 Isolation multitenant
+   296→pharmacieId est présent sur TOUTES les tables métier du schéma pharma sans exception.
+   297→RLS PostgreSQL activée sur toutes les tables : USING (pharmacie_id = current_setting('app.current_tenant')::uuid).
+   298→Aucune jointure directe entre les schémas pharma et grossiste — communication via API uniquement.
+   299→Les données patients ne sont JAMAIS transmises au grossiste — ni nominatives, ni agrégées.
+   300→10.3 Soft delete
+   301→Pas de suppression physique pour les données métier — actif = false.
+   302→Exception : OrionConversation (90j) et OrionBriefing (30j) — suppression automatique par cron.
+   303→Les lots avec quantite = 0 restent en base pour la traçabilité FEFO et l'audit.
+   304→10.4 Champs obligatoires
+   305→createdAt : toutes les tables. updatedAt : tables fréquemment modifiées.
+   306→pharmacieId : toutes les tables du schéma pharma.
+   307→grossisteId : toutes les tables du schéma grossiste.
+   308→10.5 Stockage des fichiers
+   309→Aucun fichier stocké en base — uniquement des URLs Supabase Storage.
+   310→Buckets : ordonnances (privé/chiffré), documents (privé/chiffré), medicaments-photos (public), bulletins-paie (privé/chiffré), pv-destruction (privé/chiffré).
+   311→10.6 Index PostgreSQL critiques
+   312→MédiHelm schema.prisma v1.0  |  YEHI OR Tech © 2025  |  47 modèles · 29 enums  |  Confidentiel
+   313→
+   314→--- TABLES ---
+   315→// schema.prisma — MédiHelm — YEHI OR Tech
+   316→// Référence : MH-SCHEMA-2025-v1.0
+   317→
+   318→datasource db {
+   319→  provider = "postgresql"
+   320→  url      = env("DATABASE_URL")
+   321→}
+   322→
+   323→generator client {
+   324→  provider = "prisma-client-js"
+   325→}
+   326→
+   327→// Mode offline POS — SQLite local
+   328→generator clientSQLite {
+   329→  provider = "prisma-client-js"
+   330→  output   = "./generated/sqlite"
+   331→}
+   332→
+   333→datasource dbSQLite {
+   334→  provider = "sqlite"
+   335→  url      = "file:./offline.db"
+   336→}
+   337→Row Level Security (RLS) PostgreSQL activée sur toutes les tables métier.
+   338→Le middleware NestJS injecte le tenant_id via SET app.current_tenant avant chaque requête.
+   339→Jamais de jointure directe entre les schémas pharma et grossiste — communication via API uniquement.
+   340→Valeur | Signification
+   341→SEED | Plan démarrage — officine individuelle < 50 patients/jour — 19 900 FCFA/mois
+   342→GROW | Plan croissance — officine standard — 34 900 FCFA/mois
+   343→LEAD | Plan leader — officine à fort volume — 54 900 FCFA/mois
+   344→NETWORK | Plan réseau — promoteur multi-officines — Sur devis
+   345→Valeur | Signification
+   346→PLATFORM_ADMIN | YEHI OR Tech — accès total à toute la plateforme
+   347→OWNER | Souscripteur du compte — peut être promoteur ou directeur
+   348→PROMOTEUR | Propriétaire réseau multi-officines — lecture consolidée
+   349→DIRECTEUR | Pharmacien titulaire ou responsable d'une officine — accès complet
+   350→PHARMACIEN | Vente + ordonnances + stock + patients
+   351→CAISSIER | POS uniquement — pas d'accès stock ou patients
+   352→MAGASINIER | Stock + réceptions — pas de POS
+   353→COMPTABLE | Finance + caisse — pas de POS
+   354→STAGIAIRE | Lecture seule sur modules autorisés
+   355→DPMED_ADMIN | Accès institutionnel DPMED — alertes et pharmacovigilance
+   356→SOBAPS_VIEWER | Accès institutionnel SoBAPS — confirmations livraisons
+   357→ABRP_VIEWER | Accès institutionnel ABRP
+   358→GROSSISTE_PARTNER | Grossiste partenaire — accès lecture commandes officines
+   359→GROSSISTE_ADMIN | Administrateur espace grossiste
+   360→GROSSISTE_COMMANDES | Responsable commandes grossiste
+   361→GROSSISTE_PREPARATEUR | Préparateur entrepôt grossiste
+   362→GROSSISTE_LIVREUR | Livreur grossiste — app mobile
+   363→GROSSISTE_COMMERCIAL | Commercial terrain grossiste
+   364→GROSSISTE_COMPTABLE | Comptable grossiste
+   365→Valeur | Signification
+   366→PHARMACIE | Officine pharmaceutique — MédiHelm Pro
+   367→GROSSISTE | Grossiste répartiteur — MédiHelm Grossiste
+   368→INSTITUTIONNEL | Institution (DPMED, SoBAPS, ABRP) — accès en lecture
+   369→SCHÉMA PHARMA — MédiHelm Pro
+   370→Champ | Type Prisma | Contraintes / Description
+   371→id | String | @id @default(uuid()) — Identifiant unique du tenant
+   372→nom | String | Nom officiel de l'officine
+   373→slug | String | @unique — URL-friendly identifier ex: pharmacie-centrale-parakou
+   374→adresse | String | Adresse physique complète
+   375→telephone | String | Numéro principal
+   376→email | String? | Email optionnel
+   377→latitude | Float | Coordonnée GPS pour géolocalisation
+   378→longitude | Float | Coordonnée GPS pour géolocalisation
+   379→plan | PlanType | @default(SEED) — Plan d'abonnement actif
+   380→planExpireAt | DateTime? | Date d'expiration du plan — null si actif
+   381→actif | Boolean | @default(true) — false = compte suspendu
+   382→modeGardeActif | Boolean | @default(false) — true = pharmacie de garde active
+   383→heureOuverture | String | @default('08:00') — Format HH:mm WAT
+   384→heureFermeture | String | @default('21:00') — Format HH:mm WAT
+   385→createdAt | DateTime | @default(now())
+   386→updatedAt | DateTime | @updatedAt
+   387→Champ | Type Prisma | Contraintes / Description
+   388→id | String | @id @default(uuid())
+   389→pharmacieId | String | Clé étrangère vers Pharmacie — tenant de rattachement
+   390→supabaseUid | String | @unique — UID Supabase Auth pour authentification JWT
+   391→role | RoleType | Rôle RBAC de l'utilisateur dans son officine
+   392→nom | String | Nom de famille
+   393→prenom | String | Prénom
+   394→telephone | String | Numéro de téléphone
+   395→email | String? | Email optionnel
+   396→actif | Boolean | @default(true) — false = compte désactivé sans suppression
+   397→crееParId | String? | ID de l'utilisateur qui a créé ce compte
+   398→createdAt | DateTime | @default(now())
+   399→Champ | Type Prisma | Contraintes / Description
+   400→utilisateurId | String | Clé étrangère vers Utilisateur
+   401→pharmacieId | String | Clé étrangère vers Pharmacie
+   402→roleSpecifique | RoleType | Rôle de cet utilisateur dans cette officine spécifique
+   403→Champ | Type Prisma | Contraintes / Description
+   404→id | String | @id @default(uuid())
+   405→nom | String | Nom du promoteur ou raison sociale
+   406→email | String | @unique — email de contact principal
+   407→telephone | String | Numéro de téléphone
+   408→createdAt | DateTime | @default(now())
+   409→pharmacies | PromoPharmacieLink[] | Relation vers ses officines
+   410→Champ | Type Prisma | Contraintes / Description
+   411→promoteurId | String | Clé étrangère vers Promoteur
+   412→pharmacieId | String | Clé étrangère vers Pharmacie
+   413→role | String | @default('OWNER') — rôle du promoteur dans cette officine
+   414→createdAt | DateTime | @default(now())
+   415→Champ | Type Prisma | Contraintes / Description
+   416→id | String | @id @default(uuid())
+   417→pharmacieId | String | Tenant — clé étrangère vers Pharmacie
+   418→dci | String | Dénomination Commune Internationale — nom générique
+   419→nomCommercial | String | Nom de marque ex: Doliprane, Amoxil
+   420→forme | String | comprime · sirop · injectable · pommade · sachet...
+   421→dosage | String | ex: 500mg · 250mg/5ml · 1g
+   422→codeATC | String? | Code ATC (Anatomical Therapeutic Chemical)
+   423→classeThera | String? | Classe thérapeutique ex: Antibiotique β-lactamine
+   424→fabricant | String? | Laboratoire fabricant
+   425→prixPublic | Float | Prix de vente public — en FCFA
+   426→surOrdonnance | Boolean | @default(false) — true = médicament lista
+   427→estStupefiant | Boolean | @default(false) — true = registre obligatoire
+   428→stockMinimum | Int | @default(5) — seuil alerte HAUTE
+   429→stockSecurite | Int | @default(10) — seuil alerte MOYENNE
+   430→stockMaximum | Int? | Seuil surstockage — optionnel
+   431→codeBarres | String? | Code-barres EAN-13 ou Data Matrix
+   432→actif | Boolean | @default(true) — false = archivé sans suppression
+   433→createdAt | DateTime | @default(now())
+   434→Champ | Type Prisma | Contraintes / Description
+   435→id | String | @id @default(uuid())
+   436→medicamentId | String | Clé étrangère vers Medicament
+   437→numeroLot | String | Numéro de lot officiel du fabricant
+   438→quantite | Int | Quantité disponible dans ce lot — décrémentée à chaque vente
+   439→prixAchat | Float | Prix d'achat unitaire — utilisé pour calcul CMUP
+   440→dateExpiration | DateTime | Date de péremption — filtrée dans toutes les requêtes stock
+   441→dateFabrication | DateTime? | Date de fabrication — optionnelle
+   442→fournisseurId | String? | Clé étrangère vers Fournisseur — grossiste source
+   443→emplacement | String? | Position en rayonnage ex: A3-R2-N4
+   444→createdAt | DateTime | @default(now())
+   445→Champ | Type Prisma | Contraintes / Description
+   446→id | String | @id @default(uuid())
+   447→pharmacieId | String | Tenant
+   448→medicamentId | String | Médicament concerné
+   449→lotId | String? | Lot concerné — optionnel si ajustement global
+   450→quantiteAvant | Int | Quantité avant l'ajustement
+   451→quantiteApres | Int | Quantité après l'ajustement
+   452→motif | String | Motif obligatoire ex: casse, vol, péremption, correction inventaire
+   453→utilisateurId | String | Qui a fait l'ajustement — DIRECTEUR ou MAGASINIER
+   454→createdAt | DateTime | @default(now())
+   455→Champ | Type Prisma | Contraintes / Description
+   456→id | String | @id @default(uuid())
+   457→pharmacieId | String | Tenant
+   458→statut | String | INITIE · EN_COURS · VALIDE · ANNULE
+   459→initiePar | String | utilisateurId du DIRECTEUR ou MAGASINIER
+   460→validePar | String? | utilisateurId — null tant que non validé
+   461→dateValidation | DateTime? | Date de validation de l'inventaire
+   462→createdAt | DateTime | @default(now())
+   463→Champ | Type Prisma | Contraintes / Description
+   464→id | String | @id @default(uuid())
+   465→sourcePharmacieId | String | Officine source
+   466→destinationPharmacieId | String | Officine destination
+   467→medicamentId | String | Médicament transféré
+   468→lotId | String? | Lot spécifique — null = automatique FEFO
+   469→quantite | Int | Quantité transférée
+   470→statut | String | EN_TRANSIT · CONFIRME · REFUSE
+   471→confirmeParId | String? | DIRECTEUR destination qui confirme la réception
+   472→createdAt | DateTime | @default(now())
+   473→Valeur | Signification
+   474→VALIDEE | Vente finalisée et encaissée — état terminal normal
+   475→ANNULEE | Vente annulée avant ou après validation — stock restitué
+   476→AVOIR | Avoir créé sur une vente validée — remboursement partiel ou total
+   477→PARTIELLEMENT_PAYEE | Vente validée mais paiement partiel — solde en crédit patient
+   478→Valeur | Signification
+   479→ESPECES | Paiement cash en FCFA
+   480→WAVE | Mobile money Wave — intégration Fedapay
+   481→MTN_MONEY | Mobile money MTN — intégration Fedapay
+   482→MOOV_MONEY | Mobile money Moov — intégration Fedapay
+   483→CARTE | Carte bancaire — intégration Fedapay
+   484→ASSURANCE | Tiers payant assurance/mutuelle
+   485→CREDIT | Crédit accordé au patient — débiteur de l'officine
+   486→Valeur | Signification
+   487→OUVERTE | Caisse ouverte — ventes en cours
+   488→FERMEE | Caisse clôturée — rapport de fin de journée validé
+   489→Champ | Type Prisma | Contraintes / Description
+   490→id | String | @id @default(uuid())
+   491→pharmacieId | String | Tenant
+   492→utilisateurId | String | Caissier ou pharmacien qui a effectué la vente
+   493→patientId | String? | Fiche patient — null si vente anonyme
+   494→ordonnanceId | String? | Ordonnance source — null si vente libre
+   495→commandePatId | String? | Commande MédiHelm Patient à l'origine — null si vente directe
+   496→montantTotal | Float | Montant total de la vente en FCFA
+   497→montantPaye | Float | Montant effectivement encaissé
+   498→montantAssur | Float | @default(0) — Part prise en charge par l'assurance
+   499→statut | StatutVente | @default(VALIDEE)
+   500→reference | String | @unique — Référence unique ex: VTE-20250318-00441
+   501→synchedAt | DateTime? | null = créée offline, non encore synchronisée au serveur
+   502→createdAt | DateTime | @default(now())
+   503→Champ | Type Prisma | Contraintes / Description
+   504→id | String | @id @default(uuid())
+   505→venteId | String | Clé étrangère vers Vente
+   506→medicamentId | String | Médicament vendu
+   507→lotId | String? | Lot spécifique utilisé — null = automatique FEFO
+   508→quantite | Int | Quantité vendue
+   509→prixUnitaire | Float | Prix unitaire au moment de la vente (peut différer du prixPublic si remise)
+   510→remise | Float | @default(0) — Remise en FCFA
+   511→montantLigne | Float | (prixUnitaire × quantite) - remise
+   512→Champ | Type Prisma | Contraintes / Description
+   513→id | String | @id @default(uuid())
+   514→venteId | String | Clé étrangère vers Vente
+   515→mode | ModePaiement | Mode de paiement utilisé
+   516→montant | Float | Montant payé via ce mode
+   517→reference | String? | Référence externe ex: numéro de transaction Wave
+   518→fedapayTxId | String? | ID transaction Fedapay pour les paiements mobiles
+   519→createdAt | DateTime | @default(now())
+   520→Champ | Type Prisma | Contraintes / Description
+   521→id | String | @id @default(uuid())
+   522→pharmacieId | String | Tenant
+   523→date | DateTime | Date de la journée — un enregistrement par jour par caissier
+   524→utilisateurId | String | Caissier responsable de cette caisse
+   525→fondOuverture | Float | Fonds initial mis en caisse à l'ouverture
+   526→montantVentes | Float | @default(0) — Cumul des ventes de la journée
+   527→montantEspeces | Float | @default(0) — Cumul espèces encaissées
+   528→montantMobile | Float | @default(0) — Cumul paiements mobiles
+   529→totalTheorique | Float | @default(0) — Total attendu = fondOuverture + montantVentes
+   530→totalReel | Float? | Total compté physiquement à la clôture
+   531→ecart | Float? | totalReel - totalTheorique — positif = excédent, négatif = manquant
+   532→statut | StatutCaisse | @default(OUVERTE)
+   533→closedAt | DateTime? | Heure de clôture
+   534→Valeur | Signification
+   535→EN_ATTENTE | Ordonnance reçue — pas encore validée par le pharmacien
+   536→VALIDEE | Ordonnance vérifiée et acceptée
+   537→PARTIELLEMENT_DELIVREE | Délivrance partielle — certains médicaments manquants
+   538→SOLDEE | Tous les médicaments délivrés — ordonnance clôturée
+   539→EXPIREE | Ordonnance non délivrée dans les délais légaux
+   540→Champ | Type Prisma | Contraintes / Description
+   541→id | String | @id @default(uuid())
+   542→pharmacieId | String | Tenant — chaque officine a ses propres fiches patients
+   543→nom | String | Nom de famille
+   544→prenom | String | Prénom
+   545→telephone | String | Numéro de téléphone — identifiant principal
+   546→dateNaissance | DateTime? | Date de naissance — optionnelle
+   547→groupeSanguin | String? | Groupe sanguin ex: A+, O-
+   548→allergies | String[] | Liste des allergies connues
+   549→assuranceId | String? | Clé étrangère vers Assurance — mutuelle du patient
+   550→numeroAssur | String? | Numéro d'adhérent assurance
+   551→soldeCredit | Float | @default(0) — Crédit actuel consommé
+   552→limitCredit | Float | @default(0) — Plafond de crédit accordé par le DIRECTEUR
+   553→pointsFidelite | Int | @default(0) — Points programme fidélité
+   554→comptePatId | String? | Lien vers ComptePatient — null si patient non inscrit MédiHelm Patient
+   555→createdAt | DateTime | @default(now())
+   556→Champ | Type Prisma | Contraintes / Description
+   557→id | String | @id @default(uuid())
+   558→pharmacieId | String | Tenant
+   559→patientId | String | Clé étrangère vers Patient
+   560→medecin | String? | Nom du médecin prescripteur
+   561→dateOrdonnance | DateTime | Date de l'ordonnance
+   562→photoUrl | String? | URL Supabase Storage du scan de l'ordonnance
+   563→statut | StatutOrd | @default(EN_ATTENTE)
+   564→estStupefiant | Boolean | @default(false) — true = enregistrement registre obligatoire
+   565→numeroRegistre | String? | Numéro dans le registre des stupéfiants — obligatoire si estStupefiant
+   566→createdAt | DateTime | @default(now())
+   567→Champ | Type Prisma | Contraintes / Description
+   568→id | String | @id @default(uuid())
+   569→ordonnanceId | String | Clé étrangère vers Ordonnance
+   570→medicamentId | String | Médicament prescrit — référence au catalogue de l'officine
+   571→quantitePrescrite | Int | Quantité prescrite par le médecin
+   572→quantiteDelivree | Int | @default(0) — Quantité effectivement délivrée
+   573→posologie | String? | Instructions de prise ex: 1 comprimé matin et soir pendant 7 jours
+   574→Champ | Type Prisma | Contraintes / Description
+   575→id | String | @id @default(uuid())
+   576→pharmacieId | String | Tenant
+   577→ordonnanceId | String | Ordonnance source — obligatoire
+   578→medicamentId | String | Stupéfiant ou psychotrope délivré
+   579→patientNom | String | Nom et prénom complets du patient
+   580→medecin | String | Médecin prescripteur
+   581→dateDelivrance | DateTime | Date et heure exactes de délivrance
+   582→quantiteDelivree | Int | Quantité délivrée
+   583→pharmacienId | String | Pharmacien responsable de la délivrance
+   584→numeroRegistre | String | Numéro séquentiel officiel du registre
+   585→signatureUrl | String? | Scan de la signature si requis
+   586→Champ | Type Prisma | Contraintes / Description
+   587→id | String | @id @default(uuid())
+   588→supabaseUid | String | @unique — UID Supabase Auth
+   589→nom | String | Nom de famille
+   590→prenom | String | Prénom
+   591→telephone | String | @unique — identifiant principal
+   592→email | String? | Email optionnel
+   593→dateNaissance | DateTime? | Pour personnalisation des alertes
+   594→createdAt | DateTime | @default(now())
+   595→Valeur | Signification
+   596→BROUILLON | Commande générée — pas encore envoyée au fournisseur
+   597→ENVOYEE | Commande transmise au fournisseur (via cascade canal)
+   598→CONFIRMEE | Fournisseur a confirmé — date de livraison connue
+   599→EN_LIVRAISON | Commande en cours de livraison
+   600→RECUE | Réception enregistrée — stock mis à jour
+   601→SOLDEE | Toutes les lignes livrées et facturées
+   602→ANNULEE | Commande annulée avant livraison
+   603→Valeur | Signification
+   604→API_REST | API REST directe — disponibilité selon le grossiste
+   605→EMAIL_EDI | Email structuré avec PDF + JSON embarqué — canal principal de lancement
+   606→WHATSAPP | WhatsApp Business API — canal prioritaire Bénin
+   607→FORM_AUTO | Playwright automation sur portail web grossiste
+   608→PDF_FALLBACK | PDF généré + notification manuelle — toujours disponible
+   609→Champ | Type Prisma | Contraintes / Description
+   610→id | String | @id @default(uuid())
+   611→pharmacieId | String | Tenant — chaque officine gère ses propres fournisseurs
+   612→nom | String | Nom ex: UbiPharm Bénin, Promopharma
+   613→telephone | String? | Numéro commercial
+   614→email | String? | Email commandes
+   615→adresse | String? | Adresse physique
+   616→delaiLivraison | Int | @default(3) — Délai moyen en jours ouvrés
+   617→condPaiement | String? | Conditions de paiement ex: '30j fin de mois'
+   618→scoreFiabilite | Float? | Score 0-100 calculé automatiquement par ORION
+   619→actif | Boolean | @default(true)
+   620→estMediHelmGrossiste | Boolean | @default(false) — true = grossiste sur MédiHelm Grossiste
+   621→grossisteId | String? | ID du GrossisteTenant si estMediHelmGrossiste
+   622→Champ | Type Prisma | Contraintes / Description
+   623→id | String | @id @default(uuid())
+   624→pharmacieId | String | Tenant
+   625→fournisseurId | String | Fournisseur destinataire
+   626→reference | String | @unique — ex: CMD-2025-00441
+   627→statut | StatutCmd | @default(BROUILLON)
+   628→montantTotal | Float? | Montant estimé ou réel
+   629→dateCommande | DateTime | @default(now())
+   630→dateLivraison | DateTime? | Date de livraison prévue ou effective
+   631→notes | String? | Notes internes
+   632→canalTransmission | CanalTransmission? | Canal utilisé pour l'envoi
+   633→Champ | Type Prisma | Contraintes / Description
+   634→id | String | @id @default(uuid())
+   635→commandeId | String | Clé étrangère vers CommandeFournisseur
+   636→medicamentId | String | Médicament commandé
+   637→refGrossiste | String? | Référence catalogue du grossiste
+   638→quantiteCommandee | Int | Quantité commandée
+   639→quantiteRecue | Int? | Quantité effectivement reçue — null tant que non reçue
+   640→prixUnitaire | Float? | Prix unitaire négocié — null si pas encore confirmé
+   641→statut | String | EN_ATTENTE · RECUE · PARTIELLE · ANNULEE
+   642→Champ | Type Prisma | Contraintes / Description
+   643→id | String | @id @default(uuid())
+   644→pharmacieId | String | Tenant
+   645→fournisseurId | String | Fournisseur concerné
+   646→commandeId | String? | Commande d'origine — optionnel
+   647→motif | String | Motif du retour ex: périmé à réception, lot rappelé DPMED
+   648→statut | String | INITIE · TRANSMIS · ACCEPTE · REMBOURSE
+   649→Champ | Type Prisma | Contraintes / Description
+   650→id | String | @id @default(uuid())
+   651→nom | String | ex: UbiPharm Bénin
+   652→codeGrossiste | String | @unique — code interne ex: UBIPHARMA-BJ
+   653→canalPrincipal | CanalTransmission | Canal prioritaire
+   654→canalFallback1 | CanalTransmission | Fallback 1 si canal principal échoue
+   655→canalFallback2 | CanalTransmission | Fallback 2
+   656→apiEndpoint | String? | URL API REST si disponible
+   657→apiKeyHash | String? | Clé API chiffrée AES-256
+   658→emailCommandes | String? | Email commandes EDI
+   659→whatsappNumero | String? | Numéro WhatsApp Business
+   660→formUrlPortail | String? | URL portail web pour form automation
+   661→nbEchecsConsecutifs | Int | @default(0) — Compteur d'échecs pour alertes
+   662→statut | String | ACTIF · EN_ALERTE · SUSPENDU
+   663→Champ | Type Prisma | Contraintes / Description
+   664→id | String | @id @default(uuid())
+   665→pharmacieId | String | Officine émettrice
+   666→grossisteId | String | PartenaireGrossiste destinataire
+   667→commandeInterne | String | ID de la CommandeFournisseur source
+   668→referenceGrossiste | String? | Référence retournée par le grossiste après confirmation
+   669→statut | String | ENVOYEE · CONFIRMEE · REFUSEE · EN_PREPARATION · EN_LIVRAISON · LIVREE
+   670→canalUtilise | CanalTransmission? | Canal effectivement utilisé pour cet envoi
+   671→payload | Json | Payload envoyé au grossiste — pour audit et re-tentative
+   672→reponseGrossiste | Json? | Réponse brute du grossiste
+   673→createdAt | DateTime | @default(now())
+   674→Valeur | Signification
+   675→CDI | Contrat à Durée Indéterminée
+   676→CDD | Contrat à Durée Déterminée — alerte 30j avant échéance
+   677→STAGE | Stage — durée limitée
+   678→VACATAIRE | Vacataire — travail ponctuel
+   679→Valeur | Signification
+   680→NORMAL | Journée normale
+   681→HEURE_SUP | Heures supplémentaires
+   682→GARDE | Nuit de garde
+   683→ABSENT | Absence non justifiée
+   684→CONGE | Congé validé
+   685→Champ | Type Prisma | Contraintes / Description
+   686→id | String | @id @default(uuid())
+   687→pharmacieId | String | Tenant
+   688→utilisateurId | String? | Lien vers Utilisateur si l'employé a un compte MédiHelm
+   689→nom | String | Nom de famille
+   690→prenom | String | Prénom
+   691→poste | String | ex: Pharmacien titulaire, Caissier, Magasinier
+   692→typeContrat | TypeContrat | Type de contrat
+   693→dateEntree | DateTime | Date d'embauche
+   694→dateSortie | DateTime? | Date de départ — null si actif
+   695→salaireBrut | Float | Salaire brut mensuel en FCFA
+   696→tauxCNSS | Float | @default(0.036) — 3,6% part salariale CNSS Bénin
+   697→telephone | String? | Numéro de téléphone
+   698→diplomes | String[] | Liste des diplômes
+   699→actif | Boolean | @default(true)
+   700→Champ | Type Prisma | Contraintes / Description
+   701→id | String | @id @default(uuid())
+   702→employeId | String | Clé étrangère vers Employe
+   703→datePointage | DateTime | Date du pointage
+   704→heureEntree | DateTime? | Heure d'entrée
+   705→heureSortie | DateTime? | Heure de sortie
+   706→type | TypePointage | @default(NORMAL)
+   707→Champ | Type Prisma | Contraintes / Description
+   708→id | String | @id @default(uuid())
+   709→employeId | String | Clé étrangère vers Employe
+   710→dateDebut | DateTime | Début du congé
+   711→dateFin | DateTime | Fin du congé
+   712→type | String | CONGE_ANNUEL · MALADIE · MATERNITE · SANS_SOLDE
+   713→statut | String | EN_ATTENTE · VALIDE · REFUSE
+   714→motif | String? | Motif de la demande
+   715→validePar | String? | utilisateurId du DIRECTEUR ayant validé
+   716→Champ | Type Prisma | Contraintes / Description
+   717→id | String | @id @default(uuid())
+   718→employeId | String | Clé étrangère vers Employe
+   719→mois | Int | Mois ex: 3 pour mars
+   720→annee | Int | Année ex: 2025
+   721→salaireBrut | Float | Salaire brut de base
+   722→sursalaire | Float | Primes et heures supplémentaires
+   723→cnss_salarie | Float | Cotisation CNSS salariale
+   724→irpp | Float | Impôt sur le Revenu des Personnes Physiques
+   725→cnss_patronal | Float | Cotisation CNSS patronale — charge officine
+   726→netAPayer | Float | Salaire net à verser
+   727→pdfUrl | String? | URL Supabase Storage du PDF bulletin
+   728→Champ | Type Prisma | Contraintes / Description
+   729→id | String | @id @default(uuid())
+   730→pharmacieId | String | Tenant
+   731→employeId | String | Employé concerné
+   732→dateDebut | DateTime | Début du shift
+   733→dateFin | DateTime | Fin du shift
+   734→type | String | NORMAL · GARDE · URGENCE
+   735→Valeur | Signification
+   736→LOYER | Loyer des locaux
+   737→ELECTRICITE | Factures électricité
+   738→EAU | Factures eau
+   739→SALAIRES | Masse salariale (si non passée via module RH)
+   740→FOURNITURES | Fournitures de bureau et consommables
+   741→IMPOTS | Impôts et taxes
+   742→AUTRE | Autre charge non catégorisée
+   743→Champ | Type Prisma | Contraintes / Description
+   744→id | String | @id @default(uuid())
+   745→pharmacieId | String | Tenant
+   746→libelle | String | Description de la charge
+   747→categorie | CatCharge | Catégorie SYSCOHADA
+   748→montant | Float | Montant en FCFA
+   749→date | DateTime | Date de la charge
+   750→justificatifUrl | String? | URL du justificatif scanné dans Supabase Storage
+   751→Champ | Type Prisma | Contraintes / Description
+   752→id | String | @id @default(uuid())
+   753→pharmacieId | String | Tenant
+   754→nom | String | ex: CNSS, RAMU, Mutuelle XYZ
+   755→code | String | Code interne de l'assurance
+   756→tauxRemboursement | Float | Taux de prise en charge ex: 0.80 = 80%
+   757→contactEmail | String? | Email pour envoi des bordereaux
+   758→actif | Boolean | @default(true)
+   759→Champ | Type Prisma | Contraintes / Description
+   760→id | String | @id @default(uuid())
+   761→venteId | String | Clé étrangère vers Vente
+   762→assuranceId | String | Assurance qui prend en charge
+   763→partPatient | Float | Montant payé par le patient
+   764→partAssurance | Float | Montant pris en charge par l'assurance
+   765→numeroPrise | String | Numéro de prise en charge
+   766→statut | String | EN_ATTENTE · TRANSMIS · ACCEPTE · REMBOURSE · REFUSE
+   767→Champ | Type Prisma | Contraintes / Description
+   768→id | String | @id @default(uuid())
+   769→pharmacieId | String | Tenant
+   770→dateDebut | DateTime | Début de la garde
+   771→dateFin | DateTime | Fin de la garde
+   772→pharmacienId | String | Pharmacien responsable de la garde
+   773→actif | Boolean | @default(true)
+   774→rapport | String? | Rapport de garde saisi à la clôture
+   775→Champ | Type Prisma | Contraintes / Description
+   776→id | String | @id @default(uuid())
+   777→pharmacieId | String | Tenant
+   778→destinataire | String | Numéro de téléphone ou email destinataire
+   779→canal | String | PUSH · SMS · EMAIL · WHATSAPP
+   780→message | String | Contenu du message
+   781→statut | String | EN_ATTENTE · ENVOYEE · ECHEC
+   782→sentAt | DateTime? | Date d'envoi effectif
+   783→createdAt | DateTime | @default(now())
+   784→Champ | Type Prisma | Contraintes / Description
+   785→id | String | @id @default(uuid())
+   786→pharmacieId | String | Tenant
+   787→titre | String | Titre interne de la campagne
+   788→message | String | Contenu du SMS (max 160 caractères)
+   789→cible | String | TOUS · CHRONIQUES · FIDELITE · GARDE
+   790→statut | String | BROUILLON · ENVOYEE · TERMINEE
+   791→nbEnvoyes | Int? | Nombre de SMS effectivement envoyés
+   792→createdAt | DateTime | @default(now())
+   793→Valeur | Signification
+   794→LICENCE_EXPLOITATION | Licence d'exploitation DPMED — obligatoire
+   795→DIPLOME_PHARMACIEN | Diplôme du pharmacien titulaire
+   796→ASSURANCE | Assurance responsabilité civile professionnelle
+   797→AGREMENT_DPMED | Agrément DPMED spécifique
+   798→AUTORISATION_STUPEFIANTS | Autorisation de détention de stupéfiants
+   799→Valeur | Signification
+   800→VALIDE | Document valide et à jour
+   801→EXPIRE_BIENTOT | Expiration dans moins de 90 jours — alerte active
+   802→EXPIRE | Document périmé — action urgente requise
+   803→SUSPENDU | Suspendu par l'autorité émettrice
+   804→Champ | Type Prisma | Contraintes / Description
+   805→id | String | @id @default(uuid())
+   806→pharmacieId | String | Tenant
+   807→typeDocument | TypeDocReg | Type de document
+   808→fileUrl | String | URL Supabase Storage — chiffré
+   809→dateEmission | DateTime? | Date d'émission du document
+   810→dateExpiration | DateTime? | Date d'expiration — déclencheur des alertes
+   811→statut | StatutDoc | Statut calculé quotidiennement par ORION
+   812→alertes90j | Boolean | @default(false) — alerte J-90 déjà envoyée
+   813→alertes60j | Boolean | @default(false) — alerte J-60 déjà envoyée
+   814→alertes30j | Boolean | @default(false) — alerte J-30 déjà envoyée
+   815→Champ | Type Prisma | Contraintes / Description
+   816→id | String | @id @default(uuid())
+   817→pharmacieId | String | Tenant
+   818→medicamentId | String | Médicament détruit
+   819→lotId | String | Lot détruit
+   820→quantite | Int | Quantité détruite
+   821→motif | String | ex: périmé, rappel DPMED, non conforme
+   822→dateDestruction | DateTime | Date de destruction
+   823→pharmacienId | String | Pharmacien responsable
+   824→pdfUrl | String? | PDF du PV généré — format DPMED
+   825→declareDPMED | Boolean | @default(false) — true = déclaration envoyée à la DPMED
+   826→Valeur | Signification
+   827→RECUE | Commande reçue par l'officine — à traiter
+   828→EN_PREPARATION | Pharmacien prépare la commande
+   829→PRETE | Prête à être retirée — notification patient envoyée
+   830→RECUPEREE | Patient a récupéré sa commande — vente créée
+   831→ANNULEE | Commande annulée par le patient ou l'officine
+   832→Champ | Type Prisma | Contraintes / Description
+   833→id | String | @id @default(uuid())
+   834→pharmacieId | String | Officine destinataire
+   835→comptePatId | String? | Compte MédiHelm Patient — null si commande anonyme
+   836→nomClient | String | Nom du client
+   837→telephone | String | Numéro de contact
+   838→statut | StatutCmdPat | @default(RECUE)
+   839→numeroPassage | Int? | Numéro dans la file d'attente virtuelle — attribué à la création
+   840→modePaiement | ModePaiement | @default(ESPECES)
+   841→fedapayTxId | String? | ID transaction Fedapay si paiement en ligne
+   842→montantTotal | Float | Montant total estimé
+   843→noteClient | String? | Note du client ex: 'urgence pour mon père'
+   844→createdAt | DateTime | @default(now())
+   845→updatedAt | DateTime | @updatedAt
+   846→Champ | Type Prisma | Contraintes / Description
+   847→id | String | @id @default(uuid())
+   848→commandeId | String | Clé étrangère vers CommandePatient
+   849→medicamentId | String | Médicament demandé
+   850→quantite | Int | Quantité demandée
+   851→prixUnitaire | Float | Prix au moment de la commande
+   852→SCHÉMA GROSSISTE — MédiHelm Grossiste
+   853→Valeur | Signification
+   854→STARTER | < 100 officines MédiHelm connectées — 99 900 FCFA/mois
+   855→BUSINESS | 100 à 500 officines — 199 900 FCFA/mois
+   856→ENTERPRISE | 500+ officines — 349 900 FCFA/mois
+   857→Valeur | Signification
+   858→DISPONIBLE | En stock — commandes acceptées
+   859→RUPTURE | En rupture — commandes refusées
+   860→EN_COMMANDE | Rupture temporaire — réapprovisionnement en cours
+   861→DISCONTINUE | Produit arrêté
+   862→SOUS_SURVEILLANCE | Sous surveillance DPMED — commandes restreintes
+   863→Valeur | Signification
+   864→MEDIHELM_PRO | Commande automatique depuis une officine MédiHelm Pro
+   865→SAISIE_MANUELLE | Saisie par le responsable commandes ou le commercial
+   866→APP_COMMERCIAL | Saisie depuis l'app mobile commercial terrain
+   867→EMAIL_EDI | Reçue par email EDI — parsée automatiquement
+   868→Valeur | Signification
+   869→RECUE | Commande reçue — à traiter
+   870→EN_PREPARATION | Picking en cours en entrepôt
+   871→PRETE | Préparée — en attente d'affectation livreur
+   872→EN_LIVRAISON | Livreur en route
+   873→LIVREE | Livrée et confirmée par l'officine
+   874→PARTIELLEMENT_LIVREE | Livraison partielle — reliquat en attente
+   875→ANNULEE | Annulée avant livraison
+   876→Valeur | Signification
+   877→PLANIFIEE | Affectée à un livreur — pas encore démarrée
+   878→EN_ROUTE | Livreur en route
+   879→LIVREE | Livrée et confirmée par signature électronique
+   880→LITIGE | Litige signalé — en attente de résolution
+   881→ECHEC | Livraison échouée — à reprogrammer
+   882→Valeur | Signification
+   883→DISPONIBLE | Disponible pour picking
+   884→QUARANTAINE | Bloqué — non conforme ou sous alerte DPMED
+   885→DETRUIT | Détruit — PV de destruction établi
+   886→RETOUR_LABO | Retourné au laboratoire fabricant
+   887→Champ | Type Prisma | Contraintes / Description
+   888→id | String | @id @default(uuid())
+   889→tenantId | String | @unique — référence vers le système multitenant
+   890→nom | String | ex: UbiPharm Bénin
+   891→codeGrossiste | String | @unique — ex: UBIPHARMA-BJ
+   892→adresse | String | Adresse entrepôt principal
+   893→telephone | String | Numéro contact
+   894→email | String | Email principal
+   895→planGrossiste | PlanGrossiste | @default(STARTER)
+   896→actif | Boolean | @default(true)
+   897→Champ | Type Prisma | Contraintes / Description
+   898→id | String | @id @default(uuid())
+   899→grossisteId | String | Clé étrangère vers GrossisteTenant
+   900→dci | String | DCI du médicament
+   901→nomCommercial | String | Nom commercial
+   902→forme | String | Forme galénique
+   903→dosage | String | Dosage
+   904→fabricant | String? | Laboratoire
+   905→codeATC | String? | Code ATC
+   906→statut | StatutProduit | @default(DISPONIBLE)
+   907→stockActuel | Int | @default(0) — Stock entrepôt en temps réel
+   908→stockMinimum | Int | @default(10) — Seuil alerte rupture imminente
+   909→updatedAt | DateTime | @updatedAt
+   910→Champ | Type Prisma | Contraintes / Description
+   911→id | String | @id @default(uuid())
+   912→produitId | String | Produit concerné
+   913→clientId | String? | null = tarif global · UUID = tarif spécifique à une officine
+   914→prixUnitaire | Float | Prix unitaire en FCFA
+   915→seuilQteUG | Int? | Seuil de quantité pour déclencher les UG
+   916→nbUG | Int? | Nombre d'unités gratuites accordées si seuil atteint
+   917→dateDebut | DateTime | @default(now())
+   918→dateFin | DateTime? | null = tarif permanent
+   919→Champ | Type Prisma | Contraintes / Description
+   920→id | String | @id @default(uuid())
+   921→grossisteId | String | Tenant grossiste
+   922→produitId | String | Produit concerné
+   923→numeroLot | String | Numéro de lot fabricant
+   924→quantite | Int | Quantité disponible
+   925→prixAchat | Float | Prix d'achat laboratoire
+   926→dateExpiration | DateTime | Date péremption
+   927→emplacement | String? | Emplacement entrepôt ex: B2-R4-N1
+   928→statut | StatutLot | @default(DISPONIBLE)
+   929→Champ | Type Prisma | Contraintes / Description
+   930→id | String | @id @default(uuid())
+   931→grossisteId | String | Tenant grossiste
+   932→officineId | String | Référence tenant MédiHelm Pro émetteur
+   933→source | SourceCommande | Origine de la commande
+   934→statut | StatutCmdGros | @default(RECUE)
+   935→reference | String | @unique — ex: CMD-MH-2025-00441
+   936→montantTotal | Float? | Montant total confirmé
+   937→dateLivraisonSouhaitee | DateTime? | Date souhaitée par l'officine
+   938→noteOfficine | String? | Note du pharmacien
+   939→createdAt | DateTime | @default(now())
+   940→updatedAt | DateTime | @updatedAt
+   941→Champ | Type Prisma | Contraintes / Description
+   942→id | String | @id @default(uuid())
+   943→commandeId | String | Clé étrangère vers CommandeGrossiste
+   944→produitId | String | Produit commandé
+   945→quantiteCommandee | Int | Quantité demandée par l'officine
+   946→quantiteConfirmee | Int? | Quantité confirmée par le grossiste
+   947→prixUnitaire | Float? | Prix unitaire du tarif applicable
+   948→Champ | Type Prisma | Contraintes / Description
+   949→id | String | @id @default(uuid())
+   950→grossisteId | String | Tenant grossiste
+   951→commandeId | String | @unique — une livraison par commande
+   952→livreurId | String | Clé étrangère vers EmployeGrossiste
+   953→dateLivraison | DateTime? | Date prévue ou effective
+   954→statut | StatutLivraison | @default(PLANIFIEE)
+   955→signatureUrl | String? | URL de la signature électronique de l'officine
+   956→signatureAt | DateTime? | Horodatage de la signature — non répudiable
+   957→ecarts | Json? | Produits refusés ou quantités différentes
+   958→synchedAt | DateTime? | null = confirmée offline — à synchroniser
+   959→Champ | Type Prisma | Contraintes / Description
+   960→id | String | @id @default(uuid())
+   961→grossisteId | String | Tenant grossiste
+   962→officineId | String | Référence tenant MédiHelm Pro
+   963→officineNom | String | Dénomination de l'officine
+   964→officineTel | String | Téléphone contact
+   965→plafondCredit | Float | @default(0) — Plafond de crédit accordé
+   966→encoursCurrent | Float | @default(0) — Montant actuel dû
+   967→condPaiement | String | @default('30j') — Conditions de paiement
+   968→estMediHelm | Boolean | @default(false) — true = officine sur MédiHelm Pro
+   969→Champ | Type Prisma | Contraintes / Description
+   970→id | String | @id @default(uuid())
+   971→grossisteId | String | Tenant grossiste
+   972→nom | String | Nom
+   973→prenom | String | Prénom
+   974→role | RoleGrossiste | Rôle dans l'organisation grossiste
+   975→telephone | String | Contact
+   976→actif | Boolean | @default(true)
+   977→Valeur | Signification
+   978→ADMIN | Administrateur — accès total à l'espace grossiste
+   979→COMMANDES | Responsable des commandes entrantes
+   980→PREPARATEUR | Picking et préparation en entrepôt
+   981→LIVREUR | Livraisons — app mobile dédiée
+   982→COMMERCIAL | Commercial terrain — saisie commandes officines
+   983→COMPTABLE | Comptabilité fournisseurs et clients
+   984→Champ | Type Prisma | Contraintes / Description
+   985→id | String | @id @default(uuid())
+   986→grossisteId | String | Tenant grossiste
+   987→referenceGros | String | Référence interne grossiste
+   988→dci | String | DCI du médicament
+   989→nomCommercial | String | Nom commercial
+   990→forme | String | Forme galénique
+   991→dosage | String | Dosage
+   992→prixAchat | Float | Prix proposé aux officines
+   993→disponible | Boolean | @default(true) — false = en rupture
+   994→SCHÉMA ORION — Agent IA
+   995→Valeur | Signification
+   996→AUTONOME | ORION exécute seul — notifie après — annulable 30 min
+   997→APPROBATION | ORION propose — attend validation humaine — expire 4h
+   998→BLOQUEE | ORION informe uniquement — jamais d'action
+   999→Valeur | Signification
+  1000→EN_ATTENTE | Action créée — en attente d'exécution ou d'approbation
+  1001→EXECUTEE | Action exécutée avec succès
+  1002→ANNULEE | Annulée dans la fenêtre de 30 minutes par l'utilisateur
+  1003→EXPIREE | Approbation non donnée dans les 4 heures
+  1004→REFUSEE | Approbation explicitement refusée par l'utilisateur
+  1005→Valeur | Signification
+  1006→STOCK | Gestion du stock — ruptures, péremptions, commandes automatiques
+  1007→VENTES | Analyse des ventes — CA, tendances, prévisions
+  1008→PATIENTELE | Fidélité, rappels renouvellement, alertes patients
+  1009→PERSONNEL | RH — anomalies pointage, contrats, paie
+  1010→FINANCE | Caisse, charges, conformité comptable
+  1011→PEREMPTIONS | Surveillance et action sur les lots proches de l'expiration
+  1012→RESEAU | Analytics multi-officines — PROMOTEUR uniquement
+  1013→CONFORMITE | Score DPMED, documents réglementaires, registres
+  1014→INTEGRATION_GROSSISTE | Suivi commandes, score fournisseurs, alertes transmission
+  1015→Champ | Type Prisma | Contraintes / Description
+  1016→id | String | @id @default(uuid())
+  1017→pharmacieId | String | Tenant concerné (pharmacie ou grossiste)
+  1018→tenantType | TenantType | PHARMACIE ou GROSSISTE
+  1019→type | String | Type d'action ex: COMMANDE_AUTO, QUARANTAINE_LOT, BRIEFING
+  1020→mode | ActionMode | Autonome, Approbation ou Bloquée
+  1021→statut | StatutAction | @default(EN_ATTENTE)
+  1022→description | String | Texte généré par ORION expliquant l'action en français
+  1023→payload | Json | Données nécessaires à l'exécution — pour audit et replay
+  1024→resultat | Json? | Résultat de l'exécution — null si pas encore exécutée
+  1025→createdAt | DateTime | @default(now())
+  1026→executedAt | DateTime? | Date d'exécution effective
+  1027→annuleeAt | DateTime? | Date d'annulation dans la fenêtre de 30 min
+  1028→annuleeParId | String? | Utilisateur qui a annulé
+  1029→expireAt | DateTime? | Pour les APPROBATION — 4h par défaut
+  1030→Champ | Type Prisma | Contraintes / Description
+  1031→id | String | @id @default(uuid())
+  1032→pharmacieId | String | Tenant
+  1033→utilisateurId | String | Utilisateur qui a initié la conversation
+  1034→messages | Json | Tableau d'objets { role, content, timestamp } — historique complet
+  1035→createdAt | DateTime | @default(now())
+  1036→updatedAt | DateTime | @updatedAt
+  1037→Champ | Type Prisma | Contraintes / Description
+  1038→id | String | @id @default(uuid())
+  1039→pharmacieId | String | Tenant
+  1040→date | DateTime | Date du briefing — un par jour par officine
+  1041→contenu | String | Texte complet généré par le LLM — synthèse de la nuit
+  1042→actionsExecutees | Json | Liste des actions autonomes prises pendant la nuit
+  1043→approbationsEnAttente | Json | Liste des approbations en attente au moment du briefing
+  1044→canalEnvoi | String[] | Canaux utilisés ex: ['PUSH', 'WHATSAPP']
+  1045→lu | Boolean | @default(false) — true quand le DIRECTEUR l'a ouvert
+  1046→Champ | Type Prisma | Contraintes / Description
+  1047→id | String | @id @default(uuid())
+  1048→pharmacieId | String | Tenant
+  1049→domaine | DomaineIA | Domaine analysé
+  1050→scoreGlobal | Float | Score 0-100 — VERT >= 75, AMBER >= 50, ROUGE < 50
+  1051→alertes | Json | Tableau d'alertes structurées avec priorité et lien d'action
+  1052→recommandations | Json | Recommandations prioritisées par impact et urgence
+  1053→predictions | Json | Prédictions J+7, J+14, J+30 avec indice de confiance
+  1054→kpis | Json | Indicateurs clés du domaine
+  1055→generatedAt | DateTime | @default(now())
+  1056→expireAt | DateTime | generatedAt + 90 jours
+  1057→Champ | Type Prisma | Contraintes / Description
+  1058→id | String | @id @default(uuid())
+  1059→pharmacieId | String | @unique — un seul cron par officine
+  1060→lastRunAt | DateTime? | Dernière exécution
+  1061→nextRunAt | DateTime? | Prochaine exécution prévue
+  1062→cooldownUntil | DateTime? | Blocage après relance manuelle — 30 min
+  1063→statut | String | IDLE · RUNNING · ERROR
+  1064→SCHÉMA INSTITUTIONNEL — DPMED · SoBAPS · Pharmacovigilance
+  1065→Valeur | Signification
+  1066→RAPPEL_LOT | Rappel d'un lot de médicaments — urgence maximale
+  1067→CONTREFACON | Signalement de médicament contrefait
+  1068→AMM_SUSPENDUE | Autorisation de Mise sur le Marché suspendue
+  1069→PHARMACOVIGILANCE | Alerte de pharmacovigilance — effet indésirable grave
+  1070→INFO_REGLEMENTAIRE | Information réglementaire — pas d'urgence
+  1071→Valeur | Signification
+  1072→URGENCE_IMMEDIATE | Action immédiate requise — toutes les officines alertées en < 2 min
+  1073→URGENT | Action requise dans les 24 heures
+  1074→NORMAL | Action dans les 72 heures
+  1075→INFORMATIF | Pour information — aucune action urgente
+  1076→Champ | Type Prisma | Contraintes / Description
+  1077→id | String | @id @default(uuid())
+  1078→dci | String | DCI du médicament
+  1079→nomCommercial | String? | Nom commercial si applicable
+  1080→fabricant | String? | Laboratoire concerné
+  1081→numeroLot | String? | Numéro de lot spécifique — null si toute la DCI
+  1082→typeSurveillance | String | RAPPEL · CONTREFACON · RESTRICTION · SURVEILLANCE_RENFORCEE
+  1083→description | String | Description de la problématique
+  1084→sourceAlerte | String | ex: DPMED Bénin, OMS, ANSM
+  1085→dateEmission | DateTime | Date d'émission de la surveillance
+  1086→niveauRisque | String | CRITIQUE · ELEVE · MODERE · FAIBLE
+  1087→statut | String | ACTIVE · ARCHIVEE · LEVEE
+  1088→Champ | Type Prisma | Contraintes / Description
+  1089→id | String | @id @default(uuid())
+  1090→pharmacieId | String | Officine déclarante
+  1091→utilisateurId | String | Pharmacien déclarant
+  1092→patientCode | String | Code anonymisé du patient — pas de données nominatives vers DPMED
+  1093→dciConcernee | String | DCI du médicament suspecté
+  1094→descriptionEI | String | Description détaillée de l'effet indésirable
+  1095→gravite | String | FATAL · GRAVE · MODERE · LEGER
+  1096→dateDebut | DateTime | Date d'apparition de l'EI
+  1097→evolution | String? | GUERI · EN_COURS · SEQUELLES · INCONNUE
+  1098→actionPrise | String? | Action thérapeutique prise
+  1099→statutEnvoi | String | BROUILLON · SOUMIS · CONFIRME_DPMED
+  1100→refDPMED | String? | Référence DPMED reçue après soumission
+  1101→createdAt | DateTime | @default(now())
+  1102→Champ | Type Prisma | Contraintes / Description
+  1103→id | String | @id @default(uuid())
+  1104→dci | String | @unique — DCI du médicament
+  1105→classeThera | String | Classe thérapeutique
+  1106→mecanismeAction | String | Mécanisme d'action pharmacologique
+  1107→indicationsPrincipales | String | Indications thérapeutiques principales
+  1108→posologie | String | Posologie standard adulte
+  1109→contreIndications | String | Contre-indications absolues et relatives
+  1110→interactions | Json | Tableau d'interactions médicamenteuses structurées
+  1111→effetsIndesirables | Json | Effets indésirables classés par fréquence
+  1112→conservation | String | Conditions de conservation
+  1113→sourceVersion | String | Source ex: 'DPMED Bénin 2025-03' ou 'OMS 2024'
+  1114→Champ | Type Prisma | Contraintes / Description
+  1115→id | String | @id @default(uuid())
+  1116→referenceOfficielle | String | @unique — Référence DPMED ex: DPMED-BJ-2025-0012
+  1117→titre | String | Titre de l'alerte
+  1118→typeAlerte | TypeAlerteDPMED | Type
+  1119→niveauUrgence | NiveauUrgence | Niveau d'urgence
+  1120→dciConcernee | String? | DCI concernée — null si alerte générale
+  1121→numerosLotConcernes | String[] | Numéros de lots concernés
+  1122→signatureNumerique | String | Signature DPMED pour authenticité
+  1123→dateEmissionDPMED | DateTime | Date d'émission par la DPMED
+  1124→statut | String | EN_DIFFUSION · DIFFUSEE · ARCHIVEE
+  1125→nbOfficinesNotifiees | Int | @default(0)
+  1126→nbOfficinesAcquittees | Int | @default(0)
+  1127→nbPatientsNotifies | Int | @default(0)
+  1128→Champ | Type Prisma | Contraintes / Description
+  1129→id | String | @id @default(uuid())
+  1130→alerteId | String | Clé étrangère vers AlerteDPMED
+  1131→pharmacieId | String | Officine destinataire
+  1132→lotsConcernes | String[] | Lots de cette officine concernés par l'alerte
+  1133→canalEnvoi | String[] | Canaux utilisés ex: ['PUSH', 'SMS']
+  1134→dateEnvoi | DateTime | Date d'envoi de la notification
+  1135→dateAcquittement | DateTime? | null = non acquitté par l'officine
+  1136→actionPrise | String? | Action déclarée par l'officine
+  1137→Champ | Type Prisma | Contraintes / Description
+  1138→id | String | @id @default(uuid())
+  1139→pharmacieId | String | Officine réceptrice
+  1140→bonLivraisonRef | String | Référence du bon de livraison SoBAPS
+  1141→statut | String | EN_ATTENTE · CONFIRME · LITIGE
+  1142→ecarts | Json? | Écarts constatés à la réception
+  1143→webhookSent | Boolean | @default(false) — true = confirmation envoyée à SoBAPS
+  1144→Champ | Type Prisma | Contraintes / Description
+  1145→id | String | @id @default(uuid())
+  1146→pharmacieId | String | @unique — un seul score par officine
+  1147→scoreTotal | Float | Score global 0-100
+  1148→scoreRegistreStup | Float | Composante registre des stupéfiants
+  1149→scoreAlerteDPMED | Float | Composante acquittement alertes DPMED
+  1150→scoreDocuments | Float | Composante validité des documents réglementaires
+  1151→scorePharmacovigi | Float | Composante signalements EI
+  1152→scoreDestructions | Float | Composante PV destructions
+  1153→certificationDPMED | Boolean | @default(false) — true si score > 95 pendant 6 mois
+  1154→dateCertification | DateTime? | Date d'obtention de la certification
+  1155→updatedAt | DateTime | @updatedAt
+  1156→Modèle | Schéma | Module(s) | Relations clés
+  1157→Pharmacie | pharma | Plateforme | → Utilisateur, Medicament, Vente, Patient, Employe...
+  1158→Utilisateur | pharma | Plateforme | → Pharmacie (N:1)
+  1159→UtilisateurTenant | pharma | Plateforme | N:N Utilisateur ↔ Pharmacie
+  1160→Promoteur | pharma | Plateforme | → PromoPharmacieLink
+  1161→PromoPharmacieLink | pharma | Plateforme | N:N Promoteur ↔ Pharmacie
+  1162→Medicament | pharma | M01 Stock | → Pharmacie, Lot, LigneVente
+  1163→Lot | pharma | M01 Stock | → Medicament, Fournisseur
+  1164→AjustementStock | pharma | M01 Stock | → Pharmacie, Medicament, Lot
+  1165→InventaireSession | pharma | M01 Stock | → Pharmacie
+  1166→TransfertStock | pharma | M01 Stock | → Pharmacie (source + dest), Medicament
+  1167→Vente | pharma | M02 POS | → Pharmacie, Utilisateur, Patient, Ordonnance
+  1168→LigneVente | pharma | M02 POS | → Vente, Medicament, Lot
+  1169→Paiement | pharma | M02 POS | → Vente
+  1170→CaisseJournaliere | pharma | M02 POS | → Pharmacie, Utilisateur
+  1171→Patient | pharma | M05 | → Pharmacie, ComptePatient
+  1172→Ordonnance | pharma | M06 | → Patient, LigneOrdonnance
+  1173→LigneOrdonnance | pharma | M06 | → Ordonnance, Medicament
+  1174→RegistreStupefiant | pharma | M06 | → Pharmacie, Ordonnance, Medicament
+  1175→ComptePatient | pharma | M05/Patient | Global — pas de tenant
+  1176→Fournisseur | pharma | M03 | → Pharmacie, CommandeFournisseur, Lot
+  1177→CommandeFournisseur | pharma | M03 | → Pharmacie, Fournisseur, LigneCommande
+  1178→LigneCommande | pharma | M03 | → CommandeFournisseur, Medicament
+  1179→RetourFournisseur | pharma | M03 | → Pharmacie, Fournisseur
+  1180→PartenaireGrossiste | pharma | M17 | Global — config cascade fallback
+  1181→CommandeGrossiste | pharma | M17 | → Pharmacie, PartenaireGrossiste
+  1182→Employe | pharma | M07 RH | → Pharmacie, Utilisateur
+  1183→Pointage | pharma | M07 RH | → Employe
+  1184→Conge | pharma | M07 RH | → Employe
+  1185→BulletinPaie | pharma | M07 RH | → Employe
+  1186→Planning | pharma | M07 RH | → Pharmacie, Employe
+  1187→Charge | pharma | M08 Finance | → Pharmacie
+  1188→Assurance | pharma | M10 | → Pharmacie
+  1189→TiersPayant | pharma | M10 | → Vente, Assurance
+  1190→Garde | pharma | M09 | → Pharmacie, Utilisateur (pharmacien)
+  1191→Notification | pharma | M12 | → Pharmacie
+  1192→CampagneSMS | pharma | M12 | → Pharmacie
+  1193→Document | pharma | M13 | → Pharmacie
+  1194→PVDestruction | pharma | M13 | → Pharmacie, Medicament, Lot
+  1195→CommandePatient | pharma | Patient | → Pharmacie, ComptePatient
+  1196→LigneCmdPat | pharma | Patient | → CommandePatient, Medicament
+  1197→GrossisteTenant | grossiste | G01 | Tenant grossiste
+  1198→ProduitGrossiste | grossiste | G01 | → GrossisteTenant
+  1199→TarifGrossiste | grossiste | G01 | → ProduitGrossiste
+  1200→LotGrossiste | grossiste | G02 | → GrossisteTenant, ProduitGrossiste
+  1201→CommandeGrossiste (grossiste) | grossiste | G03 | → GrossisteTenant
+  1202→LigneCmdGros | grossiste | G03 | → CommandeGrossiste, ProduitGrossiste
+  1203→LivraisonGrossiste | grossiste | G05 | → GrossisteTenant, CommandeGrossiste, EmployeGrossiste
+  1204→ClientOfficine | grossiste | G07 | → GrossisteTenant
+  1205→EmployeGrossiste | grossiste | G08 | → GrossisteTenant
+  1206→CataloguePrix | grossiste | G01 | → GrossisteTenant
+  1207→OrionAction | orion | ORION | → Pharmacie/Grossiste
+  1208→OrionConversation | orion | ORION | → Pharmacie, Utilisateur
+  1209→OrionBriefing | orion | ORION | → Pharmacie
+  1210→AnalyticsReport | orion | M15 | → Pharmacie
+  1211→CronJob | orion | M15 | → Pharmacie
+  1212→MedicamentSurveillance | institutionnel | M18 | Global DPMED
+  1213→SignalementEI | institutionnel | M16 | → Pharmacie
+  1214→FicheDCI | institutionnel | M16 | Global
+  1215→AlerteDPMED | institutionnel | M18 | → DiffusionAlerte
+  1216→DiffusionAlerte | institutionnel | M18 | → AlerteDPMED, Pharmacie
+  1217→ConfirmationReceptionSoBAPS | institutionnel | M17 | → Pharmacie
+  1218→ScoreConformite | institutionnel | M19 | → Pharmacie (@unique)
+  1219→AuditLog | pharma | Audit | → Pharmacie, Utilisateur
+  1220→Enum | Valeurs | Utilisé par
+  1221→PlanType | SEED GROW LEAD NETWORK | Pharmacie.plan
+  1222→RoleType | 19 valeurs | Utilisateur.role, UtilisateurTenant.roleSpecifique
+  1223→TenantType | PHARMACIE GROSSISTE INSTITUTIONNEL | OrionAction.tenantType
+  1224→StatutVente | VALIDEE ANNULEE AVOIR PARTIELLEMENT_PAYEE | Vente.statut
+  1225→ModePaiement | ESPECES WAVE MTN_MONEY MOOV_MONEY CARTE ASSURANCE CREDIT | Paiement.mode, CommandePatient.modePaiement
+  1226→StatutCaisse | OUVERTE FERMEE | CaisseJournaliere.statut
+  1227→StatutOrd | EN_ATTENTE VALIDEE PARTIELLEMENT_DELIVREE SOLDEE EXPIREE | Ordonnance.statut
+  1228→StatutCmd | BROUILLON ENVOYEE CONFIRMEE EN_LIVRAISON RECUE SOLDEE ANNULEE | CommandeFournisseur.statut
+  1229→CanalTransmission | API_REST EMAIL_EDI WHATSAPP FORM_AUTO PDF_FALLBACK | PartenaireGrossiste, CommandeGrossiste
+  1230→TypeContrat | CDI CDD STAGE VACATAIRE | Employe.typeContrat
+  1231→TypePointage | NORMAL HEURE_SUP GARDE ABSENT CONGE | Pointage.type
+  1232→CatCharge | LOYER ELECTRICITE EAU SALAIRES FOURNITURES IMPOTS AUTRE | Charge.categorie
+  1233→TypeDocReg | 5 valeurs | Document.typeDocument
+  1234→StatutDoc | VALIDE EXPIRE_BIENTOT EXPIRE SUSPENDU | Document.statut
+  1235→StatutCmdPat | RECUE EN_PREPARATION PRETE RECUPEREE ANNULEE | CommandePatient.statut
+  1236→PlanGrossiste | STARTER BUSINESS ENTERPRISE | GrossisteTenant.planGrossiste
+  1237→StatutProduit | DISPONIBLE RUPTURE EN_COMMANDE DISCONTINUE SOUS_SURVEILLANCE | ProduitGrossiste.statut
+  1238→SourceCommande | MEDIHELM_PRO SAISIE_MANUELLE APP_COMMERCIAL EMAIL_EDI | CommandeGrossiste.source
+  1239→StatutCmdGros | 7 valeurs | CommandeGrossiste.statut
+  1240→StatutLivraison | PLANIFIEE EN_ROUTE LIVREE LITIGE ECHEC | LivraisonGrossiste.statut
+  1241→StatutLot | DISPONIBLE QUARANTAINE DETRUIT RETOUR_LABO | LotGrossiste.statut
+  1242→RoleGrossiste | ADMIN COMMANDES PREPARATEUR LIVREUR COMMERCIAL COMPTABLE | EmployeGrossiste.role
+  1243→ActionMode | AUTONOME APPROBATION BLOQUEE | OrionAction.mode
+  1244→StatutAction | EN_ATTENTE EXECUTEE ANNULEE EXPIREE REFUSEE | OrionAction.statut
+  1245→DomaineIA | 9 valeurs | AnalyticsReport.domaine, OrionAction.type
+  1246→TypeAlerteDPMED | 5 valeurs | AlerteDPMED.typeAlerte
+  1247→NiveauUrgence | 4 valeurs | AlerteDPMED.niveauUrgence
+  1248→-- Recherche médicaments (requête la plus fréquente)
+  1249→CREATE INDEX idx_medicaments_pharmacie   ON medicaments(pharmacie_id);
+  1250→CREATE INDEX idx_medicaments_dci         ON medicaments(dci);
+  1251→CREATE INDEX idx_medicaments_nom         ON medicaments(nom_commercial);
+  1252→
+  1253→-- Gestion des lots et péremptions
+  1254→CREATE INDEX idx_lots_expiration         ON lots(date_expiration);
+  1255→CREATE INDEX idx_lots_medicament         ON lots(medicament_id);
+  1256→
+  1257→-- Ventes par période
+  1258→CREATE INDEX idx_ventes_pharmacie_date   ON ventes(pharmacie_id, created_at);
+  1259→
+  1260→-- Géolocalisation pharmacies (PostGIS recommandé en production)
+  1261→CREATE INDEX idx_pharmacies_geo ON pharmacies
+  1262→  USING GIST(ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
+  1263→
+  1264→-- Commandes patient en cours
+  1265→CREATE INDEX idx_cmd_pat_pharmacie_statut ON commandes_patient(pharmacie_id, statut);
+  1266→
+  1267→-- OrionAction par tenant
+  1268→CREATE INDEX idx_orion_action_pharmacie   ON orion_actions(pharmacie_id, created_at);
