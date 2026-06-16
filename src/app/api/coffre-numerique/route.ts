@@ -15,12 +15,14 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
 
+    const allowedCoffreTypes = ['LICENCE', 'CERTIFICATION']
+
     const where: Record<string, unknown> = {
       pharmacieId,
-      type: { in: ['LICENCE', 'CERTIFICATION'] },
+      type: { in: allowedCoffreTypes },
     }
 
-    if (type) {
+    if (type && allowedCoffreTypes.includes(type)) {
       where.type = type
     }
 

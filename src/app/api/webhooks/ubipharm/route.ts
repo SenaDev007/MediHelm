@@ -1,37 +1,74 @@
 // ============================================================
 // MediHelm — Webhook UbiPharm
 // Réception des mises à jour de statut de commande
-// Validation par secret partagé
+// Validation HMAC-SHA256 + IP whitelist
+// Référence: MH-SPECS-2025-v2.0
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { db } from '@/lib/db'
+import { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from '@/lib/webhook-hmac'
+
+/**
+ * Verify HMAC-SHA256 signature for UbiPharm webhook
+ */
+function verifyHMAC(payload: string, signature: string, secret: string): boolean {
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  } catch {
+    return false
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Valider le secret
-    const secret = request.headers.get('X-Webhook-Secret')
-    const expectedSecret = process.env.UBIPHARM_WEBHOOK_SECRET
+    // 1. Récupérer le corps brut pour la vérification de signature
+    const rawBody = await request.text()
 
-    if (!expectedSecret) {
-      console.error('[UbiPharm Webhook] Secret UBIPHARM_WEBHOOK_SECRET non configuré')
+    // 2. Extract client IP and verify whitelist
+    const clientIp = getClientIP(request)
+    if (!isIPWhitelisted('ubipharm', clientIp)) {
+      console.warn(`[UbiPharm Webhook] IP non autorisée: ${clientIp}`)
       return NextResponse.json(
-        { error: 'Configuration serveur incomplète' },
-        { status: 500 }
+        { error: `IP ${clientIp} non autorisée`, code: 'MH-SEC-002' },
+        { status: 403 }
       )
     }
 
-    if (!secret || secret !== expectedSecret) {
+    // 3. Vérifier la signature HMAC-SHA256
+    const signature = request.headers.get('X-UbiPharm-Signature') ||
+      request.headers.get('X-Webhook-Secret') ||
+      getWebhookSignature(request, 'ubipharm')
+    const secret = process.env.UBIPHARM_WEBHOOK_SECRET
+
+    if (secret && !signature) {
       return NextResponse.json(
-        { error: 'Secret webhook invalide' },
+        { error: 'Signature manquante', code: 'MH-SEC-001' },
         { status: 401 }
       )
     }
 
-    // 2. Parser le corps de la requête
+    // Support both HMAC-SHA256 and legacy shared secret
+    if (secret && signature) {
+      // First try HMAC-SHA256 verification
+      const isHMACValid = verifyHMAC(rawBody, signature, secret)
+      // Also try centralized verification
+      const isCentralizedValid = verifyWebhookHMAC('ubipharm', rawBody, signature)
+
+      if (!isHMACValid && !isCentralizedValid && signature !== secret) {
+        return NextResponse.json(
+          { error: 'Signature invalide', code: 'MH-SEC-001' },
+          { status: 401 }
+        )
+      }
+    }
+
+    // 4. Parser le corps de la requête
     let data: Record<string, unknown>
     try {
-      data = await request.json()
+      data = JSON.parse(rawBody)
     } catch {
       return NextResponse.json(
         { error: 'Corps de requête JSON invalide' },
@@ -47,7 +84,7 @@ export async function POST(request: NextRequest) {
       dateLivraisonPrevue?: string
     }
 
-    // 3. Valider les champs obligatoires
+    // 5. Valider les champs obligatoires
     if (!reference) {
       return NextResponse.json(
         { error: 'Référence de commande manquante' },
@@ -55,7 +92,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Trouver la commande par référence
+    // 6. Trouver la commande par référence
     const commande = await db.commandeGrossiste.findUnique({
       where: { reference },
     })
@@ -67,7 +104,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. Mapper le statut de l'événement vers le statut interne
+    // 7. Mapper le statut de l'événement vers le statut interne
     const statusMap: Record<string, string> = {
       'order.confirmed': 'CONFIRMEE',
       'order.preparing': 'EN_PREPARATION',
@@ -96,7 +133,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Préparer les données de mise à jour
+    // 8. Préparer les données de mise à jour
     const updateData: Record<string, unknown> = {
       statut: newStatut as 'BROUILLON' | 'ENVOYEE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'LIVREE_PARTIELLEMENT' | 'LIVREE' | 'ANNULEE',
     }
@@ -105,13 +142,13 @@ export async function POST(request: NextRequest) {
       updateData.montantTotal = montantTotal
     }
 
-    // 7. Mettre à jour la commande
+    // 9. Mettre à jour la commande
     await db.commandeGrossiste.update({
       where: { id: commande.id },
       data: updateData,
     })
 
-    // 8. Journaliser l'événement
+    // 10. Journaliser l'événement
     await db.auditLog.create({
       data: {
         userId: null,
@@ -125,6 +162,7 @@ export async function POST(request: NextRequest) {
           event: event || statut,
           montantTotal,
           dateLivraisonPrevue,
+          clientIp,
         }),
       },
     })

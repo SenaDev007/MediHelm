@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, commandeSchema } from '@/lib/validations'
 
 // GET /api/commandes — Liste des commandes fournisseur
 export async function GET(request: NextRequest) {
@@ -77,7 +78,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    if (!body.nomFournisseur) {
+    // Zod validation
+    const validation = validate(commandeSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.flatten() },
+        { status: 400 }
+      )
+    }
+    const validatedData = validation.data
+
+    if (!validatedData.nomFournisseur) {
       return NextResponse.json(
         { error: 'Le nom du fournisseur est requis' },
         { status: 400 }

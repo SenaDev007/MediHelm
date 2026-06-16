@@ -4,6 +4,10 @@ import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // Auth required for pharmacies list
+    const authResult = await requireAuth(request, 'M09_GARDE', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
     const numeroAgrement = searchParams.get('numeroAgrement')

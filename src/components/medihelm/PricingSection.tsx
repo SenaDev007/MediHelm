@@ -53,7 +53,7 @@ const plans: Plan[] = [
     onboarding: "Tutoriels vidéo",
   },
   {
-    name: "HELM GROW",
+    name: "HELM BLOOM",
     target: "150–500 tx/mo",
     monthly: 34900,
     annualMonthly: 29500,
@@ -71,7 +71,7 @@ const plans: Plan[] = [
     popular: true,
   },
   {
-    name: "HELM LEAD",
+    name: "HELM CROWN",
     target: "500–1 200 tx/mo",
     monthly: 54900,
     annualMonthly: 46500,

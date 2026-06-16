@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, alerteDPMEDSchema } from '@/lib/validations'
 
 export async function GET(request: Request) {
   // Auth: DPMED_ADMIN, SOBAPS_VIEWER, ABRP_VIEWER or PLATFORM_ADMIN
@@ -68,6 +69,17 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
+
+    // Zod validation
+    const validation = validate(alerteDPMEDSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.flatten() },
+        { status: 400 }
+      )
+    }
+    const validatedData = validation.data
+
     const {
       titre,
       description,
@@ -81,7 +93,7 @@ export async function POST(request: Request) {
       signatureNumerique,
       dateEmissionDPMED,
       statut,
-    } = body
+    } = { ...body, ...validatedData }
 
     if (!titre || !typeAlerte || !niveauUrgence) {
       return NextResponse.json(

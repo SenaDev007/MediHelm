@@ -1,12 +1,15 @@
 // ============================================================
 // MediHelm — Utilitaires de validation HMAC pour les webhooks
 // Validation des signatures HMAC-SHA256 pour les webhooks entrants
+// Supports: DPMED, UbiPharm, Promopharma, SoBAPS
+// Référence: MH-SPECS-2025-v2.0 — Sécurité Webhooks
 // ============================================================
 
 import { createHmac, timingSafeEqual } from 'crypto'
+import { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from './webhook-hmac'
 
 /**
- * Valide la signature HMAC-SHA256 d'un webhook entrant
+ * Valide la signature HMAC-SHA256 d'un webhook entrant (legacy interface)
  *
  * Le processus de validation :
  * 1. Lire le body brut de la requête
@@ -59,6 +62,7 @@ export function validateHmacSignature(
 
 /**
  * Extrait le body brut d'une requête et valide sa signature HMAC
+ * (legacy interface — uses x-medihelm-signature header)
  *
  * @param request - Requête HTTP entrante
  * @param secretEnvVar - Nom de la variable d'environnement contenant le secret
@@ -111,3 +115,81 @@ export async function validateWebhookRequest<T = Record<string, unknown>>(
     }
   }
 }
+
+/**
+ * Validate a webhook request using per-source HMAC verification
+ * Supports: dpmed, ubipharm, promopharma, sobaps
+ *
+ * This is the enhanced interface that uses source-specific headers and secrets.
+ *
+ * @param request - Requête HTTP entrante
+ * @param source - Source du webhook (dpmed, ubipharm, promopharma, sobaps)
+ * @returns Objet avec le body brut et parsé, ou une erreur
+ */
+export async function validateSourceWebhookRequest<T = Record<string, unknown>>(
+  request: Request,
+  source: string
+): Promise<{
+  rawBody: string
+  body: T
+  clientIp: string
+  valid: true
+} | {
+  error: string
+  code?: string
+  valid: false
+  status: number
+}> {
+  // 1. Read raw body
+  const rawBody = await request.text()
+
+  // 2. Extract client IP and check whitelist
+  const clientIp = getClientIP(request)
+  if (!isIPWhitelisted(source, clientIp)) {
+    console.warn(`[Webhook Security] IP non autorisée pour ${source}: ${clientIp}`)
+    return {
+      error: `IP ${clientIp} non autorisée`,
+      code: 'MH-SEC-002',
+      valid: false,
+      status: 403,
+    }
+  }
+
+  // 3. Extract signature from source-specific header
+  const signature = getWebhookSignature(request, source)
+  if (!signature) {
+    console.warn(`[Webhook Security] Signature manquante pour ${source}`)
+    return {
+      error: 'Signature manquante',
+      code: 'MH-SEC-001',
+      valid: false,
+      status: 401,
+    }
+  }
+
+  // 4. Verify HMAC-SHA256 signature
+  if (!verifyWebhookHMAC(source, rawBody, signature)) {
+    console.warn(`[Webhook Security] Signature HMAC invalide pour ${source}`)
+    return {
+      error: 'Signature invalide',
+      code: 'MH-SEC-001',
+      valid: false,
+      status: 401,
+    }
+  }
+
+  // 5. Parse body JSON
+  try {
+    const body = JSON.parse(rawBody) as T
+    return { rawBody, body, clientIp, valid: true }
+  } catch {
+    return {
+      error: 'Body JSON invalide',
+      valid: false,
+      status: 400,
+    }
+  }
+}
+
+// Re-export from webhook-hmac for convenience
+export { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from './webhook-hmac'

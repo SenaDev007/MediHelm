@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { db } from '@/lib/db'
 
-// Données statiques des plans d'abonnement basées sur l'enum PlanType
-const PLANS = [
+// Définitions des plans d'abonnement (configuration statique des fonctionnalités et limites)
+// Les prix sont mis à jour selon les dernières specs (FCFA)
+const PLAN_CONFIGS = [
   {
     id: 'SEED',
     nom: 'Seed',
     description: 'Idéal pour démarrer — Fonctionnalités essentielles pour une pharmacie',
     prix: {
-      MENSUEL: 15000,
-      TRIMESTRIEL: 40000,
-      ANNUEL: 144000,
+      MENSUEL: 19900,
+      TRIMESTRIEL: 57000,
+      ANNUEL: 214800,
     },
     fonctionnalites: [
       'Gestion du stock (basique)',
@@ -25,13 +27,13 @@ const PLANS = [
     },
   },
   {
-    id: 'GROW',
-    nom: 'Grow',
+    id: 'BLOOM',
+    nom: 'Bloom',
     description: 'Pour la croissance — Outils avancés pour développer votre pharmacie',
     prix: {
-      MENSUEL: 35000,
-      TRIMESTRIEL: 95000,
-      ANNUEL: 336000,
+      MENSUEL: 34900,
+      TRIMESTRIEL: 99900,
+      ANNUEL: 376800,
     },
     fonctionnalites: [
       'Tout le plan Seed',
@@ -48,16 +50,16 @@ const PLANS = [
     },
   },
   {
-    id: 'LEAD',
-    nom: 'Lead',
+    id: 'CROWN',
+    nom: 'Crown',
     description: 'Leader du marché — Solution complète pour pharmacie performante',
     prix: {
-      MENSUEL: 65000,
-      TRIMESTRIEL: 175000,
-      ANNUEL: 624000,
+      MENSUEL: 54900,
+      TRIMESTRIEL: 157000,
+      ANNUEL: 592800,
     },
     fonctionnalites: [
-      'Tout le plan Grow',
+      'Tout le plan Bloom',
       'Pharmacovigilance avancée',
       'Conformité réglementaire',
       'Communications SMS',
@@ -76,12 +78,12 @@ const PLANS = [
     nom: 'Network',
     description: 'Réseau de pharmacies — Pour les promoteurs multi-officines',
     prix: {
-      MENSUEL: 120000,
-      TRIMESTRIEL: 330000,
-      ANNUEL: 1152000,
+      MENSUEL: -1, // Sur devis
+      TRIMESTRIEL: -1,
+      ANNUEL: -1,
     },
     fonctionnalites: [
-      'Tout le plan Lead',
+      'Tout le plan Crown',
       'Multi-pharmacies',
       'Dashboard promoteur',
       'Consolidation financière',
@@ -96,14 +98,47 @@ const PLANS = [
   },
 ]
 
-// GET /api/options-abonnement — Liste des options d'abonnement
+// GET /api/options-abonnement — Liste des options d'abonnement avec données réelles
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuth(request, 'M14_DASHBOARD', 'read')
     if (authResult instanceof Response) return authResult
 
+    // Récupérer les compteurs réels par plan depuis la DB
+    const abonnementCounts = await db.abonnement.groupBy({
+      by: ['plan'],
+      _count: { id: true },
+      where: { statut: 'ACTIF' },
+    })
+
+    // Récupérer les pharmacies groupées par plan
+    const pharmacieCounts = await db.pharmacie.groupBy({
+      by: ['plan'],
+      _count: { id: true },
+    })
+
+    // Construire un map pour un accès rapide
+    const abonnementCountMap = new Map(
+      abonnementCounts.map((a) => [a.plan, a._count.id])
+    )
+    const pharmacieCountMap = new Map(
+      pharmacieCounts.map((p) => [p.plan, p._count.id])
+    )
+
+    // Enrichir les plans avec les données réelles
+    const enrichedPlans = PLAN_CONFIGS.map((plan) => ({
+      ...plan,
+      statistiques: {
+        abonnementsActifs: abonnementCountMap.get(plan.id) || 0,
+        pharmacies: pharmacieCountMap.get(plan.id) || 0,
+      },
+      prix: plan.id === 'NETWORK'
+        ? { MENSUEL: 'Sur devis', TRIMESTRIEL: 'Sur devis', ANNUEL: 'Sur devis' }
+        : plan.prix,
+    }))
+
     return NextResponse.json({
-      data: PLANS,
+      data: enrichedPlans,
       types: ['MENSUEL', 'TRIMESTRIEL', 'ANNUEL'],
     })
   } catch (error) {

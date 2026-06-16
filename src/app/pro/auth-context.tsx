@@ -94,7 +94,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
                 ville: '',
                 telephone: '',
                 numeroAgrement: '',
-                plan: 'GROW',
+                plan: 'BLOOM',
                 statutAbonnement: 'ACTIF',
               })
             }
@@ -107,7 +107,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
               ville: '',
               telephone: '',
               numeroAgrement: '',
-              plan: 'GROW',
+              plan: 'BLOOM',
               statutAbonnement: 'ACTIF',
             })
           }
@@ -120,7 +120,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
             ville: '',
             telephone: '',
             numeroAgrement: '',
-            plan: 'GROW',
+            plan: 'BLOOM',
             statutAbonnement: 'ACTIF',
           })
         }

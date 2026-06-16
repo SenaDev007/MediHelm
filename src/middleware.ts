@@ -1,8 +1,9 @@
 // ============================================================
 // MediHelm — Middleware Next.js pour la protection des routes
-// Authentification requise pour /pro/*, /institutions/*, /grossistes/*
+// Authentification requise pour /pro/*, /institutions/*, /grossistes/*, /admin/*
 // Routes publiques: /patient/*, /api/auth/*, /api/webhooks/*
 // RBAC spécifique: /institutions/dpmed/* → DPMED_ADMIN uniquement
+// RBAC spécifique: /admin/* → PLATFORM_ADMIN uniquement
 //
 // Note: La vérification JWT complète est effectuée côté serveur
 // dans les API routes via @/lib/api-auth. Le middleware effectue
@@ -69,12 +70,28 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl)
   }
 
+  // Routes API admin — vérification PLATFORM_ADMIN (double sécurité avec les handlers)
+  if (pathname.startsWith('/api/admin')) {
+    if (roleName !== 'PLATFORM_ADMIN') {
+      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
+    }
+    return NextResponse.next()
+  }
+
   // Routes API authentifiées — autoriser (la vérification RBAC fine est faite dans les handlers)
   if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
   // === RBAC spécifique par section ===
+
+  // /admin/* — Réservé à PLATFORM_ADMIN uniquement
+  if (pathname.startsWith('/admin')) {
+    if (roleName !== 'PLATFORM_ADMIN') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+    return NextResponse.next()
+  }
 
   // /pro/* — Accessible uniquement aux rôles pharmacie + PLATFORM_ADMIN
   if (pathname.startsWith('/pro')) {

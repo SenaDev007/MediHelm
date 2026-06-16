@@ -1,12 +1,17 @@
 // ============================================================
 // MediHelm — Webhook DPMED (Direction de la Pharmacie et du Médicament)
 // Réception des alertes officielles (rappels, contrefaçons, pharmacovigilance)
+// 10-step pipeline: reception → HMAC verification → IP whitelist →
+//   RSA-256 → deduplication → DB → pharmacy identification →
+//   patient identification → push FCM → SMS AfricasTalking
 // Validation HMAC-SHA256 — Code d'erreur MH-SEC-001 pour signature invalide
+// Référence: MH-SPECS-2025-v2.0 — M18 Alertes DPMED
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { processDPMEDAlert, type DPMEDAlertPayload } from '@/lib/dpmed-alert-pipeline'
+import { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from '@/lib/webhook-hmac'
 
 /**
  * Valide la signature HMAC-SHA256 d'un webhook DPMED.
@@ -16,40 +21,56 @@ import crypto from 'crypto'
  * @param secret - Secret partagé (env DPMED_WEBHOOK_SECRET)
  * @returns true si la signature est valide
  */
-function validateSignature(payload: string, signature: string, secret: string): boolean {
+function verifyHMAC(payload: string, signature: string, secret: string): boolean {
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  try {
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  } catch {
+    return false
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
     // 1. Récupérer le corps brut pour la vérification de signature
     const rawBody = await request.text()
-    const signature = request.headers.get('X-DPMED-Signature')
-    const secret = process.env.DPMED_WEBHOOK_SECRET
 
-    // 2. Vérifier la présence du secret et de la signature
-    if (!secret) {
-      console.error('[DPMED Webhook] Secret DPMED_WEBHOOK_SECRET non configuré')
+    // 2. Extract client IP and verify whitelist
+    const clientIp = getClientIP(request)
+    if (!isIPWhitelisted('dpmed', clientIp)) {
+      console.warn(`[DPMED Webhook] IP non autorisée: ${clientIp}`)
       return NextResponse.json(
-        { error: 'Configuration serveur incomplète' },
-        { status: 500 }
+        { error: `IP ${clientIp} non autorisée`, code: 'MH-SEC-002' },
+        { status: 403 }
       )
     }
 
-    if (!signature) {
+    // 3. Vérifier la signature HMAC-SHA256
+    const signature = request.headers.get('X-DPMED-Signature') || getWebhookSignature(request, 'dpmed')
+    const secret = process.env.DPMED_WEBHOOK_SECRET
+
+    if (secret && !signature) {
       return NextResponse.json(
         { error: 'Signature manquante', code: 'MH-SEC-001' },
         { status: 401 }
       )
     }
 
-    // 3. Valider la signature HMAC-SHA256
-    if (!validateSignature(rawBody, signature, secret)) {
+    if (secret && signature && !verifyHMAC(rawBody, signature, secret)) {
       return NextResponse.json(
         { error: 'Signature invalide', code: 'MH-SEC-001' },
         { status: 401 }
       )
+    }
+
+    // Also use the centralized HMAC verification as a secondary check
+    if (signature && secret) {
+      if (!verifyWebhookHMAC('dpmed', rawBody, signature)) {
+        return NextResponse.json(
+          { error: 'Signature HMAC invalide', code: 'MH-SEC-001' },
+          { status: 401 }
+        )
+      }
     }
 
     // 4. Parser le corps de la requête
@@ -72,6 +93,7 @@ export async function POST(request: NextRequest) {
       dciConcernee,
       description,
       dateEmissionDPMED,
+      signatureNumerique,
       pharmaciesConcernees,
     } = data as {
       referenceOfficielle?: string
@@ -81,6 +103,7 @@ export async function POST(request: NextRequest) {
       dciConcernee?: string
       description?: string
       dateEmissionDPMED?: string
+      signatureNumerique?: string
       pharmaciesConcernees?: string[]
     }
 
@@ -91,70 +114,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Vérifier si l'alerte existe déjà (déduplication par référence)
-    const existing = await db.alerteDPMED.findUnique({
-      where: { referenceOfficielle },
-    })
+    // 6. Build the DPMED alert payload and run the full 10-step pipeline
+    const payload: DPMEDAlertPayload = {
+      referenceOfficielle,
+      titre,
+      typeAlerte: (typeAlerte as DPMEDAlertPayload['typeAlerte']) || 'INFORMATION',
+      niveauUrgence: (niveauUrgence as DPMEDAlertPayload['niveauUrgence']) || 'INFO',
+      dciConcernee: dciConcernee || undefined,
+      description: description || undefined,
+      dateEmissionDPMED,
+      signatureNumerique: signatureNumerique || undefined,
+      pharmaciesConcernees: pharmaciesConcernees || undefined,
+    }
 
-    if (existing) {
+    const result = await processDPMEDAlert(payload, clientIp)
+
+    // 7. Retourner le résultat du pipeline
+    if (!result.success) {
       return NextResponse.json(
-        { message: 'Alerte déjà reçue', alerteId: existing.id },
-        { status: 200 }
+        { error: 'Erreur de traitement', details: result.errors },
+        { status: 500 }
       )
     }
 
-    // 7. Créer l'alerte DPMED
-    const alerte = await db.alerteDPMED.create({
-      data: {
-        referenceOfficielle,
-        titre,
-        typeAlerte: (typeAlerte as 'RAPPEL_LOT' | 'CONTREFACON' | 'AMM_SUSPENDUE' | 'INTERDICTION' | 'INFORMATION' | 'PHARMACOVIGILANCE') || 'INFORMATION',
-        niveauUrgence: (niveauUrgence as 'INFO' | 'ATTENTION' | 'URGENT' | 'URGENCE_IMMEDIATE') || 'INFO',
-        dciConcernee: dciConcernee || null,
-        description: description || null,
-        signatureNumerique: signature,
-        dateEmissionDPMED: new Date(dateEmissionDPMED),
-        statut: 'EN_DIFFUSION',
-      },
-    })
-
-    // 8. Déterminer les pharmacies concernées
-    let pharmacieIds: string[] = []
-
-    if (pharmaciesConcernees && Array.isArray(pharmaciesConcernees) && pharmaciesConcernees.length > 0) {
-      // pharmaciesConcernees contient des IDs de pharmacies
-      const found = await db.pharmacie.findMany({
-        where: {
-          id: { in: pharmaciesConcernees },
-          actif: true,
-        },
-        select: { id: true },
-      })
-      pharmacieIds = found.map((p) => p.id)
-    } else {
-      // Diffuser à toutes les pharmacies actives
-      const allPharmacies = await db.pharmacie.findMany({
-        where: { actif: true },
-        select: { id: true },
-      })
-      pharmacieIds = allPharmacies.map((p) => p.id)
-    }
-
-    // 9. Créer les diffusions pour chaque pharmacie concernée
-    if (pharmacieIds.length > 0) {
-      await db.diffusionAlerte.createMany({
-        data: pharmacieIds.map((pharmacieId) => ({
-          alerteId: alerte.id,
-          pharmacieId,
-          statut: 'EN_ATTENTE',
-        })),
-      })
-    }
-
-    // 10. Retourner le résultat
     return NextResponse.json({
-      alerteId: alerte.id,
-      nbPharmaciesNotifiees: pharmacieIds.length,
+      alerteId: result.alerteId,
+      nbPharmaciesNotifiees: result.pharmaciesNotifiees,
+      nbPatientsNotifies: result.patientsNotifies,
+      tempsTotal: result.tempsTotal,
+      warnings: result.errors,
     }, { status: 200 })
 
   } catch (error) {

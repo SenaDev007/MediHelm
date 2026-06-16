@@ -52,3 +52,9 @@ prompt
 server.log
 # Skills directory
 /skills/tool-results/
+temp-clone/
+skills/
+download/
+upload/
+tool-results/
+agent-ctx/

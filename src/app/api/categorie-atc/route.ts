@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { db } from '@/lib/db'
 
-// ATC Classification descriptions mapping
+// ATC Classification descriptions mapping (static config)
 const ATC_CATEGORIES: Record<string, { code: string; description: string }> = {
   A: { code: 'A', description: 'Voies digestives et métabolisme' },
   B: { code: 'B', description: 'Sang et organes hématopoïétiques' },
@@ -23,11 +24,34 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuth(request, 'M01_STOCK', 'read')
     if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
 
-    let categories = Object.values(ATC_CATEGORIES)
+    // Récupérer les compteurs réels de médicaments par catégorie ATC depuis la DB
+    const medicationCounts = await db.medicament.groupBy({
+      by: ['categorieAtc'],
+      where: {
+        pharmacieId: user.pharmacieId,
+        actif: true,
+      },
+      _count: { id: true },
+    })
+
+    // Construire un map pour un accès rapide
+    const countMap = new Map<string, number>()
+    for (const item of medicationCounts) {
+      if (item.categorieAtc) {
+        countMap.set(item.categorieAtc, item._count.id)
+      }
+    }
+
+    // Enrichir les catégories avec les compteurs réels
+    let categories = Object.values(ATC_CATEGORIES).map((cat) => ({
+      ...cat,
+      nbMedicaments: countMap.get(cat.code) || 0,
+    }))
 
     if (search) {
       categories = categories.filter(
@@ -37,9 +61,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Calculer le total de médicaments
+    const totalMedicaments = categories.reduce((sum, cat) => sum + cat.nbMedicaments, 0)
+
     return NextResponse.json({
       data: categories,
       total: categories.length,
+      totalMedicaments,
     })
   } catch (error) {
     console.error('Erreur GET categorie-atc:', error)

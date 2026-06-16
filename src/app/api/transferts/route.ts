@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M01_STOCK', 'read')
+    const authResult = await requireAuth(request, 'M11_RETOURS', 'read')
     if (authResult instanceof Response) return authResult
     const user = authResult
 
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M01_STOCK', 'write')
+    const authResult = await requireAuth(request, 'M11_RETOURS', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
 

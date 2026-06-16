@@ -56,7 +56,19 @@ export async function GET(request: NextRequest) {
       include: {
         lignes: {
           include: {
-            medicament: { select: { id: true, nomCommercial: true, dci: true } },
+            medicament: {
+              select: { id: true, nomCommercial: true, dci: true },
+              include: {
+                lots: {
+                  where: {
+                    quantite: { gt: 0 },
+                    dateExpiration: { gt: new Date() },
+                  },
+                  select: { id: true, prixAchat: true, quantite: true },
+                  orderBy: { dateExpiration: 'asc' },
+                },
+              },
+            },
           },
         },
         paiements: true,
@@ -68,7 +80,7 @@ export async function GET(request: NextRequest) {
     const caAssur = ventes.reduce((sum, v) => sum + v.montantAssur, 0)
     const totalRemises = ventes.reduce((sum, v) => sum + v.remise, 0)
 
-    // --- Marges (estimées: prixPublic - prixAchat pour chaque ligne) ---
+    // --- Marges (réelles: prixVente - prixAchat depuis les lots) ---
     let margeTotale = 0
     const lignesDetail: Array<{
       medicament: string
@@ -80,9 +92,25 @@ export async function GET(request: NextRequest) {
     for (const vente of ventes) {
       for (const ligne of vente.lignes) {
         const caLigne = ligne.prixTotal
-        // Estimation de la marge (on utilise un taux moyen de 30% si pas de données d'achat)
-        const margeEstimee = caLigne * 0.3
-        margeTotale += margeEstimee
+        // Use actual prixAchat from lots when available
+        const lots = ligne.medicament.lots
+        let prixAchatMoyen: number | null = null
+        if (lots && lots.length > 0) {
+          const totalQuantiteLots = lots.reduce((sum, l) => sum + l.quantite, 0)
+          if (totalQuantiteLots > 0) {
+            prixAchatMoyen = lots.reduce((sum, l) => sum + l.prixAchat * l.quantite, 0) / totalQuantiteLots
+          }
+        }
+
+        let margeLigne: number
+        if (prixAchatMoyen !== null) {
+          // Real margin: (prixUnitaire - prixAchatMoyen) * quantite
+          margeLigne = (ligne.prixUnitaire - prixAchatMoyen) * ligne.quantite
+        } else {
+          // Fallback: estimate with 30% rate when no lot data available
+          margeLigne = caLigne * 0.3
+        }
+        margeTotale += margeLigne
 
         lignesDetail.push({
           medicament: ligne.medicament.nomCommercial,

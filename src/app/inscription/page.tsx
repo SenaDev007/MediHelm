@@ -36,15 +36,15 @@ const planInfo = [
     features: ['1-2 utilisateurs', '1 caisse', 'Stock basique', '500 Mo documents'],
   },
   {
-    id: 'GROW',
-    nom: 'Grow',
+    id: 'BLOOM',
+    nom: 'Bloom',
     prix: '34 900',
     description: 'Pour les pharmacies en croissance',
     features: ['5 utilisateurs', '2 caisses', 'API grossistes', '1 Go documents'],
   },
   {
-    id: 'LEAD',
-    nom: 'Lead',
+    id: 'CROWN',
+    nom: 'Crown',
     prix: '54 900',
     description: 'Solution complète',
     features: ['10 utilisateurs', '4 caisses', 'Analytics IA', '5 Go documents'],
@@ -117,8 +117,8 @@ export default function InscriptionPage() {
       // 1. Create pharmacy
       const planLimits: Record<string, { nbUtilisateursMax: number; nbCaissiersSimut: number; stockageDocuments: number; apiGrossistesMax: number }> = {
         SEED: { nbUtilisateursMax: 2, nbCaissiersSimut: 1, stockageDocuments: 500, apiGrossistesMax: 0 },
-        GROW: { nbUtilisateursMax: 5, nbCaissiersSimut: 2, stockageDocuments: 1024, apiGrossistesMax: 2 },
-        LEAD: { nbUtilisateursMax: 10, nbCaissiersSimut: 4, stockageDocuments: 5120, apiGrossistesMax: 5 },
+        BLOOM: { nbUtilisateursMax: 5, nbCaissiersSimut: 2, stockageDocuments: 1024, apiGrossistesMax: 2 },
+        CROWN: { nbUtilisateursMax: 10, nbCaissiersSimut: 4, stockageDocuments: 5120, apiGrossistesMax: 5 },
         NETWORK: { nbUtilisateursMax: 50, nbCaissiersSimut: 10, stockageDocuments: 20480, apiGrossistesMax: 10 },
       }
       const limits = planLimits[plan] || planLimits.SEED

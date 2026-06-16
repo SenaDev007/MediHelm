@@ -25,7 +25,7 @@ async function main() {
         numeroAgrement: 'PH-PPK-001',
         latitude: 9.3372,
         longitude: 2.6253,
-        plan: PlanType.GROW,
+        plan: PlanType.BLOOM,
         actif: true,
         modeGardeActif: true,
       },
@@ -41,7 +41,7 @@ async function main() {
         numeroAgrement: 'PH-PPK-002',
         latitude: 9.3420,
         longitude: 2.6310,
-        plan: PlanType.LEAD,
+        plan: PlanType.CROWN,
         actif: true,
         modeGardeActif: false,
       },
@@ -73,7 +73,7 @@ async function main() {
         numeroAgrement: 'PH-COT-001',
         latitude: 6.3700,
         longitude: 2.4200,
-        plan: PlanType.LEAD,
+        plan: PlanType.CROWN,
         actif: true,
         modeGardeActif: false,
       },
@@ -453,13 +453,13 @@ async function main() {
     await prisma.scoreConformite.create({
       data: {
         pharmacieId: ph.id,
-        scoreTotal: ph.plan === PlanType.LEAD ? 92 : ph.plan === PlanType.GROW ? 78 : ph.plan === PlanType.NETWORK ? 95 : 65,
-        scoreRegistreStup: ph.plan === PlanType.LEAD ? 25 : ph.plan === PlanType.GROW ? 20 : 15,
-        scoreAlerteDPMED: ph.plan === PlanType.LEAD ? 25 : ph.plan === PlanType.GROW ? 22 : 15,
-        scoreDocuments: ph.plan === PlanType.LEAD ? 18 : ph.plan === PlanType.GROW ? 15 : 12,
-        scorePharmacovigilance: ph.plan === PlanType.LEAD ? 14 : ph.plan === PlanType.GROW ? 12 : 10,
-        scoreDestructions: ph.plan === PlanType.LEAD ? 10 : ph.plan === PlanType.GROW ? 9 : 13,
-        certificationDPMED: ph.plan === PlanType.LEAD || ph.plan === PlanType.NETWORK,
+        scoreTotal: ph.plan === PlanType.CROWN ? 92 : ph.plan === PlanType.BLOOM ? 78 : ph.plan === PlanType.NETWORK ? 95 : 65,
+        scoreRegistreStup: ph.plan === PlanType.CROWN ? 25 : ph.plan === PlanType.BLOOM ? 20 : 15,
+        scoreAlerteDPMED: ph.plan === PlanType.CROWN ? 25 : ph.plan === PlanType.BLOOM ? 22 : 15,
+        scoreDocuments: ph.plan === PlanType.CROWN ? 18 : ph.plan === PlanType.BLOOM ? 15 : 12,
+        scorePharmacovigilance: ph.plan === PlanType.CROWN ? 14 : ph.plan === PlanType.BLOOM ? 12 : 10,
+        scoreDestructions: ph.plan === PlanType.CROWN ? 10 : ph.plan === PlanType.BLOOM ? 9 : 13,
+        certificationDPMED: ph.plan === PlanType.CROWN || ph.plan === PlanType.NETWORK,
       },
     })
   }
@@ -611,7 +611,7 @@ async function main() {
   await prisma.abonnement.create({
     data: {
       pharmacieId: pharmacies[0].id,
-      plan: PlanType.GROW,
+      plan: PlanType.BLOOM,
       type: 'MENSUEL',
       statut: 'ACTIF',
       montant: 15000,

@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
         categorieATC: med.categorieAtc,
         remboursable: med.remboursable,
         generique: med.generique,
+        medicamentDispo: activeLots.length > 0 && totalStock > 0,
         stockStatus,
         nombreLotsActifs: activeLots.length,
         dateExpirationProche: nearestExpiration,

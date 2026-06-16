@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, patientSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -162,7 +163,18 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { nom, prenom, telephone } = body
+
+    // Zod validation
+    const validation = validate(patientSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.flatten() },
+        { status: 400 }
+      )
+    }
+    const validatedData = validation.data
+
+    const { nom, prenom, telephone } = validatedData
 
     if (!nom || !prenom) {
       return NextResponse.json(

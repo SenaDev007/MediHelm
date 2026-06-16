@@ -134,41 +134,41 @@ const PLANS = [
     id: 'SEED',
     nom: 'Seed',
     icon: Sparkles,
-    prix: 0,
+    prix: 19900,
     couleur: 'bg-gray-100 border-gray-300',
     iconColor: 'text-gray-600',
     description: 'Pour démarrer',
     features: ['Gestion de stock basique', '5 utilisateurs max', 'Support email', '1 pharmacie'],
   },
   {
-    id: 'GROW',
-    nom: 'Grow',
+    id: 'BLOOM',
+    nom: 'Bloom',
     icon: Zap,
-    prix: 25000,
+    prix: 34900,
     couleur: 'bg-primary/5 border-primary/30',
     iconColor: 'text-primary',
     description: 'Pour grandir',
     features: ['Tout Seed +', 'Ventes & caisse', 'Patients & ordonnances', '15 utilisateurs max', 'Support prioritaire', 'Rapports mensuels'],
   },
   {
-    id: 'LEAD',
-    nom: 'Lead',
+    id: 'CROWN',
+    nom: 'Crown',
     icon: Rocket,
-    prix: 50000,
+    prix: 54900,
     couleur: 'bg-amber-50 border-amber-300',
     iconColor: 'text-amber-600',
     description: 'Pour diriger',
-    features: ['Tout Grow +', 'Finance & comptabilité', 'Garde & RH', 'Utilisateurs illimités', 'Analytics avancés', 'API intégrations'],
+    features: ['Tout Bloom +', 'Finance & comptabilité', 'Garde & RH', 'Utilisateurs illimités', 'Analytics avancés', 'API intégrations'],
   },
   {
     id: 'NETWORK',
     nom: 'Network',
     icon: Globe,
-    prix: 100000,
+    prix: 0,
     couleur: 'bg-violet-50 border-violet-300',
     iconColor: 'text-violet-600',
     description: 'Pour le réseau',
-    features: ['Tout Lead +', 'Multi-pharmacies', 'Gestion réseau', 'Promoteur dashboard', 'Support dédié', 'SLA garanti', 'Customisation'],
+    features: ['Tout Crown +', 'Multi-pharmacies', 'Gestion réseau', 'Promoteur dashboard', 'Support dédié', 'SLA garanti', 'Customisation'],
   },
 ]
 
@@ -326,8 +326,8 @@ export default function AbonnementPage() {
                     <h3 className="font-bold text-lg">{plan.nom}</h3>
                     <p className="text-sm text-muted-foreground">{plan.description}</p>
                     <div className="mt-2">
-                      <span className="text-2xl font-bold">{plan.prix === 0 ? 'Gratuit' : formatFCFA(plan.prix)}</span>
-                      {plan.prix > 0 && <span className="text-sm text-muted-foreground">/mois</span>}
+                      <span className="text-2xl font-bold">{plan.id === 'NETWORK' ? 'Sur devis' : plan.prix === 0 ? 'Gratuit' : formatFCFA(plan.prix)}</span>
+                      {plan.prix > 0 && plan.id !== 'NETWORK' && <span className="text-sm text-muted-foreground">/mois</span>}
                     </div>
                   </div>
                   <div className="space-y-2 mb-4">

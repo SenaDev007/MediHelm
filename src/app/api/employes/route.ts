@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, employeSchema } from '@/lib/validations'
 
 // GET /api/employes — Liste des employés
 export async function GET(request: NextRequest) {
@@ -72,14 +73,24 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    if (!body.nom || !body.prenom) {
+    // Zod validation
+    const validation = validate(employeSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.flatten() },
+        { status: 400 }
+      )
+    }
+    const validatedData = validation.data
+
+    if (!validatedData.nom || !validatedData.prenom) {
       return NextResponse.json(
         { error: 'Le nom et le prénom sont requis' },
         { status: 400 }
       )
     }
 
-    if (!body.dateEmbauche) {
+    if (!validatedData.dateEmbauche) {
       return NextResponse.json(
         { error: 'La date d\'embauche est requise' },
         { status: 400 }
@@ -89,14 +100,14 @@ export async function POST(request: NextRequest) {
     const data = await db.employe.create({
       data: {
         pharmacieId: user.pharmacieId,
-        nom: body.nom,
-        prenom: body.prenom,
-        poste: body.poste || '',
-        telephone: body.telephone || null,
-        email: body.email || null,
-        typeContrat: body.typeContrat || 'CDI',
-        salaireBrut: body.salaireBrut || 0,
-        dateEmbauche: new Date(body.dateEmbauche),
+        nom: validatedData.nom,
+        prenom: validatedData.prenom,
+        poste: validatedData.poste || '',
+        telephone: validatedData.telephone || null,
+        email: validatedData.email || null,
+        typeContrat: validatedData.typeContrat || 'CDI',
+        salaireBrut: validatedData.salaireBrut || 0,
+        dateEmbauche: new Date(validatedData.dateEmbauche),
         actif: body.actif !== undefined ? body.actif : true,
       },
     })

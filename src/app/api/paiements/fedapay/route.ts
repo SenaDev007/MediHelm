@@ -1,10 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // POST /api/paiements/fedapay — Initier un paiement Fedapay pour une vente
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = rateLimit(request, RATE_LIMITS.PAYMENT)
+    if (rateLimitResponse) return rateLimitResponse
+
     const authResult = await requireAuth(request, 'M02_POS', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult

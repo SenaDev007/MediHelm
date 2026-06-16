@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         data: {
           vaccinationId: vaccination.id,
           vaccin: vaccination.vaccin,
-          dateVaccin: vaccination.dateVaccination ? vaccination.dateVaccin.toISOString() : vaccination.dateVaccin?.toISOString(),
+          dateVaccin: vaccination.dateVaccin?.toISOString() || null,
           lot: vaccination.lot,
           prochaineDose: vaccination.prochaineDose?.toISOString() || null,
           patient: {

@@ -1,22 +1,30 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { hashPassword } from '@/lib/auth'
+import { validate, loginSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { pharmacieId, email, motDePasse, nom, prenom, telephone, roleName } = body
+    const rateLimitResponse = rateLimit(request, RATE_LIMITS.AUTH_REGISTER)
+    if (rateLimitResponse) return rateLimitResponse
 
-    if (!pharmacieId || !email || !motDePasse || !nom || !prenom) {
+    const body = await request.json()
+
+    // Zod validation for basic auth fields
+    const validation = validate(loginSchema, { email: body.email, motDePasse: body.motDePasse })
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'pharmacieId, email, motDePasse, nom et prenom requis' },
+        { error: 'Données invalides', details: validation.errors.flatten() },
         { status: 400 }
       )
     }
 
-    if (motDePasse.length < 6) {
+    const { pharmacieId, email, motDePasse, nom, prenom, telephone, roleName } = body
+
+    if (!pharmacieId || !nom || !prenom) {
       return NextResponse.json(
-        { error: 'Le mot de passe doit contenir au moins 6 caractères' },
+        { error: 'pharmacieId, nom et prenom requis' },
         { status: 400 }
       )
     }

@@ -1,27 +1,21 @@
 import { db } from '@/lib/db'
 
 export interface CreateNotificationParams {
-  pharmacieId: string
-  utilisateurId?: string
-  patientId?: string
+  userId: string
   titre: string
   message: string
-  canal: 'PUSH' | 'SMS' | 'EMAIL' | 'IN_APP'
-  typeReference?: string
-  referenceId?: string
+  type?: string
+  lien?: string
 }
 
 export async function createNotification(params: CreateNotificationParams) {
   const notification = await db.notification.create({
     data: {
-      pharmacieId: params.pharmacieId,
-      utilisateurId: params.utilisateurId,
-      patientId: params.patientId,
+      userId: params.userId,
       titre: params.titre,
       message: params.message,
-      canal: params.canal,
-      typeReference: params.typeReference,
-      referenceId: params.referenceId,
+      type: params.type || 'INFO',
+      lien: params.lien,
     },
   })
 
@@ -32,7 +26,7 @@ export async function createNotification(params: CreateNotificationParams) {
   return notification
 }
 
-export async function notifyPharmacieUsers(pharmacieId: string, params: Omit<CreateNotificationParams, 'pharmacieId'>) {
+export async function notifyPharmacieUsers(pharmacieId: string, params: Omit<CreateNotificationParams, 'userId'>) {
   const users = await db.utilisateur.findMany({
     where: { pharmacieId, actif: true },
     select: { id: true },
@@ -42,8 +36,7 @@ export async function notifyPharmacieUsers(pharmacieId: string, params: Omit<Cre
     users.map(user =>
       createNotification({
         ...params,
-        pharmacieId,
-        utilisateurId: user.id,
+        userId: user.id,
       })
     )
   )

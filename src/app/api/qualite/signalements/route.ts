@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, signalementEISchema } from '@/lib/validations'
 
 // GET /api/qualite/signalements — Liste des signalements d'effets indésirables
 export async function GET(request: NextRequest) {
@@ -69,43 +70,23 @@ export async function POST(request: NextRequest) {
     const user = authResult
     const body = await request.json()
 
-    // Validation des champs requis
-    if (!body.dciConcernee) {
+    // Zod validation
+    const validation = validate(signalementEISchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le champ dciConcernee est requis.' },
+        { error: 'Données invalides', details: validation.errors.flatten() },
         { status: 400 }
       )
     }
-    if (!body.descriptionEI) {
-      return NextResponse.json(
-        { error: 'Le champ descriptionEI est requis.' },
-        { status: 400 }
-      )
-    }
-    if (!body.dateDebut) {
-      return NextResponse.json(
-        { error: 'Le champ dateDebut est requis.' },
-        { status: 400 }
-      )
-    }
-
-    // Validation de la gravité
-    const validGravites = ['MINEUR', 'MODERE', 'GRAVE', 'VITAL']
-    const gravite = body.gravite || 'MODERE'
-    if (!validGravites.includes(gravite)) {
-      return NextResponse.json(
-        { error: `Gravité invalide. Valeurs autorisées: ${validGravites.join(', ')}` },
-        { status: 400 }
-      )
-    }
+    const validatedData = validation.data
 
     const signalement = await db.signalementEI.create({
       data: {
         pharmacieId: user.pharmacieId,
-        dciConcernee: body.dciConcernee,
-        descriptionEI: body.descriptionEI,
-        gravite,
-        dateDebut: new Date(body.dateDebut),
+        dciConcernee: validatedData.dciConcernee,
+        descriptionEI: validatedData.descriptionEI,
+        gravite: validatedData.gravite,
+        dateDebut: new Date(validatedData.dateDebut),
         statutEnvoi: 'EN_ATTENTE',
         refDPMED: body.refDPMED || null,
       },

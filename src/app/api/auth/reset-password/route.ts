@@ -8,9 +8,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimitResponse = rateLimit(request, RATE_LIMITS.AUTH_RESET)
+    if (rateLimitResponse) return rateLimitResponse
+
     // 1. Parser le corps de la requête
     let body: Record<string, unknown>
     try {
