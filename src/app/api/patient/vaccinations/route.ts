@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { validate, vaccinationSchema } from '@/lib/validations'
+import { requireAuth } from '@/lib/api-auth'
 
 // GET: List vaccinations for a patient
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { searchParams } = new URL(request.url)
     const patientId = searchParams.get('patientId')
 
@@ -42,36 +47,33 @@ export async function GET(request: NextRequest) {
 // POST: Add a vaccination record
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { patientId, pharmacieId, vaccin, dateVaccin, lot, prochaineDose } = body
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
+    if (authResult instanceof Response) return authResult
 
-    if (!patientId || !pharmacieId || !vaccin || !dateVaccin) {
+    const body = await request.json()
+    const validation = validate(vaccinationSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'patientId, pharmacieId, vaccin et dateVaccin sont obligatoires' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     // Validate patient exists
-    const patient = await db.patient.findUnique({ where: { id: patientId } })
+    const patient = await db.patient.findUnique({ where: { id: data.patientId } })
     if (!patient) {
       return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 })
     }
 
-    // Validate pharmacy exists
-    const pharmacie = await db.pharmacie.findUnique({ where: { id: pharmacieId } })
-    if (!pharmacie) {
-      return NextResponse.json({ error: 'Pharmacie non trouvée' }, { status: 404 })
-    }
-
     const vaccination = await db.vaccination.create({
       data: {
-        patientId,
-        pharmacieId,
-        vaccin,
-        dateVaccin: new Date(dateVaccin),
-        lot: lot || null,
-        prochaineDose: prochaineDose ? new Date(prochaineDose) : null,
+        patientId: data.patientId,
+        pharmacieId: patient.pharmacieId,
+        vaccin: data.vaccin,
+        dateVaccin: new Date(data.dateVaccin),
+        lot: data.lot || null,
+        prochaineDose: data.prochaineDose ? new Date(data.prochaineDose) : null,
       },
     })
 

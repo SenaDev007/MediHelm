@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, remboursementSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,18 +88,18 @@ export async function POST(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-    const { venteId, montant, reference, statut } = body
-
-    if (!venteId || !montant) {
+    const validation = validate(remboursementSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Les champs venteId et montant sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     // Vérifier que la vente appartient à la pharmacie de l'utilisateur
     const vente = await db.vente.findFirst({
-      where: { id: venteId, pharmacieId: user.pharmacieId },
+      where: { id: data.venteId, pharmacieId: user.pharmacieId },
     })
 
     if (!vente) {
@@ -110,11 +111,11 @@ export async function POST(request: NextRequest) {
 
     const paiement = await db.paiement.create({
       data: {
-        venteId,
-        montant: parseFloat(String(montant)),
+        venteId: data.venteId,
+        montant: data.montant,
         mode: 'ASSURANCE',
-        reference: reference || null,
-        statut: statut || 'EN_ATTENTE',
+        reference: data.reference || null,
+        statut: 'EN_ATTENTE',
       },
       include: {
         vente: {

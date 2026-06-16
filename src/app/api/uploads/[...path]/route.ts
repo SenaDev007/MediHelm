@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 /**
  * GET — Récupérer les métadonnées d'un fichier / document
@@ -16,6 +17,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // 1. Authentification + RBAC
     const authResult = await requireAuth(request, 'M13_DOCUMENTS', 'read')
@@ -71,6 +75,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.UPLOAD)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // 1. Authentification + RBAC
     const authResult = await requireAuth(request, 'M13_DOCUMENTS', 'write')

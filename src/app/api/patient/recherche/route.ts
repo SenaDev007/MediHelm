@@ -1,7 +1,11 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''

@@ -1,7 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Shield, Heart, Activity, ArrowRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Shield, Heart, Activity, ArrowRight, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +11,47 @@ import { type InstitutionRole } from '@/components/institutions/sidebar'
 
 export default function InstitutionsLanding() {
   const router = useRouter()
+  const [stats, setStats] = useState<{ totalPharmacies: number; totalAlertes: number; tauxAcquittement: number; totalMedicaments: number } | null>(null)
+  const [partenaires, setPartenaires] = useState<Array<{ name: string; full: string; desc: string; href: string }>>([
+    {
+      name: 'DPMED',
+      full: 'Direction de la Pharmacie et du Médicament',
+      desc: 'Autorité réglementaire pour la sécurité pharmaceutique',
+      href: '/institutions/dpmed',
+    },
+    {
+      name: 'SoBAPS',
+      full: 'Société Béninoise d\'Approvisionnement Pharmaceutique',
+      desc: 'Approvisionnement et logistique pharmaceutique nationale',
+      href: '/institutions/sobaps',
+    },
+    {
+      name: 'ABRP',
+      full: 'Association Béninoise des Pharmaciens',
+      desc: 'Représentation professionnelle des pharmaciens',
+      href: '/institutions/abrp',
+    },
+  ])
+  const [loadingStats, setLoadingStats] = useState(true)
+
+  // Fetch stats from API
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/institutions/stats')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.stats) setStats(data.stats)
+          if (data.partenaires && data.partenaires.length > 0) setPartenaires(data.partenaires)
+        }
+      } catch {
+        // Keep default fallback stats
+      } finally {
+        setLoadingStats(false)
+      }
+    }
+    fetchStats()
+  }, [])
 
   const handleRoleSelect = (role: InstitutionRole) => {
     const paths: Record<InstitutionRole, string> = {
@@ -102,19 +144,30 @@ export default function InstitutionsLanding() {
             <p className="text-sm text-teal-200">Un réseau pharmaceutique connecté pour la santé publique</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { value: '500+', label: 'Pharmacies connectées' },
-              { value: '1 200+', label: 'Alertes diffusées' },
-              { value: '98%', label: 'Taux d\'acquittement' },
-              { value: '24/7', label: 'Disponibilité' },
-            ].map((stat, i) => (
-              <Card key={i} className="bg-teal-700 border-teal-600 text-center">
-                <CardContent className="pt-4 pb-4">
-                  <div className="text-2xl md:text-3xl font-bold text-teal-100">{stat.value}</div>
-                  <p className="text-xs text-teal-300 mt-1">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {loadingStats ? (
+              [1, 2, 3, 4].map(i => (
+                <Card key={i} className="bg-teal-700 border-teal-600 text-center animate-pulse">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="text-2xl md:text-3xl font-bold text-teal-100 h-8 bg-teal-600 rounded" />
+                    <p className="text-xs text-teal-300 mt-1 h-3 bg-teal-600 rounded w-2/3 mx-auto" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              [
+                { value: stats ? `${stats.totalPharmacies}+` : '500+', label: 'Pharmacies connectées' },
+                { value: stats ? `${stats.totalAlertes}+` : '1 200+', label: 'Alertes diffusées' },
+                { value: stats ? `${stats.tauxAcquittement}%` : '98%', label: 'Taux d\'acquittement' },
+                { value: '24/7', label: 'Disponibilité' },
+              ].map((stat, i) => (
+                <Card key={i} className="bg-teal-700 border-teal-600 text-center">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="text-2xl md:text-3xl font-bold text-teal-100">{stat.value}</div>
+                    <p className="text-xs text-teal-300 mt-1">{stat.label}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -124,23 +177,7 @@ export default function InstitutionsLanding() {
         <div className="max-w-4xl mx-auto text-center">
           <h3 className="text-xl font-semibold text-teal-800 mb-6">Nos partenaires institutionnels</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                name: 'DPMED',
-                full: 'Direction de la Pharmacie et du Médicament',
-                desc: 'Autorité réglementaire pour la sécurité pharmaceutique',
-              },
-              {
-                name: 'SoBAPS',
-                full: 'Société Béninoise d\'Approvisionnement Pharmaceutique',
-                desc: 'Approvisionnement et logistique pharmaceutique nationale',
-              },
-              {
-                name: 'ABRP',
-                full: 'Association Béninoise des Pharmaciens',
-                desc: 'Représentation professionnelle des pharmaciens',
-              },
-            ].map((partner) => (
+            {partenaires.map((partner) => (
               <Card key={partner.name} className="border-teal-200">
                 <CardContent className="pt-4">
                   <Badge className="bg-teal-100 text-teal-800 mb-2">{partner.name}</Badge>

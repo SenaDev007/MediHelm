@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 /**
  * GET /api/grossistes/compare
@@ -9,6 +10,9 @@ import { requireAuth } from '@/lib/api-auth'
  * Requires: M17_GROSSISTES read
  */
 export async function GET(request: Request) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (rateLimitResult) return rateLimitResult
+
   const auth = await requireAuth(request, 'M17_GROSSISTES', 'read')
   if (auth instanceof Response) return auth
 

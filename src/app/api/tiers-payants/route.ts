@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, tiersPayantSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,18 +67,18 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { organismeId, tauxRemboursement, actif } = body
-
-    if (!organismeId) {
+    const validation = validate(tiersPayantSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le champ organismeId est requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     // Vérifier que l'organisme existe
     const organisme = await db.organisme.findUnique({
-      where: { id: organismeId },
+      where: { id: data.organismeId },
     })
 
     if (!organisme) {
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Vérifier que le lien n'existe pas déjà
     const existingLink = await db.pharmacieTierPayant.findUnique({
       where: {
-        pharmacieId_organismeId: { pharmacieId, organismeId },
+        pharmacieId_organismeId: { pharmacieId, organismeId: data.organismeId },
       },
     })
 
@@ -104,9 +105,9 @@ export async function POST(request: NextRequest) {
     const tierPayant = await db.pharmacieTierPayant.create({
       data: {
         pharmacieId,
-        organismeId,
-        tauxRemboursement: tauxRemboursement ? parseFloat(String(tauxRemboursement)) : 0,
-        actif: actif !== undefined ? actif : true,
+        organismeId: data.organismeId,
+        tauxRemboursement: data.tauxCouverture,
+        actif: true,
       },
       include: {
         organisme: {

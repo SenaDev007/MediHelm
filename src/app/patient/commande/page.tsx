@@ -48,6 +48,30 @@ export default function CommandePage() {
   const [loadingPharmacies, setLoadingPharmacies] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string; desc: string; icon: string }>>([
+    { id: 'fedapay', label: 'Fedapay', desc: 'Mobile Money, carte bancaire', icon: '💳' },
+    { id: 'wave', label: 'Wave', desc: 'Paiement mobile Wave', icon: '🌊' },
+    { id: 'mtn', label: 'MTN MoMo', desc: 'Mobile Money MTN', icon: '📱' },
+    { id: 'especes', label: 'Espèces', desc: 'Payer à la pharmacie', icon: '💵' },
+  ])
+
+  // Fetch payment methods from API
+  useEffect(() => {
+    async function fetchPaymentMethods() {
+      try {
+        const res = await fetch('/api/patient/moyens-paiement')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.methods && data.methods.length > 0) {
+            setPaymentMethods(data.methods)
+          }
+        }
+      } catch {
+        // Keep defaults
+      }
+    }
+    fetchPaymentMethods()
+  }, [])
 
   // Load cart from localStorage
   useEffect(() => {
@@ -522,12 +546,7 @@ export default function CommandePage() {
             <CardContent className="p-4 space-y-3">
               <h3 className="text-xs font-semibold text-gray-900">Mode de paiement</h3>
               <div className="space-y-2">
-                {[
-                  { id: 'fedapay', label: 'Fedapay', desc: 'Mobile Money, carte bancaire', icon: '💳' },
-                  { id: 'wave', label: 'Wave', desc: 'Paiement mobile Wave', icon: '🌊' },
-                  { id: 'mtn', label: 'MTN MoMo', desc: 'Mobile Money MTN', icon: '📱' },
-                  { id: 'especes', label: 'Espèces', desc: 'Payer à la pharmacie', icon: '💵' },
-                ].map((method) => (
+                {paymentMethods.map((method) => (
                   <div
                     key={method.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-teal-200 hover:border-primary/50 cursor-pointer transition-colors"

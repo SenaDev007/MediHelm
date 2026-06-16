@@ -6,10 +6,14 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+
     // 1. Extraire les paramètres de requête
     const { searchParams } = new URL(request.url)
     const vaccinationId = searchParams.get('vaccinationId') as string | null

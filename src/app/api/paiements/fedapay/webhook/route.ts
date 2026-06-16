@@ -1,21 +1,31 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyWebhookSignature, verifyTransaction } from '@/lib/fedapay'
 
 // POST /api/paiements/fedapay/webhook — Webhook Fedapay (pas d'auth requise)
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier le secret du webhook
-    const webhookSecret = request.headers.get('x-fedapay-signature')
-    const expectedSecret = process.env.FEDAPAY_WEBHOOK_SECRET || 'medihelm-fedapay-webhook-secret'
+    // Lire le body brut pour la vérification de signature
+    const rawBody = await request.text()
+    const signature = request.headers.get('x-fedapay-signature') || ''
 
-    if (!webhookSecret || webhookSecret !== expectedSecret) {
+    // Vérifier la signature HMAC du webhook
+    if (signature && !verifyWebhookSignature(signature, rawBody)) {
       return NextResponse.json(
         { error: 'Signature de webhook invalide' },
         { status: 401 }
       )
     }
 
-    const body = await request.json()
+    // Si pas de signature header mais qu'une clé Fedapay est configurée, on rejette
+    if (!signature && process.env.FEDAPAY_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Signature de webhook manquante' },
+        { status: 401 }
+      )
+    }
+
+    const body = JSON.parse(rawBody)
     const { event, data } = body
 
     if (!event || !data) {
@@ -45,8 +55,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Vérifier la transaction directement via l'API Fedapay pour confirmation
+    let fedapayTransaction: Awaited<ReturnType<typeof verifyTransaction>> | null = null
+    if (data.id && process.env.FEDAPAY_SECRET_KEY) {
+      try {
+        fedapayTransaction = await verifyTransaction(data.id)
+      } catch (error) {
+        console.warn('[Fedapay Webhook] Impossible de vérifier la transaction via API:', error)
+        // On continue avec les données du webhook
+      }
+    }
+
+    // Déterminer le statut réel : priorité à la vérification API, sinon au webhook
+    const effectiveStatus = fedapayTransaction
+      ? fedapayTransaction.status
+      : getFedapayEventStatus(event)
+
     // Mettre à jour le statut du paiement selon l'événement
-    switch (event) {
+    switch (effectiveStatus) {
+      case 'approved':
       case 'payment.completed':
       case 'transaction.approved': {
         await db.paiement.update({
@@ -73,6 +100,7 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'declined':
       case 'payment.failed':
       case 'transaction.declined': {
         await db.paiement.update({
@@ -82,6 +110,15 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'canceled': {
+        await db.paiement.update({
+          where: { id: paiement.id },
+          data: { statut: 'EN_ATTENTE' },
+        })
+        break
+      }
+
+      case 'refunded':
       case 'payment.refunded': {
         await db.paiement.update({
           where: { id: paiement.id },
@@ -99,7 +136,8 @@ export async function POST(request: NextRequest) {
       received: true,
       event,
       paiementId: paiement.id,
-      statut: getPaiementStatut(event),
+      statut: getPaiementStatut(effectiveStatus),
+      verifiedViaApi: !!fedapayTransaction,
     })
   } catch (error) {
     console.error('Erreur webhook Fedapay:', error)
@@ -110,14 +148,37 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function getPaiementStatut(event: string): string {
+function getFedapayEventStatus(event: string): string {
   switch (event) {
     case 'payment.completed':
     case 'transaction.approved':
+      return 'approved'
+    case 'payment.failed':
+    case 'transaction.declined':
+      return 'declined'
+    case 'payment.refunded':
+      return 'refunded'
+    case 'payment.canceled':
+      return 'canceled'
+    default:
+      return event
+  }
+}
+
+function getPaiementStatut(status: string): string {
+  switch (status) {
+    case 'approved':
+    case 'payment.completed':
+    case 'transaction.approved':
       return 'REUSSI'
+    case 'declined':
     case 'payment.failed':
     case 'transaction.declined':
       return 'ECHEC'
+    case 'canceled':
+    case 'payment.canceled':
+      return 'ANNULE'
+    case 'refunded':
     case 'payment.refunded':
       return 'REMBOURSE'
     default:

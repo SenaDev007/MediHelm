@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, congeSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // GET /api/conges — Liste des congés
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M07_RH', 'read')
     if (authResult instanceof Response) return authResult
@@ -59,33 +64,37 @@ export async function GET(request: NextRequest) {
 
 // POST /api/conges — Créer un congé
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M07_RH', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.dateDebut || !body.dateFin) {
+    const validation = validate(congeSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Les dates de début et de fin sont requises' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.conge.create({
+    const result = await db.conge.create({
       data: {
         pharmacieId: user.pharmacieId,
-        type: body.type || 'ANNUEL',
-        dateDebut: new Date(body.dateDebut),
-        dateFin: new Date(body.dateFin),
-        motif: body.motif || null,
-        statut: body.statut || 'EN_ATTENTE',
-        approuvePar: body.approuvePar || null,
+        type: data.type,
+        dateDebut: new Date(data.dateDebut),
+        dateFin: new Date(data.dateFin),
+        motif: data.motif || null,
+        statut: 'EN_ATTENTE',
+        approuvePar: null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST conges:', error)
     return NextResponse.json(

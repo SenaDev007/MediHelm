@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, abonnementSchema } from '@/lib/validations'
 
 // GET /api/abonnements — Abonnement actuel de la pharmacie
 export async function GET(request: NextRequest) {
@@ -44,13 +45,14 @@ export async function POST(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.plan || !body.montant) {
+    const validation = validate(abonnementSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le plan et le montant sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     // Désactiver l'abonnement actuel s'il existe
     await db.abonnement.updateMany({
@@ -61,20 +63,20 @@ export async function POST(request: NextRequest) {
       data: { statut: 'EXPIRE' },
     })
 
-    const data = await db.abonnement.create({
+    const result = await db.abonnement.create({
       data: {
         pharmacieId: user.pharmacieId,
-        plan: body.plan,
-        type: body.type || 'MENSUEL',
+        plan: data.plan,
+        type: data.duree,
         statut: 'ACTIF',
-        montant: body.montant,
-        dateDebut: body.dateDebut ? new Date(body.dateDebut) : new Date(),
-        dateFin: body.dateFin ? new Date(body.dateFin) : new Date(new Date().setMonth(new Date().getMonth() + 1)),
-        methodePaiement: body.methodePaiement || null,
+        montant: 0,
+        dateDebut: new Date(),
+        dateFin: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+        methodePaiement: null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST abonnements:', error)
     return NextResponse.json(

@@ -1,13 +1,12 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M14_DASHBOARD', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -84,10 +83,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M14_DASHBOARD', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const body = await request.json()
     const { id, action, plan } = body

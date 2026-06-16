@@ -1,13 +1,12 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M18_ALERTES_DPMED', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const alertes = await db.alerteDPMED.findMany({
       orderBy: { createdAt: 'desc' },
@@ -50,10 +49,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M18_ALERTES_DPMED', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const body = await request.json()
     const { referenceOfficielle, titre, typeAlerte, niveauUrgence, dciConcernee, description, dateEmissionDPMED } = body

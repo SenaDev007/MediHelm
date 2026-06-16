@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, presenceSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,22 +66,22 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { date, heureArrivee, statut } = body
-
-    if (!date) {
+    const validation = validate(presenceSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'La date est requise' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     const presence = await db.presence.create({
       data: {
         pharmacieId,
-        date: new Date(date),
-        heureArrivee: heureArrivee ? new Date(heureArrivee) : new Date(),
+        date: new Date(),
+        heureArrivee: new Date(),
         heureDepart: null,
-        statut: statut || 'PRESENT',
+        statut: data.type === 'ARRIVEE' ? 'PRESENT' : 'ABSENT',
       },
     })
 

@@ -1,8 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, receptionSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M03_COMMANDES', 'read')
     if (authResult instanceof Response) return authResult
@@ -106,6 +111,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M03_COMMANDES', 'write')
     if (authResult instanceof Response) return authResult
@@ -113,58 +121,49 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { ordonnanceGrossisteId, dateReception, statut, notes } = body
-
-    if (!ordonnanceGrossisteId) {
+    const validation = validate(receptionSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'L\'identifiant de l\'ordonnance grossiste est requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    // Vérifier que l'ordonnance grossiste appartient à la pharmacie
-    const ordonnance = await db.ordonnanceGrossiste.findFirst({
-      where: { id: ordonnanceGrossisteId, pharmacieId },
+    // Vérifier que le fournisseur existe
+    const fournisseur = await db.fournisseur.findFirst({
+      where: { id: data.fournisseurId, pharmacieId },
     })
-
-    if (!ordonnance) {
+    if (!fournisseur) {
       return NextResponse.json(
-        { error: 'Ordonnance grossiste introuvable dans cette pharmacie' },
+        { error: 'Fournisseur introuvable dans cette pharmacie' },
         { status: 404 }
       )
     }
 
-    // Vérifier qu'une réception n'existe pas déjà
-    const existingReception = await db.receptionGrossiste.findUnique({
-      where: { ordonnanceGrossisteId },
-    })
-
-    if (existingReception) {
-      return NextResponse.json(
-        { error: 'Une réception existe déjà pour cette ordonnance grossiste' },
-        { status: 409 }
-      )
+    // Vérifier la commande si fournie
+    if (data.commandeId) {
+      const commande = await db.commandeFournisseur.findFirst({
+        where: { id: data.commandeId, pharmacieId },
+      })
+      if (!commande) {
+        return NextResponse.json(
+          { error: 'Commande introuvable dans cette pharmacie' },
+          { status: 404 }
+        )
+      }
     }
 
     const reception = await db.receptionGrossiste.create({
       data: {
         pharmacieId,
-        ordonnanceGrossisteId,
-        dateReception: dateReception ? new Date(dateReception) : new Date(),
-        statut: statut || 'PARTIELLE',
-        notes: notes || null,
+        ordonnanceGrossisteId: data.commandeId!,
+        dateReception: new Date(),
+        statut: 'PARTIELLE',
+        notes: null,
       },
       include: {
         ordonnanceGrossiste: true,
-      },
-    })
-
-    // Mettre à jour le statut de l'ordonnance grossiste
-    await db.ordonnanceGrossiste.update({
-      where: { id: ordonnanceGrossisteId },
-      data: {
-        statut: 'LIVREE',
-        dateLivraison: reception.dateReception,
       },
     })
 

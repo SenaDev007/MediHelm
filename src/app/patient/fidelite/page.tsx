@@ -44,17 +44,21 @@ interface Reward {
   disponible: boolean
 }
 
-const rewardsCatalog: Reward[] = [
-  { id: '1', nom: 'Remise 5%', description: '5% de remise sur votre prochaine commande', pointsRequis: 100, categorie: 'remise', disponible: true },
-  { id: '2', nom: 'Remise 10%', description: '10% de remise sur votre prochaine commande', pointsRequis: 250, categorie: 'remise', disponible: true },
-  { id: '3', nom: 'Livraison gratuite', description: 'Livraison offerte pour une commande', pointsRequis: 150, categorie: 'livraison', disponible: true },
-  { id: '4', nom: 'Consultation offerte', description: 'Consultation pharmacienne gratuite', pointsRequis: 500, categorie: 'service', disponible: true },
-  { id: '5', nom: 'Remise 20%', description: '20% de remise sur votre prochaine commande', pointsRequis: 600, categorie: 'remise', disponible: true },
-  { id: '6', nom: 'Coffret bien-être', description: 'Coffret produits bien-être offert', pointsRequis: 1000, categorie: 'cadeau', disponible: false },
-]
+interface Level {
+  min: number
+  name: string
+  color: string
+  icon: string
+}
 
-const pointsToNextLevel = 500
-const levelNames = [
+interface EarningRule {
+  description: string
+  points: string
+  type: string
+}
+
+// Default levels shown before API data loads
+const defaultLevels: Level[] = [
   { min: 0, name: 'Bronze', color: 'text-amber-700', icon: '🥉' },
   { min: 200, name: 'Argent', color: 'text-gray-500', icon: '🥈' },
   { min: 500, name: 'Or', color: 'text-yellow-600', icon: '🥇' },
@@ -66,6 +70,10 @@ export default function FidelitePage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'resume' | 'historique' | 'recompenses'>('resume')
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [rewardsCatalog, setRewardsCatalog] = useState<Reward[]>([])
+  const [levelNames, setLevelNames] = useState<Level[]>(defaultLevels)
+  const [earningRules, setEarningRules] = useState<EarningRule[]>([])
+  const [loadingRewards, setLoadingRewards] = useState(true)
 
   const { patientId, isLoading: sessionLoading } = usePatientSession()
 
@@ -102,6 +110,27 @@ export default function FidelitePage() {
     fetchFidelite()
     fetchTransactions()
   }, [fetchFidelite, fetchTransactions])
+
+  // Fetch rewards catalog from API
+  useEffect(() => {
+    async function fetchRewards() {
+      setLoadingRewards(true)
+      try {
+        const res = await fetch('/api/patient/fidelite/recompenses')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.rewards) setRewardsCatalog(data.rewards)
+          if (data.levels) setLevelNames(data.levels)
+          if (data.earningRules) setEarningRules(data.earningRules)
+        }
+      } catch {
+        // Keep defaults
+      } finally {
+        setLoadingRewards(false)
+      }
+    }
+    fetchRewards()
+  }, [])
 
   const points = fideliteData?.pointsFidelite || 0
 
@@ -288,22 +317,31 @@ export default function FidelitePage() {
                 Comment gagner des points ?
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
-                  <span className="text-xs text-gray-900">Chaque achat en pharmacie</span>
-                  <Badge className="text-[10px] bg-primary/10 text-primary border-0">1 pt / 100 FCFA</Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
-                  <span className="text-xs text-gray-900">Première commande</span>
-                  <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+50 pts</Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
-                  <span className="text-xs text-gray-900">Parrainage d&apos;un ami</span>
-                  <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+100 pts</Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
-                  <span className="text-xs text-gray-900">Avis sur une pharmacie</span>
-                  <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+20 pts</Badge>
-                </div>
+                {earningRules.length > 0 ? earningRules.map((rule) => (
+                  <div key={rule.type} className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                    <span className="text-xs text-gray-900">{rule.description}</span>
+                    <Badge className={`text-[10px] border-0 ${rule.type === 'purchase' ? 'bg-primary/10 text-primary' : 'bg-amber-50 text-amber-700'}`}>{rule.points}</Badge>
+                  </div>
+                )) : (
+                  <>
+                    <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                      <span className="text-xs text-gray-900">Chaque achat en pharmacie</span>
+                      <Badge className="text-[10px] bg-primary/10 text-primary border-0">1 pt / 100 FCFA</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                      <span className="text-xs text-gray-900">Première commande</span>
+                      <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+50 pts</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                      <span className="text-xs text-gray-900">Parrainage d&apos;un ami</span>
+                      <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+100 pts</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                      <span className="text-xs text-gray-900">Avis sur une pharmacie</span>
+                      <Badge className="text-[10px] bg-amber-50 text-amber-700 border-0">+20 pts</Badge>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

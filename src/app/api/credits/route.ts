@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { validate, creditSchema } from '@/lib/validations'
 
 // GET /api/credits — Liste des crédits
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M10_REMBOURSABLES', 'read')
     if (authResult instanceof Response) return authResult
@@ -50,32 +55,36 @@ export async function GET(request: NextRequest) {
 
 // POST /api/credits — Créer un crédit
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M10_REMBOURSABLES', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.montant || body.montant <= 0) {
+    const validation = validate(creditSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le montant du crédit est requis et doit être positif' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.credit.create({
+    const result = await db.credit.create({
       data: {
         pharmacieId: user.pharmacieId,
-        patientId: body.patientId || null,
-        montant: body.montant,
-        montantPaye: body.montantPaye || 0,
-        statut: body.statut || 'EN_COURS',
-        echeance: body.echeance ? new Date(body.echeance) : null,
+        patientId: data.patientId,
+        montant: data.montant,
+        montantPaye: 0,
+        statut: 'EN_COURS',
+        echeance: data.echeance ? new Date(data.echeance) : null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST credits:', error)
     return NextResponse.json(

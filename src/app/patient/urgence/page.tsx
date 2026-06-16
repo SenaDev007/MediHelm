@@ -46,24 +46,22 @@ interface EmergencyContact {
   nom: string
   telephone: string
   description: string
-  icon: React.ReactNode
+  categorie: string
 }
 
-const emergencyContacts: EmergencyContact[] = [
-  { nom: 'SAMU Bénin', telephone: '119', description: 'Urgences médicales', icon: <Ambulance className="h-4 w-4 text-red-500" /> },
-  { nom: 'Pompiers', telephone: '118', description: 'Incendie et secours', icon: <AlertTriangle className="h-4 w-4 text-orange-500" /> },
-  { nom: 'Police Secours', telephone: '117', description: 'Urgences sécuritaires', icon: <Shield className="h-4 w-4 text-blue-500" /> },
-  { nom: 'Centre Anti-Poison', telephone: '21 30 80 80', description: 'Intoxication et empoisonnement', icon: <Heart className="h-4 w-4 text-purple-500" /> },
-  { nom: 'Croix-Rouge Bénin', telephone: '21 30 05 56', description: 'Secours et assistance', icon: <Hospital className="h-4 w-4 text-red-400" /> },
-  { nom: 'Hôpital de Zone Cotonou', telephone: '21 30 13 33', description: 'Urgences hospitalières', icon: <Building2 className="h-4 w-4 text-teal-500" /> },
-]
+interface EmergencyHospital {
+  nom: string
+  adresse: string
+  telephone: string
+  distance?: number
+}
 
-const hospitals = [
-  { nom: 'CHU de Cotonou', adresse: 'Cotonou, Bénin', telephone: '21 30 13 33' },
-  { nom: 'Hôpital de la Mère et de l\'Enfant', adresse: 'Cotonou, Bénin', telephone: '21 30 26 66' },
-  { nom: 'CNHU Hubert Maga', adresse: 'Cotonou, Bénin', telephone: '21 30 05 20' },
-  { nom: 'Hôpital d\'Instruction des Armées', adresse: 'Cotonou, Bénin', telephone: '21 30 02 90' },
-]
+const contactIconMap: Record<string, React.ReactNode> = {
+  URGENCE_MEDICALE: <Ambulance className="h-4 w-4 text-red-500" />,
+  SECOURS: <AlertTriangle className="h-4 w-4 text-orange-500" />,
+  SECURITE: <Shield className="h-4 w-4 text-blue-500" />,
+  ANTI_POISON: <Heart className="h-4 w-4 text-purple-500" />,
+}
 
 export default function UrgencePage() {
   const [pharmacies, setPharmacies] = useState<EmergencyPharmacy[]>([])
@@ -73,6 +71,9 @@ export default function UrgencePage() {
   const [userLng, setUserLng] = useState<number | undefined>()
   const [geoError, setGeoError] = useState<string | null>(null)
   const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | undefined>()
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([])
+  const [hospitals, setHospitals] = useState<EmergencyHospital[]>([])
+  const [loadingUrgence, setLoadingUrgence] = useState(true)
 
   // Get user geolocation
   const getUserLocation = useCallback(() => {
@@ -144,6 +145,30 @@ export default function UrgencePage() {
   useEffect(() => {
     fetchEmergencyPharmacies()
   }, [fetchEmergencyPharmacies])
+
+  // Fetch emergency contacts & hospitals from API
+  useEffect(() => {
+    async function fetchUrgenceInfos() {
+      setLoadingUrgence(true)
+      try {
+        const params = new URLSearchParams()
+        if (userLat) params.set('lat', userLat.toString())
+        if (userLng) params.set('lng', userLng.toString())
+
+        const res = await fetch(`/api/patient/urgence-infos?${params}`)
+        if (res.ok) {
+          const data = await res.json()
+          setEmergencyContacts(data.emergencyContacts || [])
+          setHospitals(data.hospitals || [])
+        }
+      } catch {
+        // Fallback to empty — UI will show appropriate states
+      } finally {
+        setLoadingUrgence(false)
+      }
+    }
+    fetchUrgenceInfos()
+  }, [userLat, userLng])
 
   const mapPharmacies = pharmacies.map(p => ({
     id: p.id,
@@ -332,57 +357,89 @@ export default function UrgencePage() {
           <Phone className="h-4 w-4 text-red-500" />
           Numéros d&apos;urgence
         </h2>
-        <div className="space-y-2">
-          {emergencyContacts.map((contact) => (
-            <motion.a
-              key={contact.telephone}
-              href={`tel:${contact.telephone}`}
-              className="block"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <Card className="border-red-100 hover:border-red-200 transition-colors">
+        {loadingUrgence ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <Card key={i} className="border-red-100 animate-pulse">
                 <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-                    {contact.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-semibold text-gray-900">{contact.nom}</h3>
-                    <p className="text-[10px] text-muted-foreground">{contact.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-red-600">{contact.telephone}</span>
-                    <Phone className="h-4 w-4 text-red-500" />
+                  <div className="w-9 h-9 rounded-full bg-red-50 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-red-50 rounded w-1/3" />
+                    <div className="h-2 bg-red-50 rounded w-2/3" />
                   </div>
                 </CardContent>
               </Card>
-            </motion.a>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {emergencyContacts.map((contact) => (
+              <motion.a
+                key={contact.telephone}
+                href={`tel:${contact.telephone}`}
+                className="block"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+              >
+                <Card className="border-red-100 hover:border-red-200 transition-colors">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                      {contactIconMap[contact.categorie] || <Phone className="h-4 w-4 text-red-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xs font-semibold text-gray-900">{contact.nom}</h3>
+                      <p className="text-[10px] text-muted-foreground">{contact.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-red-600">{contact.telephone}</span>
+                      <Phone className="h-4 w-4 text-red-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Hospitals */}
       <div>
         <h2 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
           <Building2 className="h-4 w-4 text-primary" />
-          Hôpitaux à Cotonou
+          Hôpitaux et centres d&apos;urgence
         </h2>
-        <div className="space-y-2">
-          {hospitals.map((hospital) => (
-            <a key={hospital.telephone} href={`tel:${hospital.telephone}`}>
-              <Card className="border-teal-200 hover:border-primary/30 transition-colors">
-                <CardContent className="p-3 flex items-center gap-3">
-                  <Hospital className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-medium text-gray-900">{hospital.nom}</h3>
-                    <p className="text-[10px] text-muted-foreground">{hospital.adresse}</p>
-                  </div>
-                  <Phone className="h-4 w-4 text-primary" />
+        {loadingUrgence ? (
+          <div className="space-y-2">
+            {[1, 2].map(i => (
+              <Card key={i} className="border-teal-200 animate-pulse">
+                <CardContent className="p-3 space-y-2">
+                  <div className="h-4 bg-teal-50 rounded w-3/4" />
+                  <div className="h-3 bg-teal-50 rounded w-1/2" />
                 </CardContent>
               </Card>
-            </a>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {hospitals.map((hospital, idx) => (
+              <a key={`${hospital.telephone}-${idx}`} href={`tel:${hospital.telephone}`}>
+                <Card className="border-teal-200 hover:border-primary/30 transition-colors">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <Hospital className="h-4 w-4 text-primary flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xs font-medium text-gray-900">{hospital.nom}</h3>
+                      <p className="text-[10px] text-muted-foreground">{hospital.adresse}</p>
+                    </div>
+                    {hospital.distance !== undefined && (
+                      <span className="text-[10px] text-primary">{hospital.distance.toFixed(1)} km</span>
+                    )}
+                    <Phone className="h-4 w-4 text-primary" />
+                  </CardContent>
+                </Card>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Info banner */}

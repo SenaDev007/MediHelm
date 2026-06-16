@@ -2,8 +2,12 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { validate, medicamentSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M01_STOCK', 'read')
     if (authResult instanceof Response) return authResult
@@ -64,6 +68,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M01_STOCK', 'write')
     if (authResult instanceof Response) return authResult

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, ecritureSchema } from '@/lib/validations'
 
 // GET /api/ecritures — Liste des écritures comptables pour la pharmacie
 export async function GET(request: NextRequest) {
@@ -75,30 +76,23 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { type, montant, libelle, reference, dateEcriture } = body
-
-    if (!type || montant === undefined || !libelle) {
+    const validation = validate(ecritureSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Les champs type, montant et libelle sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
-
-    if (typeof montant !== 'number' || montant <= 0) {
-      return NextResponse.json(
-        { error: 'Le montant doit être un nombre positif' },
-        { status: 400 }
-      )
-    }
+    const data = validation.data
 
     const ecriture = await db.ecritureComptable.create({
       data: {
         pharmacieId,
-        type,
-        montant,
-        libelle,
-        reference: reference || null,
-        dateEcriture: dateEcriture ? new Date(dateEcriture) : new Date(),
+        type: data.type,
+        montant: data.montant,
+        libelle: data.libelle,
+        reference: data.compte || data.pieceJustificative || null,
+        dateEcriture: new Date(),
       },
     })
 

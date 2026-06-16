@@ -1,8 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { validate, stupefiantSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M19_CONFORMITE', 'read')
     if (authResult instanceof Response) return authResult
@@ -104,6 +109,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M19_CONFORMITE', 'write')
     if (authResult instanceof Response) return authResult
@@ -111,23 +119,23 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { titre, fichierUrl, statut, dateValidite } = body
-
-    if (!titre) {
+    const validation = validate(stupefiantSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le champ titre est requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     const document = await db.document.create({
       data: {
         pharmacieId,
         type: 'REGISTRE_STUPEFIANTS',
-        titre,
-        fichierUrl: fichierUrl || null,
-        statut: statut || 'BROUILLON',
-        dateValidite: dateValidite ? new Date(dateValidite) : null,
+        titre: `${data.type} - ${data.medicamentId} - ${data.quantite}`,
+        fichierUrl: null,
+        statut: 'BROUILLON',
+        dateValidite: null,
         creePar: user.id,
       },
     })

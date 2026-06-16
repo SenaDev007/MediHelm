@@ -1,9 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 // POST: Verify a medication by lot number
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+
     const body = await request.json()
     const { numeroLot } = body
 

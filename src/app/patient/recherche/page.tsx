@@ -24,15 +24,24 @@ interface MedicamentResult {
   categorieATC?: { code: string; nom: string } | null
 }
 
-const filterOptions = {
-  categories: ['Antibiotiques', 'Antalgiques', 'Anti-inflammatoires', 'Antihypertenseurs', 'Antidiabétiques', 'Vitamines'],
-  priceRanges: [
-    { label: '< 1 000 FCFA', min: 0, max: 1000 },
-    { label: '1 000 - 5 000 FCFA', min: 1000, max: 5000 },
-    { label: '5 000 - 10 000 FCFA', min: 5000, max: 10000 },
-    { label: '> 10 000 FCFA', min: 10000, max: Infinity },
-  ],
+interface CategoryOption {
+  code: string
+  patientLabel: string
+  nbMedicaments: number
 }
+
+const priceRanges = [
+  { label: '< 1 000 FCFA', min: 0, max: 1000 },
+  { label: '1 000 - 5 000 FCFA', min: 1000, max: 5000 },
+  { label: '5 000 - 10 000 FCFA', min: 5000, max: 10000 },
+  { label: '> 10 000 FCFA', min: 10000, max: Infinity },
+]
+
+// Default categories shown before API data loads
+const defaultCategories = [
+  'Antibiotiques', 'Antalgiques', 'Anti-inflammatoires',
+  'Antihypertenseurs', 'Antidiabétiques', 'Vitamines',
+]
 
 export default function RecherchePage() {
   const [query, setQuery] = useState('')
@@ -45,6 +54,25 @@ export default function RecherchePage() {
   const [filterGenerique, setFilterGenerique] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [searchPerformed, setSearchPerformed] = useState(false)
+  const [categories, setCategories] = useState<string[]>(defaultCategories)
+
+  // Fetch categories from API
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch('/api/patient/categories')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.categories && data.categories.length > 0) {
+            setCategories(data.categories.map((c: CategoryOption) => c.patientLabel))
+          }
+        }
+      } catch {
+        // Keep default categories
+      }
+    }
+    fetchCategories()
+  }, [])
 
   // Autocomplete suggestions
   useEffect(() => {
@@ -75,9 +103,9 @@ export default function RecherchePage() {
       const params = new URLSearchParams({ q: query })
       if (selectedCategory) params.set('categorie', selectedCategory)
       if (selectedPriceRange !== null) {
-        params.set('prixMin', filterOptions.priceRanges[selectedPriceRange].min.toString())
-        if (filterOptions.priceRanges[selectedPriceRange].max !== Infinity) {
-          params.set('prixMax', filterOptions.priceRanges[selectedPriceRange].max.toString())
+        params.set('prixMin', priceRanges[selectedPriceRange].min.toString())
+        if (priceRanges[selectedPriceRange].max !== Infinity) {
+          params.set('prixMax', priceRanges[selectedPriceRange].max.toString())
         }
       }
       if (filterRemboursable) params.set('remboursable', 'true')
@@ -190,7 +218,7 @@ export default function RecherchePage() {
               <div>
                 <p className="text-xs font-semibold text-gray-900 mb-2">Catégorie</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {filterOptions.categories.map((cat) => (
+                  {categories.map((cat) => (
                     <Badge
                       key={cat}
                       variant={selectedCategory === cat ? 'default' : 'secondary'}
@@ -211,7 +239,7 @@ export default function RecherchePage() {
               <div>
                 <p className="text-xs font-semibold text-gray-900 mb-2">Prix</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {filterOptions.priceRanges.map((range, idx) => (
+                  {priceRanges.map((range, idx) => (
                     <Badge
                       key={idx}
                       variant={selectedPriceRange === idx ? 'default' : 'secondary'}

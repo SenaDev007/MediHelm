@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
+import { validate, ordonnanceSchema } from '@/lib/validations'
 
 // GET: List prescriptions for a patient
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { searchParams } = new URL(request.url)
     const patientId = searchParams.get('patientId')
 
@@ -43,18 +48,29 @@ export async function GET(request: NextRequest) {
 // POST: Upload/create a prescription record
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { patientId, pharmacieId, prescripteur, dateOrdonnance, imageUrl, notes, lignes } = body
+    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'write')
+    if (authResult instanceof Response) return authResult
 
-    if (!pharmacieId || !prescripteur || !dateOrdonnance) {
+    const body = await request.json()
+    const validation = validate(ordonnanceSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'pharmacieId, prescripteur et dateOrdonnance sont obligatoires' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
+    const { patientId, pharmacieId, imageUrl, notes } = body
 
-    // Validate pharmacy exists
-    const pharmacie = await db.pharmacie.findUnique({ where: { id: pharmacieId } })
+    // Validate pharmacy
+    const targetPharmacieId = pharmacieId
+    if (!targetPharmacieId) {
+      return NextResponse.json(
+        { error: 'pharmacieId est obligatoire' },
+        { status: 400 }
+      )
+    }
+    const pharmacie = await db.pharmacie.findUnique({ where: { id: targetPharmacieId } })
     if (!pharmacie) {
       return NextResponse.json({ error: 'Pharmacie non trouvée' }, { status: 404 })
     }
@@ -72,16 +88,16 @@ export async function POST(request: NextRequest) {
       const ord = await tx.ordonnance.create({
         data: {
           patientId: patientId || null,
-          pharmacieId,
-          prescripteur,
-          dateOrdonnance: new Date(dateOrdonnance),
+          pharmacieId: targetPharmacieId,
+          prescripteur: data.prescripteur,
+          dateOrdonnance: new Date(data.dateOrdonnance),
           imageUrl: imageUrl || null,
           notes: notes || null,
           statut: 'RECUE',
-          lignes: lignes && Array.isArray(lignes) && lignes.length > 0
+          lignes: data.lignes && data.lignes.length > 0
             ? {
-                create: lignes.map((ligne: { medicamentId?: string; dci: string; posologie?: string; quantite?: number }) => ({
-                  medicamentId: ligne.medicamentId || null,
+                create: data.lignes.map((ligne) => ({
+                  medicamentId: null,
                   dci: ligne.dci,
                   posologie: ligne.posologie || null,
                   quantite: ligne.quantite || 1,

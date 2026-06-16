@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, gardeSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // GET /api/gardes — Liste des plannings de garde
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M09_GARDE', 'read')
     if (authResult instanceof Response) return authResult
@@ -57,32 +62,36 @@ export async function GET(request: NextRequest) {
 
 // POST /api/gardes — Créer un planning de garde
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M09_GARDE', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.date || !body.dateDebut || !body.dateFin) {
+    const validation = validate(gardeSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'La date, l\'heure de début et de fin sont requises' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.planningGarde.create({
+    const result = await db.planningGarde.create({
       data: {
         pharmacieId: user.pharmacieId,
-        date: new Date(body.date),
-        dateDebut: new Date(body.dateDebut),
-        dateFin: new Date(body.dateFin),
-        type: body.type || 'NORMALE',
-        rapport: body.rapport || null,
+        date: new Date(data.dateDebut),
+        dateDebut: new Date(data.dateDebut),
+        dateFin: new Date(data.dateFin),
+        type: 'NORMALE' as const,
+        rapport: data.note || null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST gardes:', error)
     return NextResponse.json(

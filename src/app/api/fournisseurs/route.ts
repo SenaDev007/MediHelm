@@ -1,9 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, fournisseurSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // GET /api/fournisseurs — Liste des fournisseurs de la pharmacie
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M04_FOURNISSEURS', 'read')
     if (authResult instanceof Response) return authResult
@@ -60,34 +65,38 @@ export async function GET(request: NextRequest) {
 
 // POST /api/fournisseurs — Créer un nouveau fournisseur
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M04_FOURNISSEURS', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.nom) {
+    const validation = validate(fournisseurSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le nom du fournisseur est requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.fournisseur.create({
+    const result = await db.fournisseur.create({
       data: {
         pharmacieId: user.pharmacieId,
-        nom: body.nom,
-        contact: body.contact || null,
-        telephone: body.telephone || null,
-        email: body.email || null,
-        adresse: body.adresse || null,
-        actif: body.actif !== undefined ? body.actif : true,
-        note: body.note || null,
+        nom: data.nom,
+        contact: data.telephone || null,
+        telephone: data.telephone || null,
+        email: data.email || null,
+        adresse: data.adresse || null,
+        actif: true,
+        note: null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST fournisseurs:', error)
     return NextResponse.json(

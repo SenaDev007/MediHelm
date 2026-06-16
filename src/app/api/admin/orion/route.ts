@@ -1,13 +1,12 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M15_ANALYTICS', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     // Statut ORION
     const totalPredictions = await db.predictionIA.count()
@@ -92,10 +91,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M15_ANALYTICS', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const body = await request.json()
     const { domaine, pharmacieId } = body

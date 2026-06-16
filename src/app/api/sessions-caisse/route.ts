@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, sessionCaisseSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,15 +55,18 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { caisseId, utilisateurId, soldeOuverture } = body
-
-    if (!caisseId || !utilisateurId) {
-      return NextResponse.json({ error: 'caisseId et utilisateurId sont requis' }, { status: 400 })
+    const validation = validate(sessionCaisseSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 }
+      )
     }
+    const data = validation.data
 
     // Check if there's already an open session for this caisse
     const existingSession = await db.sessionCaisse.findFirst({
-      where: { caisseId, statut: 'OUVERTE' },
+      where: { caisseId: user.pharmacieId, statut: 'OUVERTE' },
     })
     if (existingSession) {
       return NextResponse.json({ error: 'Une session est déjà ouverte pour cette caisse' }, { status: 409 })
@@ -71,9 +75,9 @@ export async function POST(request: NextRequest) {
     const session = await db.sessionCaisse.create({
       data: {
         pharmacieId,
-        caisseId,
-        utilisateurId,
-        soldeOuverture: soldeOuverture || 0,
+        caisseId: pharmacieId,
+        utilisateurId: user.id,
+        soldeOuverture: data.fondDeCaisse,
         statut: 'OUVERTE',
       },
       include: {

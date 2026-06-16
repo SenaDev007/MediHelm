@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, campagneSmsSchema } from '@/lib/validations'
 
 // GET /api/campagnes-sms — Liste des campagnes SMS
 export async function GET(request: NextRequest) {
@@ -54,27 +55,28 @@ export async function POST(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.titre || !body.message) {
+    const validation = validate(campagneSmsSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le titre et le message sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.campagneSms.create({
+    const result = await db.campagneSms.create({
       data: {
         pharmacieId: user.pharmacieId,
-        titre: body.titre,
-        message: body.message,
-        destinataires: body.destinataires || 0,
+        titre: data.titre,
+        message: data.message,
+        destinataires: data.destinataires?.length || 0,
         envoyes: 0,
-        statut: body.statut || 'BROUILLON',
-        dateEnvoi: body.dateEnvoi ? new Date(body.dateEnvoi) : null,
+        statut: 'BROUILLON',
+        dateEnvoi: data.dateEnvoi ? new Date(data.dateEnvoi) : null,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST campagnes-sms:', error)
     return NextResponse.json(

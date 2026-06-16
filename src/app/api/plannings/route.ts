@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, planningSchema } from '@/lib/validations'
 
 // GET /api/plannings — Liste des plannings / emplois du temps
 export async function GET(request: NextRequest) {
@@ -76,41 +77,42 @@ export async function POST(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.date) {
+    const validation = validate(planningSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'La date est requise' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
     // Un planning peut être une garde ou une présence
-    if (body.type === 'GARDE') {
-      const data = await db.planningGarde.create({
+    if (data.type === 'GARDE') {
+      const result = await db.planningGarde.create({
         data: {
           pharmacieId: user.pharmacieId,
-          date: new Date(body.date),
-          dateDebut: new Date(body.dateDebut || body.date),
-          dateFin: new Date(body.dateFin || body.date),
-          type: body.gardeType || 'NORMALE',
-          rapport: body.rapport || null,
+          date: new Date(data.date),
+          dateDebut: new Date(data.date + 'T' + data.heureDebut),
+          dateFin: new Date(data.date + 'T' + data.heureFin),
+          type: 'NORMALE',
+          rapport: null,
         },
       })
-      return NextResponse.json(data, { status: 201 })
+      return NextResponse.json(result, { status: 201 })
     }
 
     // Par défaut, créer une présence
-    const data = await db.presence.create({
+    const result = await db.presence.create({
       data: {
         pharmacieId: user.pharmacieId,
-        date: new Date(body.date),
-        heureArrivee: body.heureArrivee ? new Date(body.heureArrivee) : null,
-        heureDepart: body.heureDepart ? new Date(body.heureDepart) : null,
-        statut: body.statut || 'PRESENT',
+        date: new Date(data.date),
+        heureArrivee: data.heureDebut ? new Date(data.date + 'T' + data.heureDebut) : new Date(),
+        heureDepart: data.heureFin ? new Date(data.date + 'T' + data.heureFin) : null,
+        statut: 'PRESENT',
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST plannings:', error)
     return NextResponse.json(

@@ -1,9 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 
 // GET: List loyalty transactions for a patient
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { searchParams } = new URL(request.url)
     const patientId = searchParams.get('patientId')
 

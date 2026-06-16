@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { createTransaction, generatePaymentLink } from '@/lib/fedapay'
 
 // POST /api/paiements/fedapay — Initier un paiement Fedapay pour une vente
 export async function POST(request: NextRequest) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Déterminer le mode de paiement Fedapay
-    const fedapayMode = mode || 'WAVE' // WAVE, MTN_MONEY, MOOV_MONEY, CARTE_BANCAIRE
+    const fedapayMode = mode || 'WAVE'
     const modePaiement = mapFedapayMode(fedapayMode)
 
     // Générer une référence de transaction
@@ -70,16 +71,50 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Simuler l'initiation du paiement Fedapay
-    // En production, ici on appellerait l'API Fedapay pour créer une transaction
+    // Appel réel à l'API Fedapay pour créer la transaction
+    let paymentUrl = ''
+    let fedapayTransactionId: number | string = paiement.id
+
+    try {
+      const transaction = await createTransaction({
+        amount: montantPaiement,
+        description: `Paiement MediHelm - Vente ${venteId}`,
+        email: email || undefined,
+        phone_number: telephone || undefined,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/paiements/fedapay/webhook`,
+        metadata: {
+          venteId,
+          paiementId: paiement.id,
+          pharmacieId,
+          reference,
+        },
+      })
+
+      fedapayTransactionId = transaction.id
+
+      // Générer le lien de paiement
+      if (transaction.id) {
+        try {
+          paymentUrl = await generatePaymentLink(transaction.id)
+        } catch {
+          // Si la génération du lien échoue, on continue sans URL
+          console.warn('[Fedapay] Impossible de générer le lien de paiement pour la transaction', transaction.id)
+        }
+      }
+    } catch (error) {
+      console.error('[Fedapay] Erreur lors de la création de la transaction:', error)
+      // En cas d'erreur API (ex: clé non configurée), on continue avec une URL de fallback
+      paymentUrl = `https://fedapay.com/pay/${reference}`
+    }
+
     const fedapayResponse = {
       id: paiement.id,
+      fedapayTransactionId,
       reference,
       montant: montantPaiement,
       mode: fedapayMode,
       statut: 'EN_ATTENTE',
-      // URL de paiement simulée (en production, Fedapay retourne une URL de redirection)
-      paymentUrl: `https://fedapay.com/pay/${reference}`,
+      paymentUrl,
       telephone: telephone || null,
       email: email || null,
       createdAt: paiement.createdAt.toISOString(),
@@ -96,8 +131,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function mapFedapayMode(mode: string): string {
-  const modeMap: Record<string, string> = {
+function mapFedapayMode(mode: string): 'WAVE' | 'MTN_MONEY' | 'MOOV_MONEY' | 'CARTE_BANCAIRE' | 'ESPECES' | 'CHEQUE' | 'CREDIT' | 'ASSURANCE' | 'TIERS_PAYANT' {
+  const modeMap: Record<string, 'WAVE' | 'MTN_MONEY' | 'MOOV_MONEY' | 'CARTE_BANCAIRE' | 'ESPECES' | 'CHEQUE' | 'CREDIT' | 'ASSURANCE' | 'TIERS_PAYANT'> = {
     WAVE: 'WAVE',
     MTN_MONEY: 'MTN_MONEY',
     MOOV_MONEY: 'MOOV_MONEY',

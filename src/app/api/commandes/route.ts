@@ -2,9 +2,13 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { validate, commandeSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // GET /api/commandes — Liste des commandes fournisseur
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M03_COMMANDES', 'read')
     if (authResult instanceof Response) return authResult
@@ -71,6 +75,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/commandes — Créer une nouvelle commande fournisseur
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M03_COMMANDES', 'write')
     if (authResult instanceof Response) return authResult

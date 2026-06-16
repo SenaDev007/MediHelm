@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, notificationSchema } from '@/lib/validations'
 
 // GET /api/notifications — Liste des notifications de l'utilisateur courant
 export async function GET(request: NextRequest) {
@@ -58,42 +59,27 @@ export async function PATCH(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-
-    if (body.markAllAsRead) {
-      // Marquer toutes les notifications comme lues
-      await db.notification.updateMany({
-        where: {
-          userId: user.id,
-          lue: false,
-        },
-        data: { lue: true },
-      })
-      return NextResponse.json({ message: 'Toutes les notifications marquées comme lues' })
+    const validation = validate(notificationSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 }
+      )
     }
+    const data = validation.data
 
-    if (body.ids && Array.isArray(body.ids)) {
-      await db.notification.updateMany({
-        where: {
-          id: { in: body.ids },
-          userId: user.id,
-        },
-        data: { lue: true },
-      })
-      return NextResponse.json({ message: 'Notifications marquées comme lues' })
-    }
-
-    if (body.id) {
-      const data = await db.notification.update({
-        where: { id: body.id },
-        data: { lue: body.lue !== undefined ? body.lue : true },
-      })
-      return NextResponse.json(data)
-    }
-
-    return NextResponse.json(
-      { error: 'ID(s) de notification requis ou markAllAsRead=true' },
-      { status: 400 }
-    )
+    // Create notification for user
+    const result = await db.notification.create({
+      data: {
+        userId: user.id,
+        titre: data.titre,
+        message: data.message,
+        type: data.type || 'INFO',
+        lien: data.lien || null,
+        lue: false,
+      },
+    })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur PATCH notifications:', error)
     return NextResponse.json(

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, documentSchema } from '@/lib/validations'
 
 // GET /api/documents — Liste des documents
 export async function GET(request: NextRequest) {
@@ -63,27 +64,28 @@ export async function POST(request: NextRequest) {
     const user = authResult
 
     const body = await request.json()
-
-    if (!body.titre || !body.type) {
+    const validation = validate(documentSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Le titre et le type du document sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    const data = await db.document.create({
+    const result = await db.document.create({
       data: {
         pharmacieId: user.pharmacieId,
-        type: body.type,
-        titre: body.titre,
-        fichierUrl: body.fichierUrl || null,
-        statut: body.statut || 'BROUILLON',
-        dateValidite: body.dateValidite ? new Date(body.dateValidite) : null,
+        type: 'AUTRE' as const,
+        titre: data.description || data.type,
+        fichierUrl: data.fichierUrl || null,
+        statut: 'BROUILLON',
+        dateValidite: null,
         creePar: user.id,
       },
     })
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Erreur POST documents:', error)
     return NextResponse.json(

@@ -1,13 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { requireAuth } from '@/lib/api-auth'
+import { validate, adminUserSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M07_RH', 'read')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -79,13 +79,20 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthUser(request)
-    if (!user || user.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
-    }
+    const authResult = await requireAuth(request, 'M07_RH', 'write')
+    if (authResult instanceof Response) return authResult
+    const user = authResult
 
     const body = await request.json()
-    const { id, action, role } = body
+    const validation = validate(adminUserSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 }
+      )
+    }
+    const data = validation.data
+    const { id, action } = body
 
     if (!id || !action) {
       return NextResponse.json({ error: 'ID et action requis' }, { status: 400 })
@@ -124,20 +131,20 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Utilisateur activé' })
 
       case 'change_role': {
-        if (!role) {
+        if (!data.role) {
           return NextResponse.json({ error: 'Rôle requis' }, { status: 400 })
         }
-        await db.utilisateur.update({ where: { id }, data: { role: role as string } })
+        await db.utilisateur.update({ where: { id }, data: { role: data.role as any } })
         await db.auditLog.create({
           data: {
             userId: user.id,
             action: 'CHANGE_USER_ROLE',
             entity: 'Utilisateur',
             entityId: id,
-            details: `Rôle changé de ${utilisateur.role} vers ${role} pour ${utilisateur.prenom} ${utilisateur.nom}`,
+            details: `Rôle changé de ${utilisateur.role} vers ${data.role} pour ${utilisateur.prenom} ${utilisateur.nom}`,
           },
         })
-        return NextResponse.json({ success: true, message: `Rôle changé vers ${role}` })
+        return NextResponse.json({ success: true, message: `Rôle changé vers ${data.role}` })
       }
 
       default:

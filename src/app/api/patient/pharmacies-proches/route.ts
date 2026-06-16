@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // Haversine distance in km
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -15,6 +16,9 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
 }
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const { searchParams } = new URL(request.url)
     const lat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined
@@ -120,17 +124,19 @@ export async function GET(request: NextRequest) {
         const estGarde = p.planningsGarde.length > 0
 
         // Determine medication availability based on actual stock
-        let medicamentDispo = false
+        // Only set medicamentDispo when a specific medication is being searched
+        // This ensures the availability badge only appears for targeted searches
+        let medicamentDispo: boolean | undefined = undefined
         let prixMedicament: number | null = null
 
         if (medicamentId && pharmacyIdsWithMed) {
-          // We already filtered to only pharmacies with stock
+          // Check if this pharmacy has at least one lot with quantity > 0
+          // for the searched medication (already filtered by stock in the query above)
           medicamentDispo = pharmacyIdsWithMed.has(p.id)
           prixMedicament = medicamentPrix[p.id] ?? null
-        } else if (!medicamentId) {
-          // No medication filter — availability not applicable, default true
-          medicamentDispo = true
         }
+        // When no medicamentId is provided, medicamentDispo stays undefined
+        // so the UI won't show a misleading availability badge
 
         return {
           id: p.id,
@@ -142,8 +148,8 @@ export async function GET(request: NextRequest) {
           longitude: p.longitude,
           distance,
           estGarde,
-          medicamentDispo,
-          prixMedicament,
+          ...(medicamentDispo !== undefined ? { medicamentDispo } : {}),
+          ...(prixMedicament !== null ? { prixMedicament } : {}),
         }
       })
       .filter((p) => !lat || !lng || p.distance <= radius)

@@ -1,22 +1,35 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 import { hash } from 'bcryptjs'
+import { validate, patientSchema } from '@/lib/validations'
 
 // POST: Register a new patient account
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, motDePasse, nom, prenom, telephone, dateNaissance, sexe, numeroAssurance, assurance, adresse, pharmacieId } = body
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
+    if (authResult instanceof Response) return authResult
 
-    if (!email || !motDePasse || !nom || !prenom || !telephone) {
+    const body = await request.json()
+    const validation = validate(patientSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Email, mot de passe, nom, prénom et téléphone sont obligatoires' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 }
+      )
+    }
+    const data = validation.data
+    const { motDePasse, numeroAssurance, assurance, adresse, pharmacieId } = body
+
+    if (!motDePasse || !data.email) {
+      return NextResponse.json(
+        { error: 'Le mot de passe et l\'email sont obligatoires' },
         { status: 400 }
       )
     }
 
     // Check if email already exists
-    const existingUser = await db.utilisateur.findUnique({ where: { email } })
+    const existingUser = await db.utilisateur.findUnique({ where: { email: data.email } })
     if (existingUser) {
       return NextResponse.json(
         { error: 'Un compte avec cet email existe déjà' },
@@ -28,7 +41,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hash(motDePasse, 12)
 
     // Determine pharmacy — use provided or first active pharmacy
-    let targetPharmacieId = pharmacieId
+    let targetPharmacieId = pharmacieId || ''
     if (!targetPharmacieId) {
       const firstPharmacy = await db.pharmacie.findFirst({ where: { actif: true } })
       if (!firstPharmacy) {
@@ -44,12 +57,12 @@ export async function POST(request: NextRequest) {
     const result = await db.$transaction(async (tx) => {
       const utilisateur = await tx.utilisateur.create({
         data: {
-          email,
-          nom,
-          prenom,
+          email: data.email!,
+          nom: data.nom,
+          prenom: data.prenom,
           motDePasse: hashedPassword,
           role: 'PATIENT',
-          telephone,
+          telephone: data.telephone,
           pharmacieId: targetPharmacieId,
           actif: true,
         },
@@ -59,12 +72,12 @@ export async function POST(request: NextRequest) {
         data: {
           utilisateurId: utilisateur.id,
           pharmacieId: targetPharmacieId,
-          nom,
-          prenom,
-          telephone,
-          email,
-          dateNaissance: dateNaissance ? new Date(dateNaissance) : null,
-          sexe: sexe || null,
+          nom: data.nom,
+          prenom: data.prenom,
+          telephone: data.telephone,
+          email: data.email,
+          dateNaissance: data.dateNaissance ? new Date(data.dateNaissance) : null,
+          sexe: data.sexe || null,
           numeroAssurance: numeroAssurance || null,
           assurance: assurance || null,
           adresse: adresse || null,
@@ -106,6 +119,9 @@ export async function POST(request: NextRequest) {
 // GET: Get patient profile by email
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
+    if (authResult instanceof Response) return authResult
+
     const { searchParams } = new URL(request.url)
     const email = searchParams.get('email')
 

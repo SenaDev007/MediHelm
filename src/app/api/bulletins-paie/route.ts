@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, bulletinPaieSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,38 +57,24 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { mois, annee, salaireBrut, salaireNet, retenues, primes } = body
-
-    if (mois === undefined || annee === undefined || salaireBrut === undefined) {
+    const validation = validate(bulletinPaieSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Les champs mois, annee et salaireBrut sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
-
-    if (mois < 1 || mois > 12) {
-      return NextResponse.json(
-        { error: 'Le mois doit être compris entre 1 et 12' },
-        { status: 400 }
-      )
-    }
-
-    if (annee < 2000 || annee > 2100) {
-      return NextResponse.json(
-        { error: 'L\'année doit être une valeur valide' },
-        { status: 400 }
-      )
-    }
+    const data = validation.data
 
     const bulletin = await db.bulletinPaie.create({
       data: {
         pharmacieId,
-        mois: parseInt(String(mois), 10),
-        annee: parseInt(String(annee), 10),
-        salaireBrut: parseFloat(String(salaireBrut)),
-        salaireNet: parseFloat(String(salaireNet ?? salaireBrut)),
-        retenues: parseFloat(String(retenues ?? 0)),
-        primes: parseFloat(String(primes ?? 0)),
+        mois: parseInt(data.periode.slice(0, 2), 10) || 1,
+        annee: parseInt(data.periode.slice(-4), 10) || new Date().getFullYear(),
+        salaireBrut: data.salaireBrut ?? 0,
+        salaireNet: data.salaireBrut ?? 0,
+        retenues: data.deductions ?? 0,
+        primes: data.primes ?? 0,
       },
     })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/api-auth'
+import { validate, certificationSchema } from '@/lib/validations'
 
 // POST /api/conformite/certification/demander — Demander la certification DPMED
 export async function POST(request: NextRequest) {
@@ -100,6 +101,14 @@ export async function POST(request: NextRequest) {
 
     // Créer la demande de certification
     const body = await request.json().catch(() => ({}))
+    const validation = validate(certificationSchema, body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
+        { status: 400 }
+      )
+    }
+    const certData = validation.data
     const certification = await db.document.create({
       data: {
         pharmacieId: user.pharmacieId,

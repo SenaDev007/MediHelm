@@ -1,8 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { validate, retourSchema } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M11_RETOURS', 'read')
     if (authResult instanceof Response) return authResult
@@ -70,6 +75,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.API_MUTATION)
+  if (rateLimitResult) return rateLimitResult
+
   try {
     const authResult = await requireAuth(request, 'M11_RETOURS', 'write')
     if (authResult instanceof Response) return authResult
@@ -77,61 +85,60 @@ export async function POST(request: NextRequest) {
 
     const pharmacieId = user.pharmacieId
     const body = await request.json()
-    const { medicamentId, lotId, quantite, motif, prixUnitaire, reference } = body
-
-    if (!medicamentId || !quantite) {
+    const validation = validate(retourSchema, body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Les champs medicamentId et quantite sont requis' },
+        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
         { status: 400 }
       )
     }
+    const data = validation.data
 
-    if (quantite <= 0) {
-      return NextResponse.json(
-        { error: 'La quantité doit être supérieure à 0' },
-        { status: 400 }
-      )
-    }
-
-    // Vérifier que le médicament appartient à la pharmacie
-    const medicament = await db.medicament.findFirst({
-      where: { id: medicamentId, pharmacieId },
-    })
-
-    if (!medicament) {
-      return NextResponse.json(
-        { error: 'Médicament introuvable dans cette pharmacie' },
-        { status: 404 }
-      )
-    }
-
-    const retour = await db.mouvementStock.create({
-      data: {
-        pharmacieId,
-        medicamentId,
-        lotId: lotId || null,
-        type: 'RETOUR',
-        quantite: parseInt(String(quantite), 10),
-        prixUnitaire: prixUnitaire ? parseFloat(String(prixUnitaire)) : null,
-        motif: motif || null,
-        reference: reference || null,
-        utilisateurId: user.id,
-      },
-      include: {
-        medicament: { select: { id: true, nomCommercial: true, dci: true } },
-        lot: { select: { id: true, numeroLot: true, dateExpiration: true } },
-      },
-    })
-
-    // Remettre le stock du lot si applicable
-    if (lotId) {
-      await db.lot.update({
-        where: { id: lotId },
-        data: { quantite: { increment: parseInt(String(quantite), 10) } },
+    // Process each ligne
+    const results: any[] = []
+    for (const ligne of data.lignes) {
+      // Vérifier que le médicament appartient à la pharmacie
+      const medicament = await db.medicament.findFirst({
+        where: { id: ligne.medicamentId, pharmacieId },
       })
+
+      if (!medicament) {
+        return NextResponse.json(
+          { error: `Médicament ${ligne.medicamentId} introuvable dans cette pharmacie` },
+          { status: 404 }
+        )
+      }
+
+      const retour = await db.mouvementStock.create({
+        data: {
+          pharmacieId,
+          medicamentId: ligne.medicamentId,
+          lotId: ligne.lotId || null,
+          type: 'RETOUR',
+          quantite: ligne.quantite,
+          prixUnitaire: null,
+          motif: ligne.motif,
+          reference: null,
+          utilisateurId: user.id,
+        },
+        include: {
+          medicament: { select: { id: true, nomCommercial: true, dci: true } },
+          lot: { select: { id: true, numeroLot: true, dateExpiration: true } },
+        },
+      })
+
+      // Remettre le stock du lot si applicable
+      if (ligne.lotId) {
+        await db.lot.update({
+          where: { id: ligne.lotId },
+          data: { quantite: { increment: ligne.quantite } },
+        })
+      }
+
+      results.push(retour)
     }
 
-    return NextResponse.json(retour, { status: 201 })
+    return NextResponse.json(results, { status: 201 })
   } catch (error) {
     console.error('Erreur POST retours:', error)
     return NextResponse.json(
