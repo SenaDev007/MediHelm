@@ -64,6 +64,27 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
+    // Lots expirant sous 90 jours (avec stock restant) — alertes de péremption
+    const dans90j = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+    const lotsAlerte = await db.lot.findMany({
+      where: {
+        pharmacieId,
+        quantite: { gt: 0 },
+        dateExpiration: { lte: dans90j },
+      },
+      include: { medicament: { select: { nomCommercial: true, dci: true } } },
+      orderBy: { dateExpiration: 'asc' },
+      take: 20,
+    })
+    const lotsExpirants = lotsAlerte.map(l => ({
+      id: l.id,
+      lot: {
+        numeroLot: l.numeroLot,
+        medicament: { nomCommercial: l.medicament.nomCommercial, dci: l.medicament.dci },
+      },
+      joursRestants: Math.ceil((l.dateExpiration.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+    }))
+
     // Alertes DPMED non acquittées (via DiffusionAlerte)
     const alertesDPMED = await db.diffusionAlerte.findMany({
       where: { pharmacieId, dateAcquittement: null },
@@ -107,7 +128,8 @@ export async function GET(request: NextRequest) {
           dateEmissionDPMED: d.alerte.dateEmissionDPMED,
         },
       })),
-      alertesExpiration: [],
+      // Lots réellement expirants sous 90 jours (alertes de péremption)
+      alertesExpiration: lotsExpirants,
       topProduits,
       scoreConf: scoreConf ? {
         scoreTotal: scoreConf.scoreTotal,

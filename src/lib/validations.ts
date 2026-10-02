@@ -45,12 +45,30 @@ export const venteSchema = z.object({
     medicamentId: z.uuid(),
     lotId: z.uuid().optional(),
     quantite: z.int().positive(),
-    prixUnitaire: z.number().positive(),
+    prixUnitaire: z.number().positive().optional(),
+    remise: z.number().min(0).optional(),
   })).min(1),
   modePaiement: z.enum(['ESPECES', 'WAVE', 'MTN_MONEY', 'MOOV_MONEY', 'CARTE_BANCAIRE', 'CHEQUE', 'CREDIT', 'ASSURANCE', 'TIERS_PAYANT']),
   patientId: z.uuid().optional(),
   ordonnanceId: z.uuid().optional(),
 })
+
+// Mise à jour d'un médicament (champs éditables)
+export const medicamentUpdateSchema = z.object({
+  dci: z.string().min(2).optional(),
+  nomCommercial: z.string().min(2).optional(),
+  dosage: z.string().min(1).optional(),
+  prixPublic: z.number().positive().optional(),
+  prixAvantRemise: z.number().positive().nullable().optional(),
+  surOrdonnance: z.boolean().optional(),
+  estStupefiant: z.boolean().optional(),
+  stockMinimum: z.int().min(0).optional(),
+  stockSecurite: z.int().min(0).optional(),
+  codeBarres: z.string().trim().max(60).nullable().optional(),
+  remboursable: z.boolean().optional(),
+  generique: z.boolean().optional(),
+  actif: z.boolean().optional(),
+}).refine(v => Object.keys(v).length > 0, { message: 'Au moins un champ à mettre à jour' })
 
 // ─── Patients ──────────────────────────────────────────────────
 
@@ -186,10 +204,18 @@ export const congeSchema = z.object({
   motif: z.string().optional(),
 })
 
+// Décision sur une demande de congé (approbation / refus)
+export const congeDecisionSchema = z.object({
+  id: z.uuid(),
+  statut: z.enum(['APPROUVE', 'REFUSE']),
+})
+
 // ─── Stock / Réception ─────────────────────────────────
 export const receptionSchema = z.object({
   commandeId: z.uuid().optional(),
   fournisseurId: z.uuid(),
+  numeroBL: z.string().trim().min(1).max(60).optional(),
+  notes: z.string().trim().max(500).optional(),
   lignes: z.array(z.object({
     medicamentId: z.uuid(),
     quantite: z.int().positive(),
@@ -236,6 +262,32 @@ export const notificationSchema = z.object({
   message: z.string().min(5),
   type: z.enum(['INFO', 'ALERTE', 'URGENT', 'RAPPEL', 'SYSTEME']).optional(),
   lien: z.string().optional(),
+})
+
+// Marquage de notifications comme lues (par id, ids en masse, ou toutes)
+export const notificationMarkReadSchema = z.object({
+  id: z.uuid().optional(),
+  ids: z.array(z.uuid()).min(1).optional(),
+  toutes: z.boolean().optional(),
+  lue: z.boolean().default(true),
+}).refine(v => v.id || v.ids || v.toutes, {
+  message: 'Fournir id, ids ou toutes',
+})
+
+// Diffusion d'une notification aux utilisateurs d'une pharmacie
+export const notificationBroadcastSchema = z.object({
+  pharmacieId: z.uuid(),
+  titre: z.string().trim().min(2).max(120),
+  message: z.string().trim().min(5).max(1000),
+  type: z.enum(['INFO', 'ALERTE', 'URGENT', 'RAPPEL', 'SYSTEME']).optional(),
+  lien: z.string().optional(),
+  userIds: z.array(z.uuid()).optional(),
+})
+
+// ─── Commande patient (côté pharmacie: transitions de statut) ──
+export const commandePatientTransitionSchema = z.object({
+  statut: z.enum(['EN_PREPARATION', 'PRETE', 'RECUPEREE', 'ANNULEE']),
+  notes: z.string().trim().max(500).optional(),
 })
 
 // ─── Destruction ───────────────────────────────────────

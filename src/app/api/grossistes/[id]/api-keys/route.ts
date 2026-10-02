@@ -10,13 +10,17 @@ export async function GET(
   try {
     const auth = await requireAuth(request, 'M17_GROSSISTES', 'read')
     if (auth instanceof Response) return auth
-    // The current schema has no grossiste-user membership relation, so do not
-    // let a partner token enumerate another grossiste's credentials metadata.
-    if (auth.roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès réservé aux administrateurs plateforme' }, { status: 403 })
-    }
 
     const { id } = await params
+
+    // Le partenaire grossiste accède aux clés de SON grossiste; les rôles
+    // pharmacie n'ont pas à énumérer les credentials d'un grossiste.
+    if (
+      auth.roleName !== 'PLATFORM_ADMIN' &&
+      !(auth.roleName === 'GROSSISTE_PARTNER' && auth.grossisteId === id)
+    ) {
+      return NextResponse.json({ error: 'Accès refusé à ce grossiste' }, { status: 403 })
+    }
 
     const grossiste = await db.grossiste.findUnique({
       where: { id },

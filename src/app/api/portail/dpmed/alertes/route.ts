@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth , checkInstitutionRole } from '@/lib/api-auth'
 import { validate, alerteDPMEDSchema } from '@/lib/validations'
 
 export async function GET(request: Request) {
   // Auth: DPMED_ADMIN, SOBAPS_VIEWER, ABRP_VIEWER or PLATFORM_ADMIN
   const auth = await requireAuth(request, 'M18_ALERTES_DPMED', 'read')
   if (auth instanceof Response) return auth
+
+  // Garde de rôle institutionnel — les permissions de module seules ne suffisent pas
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER'])
+  if (guardError) return guardError
 
   try {
     const { searchParams } = new URL(request.url)
@@ -66,6 +70,11 @@ export async function POST(request: Request) {
   // Auth: DPMED_ADMIN or PLATFORM_ADMIN required for writing alerts
   const auth = await requireAuth(request, 'M18_ALERTES_DPMED', 'write')
   if (auth instanceof Response) return auth
+
+  // Seuls les rôles institutionnels DPMED peuvent émettre une alerte nationale
+  // (les permissions M18 write incluent DIRECTEUR — réservé à l'autorité)
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN'])
+  if (guardError) return guardError
 
   try {
     const body = await request.json()
@@ -133,6 +142,80 @@ export async function POST(request: Request) {
       })
     }
 
+    // ---------- Chaîne de diffusion (M18) ----------
+    // 1. Notification in-app à chaque utilisateur actif des pharmacies (push future: FCM/SMS)
+    const typeNotif = ['URGENT', 'URGENCE_IMMEDIATE'].includes(niveauUrgence) ? 'URGENT' : 'ALERTE'
+    const utilisateursPharmacies = await db.utilisateur.findMany({
+      where: { actif: true, pharmacie: { actif: true }, role: { in: ['OWNER', 'DIRECTEUR', 'PHARMACIEN'] } },
+      select: { id: true },
+      take: 1000,
+    })
+    if (utilisateursPharmacies.length > 0) {
+      await db.notification.createMany({
+        data: utilisateursPharmacies.map(u => ({
+          userId: u.id,
+          titre: `Alerte DPMED ${niveauUrgence}: ${titre}`.slice(0, 120),
+          message: `${typeAlerte}${dciConcernee ? ` — ${dciConcernee}` : ''}. ${referenceOfficielle || alerte.referenceOfficielle}. Vérifiez vos stocks et lots concernés.`,
+          type: typeNotif,
+          lien: '/pro/alertes',
+          lue: false,
+        })),
+      })
+    }
+
+    // 2. Patients exposés: identification via leurs achats de la DCI concernée
+    //    (ventes des 6 derniers mois) → notification immédiate (F-P11)
+    let patientsNotifies = 0
+    if (dciConcernee) {
+      const sixMois = new Date(Date.now() - 182 * 24 * 60 * 60 * 1000)
+      const patientsTouches = await db.patient.findMany({
+        where: {
+          actif: true,
+          ventes: {
+            some: {
+              createdAt: { gte: sixMois },
+              lignes: { some: { medicament: { dci: { equals: dciConcernee, mode: 'insensitive' } } } },
+            },
+          },
+        },
+        select: { utilisateurId: true },
+        take: 500,
+      })
+      const usersPatients = patientsTouches
+        .map(p => p.utilisateurId)
+        .filter((id): id is string => Boolean(id))
+      if (usersPatients.length > 0) {
+        await db.notification.createMany({
+          data: usersPatients.map(uid => ({
+            userId: uid,
+            titre: 'Alerte sanitaire sur un médicament que vous avez acheté',
+            message: `Une alerte officielle DPMED (${typeAlerte}) concerne ${dciConcernee}. Consultez les instructions officielles et contactez votre pharmacie si vous détenez ce médicament.`,
+            type: 'URGENT',
+            lien: '/patient/notifications',
+            lue: false,
+          })),
+        })
+        patientsNotifies = usersPatients.length
+      }
+    }
+
+    // 3. Statut de l'alerte: les diffusions étant émises, l'alerte est DIFFUSEE
+    await db.alerteDPMED.update({
+      where: { id: alerte.id },
+      data: { statut: 'DIFFUSEE' },
+    })
+
+    // 4. Journal d'audit de l'émission
+    await db.auditLog.create({
+      data: {
+        userId: auth.id,
+        action: 'ALERTE_DPMED_EMISSION',
+        entity: 'AlerteDPMED',
+        entityId: alerte.id,
+        details: `${titre} — ${pharmacies.length} pharmacie(s), ${utilisateursPharmacies.length} utilisateur(s) pharmacie notifié(s), ${patientsNotifies} patient(s) exposé(s) notifié(s)`,
+      },
+    })
+
     // Return with diffusions included
     const result = await db.alerteDPMED.findUnique({
       where: { id: alerte.id },
@@ -147,7 +230,14 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json(result, { status: 201 })
+    return NextResponse.json({
+      ...result,
+      diffusionStats: {
+        pharmacies: pharmacies.length,
+        utilisateursNotifies: utilisateursPharmacies.length,
+        patientsNotifies,
+      },
+    }, { status: 201 })
   } catch (error) {
     console.error('Erreur création alerte DPMED:', error)
     return NextResponse.json(

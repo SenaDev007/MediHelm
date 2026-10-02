@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth , checkInstitutionRole } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
   // Auth: DPMED_ADMIN, SOBAPS_VIEWER, ABRP_VIEWER or PLATFORM_ADMIN
   const auth = await requireAuth(request, 'M19_CONFORMITE', 'read')
   if (auth instanceof Response) return auth
+  // Garde de rôle institutionnel — les permissions de module seules ne suffisent pas
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER'])
+  if (guardError) return guardError
 
   try {
     const { searchParams } = new URL(request.url)

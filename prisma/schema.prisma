@@ -153,8 +153,11 @@ enum StatutCommande {
   ENVOYEE
   CONFIRMEE
   EN_PREPARATION
+  EN_LIVRAISON
   LIVREE_PARTIELLEMENT
   LIVREE
+  REFUSEE
+  LITIGE
   ANNULEE
 }
 
@@ -209,6 +212,7 @@ enum TypeAlerteDPMED {
 
 enum StatutAlerte {
   EN_DIFFUSION
+  DIFFUSEE
   ACQUITTEE
   EXPIREE
   ANNULEE
@@ -344,6 +348,7 @@ model Pharmacie {
   employes            Employe[]
   fournisseurs        Fournisseur[]
   commandes           CommandeFournisseur[]
+  receptionsFournisseur ReceptionFournisseur[]
   alertesStock        AlerteStock[]
   mouvementsStock     MouvementStock[]
   planningsGarde      PlanningGarde[]
@@ -373,6 +378,7 @@ model Pharmacie {
 model Utilisateur {
   id             String           @id @default(uuid())
   pharmacieId    String
+  grossisteId    String?
   email          String           @unique
   nom            String
   prenom         String
@@ -387,6 +393,7 @@ model Utilisateur {
   updatedAt      DateTime         @updatedAt
 
   pharmacie        Pharmacie          @relation(fields: [pharmacieId], references: [id])
+  grossiste        Grossiste?         @relation(fields: [grossisteId], references: [id])
   tenants          UtilisateurTenant[]
   ventes           Vente[]
   sessionsCaisse   SessionCaisse[]
@@ -450,6 +457,7 @@ model Medicament {
   estStupefiant   Boolean         @default(false)
   stockMinimum    Int             @default(5)
   stockSecurite   Int             @default(10)
+  cmup            Float           @default(0) // Coût moyen unitaire pondéré — recalculé à chaque réception
   codeBarres      String?
   categorieAtc    CategorieATC?
   remboursable    Boolean         @default(false)
@@ -462,6 +470,7 @@ model Medicament {
   lots            Lot[]
   alertesStock    AlerteStock[]
   lignesVente     LigneVente[]
+  lignesReception LigneReception[]
   surveillances   MedicamentSurveillance[]
   mouvementsStock MouvementStock[]
   lignesCommande  LigneCommandePatient[]
@@ -483,6 +492,8 @@ model Lot {
   medicament       Medicament      @relation(fields: [medicamentId], references: [id], onDelete: Cascade)
   pharmacie        Pharmacie       @relation(fields: [pharmacieId], references: [id])
   mouvements       MouvementStock[]
+  lignesReception  LigneReception[]
+  lignesVente      LigneVente[]
 
   @@unique([medicamentId, numeroLot])
 }
@@ -593,6 +604,7 @@ model LigneVente {
 
   vente      Vente      @relation(fields: [venteId], references: [id], onDelete: Cascade)
   medicament Medicament @relation(fields: [medicamentId], references: [id])
+  lot        Lot?       @relation(fields: [lotId], references: [id])
 }
 
 model Paiement {
@@ -720,6 +732,7 @@ model Fournisseur {
 
   pharmacie  Pharmacie           @relation(fields: [pharmacieId], references: [id])
   commandes  CommandeFournisseur[]
+  receptions ReceptionFournisseur[]
 }
 
 model CommandeFournisseur {
@@ -738,6 +751,7 @@ model CommandeFournisseur {
   pharmacie       Pharmacie     @relation(fields: [pharmacieId], references: [id])
   fournisseur     Fournisseur?  @relation(fields: [fournisseurId], references: [id])
   lignes          LigneCommande[]
+  receptions      ReceptionFournisseur[]
 }
 
 model LigneCommande {
@@ -773,11 +787,13 @@ model Employe {
   updatedAt    DateTime     @updatedAt
 
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+  conges    Conge[]
 }
 
 model Conge {
   id          String     @id @default(uuid())
   pharmacieId String
+  employeId   String?
   type        TypeConge  @default(ANNUEL)
   dateDebut   DateTime
   dateFin     DateTime
@@ -787,6 +803,10 @@ model Conge {
   createdAt   DateTime   @default(now())
 
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+  employe   Employe?  @relation(fields: [employeId], references: [id])
+
+  @@index([pharmacieId])
+  @@index([employeId])
 }
 
 model Presence {
@@ -1033,6 +1053,48 @@ model ReceptionGrossiste {
   ordonnanceGrossiste OrdonnanceGrossiste @relation(fields: [ordonnanceGrossisteId], references: [id])
 }
 
+// Réception fournisseur (M03) — document de réception avec impact stock réel:
+// création/incrément de lots, mouvements ENTREE, recalcul du CMUP, mise à jour
+// des quantités livrées et du statut de la commande fournisseur.
+model ReceptionFournisseur {
+  id            String    @id @default(uuid())
+  pharmacieId   String
+  commandeId    String?
+  fournisseurId String?
+  numeroBL      String?
+  statut        String    @default("COMPLETE")
+  notes         String?
+  utilisateurId String?
+  createdAt     DateTime  @default(now())
+
+  pharmacie   Pharmacie            @relation(fields: [pharmacieId], references: [id])
+  commande    CommandeFournisseur? @relation(fields: [commandeId], references: [id])
+  fournisseur Fournisseur?         @relation(fields: [fournisseurId], references: [id])
+  lignes      LigneReception[]
+
+  @@index([pharmacieId])
+  @@index([commandeId])
+}
+
+model LigneReception {
+  id             String   @id @default(uuid())
+  receptionId    String
+  medicamentId   String
+  lotId          String
+  quantite       Int
+  prixAchat      Float
+  numeroLot      String
+  dateExpiration DateTime
+  createdAt      DateTime @default(now())
+
+  reception  ReceptionFournisseur @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  medicament Medicament          @relation(fields: [medicamentId], references: [id])
+  lot        Lot                 @relation(fields: [lotId], references: [id])
+
+  @@index([receptionId])
+  @@index([lotId])
+}
+
 // ============================================================
 // SCHÉMA GROSSISTE — MediHelm Grossiste
 // ============================================================
@@ -1048,10 +1110,11 @@ model Grossiste {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  catalogue ProduitGrossiste[]
-  commandes CommandeGrossiste[]
-  webhooks  WebhookConfig[]
-  apiKeys   GrossisteApiKey[]
+  catalogue  ProduitGrossiste[]
+  commandes  CommandeGrossiste[]
+  webhooks   WebhookConfig[]
+  apiKeys    GrossisteApiKey[]
+  utilisateurs Utilisateur[]
 }
 
 model GrossisteApiKey {
@@ -1222,18 +1285,20 @@ model SignalementEI {
 // Audit Log (Global)
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String?
-  action    String
-  entity    String
-  entityId  String?
-  details   String?
-  ipAddress String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  userId      String?
+  pharmacieId String?
+  action      String
+  entity      String
+  entityId    String?
+  details     String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
 
   @@index([entity, entityId])
   @@index([userId])
   @@index([createdAt])
+  @@index([pharmacieId])
 }
 
 // Notification (Global)

@@ -46,7 +46,7 @@ import {
   Users, UserPlus, Phone, Mail, Shield, CreditCard, Search, Filter,
   Plus, Eye, Edit, ArrowUpDown, ChevronLeft, ChevronRight, X,
   Calendar, MapPin, FileText, Syringe, ShoppingCart, Activity,
-  CheckCircle2, XCircle, AlertTriangle, Loader2,
+  CheckCircle2, XCircle, AlertTriangle, Loader2, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { KpiCard } from '@/components/pro/kpi-card'
@@ -103,6 +103,22 @@ interface PatientDetail extends Patient {
     dateVaccin: string
     lot: string | null
     prochaineDose: string | null
+  }[]
+}
+
+interface PatientCommande {
+  id: string
+  statut: 'RECUE' | 'EN_PREPARATION' | 'PRETE' | 'RECUPEREE' | 'ANNULEE'
+  montantTotal: number
+  notes: string | null
+  createdAt: string
+  lignes: {
+    id: string
+    dci: string
+    quantite: number
+    prixUnitaire: number
+    prixTotal: number
+    medicament: { nomCommercial: string; dci: string } | null
   }[]
 }
 
@@ -236,6 +252,9 @@ export default function PatientsPage() {
   const [creditPatient, setCreditPatient] = useState<Patient | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [patientCommandes, setPatientCommandes] = useState<PatientCommande[]>([])
+  const [commandesLoading, setCommandesLoading] = useState(false)
+  const [transitionBusy, setTransitionBusy] = useState<string | null>(null)
 
   // Form state
   const emptyForm = {
@@ -298,6 +317,49 @@ export default function PatientsPage() {
       toast.error('Erreur lors du chargement du patient')
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  // --- Fetch commandes patient (onglet Commandes) ---
+  const fetchPatientCommandes = useCallback(async (patientId: string) => {
+    setCommandesLoading(true)
+    try {
+      const res = await fetch(`/api/patients/commandes?patientId=${patientId}&limit=50`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setPatientCommandes(data.data ?? [])
+    } catch {
+      setPatientCommandes([])
+    } finally {
+      setCommandesLoading(false)
+    }
+  }, [])
+
+  // --- Transition de statut d'une commande patient ---
+  const handleCommandeTransition = async (commandeId: string, statut: PatientCommande['statut']) => {
+    setTransitionBusy(commandeId)
+    try {
+      const res = await fetch(`/api/patients/commandes/${commandeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Erreur lors de la mise à jour')
+        return
+      }
+      const data = await res.json()
+      setPatientCommandes(prev => prev.map(c => (c.id === commandeId ? { ...c, statut } : c)))
+      if (data.pointsCredites > 0) {
+        toast.success(`Commande mise à jour — ${data.pointsCredites} points de fidélité crédités`)
+      } else {
+        toast.success('Statut de la commande mis à jour')
+      }
+    } catch {
+      toast.error('Erreur lors de la mise à jour')
+    } finally {
+      setTransitionBusy(null)
     }
   }
 
@@ -425,6 +487,7 @@ export default function PatientsPage() {
   // --- Open detail dialog ---
   const openDetail = (patient: Patient) => {
     fetchPatientDetail(patient.id)
+    fetchPatientCommandes(patient.id)
     setShowDetailDialog(true)
   }
 
@@ -1240,10 +1303,13 @@ export default function PatientsPage() {
 
                 {/* Tabs */}
                 <Tabs defaultValue="info" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="info" className="text-xs sm:text-sm">Informations</TabsTrigger>
                     <TabsTrigger value="ventes" className="text-xs sm:text-sm">
                       Achats ({selectedPatient.ventes?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="commandes" className="text-xs sm:text-sm">
+                      Commandes ({patientCommandes.length})
                     </TabsTrigger>
                     <TabsTrigger value="ordonnances" className="text-xs sm:text-sm">
                       Ordonnances ({selectedPatient.ordonnances?.length || 0})
@@ -1436,6 +1502,143 @@ export default function PatientsPage() {
                       <div className="text-center py-10">
                         <ShoppingCart className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground">Aucun achat enregistré</p>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Commandes Tab — cycle de vie des commandes patient */}
+                  <TabsContent value="commandes" className="mt-4">
+                    {commandesLoading ? (
+                      <div className="text-center py-10">
+                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin mx-auto" />
+                      </div>
+                    ) : patientCommandes.length > 0 ? (
+                      <div className="space-y-2">
+                        {patientCommandes.map((cmd) => (
+                          <Card key={cmd.id}>
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-teal-100 text-teal-800">
+                                    <Package className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">
+                                      Commande #{cmd.id.slice(-6).toUpperCase()}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatDate(cmd.createdAt)} · {cmd.lignes?.length || 0} article{(cmd.lignes?.length || 0) > 1 ? 's' : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-sm font-bold text-teal-800">
+                                    {cmd.montantTotal.toLocaleString('fr-FR')} FCFA
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      cmd.statut === 'RECUE'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200 text-xs'
+                                        : cmd.statut === 'EN_PREPARATION'
+                                        ? 'bg-teal-50 text-teal-800 border-teal-200 text-xs'
+                                        : cmd.statut === 'PRETE'
+                                        ? 'bg-green-50 text-green-700 border-green-200 text-xs'
+                                        : cmd.statut === 'RECUPEREE'
+                                        ? 'bg-teal-100 text-teal-900 border-teal-300 text-xs'
+                                        : 'bg-red-50 text-red-700 border-red-200 text-xs'
+                                    }
+                                  >
+                                    {{
+                                      RECUE: 'Reçue',
+                                      EN_PREPARATION: 'En préparation',
+                                      PRETE: 'Prête',
+                                      RECUPEREE: 'Récupérée',
+                                      ANNULEE: 'Annulée',
+                                    }[cmd.statut]}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              {cmd.lignes && cmd.lignes.length > 0 && (
+                                <div className="ml-12 text-xs text-muted-foreground space-y-0.5">
+                                  {cmd.lignes.map((l) => (
+                                    <p key={l.id}>
+                                      {l.quantite}× {l.medicament?.nomCommercial || l.dci} — {l.prixTotal.toLocaleString('fr-FR')} FCFA
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Actions de transition */}
+                              <div className="flex items-center gap-2 justify-end">
+                                {cmd.statut === 'RECUE' && (
+                                  <>
+                                    <Button
+                                      size="sm" variant="outline"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'EN_PREPARATION')}
+                                    >
+                                      {transitionBusy === cmd.id && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                                      Préparer
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="ghost" className="text-red-600"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'ANNULEE')}
+                                    >
+                                      Annuler
+                                    </Button>
+                                  </>
+                                )}
+                                {cmd.statut === 'EN_PREPARATION' && (
+                                  <>
+                                    <Button
+                                      size="sm" variant="outline"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'PRETE')}
+                                    >
+                                      {transitionBusy === cmd.id && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                                      Marquer prête
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="ghost" className="text-red-600"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'ANNULEE')}
+                                    >
+                                      Annuler
+                                    </Button>
+                                  </>
+                                )}
+                                {cmd.statut === 'PRETE' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      className="bg-[#1D9E75] hover:bg-[#0F6E56]"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'RECUPEREE')}
+                                    >
+                                      {transitionBusy === cmd.id && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                                      Marquer récupérée (+pts fidélité)
+                                    </Button>
+                                    <Button
+                                      size="sm" variant="ghost" className="text-red-600"
+                                      disabled={transitionBusy === cmd.id}
+                                      onClick={() => handleCommandeTransition(cmd.id, 'ANNULEE')}
+                                    >
+                                      Annuler
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10">
+                        <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Aucune commande enregistrée</p>
                       </div>
                     )}
                   </TabsContent>

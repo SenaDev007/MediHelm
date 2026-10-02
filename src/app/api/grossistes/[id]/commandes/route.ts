@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, checkGrossisteAccess } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes/[id]/commandes
  * List CommandeGrossiste for a given grossiste with status filter and pagination.
  * Query: ?statut=ENVOYEE&page=1&limit=20
- * Requires: M17_GROSSISTES read
+ * Requires: M17_GROSSISTES read — GROSSISTE_PARTNER limité à SON grossiste.
  */
 export async function GET(
   request: Request,
@@ -15,8 +15,11 @@ export async function GET(
   const auth = await requireAuth(request, 'M17_GROSSISTES', 'read')
   if (auth instanceof Response) return auth
 
+  const { id } = await params
+  const accessError = checkGrossisteAccess(auth, id)
+  if (accessError) return accessError
+
   try {
-    const { id } = await params
     const { searchParams } = new URL(request.url)
     const statut = searchParams.get('statut')
     const page = parseInt(searchParams.get('page') || '1')

@@ -68,7 +68,9 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
 
       if (pharmacieId) {
         try {
-          const res = await fetch(`/api/pharmacies?numeroAgrement=${pharmacieId}`)
+          // Récupère la pharmacie par son identifiant (le paramètre
+          // numeroAgrement attend un numéro d'agrément, pas un UUID)
+          const res = await fetch(`/api/pharmacies?pharmacieId=${pharmacieId}`)
           if (res.ok) {
             const pharmacies = await res.json()
             if (pharmacies.length > 0) {

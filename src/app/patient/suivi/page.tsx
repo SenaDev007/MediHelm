@@ -14,7 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
-type StatutCommande = 'EN_ATTENTE' | 'CONFIRMEE' | 'EN_PREPARATION' | 'PRETE' | 'LIVREE' | 'ANNULEE'
+type StatutCommande = 'RECUE' | 'EN_PREPARATION' | 'PRETE' | 'RECUPEREE' | 'ANNULEE'
 
 interface LigneCommande {
   id: string
@@ -47,11 +47,10 @@ interface Commande {
 }
 
 const statutBadgeColors: Record<StatutCommande, string> = {
-  EN_ATTENTE: 'bg-amber-50 text-amber-700',
-  CONFIRMEE: 'bg-blue-50 text-blue-700',
+  RECUE: 'bg-amber-50 text-amber-700',
   EN_PREPARATION: 'bg-teal-50 text-teal-800',
   PRETE: 'bg-green-50 text-green-700',
-  LIVREE: 'bg-teal-100 text-teal-900',
+  RECUPEREE: 'bg-teal-100 text-teal-900',
   ANNULEE: 'bg-red-50 text-red-700',
 }
 
@@ -84,13 +83,13 @@ export default function SuiviPage() {
   }, [fetchCommandes, patientId])
 
   const filteredCommandes = commandes.filter((c) => {
-    if (filter === 'en_cours') return !['LIVREE', 'ANNULEE'].includes(c.statut)
-    if (filter === 'terminees') return ['LIVREE', 'ANNULEE'].includes(c.statut)
+    if (filter === 'en_cours') return !['RECUPEREE', 'ANNULEE'].includes(c.statut)
+    if (filter === 'terminees') return ['RECUPEREE', 'ANNULEE'].includes(c.statut)
     return true
   })
 
-  const enCoursCount = commandes.filter(c => !['LIVREE', 'ANNULEE'].includes(c.statut)).length
-  const termineesCount = commandes.filter(c => ['LIVREE', 'ANNULEE'].includes(c.statut)).length
+  const enCoursCount = commandes.filter(c => !['RECUPEREE', 'ANNULEE'].includes(c.statut)).length
+  const termineesCount = commandes.filter(c => ['RECUPEREE', 'ANNULEE'].includes(c.statut)).length
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
@@ -212,7 +211,7 @@ export default function SuiviPage() {
                           {formatCurrency(commande.montantTotal)}
                         </p>
                         <Badge className={`text-[10px] border-0 ${statutBadgeColors[commande.statut]}`}>
-                          {getOrderStatusLabel(commande.statut as keyof typeof getOrderStatusLabel extends infer K ? K extends string ? K : never : never)}
+                          {getOrderStatusLabel(commande.statut)}
                         </Badge>
                         {isExpanded ? (
                           <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -225,7 +224,7 @@ export default function SuiviPage() {
                     {/* Status indicator */}
                     <div className="mt-3 ml-6">
                       <OrderStatusIndicator
-                        status={commande.statut as 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'PICKED_UP' | 'CANCELLED'}
+                        status={commande.statut}
                         createdAt={commande.createdAt}
                       />
                     </div>

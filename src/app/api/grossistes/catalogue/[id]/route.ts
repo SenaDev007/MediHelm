@@ -68,6 +68,11 @@ export async function PATCH(
       )
     }
 
+    // Isolation tenant: le partenaire ne modifie que les produits de SON grossiste
+    if (auth.roleName === 'GROSSISTE_PARTNER' && existing.grossisteId !== auth.grossisteId) {
+      return NextResponse.json({ error: 'Accès refusé à ce produit.' }, { status: 403 })
+    }
+
     // Validate prixUnitaire if provided
     if (
       prixUnitaire !== undefined &&

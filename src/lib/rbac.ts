@@ -531,6 +531,7 @@ export interface AuthUser {
   roleName: string
   pharmacieId: string
   pharmacieNom: string
+  grossisteId?: string | null
   avatarUrl?: string
   permissions: Array<{
     module: string

@@ -137,13 +137,13 @@ export async function POST(request: NextRequest) {
         notes: body.notes || null,
         lignes: lignes.length > 0
           ? {
-              create: lignes.map((l: { dci: string; nomCommercial?: string; medicamentId?: string; quantite: number; prixAchat: number; montant: number }) => ({
+              create: lignes.map((l: { dci: string; nomCommercial?: string; medicamentId?: string; quantite: number; prixAchat: number; montant?: number }) => ({
                 dci: l.dci,
                 nomCommercial: l.nomCommercial || null,
                 medicamentId: l.medicamentId || null,
                 quantite: l.quantite,
                 prixAchat: l.prixAchat,
-                montant: l.montant,
+                montant: l.montant ?? l.quantite * l.prixAchat,
               })),
             }
           : undefined,

@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth , checkInstitutionRole } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
   // Auth: DPMED_ADMIN or PLATFORM_ADMIN required
   const auth = await requireAuth(request, 'M14_DASHBOARD', 'read')
   if (auth instanceof Response) return auth
+  // Garde de rôle institutionnel — les permissions de module seules ne suffisent pas
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN'])
+  if (guardError) return guardError
 
   try {
     // Aggregate alert counts from AlerteDPMED

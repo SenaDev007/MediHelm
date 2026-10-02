@@ -61,11 +61,14 @@ interface DashboardData {
   }[]
   alertesExpiration: {
     id: string
-    joursRestants: number
-    lot: {
-      medicament: { nomCommercial: string }
+    joursRestants?: number
+    type?: string
+    message?: string
+    lot?: {
+      medicament: { nomCommercial: string; dci?: string }
       numeroLot: string
     }
+    medicament?: { nomCommercial: string; dci: string }
   }[]
   topProduits: {
     id: string
@@ -204,13 +207,13 @@ export default function ProDashboard() {
     return Array.from(dayMap.entries()).map(([name, ca]) => ({ name, ca }))
   })()
 
-  // Group expiration alerts by time range
+  // Group expiration alerts by time range (robuste aux deux formats d'alerte)
   const expirationSummary = (() => {
     const alerts = data?.alertesExpiration || []
     return {
-      j90: alerts.filter(a => a.joursRestants > 60 && a.joursRestants <= 90).length,
-      j60: alerts.filter(a => a.joursRestants > 30 && a.joursRestants <= 60).length,
-      j30: alerts.filter(a => a.joursRestants <= 30).length,
+      j90: alerts.filter(a => (a.joursRestants ?? Infinity) > 60 && (a.joursRestants ?? Infinity) <= 90).length,
+      j60: alerts.filter(a => (a.joursRestants ?? Infinity) > 30 && (a.joursRestants ?? Infinity) <= 60).length,
+      j30: alerts.filter(a => a.joursRestants !== undefined && a.joursRestants <= 30).length,
     }
   })()
 
@@ -575,24 +578,39 @@ export default function ProDashboard() {
                 </div>
               )}
 
-              {/* Expiration Alerts */}
+              {/* Expiration / Stock Alerts — gère les alertes de péremption (lot)
+                  et les alertes de stock AlerteStock (RUPTURE, SEUIL_MINIMUM…) */}
               {(data?.alertesExpiration?.length ?? 0) > 0 && (
                 <div>
                   <span className="text-[10px] font-semibold uppercase text-amber-500 tracking-wide">Expiration</span>
-                  {data?.alertesExpiration?.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                      <div>
-                        <span className="text-sm">{a.lot.medicament.nomCommercial}</span>
-                        <span className="text-xs text-muted-foreground ml-2">Lot {a.lot.numeroLot}</span>
+                  {data?.alertesExpiration?.map((a) => {
+                    const nomMed =
+                      a.lot?.medicament?.nomCommercial ||
+                      a.medicament?.nomCommercial ||
+                      a.medicament?.dci ||
+                      (a.message?.split(':')[0]) ||
+                      'Alerte stock'
+                    const numeroLot = a.lot?.numeroLot
+                    const jours = a.joursRestants
+                    const typeLabel =
+                      a.type === 'RUPTURE' ? 'Rupture' :
+                      a.type === 'SEUIL_MINIMUM' ? 'Seuil min.' :
+                      a.type === 'SURSTOCK' ? 'Surstock' : undefined
+                    return (
+                      <div key={a.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div>
+                          <span className="text-sm">{nomMed}</span>
+                          {numeroLot && <span className="text-xs text-muted-foreground ml-2">Lot {numeroLot}</span>}
+                        </div>
+                        <Badge
+                          variant={a.type === 'RUPTURE' || (jours !== undefined && jours <= 30) ? 'destructive' : 'outline'}
+                          className="text-[10px]"
+                        >
+                          {typeLabel ?? (jours !== undefined ? `${jours}j` : 'Alerte')}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant={a.joursRestants <= 30 ? 'destructive' : 'outline'}
-                        className="text-[10px]"
-                      >
-                        {a.joursRestants}j
-                      </Badge>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 

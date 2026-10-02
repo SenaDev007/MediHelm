@@ -3,7 +3,8 @@
 import { Check, Clock, Package, ShoppingBag, Truck, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'PICKED_UP' | 'CANCELLED'
+// Statuts alignés sur l'enum Prisma StatutCommandePatient
+type OrderStatus = 'RECUE' | 'EN_PREPARATION' | 'PRETE' | 'RECUPEREE' | 'ANNULEE'
 
 interface OrderStatusProps {
   status: OrderStatus
@@ -11,33 +12,30 @@ interface OrderStatusProps {
 }
 
 const statusSteps: { key: OrderStatus; label: string; icon: React.ElementType }[] = [
-  { key: 'PENDING', label: 'En attente', icon: Clock },
-  { key: 'CONFIRMED', label: 'Confirmée', icon: Check },
-  { key: 'PREPARING', label: 'En préparation', icon: Package },
-  { key: 'READY', label: 'Prête', icon: ShoppingBag },
-  { key: 'PICKED_UP', label: 'Récupérée', icon: Truck },
+  { key: 'RECUE', label: 'Reçue', icon: Clock },
+  { key: 'EN_PREPARATION', label: 'En préparation', icon: Package },
+  { key: 'PRETE', label: 'Prête', icon: ShoppingBag },
+  { key: 'RECUPEREE', label: 'Récupérée', icon: Truck },
 ]
 
 const statusColors: Record<OrderStatus, string> = {
-  PENDING: 'bg-amber-400',
-  CONFIRMED: 'bg-blue-brand',
-  PREPARING: 'bg-primary',
-  READY: 'bg-green-500',
-  PICKED_UP: 'bg-teal-800',
-  CANCELLED: 'bg-destructive',
+  RECUE: 'bg-amber-400',
+  EN_PREPARATION: 'bg-primary',
+  PRETE: 'bg-green-500',
+  RECUPEREE: 'bg-teal-800',
+  ANNULEE: 'bg-destructive',
 }
 
 const statusLabels: Record<OrderStatus, string> = {
-  PENDING: 'En attente',
-  CONFIRMED: 'Confirmée',
-  PREPARING: 'En préparation',
-  READY: 'Prête — venez récupérer',
-  PICKED_UP: 'Récupérée',
-  CANCELLED: 'Annulée',
+  RECUE: 'Reçue par la pharmacie',
+  EN_PREPARATION: 'En préparation',
+  PRETE: 'Prête — venez récupérer',
+  RECUPEREE: 'Récupérée',
+  ANNULEE: 'Annulée',
 }
 
 export function OrderStatusIndicator({ status, createdAt }: OrderStatusProps) {
-  if (status === 'CANCELLED') {
+  if (status === 'ANNULEE') {
     return (
       <div className="flex items-center gap-2">
         <div className="w-3 h-3 rounded-full bg-destructive" />

@@ -46,6 +46,7 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
       roleName,
       pharmacieId: (token as unknown as Record<string, unknown>).pharmacieId as string,
       pharmacieNom: (token as unknown as Record<string, unknown>).pharmacieNom as string,
+      grossisteId: (token as unknown as Record<string, unknown>).grossisteId as string | null | undefined,
       avatarUrl: (token as unknown as Record<string, unknown>).avatarUrl as string | undefined,
       permissions: (token as unknown as Record<string, unknown>).permissions as AuthUser['permissions'],
     }
@@ -190,4 +191,52 @@ export async function requirePharmacieAccess(
   }
 
   return user
+}
+
+/**
+ * Vérifie que l'utilisateur courant peut agir sur le grossiste donné.
+ * - GROSSISTE_PARTNER: uniquement SON grossiste (user.grossisteId) — tenant isolé
+ * - Rôles pharmacie / PLATFORM_ADMIN: accès autorisé (relation commerciale)
+ * Retourne null si autorisé, sinon une Response d'erreur (403/400).
+ */
+export function checkGrossisteAccess(
+  user: AuthUser,
+  grossisteId: string | null | undefined
+): Response | null {
+  if (user.roleName === 'GROSSISTE_PARTNER') {
+    if (!user.grossisteId) {
+      return Response.json(
+        { error: 'Compte non rattaché à un grossiste. Contactez le support.' },
+        { status: 403 }
+      )
+    }
+    if (!grossisteId || grossisteId !== user.grossisteId) {
+      return Response.json(
+        { error: 'Accès refusé: vous ne pouvez accéder qu\'à votre propre espace grossiste.' },
+        { status: 403 }
+      )
+    }
+  }
+  return null
+}
+
+/**
+ * Vérifie que l'utilisateur possède un des rôles institutionnels autorisés
+ * (les permissions de module seules ne suffisent pas: les rôles pharmacie
+ * comme DIRECTEUR ont M14/M18/M19 en lecture — l'accès institutionnel doit
+ * être réservé aux rôles dédiés + PLATFORM_ADMIN).
+ * Retourne null si autorisé, sinon une Response 403.
+ */
+export function checkInstitutionRole(
+  user: AuthUser,
+  allowedRoles: Array<'DPMED_ADMIN' | 'SOBAPS_VIEWER' | 'ABRP_VIEWER' | 'PLATFORM_ADMIN'>
+): Response | null {
+  if (user.roleName === 'PLATFORM_ADMIN') return null
+  if (!allowedRoles.includes(user.roleName as 'DPMED_ADMIN' | 'SOBAPS_VIEWER' | 'ABRP_VIEWER' | 'PLATFORM_ADMIN')) {
+    return Response.json(
+      { error: 'Accès réservé aux rôles institutionnels autorisés.' },
+      { status: 403 }
+    )
+  }
+  return null
 }

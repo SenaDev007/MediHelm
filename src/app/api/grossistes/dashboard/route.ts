@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, checkGrossisteAccess } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes/dashboard
  * Aggregate KPIs from CommandeGrossiste + ProduitGrossiste for a given grossiste.
  * Query: ?grossisteId=xxx
- * Requires: M17_GROSSISTES read
+ * Requires: M17_GROSSISTES read — GROSSISTE_PARTNER limité à SON grossiste
  */
 export async function GET(request: Request) {
   const auth = await requireAuth(request, 'M17_GROSSISTES', 'read')
@@ -15,6 +15,10 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const grossisteId = searchParams.get('grossisteId')
+
+    // Isolation tenant grossiste
+    const accessError = checkGrossisteAccess(auth, grossisteId)
+    if (accessError) return accessError
 
     if (!grossisteId) {
       return NextResponse.json(

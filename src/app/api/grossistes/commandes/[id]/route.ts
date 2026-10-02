@@ -77,6 +77,11 @@ export async function GET(
       )
     }
 
+    // Isolation tenant: un partenaire grossiste n'accède qu'aux commandes de SON grossiste
+    if (auth.roleName === 'GROSSISTE_PARTNER' && commande.grossisteId !== auth.grossisteId) {
+      return NextResponse.json({ error: 'Accès refusé à cette commande.' }, { status: 403 })
+    }
+
     const pharmacie = await getPharmacie(commande.pharmacieId)
 
     return NextResponse.json({
@@ -115,6 +120,11 @@ export async function PATCH(
         { error: 'Commande non trouvée' },
         { status: 404 }
       )
+    }
+
+    // Isolation tenant: un partenaire grossiste ne modifie que les commandes de SON grossiste
+    if (auth.roleName === 'GROSSISTE_PARTNER' && existing.grossisteId !== auth.grossisteId) {
+      return NextResponse.json({ error: 'Accès refusé à cette commande.' }, { status: 403 })
     }
 
     // Validate status if provided

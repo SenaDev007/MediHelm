@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, checkInstitutionRole } from '@/lib/api-auth'
 
 export async function GET(
   request: Request,
@@ -10,6 +10,8 @@ export async function GET(
   const auth = await requireAuth(request, 'M18_ALERTES_DPMED', 'read')
   if (auth instanceof Response) return auth
 
+  const isDpmed = ['DPMED_ADMIN', 'PLATFORM_ADMIN'].includes(auth.roleName)
+
   try {
     const { id } = await params
 
@@ -17,14 +19,16 @@ export async function GET(
       where: { id },
       include: {
         diffusions: {
+          // Les rôles pharmacie ne voient que LEUR propre diffusion — jamais
+          // les coordonnées (téléphone/email) des autres officines
+          ...(isDpmed ? {} : { where: { pharmacieId: auth.pharmacieId } }),
           include: {
             pharmacie: {
               select: {
                 id: true,
                 nom: true,
                 ville: true,
-                telephone: true,
-                email: true,
+                ...(isDpmed ? { telephone: true, email: true } : {}),
               },
             },
           },
@@ -36,6 +40,14 @@ export async function GET(
       return NextResponse.json(
         { error: 'Alerte non trouvée' },
         { status: 404 }
+      )
+    }
+
+    // Une pharmacie ne consulte que les alertes qui lui ont été diffusées
+    if (!isDpmed && alerte.diffusions.length === 0) {
+      return NextResponse.json(
+        { error: 'Alerte non diffusée à votre pharmacie' },
+        { status: 403 }
       )
     }
 
@@ -72,6 +84,10 @@ export async function PATCH(
   // Auth: DPMED_ADMIN or PLATFORM_ADMIN required for writing
   const auth = await requireAuth(request, 'M18_ALERTES_DPMED', 'write')
   if (auth instanceof Response) return auth
+
+  // Seule l'autorité DPMED modifie une alerte nationale
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN'])
+  if (guardError) return guardError
 
   try {
     const { id } = await params

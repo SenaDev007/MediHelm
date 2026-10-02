@@ -9,7 +9,15 @@ export async function GET(request: NextRequest) {
     if (authResult instanceof Response) return authResult
 
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    // Pour un patient, userId est forcé à la session (anti-IDOR);
+    // un autre userId n'est consultable que par les rôles pharmacie/admin.
+    let userId = searchParams.get('userId')
+    if (authResult.roleName === 'PATIENT') {
+      if (userId && userId !== authResult.id) {
+        return NextResponse.json({ error: 'Accès refusé à ces notifications' }, { status: 403 })
+      }
+      userId = authResult.id
+    }
     const nonLuesSeulement = searchParams.get('nonLues') === 'true'
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
@@ -19,6 +27,17 @@ export async function GET(request: NextRequest) {
         { error: 'Le paramètre userId est requis' },
         { status: 400 }
       )
+    }
+
+    // Rôles pharmacie: l'utilisateur consulté doit appartenir à leur pharmacie
+    if (authResult.roleName !== 'PATIENT' && authResult.roleName !== 'PLATFORM_ADMIN') {
+      const cible = await db.utilisateur.findFirst({
+        where: { id: userId, pharmacieId: authResult.pharmacieId },
+        select: { id: true },
+      })
+      if (!cible) {
+        return NextResponse.json({ error: 'Utilisateur introuvable dans votre pharmacie' }, { status: 404 })
+      }
     }
 
     const where: Record<string, unknown> = { userId }

@@ -94,7 +94,12 @@ export function getClientIp(request: Request): string {
  */
 export function rateLimit(request: Request, config: RateLimitConfig): Response | null {
   const ip = getClientIp(request)
-  const result = checkRateLimit(`${ip}`, config)
+  // Clé de seau = signature du quota + IP — chaque limite (SEARCH, AUTH_REGISTER…)
+  // dispose ainsi de son propre compteur indépendant. Auparavant la clé était
+  // uniquement l'IP : les quotas se partageaient le même compteur (ex. 3 recherches
+  // puis une inscription → 429 erroné sur AUTH_REGISTER).
+  const bucketKey = `${config.maxRequests}:${config.windowMs}:${ip}`
+  const result = checkRateLimit(bucketKey, config)
 
   if (!result.allowed) {
     return Response.json(

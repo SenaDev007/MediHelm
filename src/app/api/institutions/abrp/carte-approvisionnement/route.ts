@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth , checkInstitutionRole } from '@/lib/api-auth'
 
 // Department centers for Benin
 const DEPT_CENTERS: Record<string, { lat: number; lng: number }> = {
@@ -48,6 +48,10 @@ export async function GET(request: Request) {
   // Auth: ABRP_VIEWER or PLATFORM_ADMIN required
   const auth = await requireAuth(request, 'M15_ANALYTICS', 'read')
   if (auth instanceof Response) return auth
+
+  // Garde de rôle institutionnel — les permissions de module seules ne suffisent pas
+  const guardError = checkInstitutionRole(auth, ['DPMED_ADMIN', 'ABRP_VIEWER'])
+  if (guardError) return guardError
 
   try {
     // Get all active pharmacies

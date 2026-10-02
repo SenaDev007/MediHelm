@@ -11,9 +11,6 @@ import { requireAuth } from '@/lib/api-auth'
 export async function GET(request: Request) {
   const auth = await requireAuth(request, 'M03_COMMANDES', 'read')
   if (auth instanceof Response) return auth
-  if (auth.roleName === 'GROSSISTE_PARTNER') {
-    return NextResponse.json({ error: 'Le compte grossiste ne dispose pas encore d’un tenant associé.' }, { status: 403 })
-  }
 
   try {
     const { searchParams } = new URL(request.url)
@@ -25,7 +22,18 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
-    if (auth.roleName !== 'PLATFORM_ADMIN') {
+
+    if (auth.roleName === 'GROSSISTE_PARTNER') {
+      // Tenant grossiste: le partenaire voit toutes les commandes adressées à SON grossiste
+      if (!auth.grossisteId) {
+        return NextResponse.json({ error: 'Compte non rattaché à un grossiste. Contactez le support.' }, { status: 403 })
+      }
+      if (grossisteId && grossisteId !== auth.grossisteId) {
+        return NextResponse.json({ error: 'Accès refusé à ce grossiste.' }, { status: 403 })
+      }
+      where.grossisteId = auth.grossisteId
+    } else if (auth.roleName !== 'PLATFORM_ADMIN') {
+      // Rôles pharmacie: uniquement les commandes de LEUR pharmacie
       if (!auth.pharmacieId) {
         return NextResponse.json({ error: 'Tenant pharmacie manquant.' }, { status: 403 })
       }
@@ -33,10 +41,12 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Accès refusé à cette pharmacie.' }, { status: 403 })
       }
       where.pharmacieId = auth.pharmacieId
-    } else if (pharmacieId) {
-      where.pharmacieId = pharmacieId
+      if (grossisteId) where.grossisteId = grossisteId
+    } else {
+      // PLATFORM_ADMIN: filtres libres
+      if (pharmacieId) where.pharmacieId = pharmacieId
+      if (grossisteId) where.grossisteId = grossisteId
     }
-    if (grossisteId) where.grossisteId = grossisteId
     if (statut) where.statut = statut
 
     const [commandes, total] = await Promise.all([

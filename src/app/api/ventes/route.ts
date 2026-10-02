@@ -1,9 +1,9 @@
 import { db } from '@/lib/db'
-import type { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { validate, venteSchema } from '@/lib/validations'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { executerVente, genererReferenceVente } from '@/lib/ventes'
 
 export async function GET(request: NextRequest) {
   const rateLimitResult = rateLimit(request, RATE_LIMITS.API_GENERAL)
@@ -131,136 +131,42 @@ export async function POST(request: NextRequest) {
     }
     const validatedData = validation.data
 
-    const { patientId, lignes, modePaiement, remise, sessionId, paiements } = { ...body, ...validatedData }
+    const { patientId, lignes, modePaiement, remise, sessionId, paiements, ordonnanceId } = { ...body, ...validatedData }
 
     if (!lignes || lignes.length === 0) {
       return NextResponse.json({ error: 'lignes sont requises' }, { status: 400 })
     }
 
-    // Generate reference
-    const now = new Date()
-    const count = await db.vente.count({
-      where: {
-        pharmacieId,
-        createdAt: {
-          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-        },
-      },
-    })
-    const reference = `VTE-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`
-
-    // Calculate totals
-    let montantTotal = 0
-    const ligneData: Array<{ medicamentId: string; lotId: string | null; quantite: number; prixUnitaire: number; prixTotal: number; remise: number }> = []
-
-    for (const ligne of lignes) {
-      const medicament = await db.medicament.findUnique({
-        where: { id: ligne.medicamentId },
+    // Vérification du patient (isolation par pharmacie)
+    if (patientId) {
+      const patient = await db.patient.findFirst({
+        where: { id: patientId, pharmacieId },
+        select: { id: true },
       })
-      if (!medicament) {
-        return NextResponse.json({ error: `Médicament ${ligne.medicamentId} non trouvé` }, { status: 400 })
+      if (!patient) {
+        return NextResponse.json({ error: 'Patient non trouvé dans cette pharmacie' }, { status: 400 })
       }
-
-      const prixUnitaire = ligne.prixUnitaire || medicament.prixPublic
-      const ligneRemise = ligne.remise || 0
-      const prixTotal = prixUnitaire * ligne.quantite - ligneRemise
-      montantTotal += prixTotal
-
-      ligneData.push({
-        medicamentId: ligne.medicamentId,
-        lotId: ligne.lotId || null,
-        quantite: ligne.quantite,
-        prixUnitaire,
-        prixTotal,
-        remise: ligneRemise,
-      })
     }
 
-    const totalRemise = remise || 0
-    montantTotal -= totalRemise
-    if (montantTotal < 0) montantTotal = 0
+    const reference = await genererReferenceVente(pharmacieId)
 
-    // Build payment records — support split payments
-    const paiementRecords: Prisma.PaiementCreateWithoutVenteInput[] = []
-    if (paiements && Array.isArray(paiements) && paiements.length > 0) {
-      for (const p of paiements) {
-        const montant = Number(p.montant)
-        if (!Number.isFinite(montant) || montant <= 0) {
-          return NextResponse.json({ error: 'Montant de paiement invalide' }, { status: 400 })
-        }
-        paiementRecords.push({
-          montant,
-          mode: p.mode || modePaiement,
-          reference: typeof p.reference === 'string' ? p.reference : null,
-          statut: 'REUSSI',
-        })
-      }
-    } else {
-      paiementRecords.push({
-        montant: montantTotal,
-        mode: modePaiement || 'ESPECES',
-        statut: 'REUSSI',
-      })
-    }
-
-    // Use transaction to ensure atomicity of vente creation + stock decrement
-    const vente = await db.$transaction(async (tx) => {
-      const v = await tx.vente.create({
-        data: {
-          pharmacieId,
-          utilisateurId: user.id,
-          patientId: patientId || null,
-          sessionId: sessionId || null,
-          reference,
-          modePaiement,
-          montantTotal,
-          montantPaye: paiementRecords.reduce((s, p) => s + p.montant, 0),
-          remise: totalRemise,
-          statut: 'VALIDEE',
-          lignes: {
-            create: ligneData,
-          },
-          paiements: {
-            create: paiementRecords,
-          },
-        },
-        include: {
-          patient: true,
-          lignes: { include: { medicament: true } },
-          paiements: true,
-        },
-      })
-
-      // Update stock for each medication line (FEFO - First Expired, First Out)
-      for (const ligne of ligneData) {
-        if (ligne.lotId) {
-          await tx.lot.update({
-            where: { id: ligne.lotId },
-            data: { quantite: { decrement: ligne.quantite } },
-          })
-        } else {
-          // Auto-pick earliest expiring lot (FEFO)
-          const lot = await tx.lot.findFirst({
-            where: {
-              medicamentId: ligne.medicamentId,
-              pharmacieId,
-              quantite: { gte: ligne.quantite },
-            },
-            orderBy: { dateExpiration: 'asc' },
-          })
-          if (lot) {
-            await tx.lot.update({
-              where: { id: lot.id },
-              data: { quantite: { decrement: ligne.quantite } },
-            })
-          }
-        }
-      }
-
-      return v
+    const resultat = await executerVente({
+      pharmacieId,
+      utilisateurId: user.id,
+      lignes,
+      modePaiement,
+      reference,
+      patientId,
+      ordonnanceId,
+      sessionId,
+      remise,
+      paiements,
     })
 
-    return NextResponse.json(vente, { status: 201 })
+    if (!resultat.ok) {
+      return NextResponse.json({ error: resultat.error }, { status: resultat.status })
+    }
+    return NextResponse.json(resultat.vente, { status: 201 })
   } catch (error) {
     console.error('Erreur POST ventes:', error)
     return NextResponse.json({ error: 'Erreur lors de la création de la vente' }, { status: 500 })

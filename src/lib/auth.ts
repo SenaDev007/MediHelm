@@ -21,6 +21,7 @@ type MediHelmAuthUser = {
   roleName: string
   pharmacieId: string
   pharmacieNom: string
+  grossisteId?: string | null
   permissions: Array<{ module: string; action: string; code: string }>
 }
 
@@ -76,6 +77,7 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
           include: {
             pharmacie: true,
+            grossiste: { select: { id: true, nom: true } },
           },
         })
 
@@ -124,6 +126,7 @@ export const authOptions: NextAuthOptions = {
           roleName,
           pharmacieId: utilisateur.pharmacieId,
           pharmacieNom: utilisateur.pharmacie.nom,
+          grossisteId: utilisateur.grossisteId,
           permissions,
         } satisfies MediHelmAuthUser
       },
@@ -161,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         token.roleName = authUser.roleName
         token.pharmacieId = authUser.pharmacieId
         token.pharmacieNom = authUser.pharmacieNom
+        token.grossisteId = authUser.grossisteId ?? null
         token.permissions = authUser.permissions
       }
       return token
@@ -178,6 +182,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as Record<string, unknown>).roleName = token.roleName
         ;(session.user as Record<string, unknown>).pharmacieId = token.pharmacieId
         ;(session.user as Record<string, unknown>).pharmacieNom = token.pharmacieNom
+        ;(session.user as Record<string, unknown>).grossisteId = token.grossisteId
         session.user.permissions = token.permissions
       }
       return session

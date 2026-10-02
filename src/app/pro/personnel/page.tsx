@@ -81,6 +81,7 @@ interface Employe {
 interface Conge {
   id: string
   pharmacieId: string
+  employeId?: string | null
   type: string
   dateDebut: string
   dateFin: string
@@ -88,7 +89,7 @@ interface Conge {
   statut: string
   approuvePar: string | null
   createdAt: string
-  employeId?: string
+  employe?: { id: string; nom: string; prenom: string; poste: string } | null
 }
 
 interface Presence {
@@ -264,6 +265,7 @@ export default function PersonnelPage() {
   })
 
   const [congeForm, setCongeForm] = useState({
+    employeId: '',
     type: 'ANNUEL',
     dateDebut: '',
     dateFin: '',
@@ -445,24 +447,31 @@ export default function PersonnelPage() {
   // Submit conge
   async function handleSubmitConge() {
     if (!pharmacieId) return
+    if (!congeForm.employeId) {
+      toast.error('Sélectionnez l\'employé concerné')
+      return
+    }
+    if (!congeForm.dateDebut || !congeForm.dateFin) {
+      toast.error('Les dates de début et de fin sont requises')
+      return
+    }
     setSubmitting(true)
     try {
       const res = await fetch('/api/conges', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pharmacieId,
+          employeId: congeForm.employeId,
           type: congeForm.type,
           dateDebut: congeForm.dateDebut,
           dateFin: congeForm.dateFin,
-          motif: congeForm.motif,
-          statut: 'EN_ATTENTE',
+          motif: congeForm.motif || undefined,
         }),
       })
       if (res.ok) {
         toast.success('Demande de congé enregistrée')
         setCongeDialogOpen(false)
-        setCongeForm({ type: 'ANNUEL', dateDebut: '', dateFin: '', motif: '' })
+        setCongeForm({ employeId: '', type: 'ANNUEL', dateDebut: '', dateFin: '', motif: '' })
         fetchConges()
       } else {
         const err = await res.json()
@@ -732,6 +741,7 @@ export default function PersonnelPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Employé</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Date début</TableHead>
                         <TableHead>Date fin</TableHead>
@@ -743,6 +753,9 @@ export default function PersonnelPage() {
                     <TableBody>
                       {filteredConges.map(c => (
                         <TableRow key={c.id}>
+                          <TableCell className="font-medium">
+                            {c.employe ? `${c.employe.prenom} ${c.employe.nom}` : '—'}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">{TYPES_CONGE_LABELS[c.type] || c.type}</Badge>
                           </TableCell>
@@ -919,6 +932,19 @@ export default function PersonnelPage() {
             <DialogDescription>Remplissez les informations de la demande</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="conge-employe">Employé *</Label>
+              <Select value={congeForm.employeId} onValueChange={v => setCongeForm(f => ({ ...f, employeId: v }))}>
+                <SelectTrigger id="conge-employe">
+                  <SelectValue placeholder="Sélectionner l'employé" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employes.filter(e => e.actif !== false).map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.prenom} {e.nom} — {e.poste}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="conge-type">Type de congé</Label>
               <Select value={congeForm.type} onValueChange={v => setCongeForm(f => ({ ...f, type: v }))}>

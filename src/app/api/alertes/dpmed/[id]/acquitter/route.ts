@@ -14,7 +14,11 @@ export async function POST(
 ) {
   try {
     // 1. Authentification + RBAC
-    const authResult = await requireAuth(request, 'M18_ALERTES_DPMED', 'write')
+    // L'acquittement est une confirmation de réception limitée à SA propre
+    // diffusion (vérifiée ci-dessous) — accessible en lecture M18, y compris
+    // au pharmacien responsable, sans exiger la permission d'écriture M18
+    // réservée à l'autorité émettrice.
+    const authResult = await requireAuth(request, 'M18_ALERTES_DPMED', 'read')
     if (authResult instanceof Response) return authResult
     const user = authResult
 

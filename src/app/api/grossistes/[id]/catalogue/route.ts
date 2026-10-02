@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, checkGrossisteAccess } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes/[id]/catalogue
  * List ProduitGrossiste for a given grossiste with search/filter/pagination.
  * Query: ?actif=true|false&dci=xxx&search=xxx&page=1&limit=50
- * Requires: M17_GROSSISTES read
+ * Requires: M17_GROSSISTES read — GROSSISTE_PARTNER limité à SON grossiste
  */
 export async function GET(
   request: Request,
@@ -15,8 +15,11 @@ export async function GET(
   const auth = await requireAuth(request, 'M17_GROSSISTES', 'read')
   if (auth instanceof Response) return auth
 
+  const { id } = await params
+  const accessError = checkGrossisteAccess(auth, id)
+  if (accessError) return accessError
+
   try {
-    const { id } = await params
     const { searchParams } = new URL(request.url)
     const actif = searchParams.get('actif')
     const dci = searchParams.get('dci')
@@ -76,8 +79,12 @@ export async function POST(
   const auth = await requireAuth(request, 'M17_GROSSISTES', 'write')
   if (auth instanceof Response) return auth
 
+  // Isolation tenant: le partenaire ne crée que dans le catalogue de SON grossiste
+  const { id } = await params
+  const accessError = checkGrossisteAccess(auth, id)
+  if (accessError) return accessError
+
   try {
-    const { id } = await params
     const body = await request.json()
     const { dci, nomCommercial, forme, dosage, prixUnitaire, quantiteDispo } =
       body
