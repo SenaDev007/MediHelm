@@ -6,13 +6,16 @@ export async function GET(request: Request) {
   // Auth: SOBAPS_VIEWER or PLATFORM_ADMIN required
   const auth = await requireAuth(request, 'M03_COMMANDES', 'read')
   if (auth instanceof Response) return auth
+  if (!['SOBAPS_VIEWER', 'PLATFORM_ADMIN'].includes(auth.roleName)) {
+    return NextResponse.json({ error: 'Accès réservé au portail SoBAPS.' }, { status: 403 })
+  }
 
   try {
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
     const statut = searchParams.get('statut')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
+    const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10) || 20))
     const skip = (page - 1) * limit
 
     // Get OrdonnanceGrossiste with receptions as confirmations
@@ -26,12 +29,23 @@ export async function GET(request: Request) {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          pharmacieId: true,
+          reference: true,
+          statut: true,
+          dateLivraison: true,
+          createdAt: true,
+          updatedAt: true,
           pharmacie: {
-            select: { id: true, nom: true, ville: true, telephone: true },
+            select: { id: true, nom: true, ville: true },
           },
-          lignes: true,
-          reception: true,
+          lignes: {
+            select: { id: true, dci: true, nomCommercial: true, quantite: true, quantiteLivre: true },
+          },
+          reception: {
+            select: { id: true, dateReception: true, statut: true },
+          },
         },
       }),
       db.ordonnanceGrossiste.count({ where }),
@@ -81,9 +95,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // Auth: SOBAPS_VIEWER or PLATFORM_ADMIN required
-  const auth = await requireAuth(request, 'M03_COMMANDES', 'read')
+  // Mutations are restricted to platform administrators; SoBAPS is read-only.
+  const auth = await requireAuth(request, 'M03_COMMANDES', 'write')
   if (auth instanceof Response) return auth
+  if (auth.roleName !== 'PLATFORM_ADMIN') {
+    return NextResponse.json({ error: 'La confirmation manuelle est réservée à l’administration plateforme.' }, { status: 403 })
+  }
 
   try {
     const body = await request.json()
@@ -96,12 +113,26 @@ export async function POST(request: Request) {
       )
     }
 
+    const ordonnance = await db.ordonnanceGrossiste.findUnique({
+      where: { id: ordonnanceGrossisteId },
+      select: { pharmacieId: true },
+    })
+    if (!ordonnance) {
+      return NextResponse.json({ error: 'Commande grossiste introuvable' }, { status: 404 })
+    }
+    if (ordonnance.pharmacieId !== pharmacieId) {
+      return NextResponse.json({ error: 'La pharmacie ne correspond pas à la commande' }, { status: 400 })
+    }
+
     // Check if reception already exists
     const existing = await db.receptionGrossiste.findUnique({
       where: { ordonnanceGrossisteId },
     })
 
     if (existing) {
+      if (existing.pharmacieId !== ordonnance.pharmacieId) {
+        return NextResponse.json({ error: 'La confirmation existante ne correspond pas à la commande' }, { status: 409 })
+      }
       // Update existing reception
       const updated = await db.receptionGrossiste.update({
         where: { id: existing.id },

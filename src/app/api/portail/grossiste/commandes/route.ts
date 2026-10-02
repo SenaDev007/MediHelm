@@ -6,23 +6,36 @@ import { requireAuth } from '@/lib/api-auth'
  * GET /api/portail/grossiste/commandes
  * List pharmacy orders to grossistes with filters and pagination.
  * Query: ?pharmacieId=xxx&grossisteId=xxx&statut=ENVOYEE&page=1&limit=50
- * Requires: M03_COMMANDES read (GROSSISTE_PARTNER or PHARMACIEN roles)
+ * Requires: M03_COMMANDES read and a pharmacy tenant; grossiste users are denied until tenant binding exists.
  */
 export async function GET(request: Request) {
   const auth = await requireAuth(request, 'M03_COMMANDES', 'read')
   if (auth instanceof Response) return auth
+  if (auth.roleName === 'GROSSISTE_PARTNER') {
+    return NextResponse.json({ error: 'Le compte grossiste ne dispose pas encore d’un tenant associé.' }, { status: 403 })
+  }
 
   try {
     const { searchParams } = new URL(request.url)
     const pharmacieId = searchParams.get('pharmacieId')
     const grossisteId = searchParams.get('grossisteId')
     const statut = searchParams.get('statut')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
+    const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '50', 10) || 50))
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
-    if (pharmacieId) where.pharmacieId = pharmacieId
+    if (auth.roleName !== 'PLATFORM_ADMIN') {
+      if (!auth.pharmacieId) {
+        return NextResponse.json({ error: 'Tenant pharmacie manquant.' }, { status: 403 })
+      }
+      if (pharmacieId && pharmacieId !== auth.pharmacieId) {
+        return NextResponse.json({ error: 'Accès refusé à cette pharmacie.' }, { status: 403 })
+      }
+      where.pharmacieId = auth.pharmacieId
+    } else if (pharmacieId) {
+      where.pharmacieId = pharmacieId
+    }
     if (grossisteId) where.grossisteId = grossisteId
     if (statut) where.statut = statut
 
@@ -95,16 +108,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireAuth(request, 'M03_COMMANDES', 'write')
   if (auth instanceof Response) return auth
+  if (auth.roleName === 'GROSSISTE_PARTNER') {
+    return NextResponse.json({ error: 'Le compte grossiste ne dispose pas encore d’un tenant associé.' }, { status: 403 })
+  }
 
   try {
     const body = await request.json()
     const { pharmacieId, grossisteId, lignes, reference } = body
 
-    if (!pharmacieId || !grossisteId || !lignes || lignes.length === 0) {
+    if (!pharmacieId || !grossisteId || !Array.isArray(lignes) || lignes.length === 0 || lignes.length > 100) {
       return NextResponse.json(
         { error: 'pharmacieId, grossisteId et lignes sont requis' },
         { status: 400 }
       )
+    }
+    if (auth.roleName !== 'PLATFORM_ADMIN' && (!auth.pharmacieId || pharmacieId !== auth.pharmacieId)) {
+      return NextResponse.json({ error: 'Accès refusé à cette pharmacie.' }, { status: 403 })
     }
 
     // Verify grossiste exists

@@ -9,10 +9,16 @@ export async function GET(
   try {
     const authResult = await requireAuth(request, 'M02_POS', 'read')
     if (authResult instanceof Response) return authResult
+    if (authResult.roleName !== 'PLATFORM_ADMIN' && !authResult.pharmacieId) {
+      return NextResponse.json({ error: 'Tenant pharmacie manquant.' }, { status: 403 })
+    }
 
     const { id } = await params
     const session = await db.sessionCaisse.findUnique({
-      where: { id },
+      where: {
+        id,
+        ...(authResult.roleName === 'PLATFORM_ADMIN' ? {} : { pharmacieId: authResult.pharmacieId }),
+      },
       include: {
         caisse: { select: { id: true, nom: true } },
         utilisateur: { select: { id: true, nom: true, prenom: true } },
@@ -50,19 +56,33 @@ export async function PATCH(
   try {
     const authResult = await requireAuth(request, 'M02_POS', 'write')
     if (authResult instanceof Response) return authResult
+    if (authResult.roleName !== 'PLATFORM_ADMIN' && !authResult.pharmacieId) {
+      return NextResponse.json({ error: 'Tenant pharmacie manquant.' }, { status: 403 })
+    }
 
     const { id } = await params
     const body = await request.json()
 
-    const existingSession = await db.sessionCaisse.findUnique({ where: { id } })
+    const existingSession = await db.sessionCaisse.findUnique({
+      where: {
+        id,
+        ...(authResult.roleName === 'PLATFORM_ADMIN' ? {} : { pharmacieId: authResult.pharmacieId }),
+      },
+    })
     if (!existingSession) {
       return NextResponse.json({ error: 'Session non trouvée' }, { status: 404 })
     }
 
-    // Close session
-    if (body.action === 'cloturer' || body.soldeCloture !== undefined) {
-      const soldeCloture = body.soldeCloture ?? 0
+    // The only supported update is closing the current session.
+    if (body.action !== 'cloturer' || typeof body.soldeCloture !== 'number' || !Number.isFinite(body.soldeCloture) || body.soldeCloture < 0) {
+      return NextResponse.json({ error: 'Action de caisse invalide.' }, { status: 400 })
+    }
+    if (existingSession.statut !== 'OUVERTE') {
+      return NextResponse.json({ error: 'Cette session de caisse est déjà clôturée.' }, { status: 409 })
+    }
 
+    {
+      const soldeCloture = body.soldeCloture
       // Calculate expected balance: soldeOuverture + sum of all sales in session
       const ventesSession = await db.vente.findMany({
         where: {
@@ -102,14 +122,6 @@ export async function PATCH(
 
       return NextResponse.json(session)
     }
-
-    // Update other fields
-    const session = await db.sessionCaisse.update({
-      where: { id },
-      data: body,
-    })
-
-    return NextResponse.json(session)
   } catch (error) {
     console.error('Erreur PATCH session-caisse:', error)
     return NextResponse.json({ error: 'Erreur lors de la mise à jour de la session' }, { status: 500 })
