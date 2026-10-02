@@ -6,21 +6,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from '@/lib/webhook-hmac'
-
-/**
- * Verify HMAC-SHA256 signature for UbiPharm webhook
- */
-function verifyHMAC(payload: string, signature: string, secret: string): boolean {
-  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-  } catch {
-    return false
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,31 +25,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Vérifier la signature HMAC-SHA256
-    const signature = request.headers.get('X-UbiPharm-Signature') ||
-      request.headers.get('X-Webhook-Secret') ||
-      getWebhookSignature(request, 'ubipharm')
+    const signature = getWebhookSignature(request, 'ubipharm')
     const secret = process.env.UBIPHARM_WEBHOOK_SECRET
 
-    if (secret && !signature) {
+    if (!secret) {
       return NextResponse.json(
-        { error: 'Signature manquante', code: 'MH-SEC-001' },
-        { status: 401 }
+        { error: 'Webhook UbiPharm non configuré', code: 'MH-SEC-003' },
+        { status: 503 }
       )
     }
-
-    // Support both HMAC-SHA256 and legacy shared secret
-    if (secret && signature) {
-      // First try HMAC-SHA256 verification
-      const isHMACValid = verifyHMAC(rawBody, signature, secret)
-      // Also try centralized verification
-      const isCentralizedValid = verifyWebhookHMAC('ubipharm', rawBody, signature)
-
-      if (!isHMACValid && !isCentralizedValid && signature !== secret) {
-        return NextResponse.json(
-          { error: 'Signature invalide', code: 'MH-SEC-001' },
-          { status: 401 }
-        )
-      }
+    if (!signature || !verifyWebhookHMAC('ubipharm', rawBody, signature)) {
+      return NextResponse.json(
+        { error: 'Signature invalide ou manquante', code: 'MH-SEC-001' },
+        { status: 401 }
+      )
     }
 
     // 4. Parser le corps de la requête

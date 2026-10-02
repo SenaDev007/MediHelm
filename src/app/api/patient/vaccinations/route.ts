@@ -1,26 +1,17 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { validate, vaccinationSchema } from '@/lib/validations'
-import { requireAuth } from '@/lib/api-auth'
+import { requirePatientAccess } from '@/lib/api-auth'
 
 // GET: List vaccinations for a patient
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
-    if (authResult instanceof Response) return authResult
-
     const { searchParams } = new URL(request.url)
-    const patientId = searchParams.get('patientId')
-
-    if (!patientId) {
-      return NextResponse.json(
-        { error: 'Le paramètre patientId est requis' },
-        { status: 400 }
-      )
-    }
+    const access = await requirePatientAccess(request, searchParams.get('patientId'), 'M05_PATIENTS', 'read')
+    if (access instanceof Response) return access
 
     const vaccinations = await db.vaccination.findMany({
-      where: { patientId },
+      where: { patientId: access.patientId },
       include: {
         pharmacie: {
           select: {
@@ -47,9 +38,6 @@ export async function GET(request: NextRequest) {
 // POST: Add a vaccination record
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
-    if (authResult instanceof Response) return authResult
-
     const body = await request.json()
     const validation = validate(vaccinationSchema, body)
     if (!validation.success) {
@@ -60,15 +48,17 @@ export async function POST(request: NextRequest) {
     }
     const data = validation.data
 
-    // Validate patient exists
-    const patient = await db.patient.findUnique({ where: { id: data.patientId } })
+    const access = await requirePatientAccess(request, data.patientId, 'M05_PATIENTS', 'write')
+    if (access instanceof Response) return access
+
+    const patient = await db.patient.findUnique({ where: { id: access.patientId } })
     if (!patient) {
       return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 })
     }
 
     const vaccination = await db.vaccination.create({
       data: {
-        patientId: data.patientId,
+        patientId: access.patientId,
         pharmacieId: patient.pharmacieId,
         vaccin: data.vaccin,
         dateVaccin: new Date(data.dateVaccin),

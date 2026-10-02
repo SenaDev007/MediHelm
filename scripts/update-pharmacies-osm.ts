@@ -53,11 +53,10 @@ async function main() {
   
   console.log('\n📊 Vérification...')
   const pharmacies = await prisma.pharmacie.findMany({
-    where: { departement: 'Borgou' },
     select: { nom: true, latitude: true, longitude: true, ville: true },
     orderBy: { nom: 'asc' }
   })
-  console.log(`Total pharmacies Borgou: ${pharmacies.length}`)
+  console.log(`Total pharmacies: ${pharmacies.length}`)
   for (const p of pharmacies) {
     console.log(`  ${p.nom} | ${p.ville} | ${p.latitude}, ${p.longitude}`)
   }

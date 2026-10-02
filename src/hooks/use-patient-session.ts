@@ -38,7 +38,7 @@ export function usePatientSession(): PatientSession {
   useEffect(() => {
     if (isAuthenticated && session?.user?.id) {
       // Fetch patient record linked to this user
-      fetch(`/api/patient/comptes?email=${encodeURIComponent(session.user.email!)}`)
+      fetch('/api/patient/comptes')
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.patient?.id) {

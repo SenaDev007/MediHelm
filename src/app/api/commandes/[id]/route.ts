@@ -17,11 +17,7 @@ export async function GET(
       where: { id },
       include: {
         fournisseur: true,
-        lignes: {
-          include: {
-            medicament: { select: { id: true, nomCommercial: true, dci: true } },
-          },
-        },
+        lignes: true,
       },
     })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,6 +21,7 @@ interface ValidationErrors {
   prenom?: string
   email?: string
   telephone?: string
+  pharmacieId?: string
   password?: string
   confirmPassword?: string
 }
@@ -31,6 +32,9 @@ export default function InscriptionPage() {
   const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [pharmacieId, setPharmacieId] = useState('')
+  const [pharmacies, setPharmacies] = useState<Array<{ id: string; nom: string; ville: string }>>([])
+  const [loadingPharmacies, setLoadingPharmacies] = useState(true)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -40,10 +44,21 @@ export default function InscriptionPage() {
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [success, setSuccess] = useState(false)
 
+  useEffect(() => {
+    fetch('/api/pharmacies?public=signup')
+      .then(res => res.ok ? res.json() : [])
+      .then((data: Array<{ id: string; nom: string; ville: string }>) => {
+        setPharmacies(Array.isArray(data) ? data : [])
+        if (Array.isArray(data) && data.length === 1) setPharmacieId(data[0].id)
+      })
+      .catch(() => setPharmacies([]))
+      .finally(() => setLoadingPharmacies(false))
+  }, [])
+
   // Password strength
   const getPasswordStrength = (pwd: string) => {
     let score = 0
-    if (pwd.length >= 8) score++
+    if (pwd.length >= 12) score++
     if (/[A-Z]/.test(pwd)) score++
     if (/[a-z]/.test(pwd)) score++
     if (/[0-9]/.test(pwd)) score++
@@ -73,10 +88,12 @@ export default function InscriptionPage() {
       newErrors.telephone = 'Numéro béninois invalide (ex: 97000000)'
     }
 
+    if (!pharmacieId) newErrors.pharmacieId = 'Veuillez choisir une pharmacie'
+
     if (!password) {
       newErrors.password = 'Le mot de passe est obligatoire'
-    } else if (password.length < 8) {
-      newErrors.password = 'Minimum 8 caractères'
+    } else if (password.length < 12) {
+      newErrors.password = 'Minimum 12 caractères'
     } else if (getPasswordStrength(password) < 3) {
       newErrors.password = 'Mot de passe trop faible'
     }
@@ -108,6 +125,7 @@ export default function InscriptionPage() {
           nom: nom.trim(),
           prenom: prenom.trim(),
           telephone: telephone.trim(),
+          pharmacieId,
         }),
       })
 
@@ -134,7 +152,7 @@ export default function InscriptionPage() {
   }
 
   const passwordChecks = [
-    { label: 'Au moins 8 caractères', valid: password.length >= 8 },
+    { label: 'Au moins 12 caractères', valid: password.length >= 12 },
     { label: 'Une majuscule', valid: /[A-Z]/.test(password) },
     { label: 'Un chiffre', valid: /[0-9]/.test(password) },
     { label: 'Un caractère spécial', valid: /[^A-Za-z0-9]/.test(password) },
@@ -264,6 +282,24 @@ export default function InscriptionPage() {
                     {errors.telephone && <p className="text-[10px] text-red-500">{errors.telephone}</p>}
                   </div>
 
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pharmacie" className="text-xs font-medium text-gray-900">Pharmacie de rattachement</Label>
+                    <select
+                      id="pharmacie"
+                      value={pharmacieId}
+                      onChange={(e) => { setPharmacieId(e.target.value); setErrors({ ...errors, pharmacieId: undefined }) }}
+                      className={`w-full h-10 rounded-md border bg-white px-3 text-sm ${errors.pharmacieId ? 'border-red-400' : 'border-teal-200'}`}
+                      disabled={loading || loadingPharmacies || pharmacies.length === 0}
+                    >
+                      <option value="">{loadingPharmacies ? 'Chargement des pharmacies…' : 'Choisir une pharmacie'}</option>
+                      {pharmacies.map(pharmacie => (
+                        <option key={pharmacie.id} value={pharmacie.id}>{pharmacie.nom} — {pharmacie.ville}</option>
+                      ))}
+                    </select>
+                    {errors.pharmacieId && <p className="text-[10px] text-red-500">{errors.pharmacieId}</p>}
+                    {!loadingPharmacies && pharmacies.length === 0 && <p className="text-[10px] text-amber-700">Aucune pharmacie active n’est disponible pour le moment.</p>}
+                  </div>
+
                   {/* Mot de passe */}
                   <div className="space-y-1.5">
                     <Label htmlFor="reg-password" className="text-xs font-medium text-gray-900">Mot de passe</Label>
@@ -272,7 +308,7 @@ export default function InscriptionPage() {
                       <Input
                         id="reg-password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Minimum 8 caractères"
+                        placeholder="Minimum 12 caractères"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value); setErrors({ ...errors, password: undefined }) }}
                         className={`pl-10 pr-10 h-10 border-teal-200 ${errors.password ? 'border-red-400' : ''}`}

@@ -2,9 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { NiveauUrgence, NiveauAlerte, NiveauRisque } from '@prisma/client'
-
-type UrgencyLevel = NiveauUrgence | NiveauAlerte | NiveauRisque | string
+type UrgencyLevel = string
 
 const urgencyStyles: Record<string, string> = {
   URGENCE_IMMEDIATE: 'bg-red-600 text-white animate-pulse',

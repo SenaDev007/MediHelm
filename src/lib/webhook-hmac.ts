@@ -44,10 +44,7 @@ export function verifyWebhookHMAC(
   signature: string
 ): boolean {
   const config = WEBHOOK_CONFIGS[source]
-  if (!config || !config.secret) {
-    console.warn(`[Webhook HMAC] No secret configured for ${source}`)
-    return true // Skip verification if no secret configured
-  }
+  if (!config || !config.secret || !signature) return false
 
   const expected = crypto
     .createHmac(config.algorithm || 'sha256', config.secret)
@@ -56,18 +53,9 @@ export function verifyWebhookHMAC(
 
   try {
     // Support both raw hex and "sha256=..." prefixed formats
-    if (signature.startsWith('sha256=')) {
-      const expectedWithPrefix = `sha256=${expected}`
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedWithPrefix)
-      )
-    }
-
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expected)
-    )
+    const supplied = signature.startsWith('sha256=') ? signature.slice(7) : signature
+    if (!/^[a-fA-F0-9]{64}$/.test(supplied)) return false
+    return crypto.timingSafeEqual(Buffer.from(supplied, 'hex'), Buffer.from(expected, 'hex'))
   } catch {
     return false
   }
@@ -82,7 +70,6 @@ export function getWebhookSignature(request: Request, source: string): string | 
 
   return request.headers.get(config.headerName) ||
     request.headers.get('x-signature') ||
-    request.headers.get('x-webhook-secret') ||
     null
 }
 
@@ -93,7 +80,7 @@ export function isIPWhitelisted(source: string, ip: string): boolean {
   const envKey = `${source.toUpperCase()}_IP_WHITELIST`
   const whitelist = process.env[envKey]
 
-  if (!whitelist) return true // No whitelist configured = allow all
+  if (!whitelist || ip === 'unknown') return false
 
   const allowedIps = whitelist.split(',').map(ip => ip.trim())
   return allowedIps.includes(ip)

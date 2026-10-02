@@ -38,9 +38,13 @@ const priceRanges = [
 ]
 
 // Default categories shown before API data loads
-const defaultCategories = [
-  'Antibiotiques', 'Antalgiques', 'Anti-inflammatoires',
-  'Antihypertenseurs', 'Antidiabétiques', 'Vitamines',
+const defaultCategories: CategoryOption[] = [
+  { code: 'J', patientLabel: 'Anti-infectieux', nbMedicaments: 0 },
+  { code: 'N', patientLabel: 'Neurologie', nbMedicaments: 0 },
+  { code: 'M', patientLabel: 'Musculo-squelettique', nbMedicaments: 0 },
+  { code: 'C', patientLabel: 'Cardiovasculaire', nbMedicaments: 0 },
+  { code: 'A', patientLabel: 'Digestif & Métabolisme', nbMedicaments: 0 },
+  { code: 'D', patientLabel: 'Dermatologie', nbMedicaments: 0 },
 ]
 
 export default function RecherchePage() {
@@ -54,7 +58,7 @@ export default function RecherchePage() {
   const [filterGenerique, setFilterGenerique] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [searchPerformed, setSearchPerformed] = useState(false)
-  const [categories, setCategories] = useState<string[]>(defaultCategories)
+  const [categories, setCategories] = useState<CategoryOption[]>(defaultCategories)
 
   // Fetch categories from API
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function RecherchePage() {
         if (res.ok) {
           const data = await res.json()
           if (data.categories && data.categories.length > 0) {
-            setCategories(data.categories.map((c: CategoryOption) => c.patientLabel))
+            setCategories(data.categories)
           }
         }
       } catch {
@@ -76,10 +80,7 @@ export default function RecherchePage() {
 
   // Autocomplete suggestions
   useEffect(() => {
-    if (query.length < 2) {
-      setSuggestions([])
-      return
-    }
+    if (query.length < 2) return
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/patient/recherche?q=${encodeURIComponent(query)}&limit=5&suggestions=true`)
@@ -114,7 +115,7 @@ export default function RecherchePage() {
       const res = await fetch(`/api/patient/recherche?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setResults(data)
+        setResults(Array.isArray(data) ? data : (data.data || []))
       }
     } catch {
       // ignore
@@ -124,13 +125,19 @@ export default function RecherchePage() {
   }, [query, selectedCategory, selectedPriceRange, filterRemboursable, filterGenerique])
 
   useEffect(() => {
-    if (query.length >= 2) {
-      performSearch()
-    } else {
+    if (query.length < 2) return
+    const timer = window.setTimeout(() => { void performSearch() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [query, selectedCategory, selectedPriceRange, filterRemboursable, filterGenerique, performSearch])
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value)
+    if (value.length < 2) {
+      setSuggestions([])
       setResults([])
       setSearchPerformed(false)
     }
-  }, [query, selectedCategory, selectedPriceRange, filterRemboursable, filterGenerique, performSearch])
+  }
 
   const handleAddToCart = (med: MedicamentResult) => {
     const cart = JSON.parse(localStorage.getItem('medihelm_cart') || '[]')
@@ -163,7 +170,7 @@ export default function RecherchePage() {
       {/* Search Bar */}
       <SearchBar
         value={query}
-        onChange={setQuery}
+        onChange={handleQueryChange}
         placeholder="Rechercher par nom, DCI, pathologie..."
         suggestions={suggestions}
         onSuggestionClick={(s) => {
@@ -220,16 +227,16 @@ export default function RecherchePage() {
                 <div className="flex flex-wrap gap-1.5">
                   {categories.map((cat) => (
                     <Badge
-                      key={cat}
-                      variant={selectedCategory === cat ? 'default' : 'secondary'}
+                      key={cat.code}
+                      variant={selectedCategory === cat.code ? 'default' : 'secondary'}
                       className={`cursor-pointer text-[11px] ${
-                        selectedCategory === cat
+                        selectedCategory === cat.code
                           ? 'bg-primary text-white border-0'
                           : 'bg-teal-50 text-teal-800 border-0 hover:bg-teal-100'
                       }`}
-                      onClick={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                      onClick={() => setSelectedCategory(selectedCategory === cat.code ? null : cat.code)}
                     >
-                      {cat}
+                      {cat.patientLabel}
                     </Badge>
                   ))}
                 </div>

@@ -12,7 +12,7 @@ export async function GET() {
       totalMedicaments,
     ] = await Promise.all([
       db.pharmacie.count({ where: { actif: true } }),
-      db.alerteDpmed.count(),
+      db.alerteDPMED.count(),
       db.diffusionAlerte.count(),
       db.medicament.count({ where: { actif: true } }),
     ])

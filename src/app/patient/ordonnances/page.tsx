@@ -92,19 +92,30 @@ export default function OrdonnancesPage() {
   }, [patientId])
 
   useEffect(() => {
-    if (patientId) fetchOrdonnances()
+    if (!patientId) return
+    const timer = window.setTimeout(() => { void fetchOrdonnances() }, 0)
+    return () => window.clearTimeout(timer)
   }, [fetchOrdonnances, patientId])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Le fichier ne doit pas dépasser 10 Mo')
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast.error('Formats acceptés : JPEG, PNG ou WebP')
+        return
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Le fichier ne doit pas dépasser 2 Mo')
         return
       }
       setSelectedFile(file)
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
+      const reader = new FileReader()
+      reader.onload = () => setPreviewUrl(typeof reader.result === 'string' ? reader.result : null)
+      reader.onerror = () => {
+        setPreviewUrl(null)
+        toast.error('Impossible de lire ce fichier')
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -122,8 +133,8 @@ export default function OrdonnancesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId,
-          pharmacieId: ordonnances[0]?.pharmacie?.id || '',
+          ...(patientId ? { patientId } : {}),
+          ...(ordonnances[0]?.pharmacie?.id ? { pharmacieId: ordonnances[0].pharmacie.id } : {}),
           prescripteur: prescripteur.trim(),
           dateOrdonnance: new Date().toISOString(),
           imageUrl: previewUrl,
@@ -219,7 +230,7 @@ export default function OrdonnancesPage() {
                       <p className="text-[10px] text-muted-foreground mt-1">JPG, PNG — Max 10 Mo</p>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                         onChange={handleFileSelect}
                       />

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { validate, venteSchema } from '@/lib/validations'
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
     const validatedData = validation.data
 
-    const { patientId, lignes, modePaiement, utilisateurId, remise, sessionId, paiements } = { ...body, ...validatedData }
+    const { patientId, lignes, modePaiement, remise, sessionId, paiements } = { ...body, ...validatedData }
 
     if (!lignes || lignes.length === 0) {
       return NextResponse.json({ error: 'lignes sont requises' }, { status: 400 })
@@ -180,13 +181,17 @@ export async function POST(request: NextRequest) {
     if (montantTotal < 0) montantTotal = 0
 
     // Build payment records — support split payments
-    const paiementRecords: Record<string, unknown>[] = []
+    const paiementRecords: Prisma.PaiementCreateWithoutVenteInput[] = []
     if (paiements && Array.isArray(paiements) && paiements.length > 0) {
       for (const p of paiements) {
+        const montant = Number(p.montant)
+        if (!Number.isFinite(montant) || montant <= 0) {
+          return NextResponse.json({ error: 'Montant de paiement invalide' }, { status: 400 })
+        }
         paiementRecords.push({
-          montant: p.montant,
-          mode: p.mode || 'ESPECES',
-          reference: p.reference || null,
+          montant,
+          mode: p.mode || modePaiement,
+          reference: typeof p.reference === 'string' ? p.reference : null,
           statut: 'REUSSI',
         })
       }
@@ -203,11 +208,11 @@ export async function POST(request: NextRequest) {
       const v = await tx.vente.create({
         data: {
           pharmacieId,
-          utilisateurId: utilisateurId || null,
+          utilisateurId: user.id,
           patientId: patientId || null,
           sessionId: sessionId || null,
           reference,
-          modePaiement: modePaiement || (paiements?.[0]?.mode as string) || 'ESPECES',
+          modePaiement,
           montantTotal,
           montantPaye: paiementRecords.reduce((s, p) => s + p.montant, 0),
           remise: totalRemise,

@@ -152,6 +152,7 @@ export function CoverageMap({
     if (!superclusterRef.current || !mapRef.current) return
     const map = mapRef.current.getMap()
     const bounds = map.getBounds()
+    if (!bounds) return
     const zoom = Math.floor(map.getZoom())
 
     const bbox: [number, number, number, number] = [
@@ -161,7 +162,7 @@ export function CoverageMap({
       bounds.getNorth(),
     ]
 
-    setClusters(superclusterRef.current.getClusters(bbox, zoom) as typeof clusters)
+    setClusters(superclusterRef.current.getClusters(bbox, zoom) as unknown as typeof clusters)
   }, [])
 
   // Auto-fit bounds

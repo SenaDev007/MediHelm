@@ -9,26 +9,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { processDPMEDAlert, type DPMEDAlertPayload } from '@/lib/dpmed-alert-pipeline'
 import { verifyWebhookHMAC, getWebhookSignature, isIPWhitelisted, getClientIP } from '@/lib/webhook-hmac'
-
-/**
- * Valide la signature HMAC-SHA256 d'un webhook DPMED.
- *
- * @param payload - Corps brut de la requête (string)
- * @param signature - Valeur de l'en-tête X-DPMED-Signature
- * @param secret - Secret partagé (env DPMED_WEBHOOK_SECRET)
- * @returns true si la signature est valide
- */
-function verifyHMAC(payload: string, signature: string, secret: string): boolean {
-  const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
-  } catch {
-    return false
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,31 +28,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Vérifier la signature HMAC-SHA256
-    const signature = request.headers.get('X-DPMED-Signature') || getWebhookSignature(request, 'dpmed')
+    const signature = getWebhookSignature(request, 'dpmed')
     const secret = process.env.DPMED_WEBHOOK_SECRET
 
-    if (secret && !signature) {
+    if (!secret) {
       return NextResponse.json(
-        { error: 'Signature manquante', code: 'MH-SEC-001' },
-        { status: 401 }
+        { error: 'Webhook DPMED non configuré', code: 'MH-SEC-003' },
+        { status: 503 }
       )
     }
-
-    if (secret && signature && !verifyHMAC(rawBody, signature, secret)) {
+    if (!signature || !verifyWebhookHMAC('dpmed', rawBody, signature)) {
       return NextResponse.json(
-        { error: 'Signature invalide', code: 'MH-SEC-001' },
+        { error: 'Signature invalide ou manquante', code: 'MH-SEC-001' },
         { status: 401 }
       )
-    }
-
-    // Also use the centralized HMAC verification as a secondary check
-    if (signature && secret) {
-      if (!verifyWebhookHMAC('dpmed', rawBody, signature)) {
-        return NextResponse.json(
-          { error: 'Signature HMAC invalide', code: 'MH-SEC-001' },
-          { status: 401 }
-        )
-      }
     }
 
     // 4. Parser le corps de la requête

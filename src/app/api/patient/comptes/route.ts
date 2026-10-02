@@ -1,153 +1,113 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { hashPassword } from '@/lib/auth'
 import { requireAuth } from '@/lib/api-auth'
-import { hash } from 'bcryptjs'
-import { validate, patientSchema } from '@/lib/validations'
+import { registerPatientSchema } from '@/lib/validations'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
-// POST: Register a new patient account
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = rateLimit(request, RATE_LIMITS.AUTH_REGISTER)
+  if (rateLimitResponse) return rateLimitResponse
+
+  let body: unknown
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
-    if (authResult instanceof Response) return authResult
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Corps JSON invalide' }, { status: 400 })
+  }
 
-    const body = await request.json()
-    const validation = validate(patientSchema, body)
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
-        { status: 400 }
-      )
-    }
-    const data = validation.data
-    const { motDePasse, numeroAssurance, assurance, adresse, pharmacieId } = body
+  const validation = registerPatientSchema.safeParse(body)
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: 'Données d’inscription invalides', details: validation.error.flatten() },
+      { status: 400 }
+    )
+  }
 
-    if (!motDePasse || !data.email) {
-      return NextResponse.json(
-        { error: 'Le mot de passe et l\'email sont obligatoires' },
-        { status: 400 }
-      )
-    }
-
-    // Check if email already exists
-    const existingUser = await db.utilisateur.findUnique({ where: { email: data.email } })
+  const data = validation.data
+  try {
+    const [existingUser, pharmacie] = await Promise.all([
+      db.utilisateur.findUnique({ where: { email: data.email }, select: { id: true } }),
+      db.pharmacie.findFirst({ where: { id: data.pharmacieId, actif: true }, select: { id: true } }),
+    ])
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'Un compte avec cet email existe déjà' },
-        { status: 409 }
-      )
+      return NextResponse.json({ error: 'Un compte avec cet email existe déjà' }, { status: 409 })
+    }
+    if (!pharmacie) {
+      return NextResponse.json({ error: 'Pharmacie active introuvable' }, { status: 400 })
     }
 
-    // Hash password
-    const hashedPassword = await hash(motDePasse, 12)
-
-    // Determine pharmacy — use provided or first active pharmacy
-    let targetPharmacieId = pharmacieId || ''
-    if (!targetPharmacieId) {
-      const firstPharmacy = await db.pharmacie.findFirst({ where: { actif: true } })
-      if (!firstPharmacy) {
-        return NextResponse.json(
-          { error: 'Aucune pharmacie active trouvée' },
-          { status: 400 }
-        )
-      }
-      targetPharmacieId = firstPharmacy.id
-    }
-
-    // Create Utilisateur with role PATIENT + Patient record in a transaction
-    const result = await db.$transaction(async (tx) => {
+    const motDePasse = await hashPassword(data.motDePasse)
+    const result = await db.$transaction(async tx => {
       const utilisateur = await tx.utilisateur.create({
         data: {
-          email: data.email!,
+          pharmacieId: pharmacie.id,
+          email: data.email,
+          motDePasse,
           nom: data.nom,
           prenom: data.prenom,
-          motDePasse: hashedPassword,
-          role: 'PATIENT',
           telephone: data.telephone,
-          pharmacieId: targetPharmacieId,
+          role: 'PATIENT',
           actif: true,
         },
+        select: { id: true, email: true, nom: true, prenom: true, role: true },
       })
-
       const patient = await tx.patient.create({
         data: {
           utilisateurId: utilisateur.id,
-          pharmacieId: targetPharmacieId,
+          pharmacieId: pharmacie.id,
           nom: data.nom,
           prenom: data.prenom,
           telephone: data.telephone,
           email: data.email,
-          dateNaissance: data.dateNaissance ? new Date(data.dateNaissance) : null,
-          sexe: data.sexe || null,
-          numeroAssurance: numeroAssurance || null,
-          assurance: assurance || null,
-          adresse: adresse || null,
           actif: true,
         },
+        select: { id: true, nom: true, prenom: true, email: true },
       })
-
       return { utilisateur, patient }
     })
 
     return NextResponse.json(
-      {
-        message: 'Compte patient créé avec succès',
-        utilisateur: {
-          id: result.utilisateur.id,
-          email: result.utilisateur.email,
-          nom: result.utilisateur.nom,
-          prenom: result.utilisateur.prenom,
-          role: result.utilisateur.role,
-        },
-        patient: {
-          id: result.patient.id,
-          nom: result.patient.nom,
-          prenom: result.patient.prenom,
-          email: result.patient.email,
-        },
-      },
+      { message: 'Compte patient créé avec succès', ...result },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Erreur POST patient/comptes:', error)
-    return NextResponse.json(
-      { error: "Erreur lors de la création du compte patient" },
-      { status: 500 }
-    )
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json({ error: 'Un compte avec cet email existe déjà' }, { status: 409 })
+    }
+    console.error('Erreur POST patient/comptes')
+    return NextResponse.json({ error: 'Erreur lors de la création du compte patient' }, { status: 500 })
   }
 }
 
-// GET: Get patient profile by email
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
     if (authResult instanceof Response) return authResult
 
     const { searchParams } = new URL(request.url)
-    const email = searchParams.get('email')
+    const email = searchParams.get('email')?.trim().toLowerCase()
+    const where = authResult.roleName === 'PATIENT'
+      ? { id: authResult.id, role: 'PATIENT' as const }
+      : {
+          ...(authResult.roleName === 'PLATFORM_ADMIN' ? {} : { pharmacieId: authResult.pharmacieId }),
+          ...(email ? { email } : {}),
+          role: 'PATIENT' as const,
+        }
 
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Le paramètre email est requis' },
-        { status: 400 }
-      )
+    if (authResult.roleName !== 'PATIENT' && !email) {
+      return NextResponse.json({ error: 'Le paramètre email est requis' }, { status: 400 })
     }
 
-    const utilisateur = await db.utilisateur.findUnique({
-      where: { email },
-      include: {
-        patients: true,
-      },
+    const utilisateur = await db.utilisateur.findFirst({
+      where,
+      include: { patients: { where: { actif: true }, take: 1 } },
     })
-
-    if (!utilisateur || utilisateur.role !== 'PATIENT') {
-      return NextResponse.json(
-        { error: 'Compte patient non trouvé' },
-        { status: 404 }
-      )
+    if (!utilisateur) {
+      return NextResponse.json({ error: 'Compte patient non trouvé' }, { status: 404 })
     }
 
     const patient = utilisateur.patients[0]
-
     return NextResponse.json({
       utilisateur: {
         id: utilisateur.id,
@@ -158,28 +118,23 @@ export async function GET(request: NextRequest) {
         telephone: utilisateur.telephone,
         actif: utilisateur.actif,
       },
-      patient: patient
-        ? {
-            id: patient.id,
-            nom: patient.nom,
-            prenom: patient.prenom,
-            telephone: patient.telephone,
-            email: patient.email,
-            dateNaissance: patient.dateNaissance,
-            sexe: patient.sexe,
-            numeroAssurance: patient.numeroAssurance,
-            assurance: patient.assurance,
-            adresse: patient.adresse,
-            pointsFidelite: patient.pointsFidelite,
-            actif: patient.actif,
-          }
-        : null,
+      patient: patient ? {
+        id: patient.id,
+        nom: patient.nom,
+        prenom: patient.prenom,
+        telephone: patient.telephone,
+        email: patient.email,
+        dateNaissance: patient.dateNaissance,
+        sexe: patient.sexe,
+        numeroAssurance: patient.numeroAssurance,
+        assurance: patient.assurance,
+        adresse: patient.adresse,
+        pointsFidelite: patient.pointsFidelite,
+        actif: patient.actif,
+      } : null,
     })
-  } catch (error) {
-    console.error('Erreur GET patient/comptes:', error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la récupération du profil patient' },
-      { status: 500 }
-    )
+  } catch {
+    console.error('Erreur GET patient/comptes')
+    return NextResponse.json({ error: 'Erreur lors de la récupération du profil patient' }, { status: 500 })
   }
 }

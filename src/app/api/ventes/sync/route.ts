@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import { requireAuth } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { validate, venteSchema } from '@/lib/validations'
@@ -53,19 +54,24 @@ export async function POST(request: NextRequest) {
         const vente = await db.vente.create({
           data: {
             pharmacieId: user.pharmacieId,
+            reference: `VTE-SYNC-${randomUUID()}`,
             modePaiement: data.modePaiement,
             montantTotal,
+            montantPaye: montantTotal,
             patientId: data.patientId,
             ordonnanceId: data.ordonnanceId,
-            statut: 'TERMINEE',
+            statut: 'VALIDEE',
             lignes: {
               create: data.lignes.map((l) => ({
                 medicamentId: l.medicamentId,
                 lotId: l.lotId,
                 quantite: l.quantite,
                 prixUnitaire: l.prixUnitaire,
-                pharmacieId: user.pharmacieId,
+                prixTotal: l.quantite * l.prixUnitaire,
               })),
+            },
+            paiements: {
+              create: [{ montant: montantTotal, mode: data.modePaiement, statut: 'REUSSI' }],
             },
           },
         })

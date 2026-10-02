@@ -1,26 +1,17 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
-import { validate, ordonnanceSchema } from '@/lib/validations'
+import { requirePatientAccess } from '@/lib/api-auth'
+import { validate, ordonnancePatientUploadSchema } from '@/lib/validations'
 
 // GET: List prescriptions for a patient
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'read')
-    if (authResult instanceof Response) return authResult
-
     const { searchParams } = new URL(request.url)
-    const patientId = searchParams.get('patientId')
-
-    if (!patientId) {
-      return NextResponse.json(
-        { error: 'Le paramètre patientId est requis' },
-        { status: 400 }
-      )
-    }
+    const access = await requirePatientAccess(request, searchParams.get('patientId'), 'M06_ORDONNANCES', 'read')
+    if (access instanceof Response) return access
 
     const ordonnances = await db.ordonnance.findMany({
-      where: { patientId },
+      where: { patientId: access.patientId },
       include: {
         lignes: true,
         pharmacie: {
@@ -48,11 +39,8 @@ export async function GET(request: NextRequest) {
 // POST: Upload/create a prescription record
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'write')
-    if (authResult instanceof Response) return authResult
-
     const body = await request.json()
-    const validation = validate(ordonnanceSchema, body)
+    const validation = validate(ordonnancePatientUploadSchema, body)
     if (!validation.success) {
       return NextResponse.json(
         { error: 'Données invalides', details: validation.errors.issues.map(i => ({ path: i.path.join('.'), message: i.message })) },
@@ -60,39 +48,46 @@ export async function POST(request: NextRequest) {
       )
     }
     const data = validation.data
-    const { patientId, pharmacieId, imageUrl, notes } = body
+    const access = await requirePatientAccess(request, data.patientId, 'M06_ORDONNANCES', 'write')
+    if (access instanceof Response) return access
+
+    const patient = await db.patient.findUnique({
+      where: { id: access.patientId },
+      select: { pharmacieId: true },
+    })
+    if (!patient) return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 })
 
     // Validate pharmacy
-    const targetPharmacieId = pharmacieId
+    const targetPharmacieId = access.user.roleName === 'PATIENT'
+      ? patient.pharmacieId
+      : access.user.roleName === 'PLATFORM_ADMIN'
+        ? data.pharmacieId
+        : access.user.pharmacieId
     if (!targetPharmacieId) {
       return NextResponse.json(
         { error: 'pharmacieId est obligatoire' },
         { status: 400 }
       )
     }
-    const pharmacie = await db.pharmacie.findUnique({ where: { id: targetPharmacieId } })
+    const pharmacie = await db.pharmacie.findFirst({ where: { id: targetPharmacieId, actif: true } })
     if (!pharmacie) {
       return NextResponse.json({ error: 'Pharmacie non trouvée' }, { status: 404 })
     }
-
-    // If patientId provided, validate it
-    if (patientId) {
-      const patient = await db.patient.findUnique({ where: { id: patientId } })
-      if (!patient) {
-        return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 })
-      }
+    const dateOrdonnance = new Date(data.dateOrdonnance)
+    if (!Number.isFinite(dateOrdonnance.getTime())) {
+      return NextResponse.json({ error: 'Date d’ordonnance invalide' }, { status: 400 })
     }
 
     // Create prescription with optional lines
     const ordonnance = await db.$transaction(async (tx) => {
       const ord = await tx.ordonnance.create({
         data: {
-          patientId: patientId || null,
+          patientId: access.patientId,
           pharmacieId: targetPharmacieId,
           prescripteur: data.prescripteur,
-          dateOrdonnance: new Date(data.dateOrdonnance),
-          imageUrl: imageUrl || null,
-          notes: notes || null,
+          dateOrdonnance,
+          imageUrl: data.imageUrl || null,
+          notes: data.notes || null,
           statut: 'RECUE',
           lignes: data.lignes && data.lignes.length > 0
             ? {

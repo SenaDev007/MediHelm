@@ -1,23 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { requirePatientAccess } from '@/lib/api-auth'
 
 // GET: List reminders for a patient
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
-    if (authResult instanceof Response) return authResult
-
     const { searchParams } = new URL(request.url)
-    const patientId = searchParams.get('patientId')
+    const access = await requirePatientAccess(request, searchParams.get('patientId'), 'M05_PATIENTS', 'read')
+    if (access instanceof Response) return access
+    const patientId = access.patientId
     const actifOnly = searchParams.get('actif') === 'true'
-
-    if (!patientId) {
-      return NextResponse.json(
-        { error: 'Le paramètre patientId est requis' },
-        { status: 400 }
-      )
-    }
 
     const where: Record<string, unknown> = { patientId }
     if (actifOnly) {
@@ -42,9 +34,6 @@ export async function GET(request: NextRequest) {
 // POST: Create a new medication reminder
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'write')
-    if (authResult instanceof Response) return authResult
-
     const body = await request.json()
     const { patientId, medicamentNom, dosage, frequence, heureRappel, dateDebut, dateFin, notes } = body
 
@@ -55,21 +44,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate patient exists
-    const patient = await db.patient.findUnique({ where: { id: patientId } })
-    if (!patient) {
-      return NextResponse.json({ error: 'Patient non trouvé' }, { status: 404 })
+    const access = await requirePatientAccess(request, patientId, 'M05_PATIENTS', 'write')
+    if (access instanceof Response) return access
+    const parsedDateDebut = new Date(dateDebut)
+    const parsedDateFin = dateFin ? new Date(dateFin) : null
+    if (!Number.isFinite(parsedDateDebut.getTime()) || (parsedDateFin && !Number.isFinite(parsedDateFin.getTime()))) {
+      return NextResponse.json({ error: 'Dates de rappel invalides' }, { status: 400 })
     }
 
     const rappel = await db.rappel.create({
       data: {
-        patientId,
+        patientId: access.patientId,
         medicamentNom,
         dosage: dosage || null,
         frequence: frequence || null,
         heureRappel: heureRappel || null,
-        dateDebut: new Date(dateDebut),
-        dateFin: dateFin ? new Date(dateFin) : null,
+        dateDebut: parsedDateDebut,
+        dateFin: parsedDateFin,
         notes: notes || null,
         actif: true,
       },

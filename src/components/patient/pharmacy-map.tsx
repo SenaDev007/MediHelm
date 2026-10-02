@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl, useMap } from 'react-map-gl/mapbox'
-import type { MapRef, MapLayerMouseEvent, LngLatBoundsLike } from 'react-map-gl/mapbox'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
+import type { MapLayerMouseEvent } from 'mapbox-gl'
 import SuperCluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
@@ -214,6 +215,7 @@ export default function PharmacyMap({
     if (!showClusters || !superclusterRef.current || !mapRef.current) return
     const map = mapRef.current.getMap()
     const bounds = map.getBounds()
+    if (!bounds) return
     const zoom = Math.floor(map.getZoom())
 
     const bbox: [number, number, number, number] = [
@@ -224,7 +226,7 @@ export default function PharmacyMap({
     ]
 
     const newClusters = superclusterRef.current.getClusters(bbox, zoom)
-    setClusters(newClusters as Array<{
+    setClusters(newClusters as unknown as Array<{
       properties: { cluster?: boolean; pharmacyId?: string; point_count?: number }
       geometry: { coordinates: [number, number] }
     }>)
@@ -258,6 +260,7 @@ export default function PharmacyMap({
     if (onBoundsChange && mapRef.current) {
       const map = mapRef.current.getMap()
       const b = map.getBounds()
+      if (!b) return
       onBoundsChange([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
     }
   }, [updateClusters, onBoundsChange])

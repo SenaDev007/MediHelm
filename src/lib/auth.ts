@@ -7,7 +7,22 @@
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
+import { timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
+import { getRolePermissions } from '@/lib/rbac'
+
+type MediHelmAuthUser = {
+  id: string
+  email: string
+  name: string
+  nom: string
+  prenom: string
+  roleId: string
+  roleName: string
+  pharmacieId: string
+  pharmacieNom: string
+  permissions: Array<{ module: string; action: string; code: string }>
+}
 
 /**
  * Hash un mot de passe avec bcrypt (cost factor 12)
@@ -22,13 +37,15 @@ export async function hashPassword(password: string): Promise<string> {
  */
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   // Support bcrypt hashes
-  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$')) {
+  if (hashedPassword.startsWith('$2a$') || hashedPassword.startsWith('$2b$') || hashedPassword.startsWith('$2y$')) {
     return bcrypt.compare(password, hashedPassword)
   }
   // Legacy SHA-256 fallback
   const { createHash } = await import('crypto')
   const sha256Hash = createHash('sha256').update(password).digest('hex')
-  return sha256Hash === hashedPassword
+  const expected = Buffer.from(sha256Hash, 'hex')
+  const actual = Buffer.from(hashedPassword, 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
 /**
@@ -80,10 +97,22 @@ export const authOptions: NextAuthOptions = {
         if (!(await verifyPassword(credentials.password, utilisateur.motDePasse))) {
           throw new Error('Identifiants invalides')
         }
+        if (!/^\$2[aby]\$/.test(utilisateur.motDePasse)) {
+          await db.utilisateur.update({
+            where: { id: utilisateur.id },
+            data: { motDePasse: await hashPassword(credentials.password) },
+          })
+        }
 
         // Retourner l'objet utilisateur (sera encodé dans le JWT)
         // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
         const roleName = utilisateur.role === 'OWNER' ? 'ADMIN' : utilisateur.role
+        const permissionSet = getRolePermissions(roleName) || {}
+        const permissions = Object.entries(permissionSet).flatMap(([module, actions]) =>
+          Object.entries(actions)
+            .filter(([, allowed]) => allowed)
+            .map(([action]) => ({ module, action, code: `${module}:${action}` }))
+        )
 
         return {
           id: utilisateur.id,
@@ -91,10 +120,12 @@ export const authOptions: NextAuthOptions = {
           name: `${utilisateur.prenom} ${utilisateur.nom}`,
           nom: utilisateur.nom,
           prenom: utilisateur.prenom,
+          roleId: utilisateur.role,
           roleName,
           pharmacieId: utilisateur.pharmacieId,
           pharmacieNom: utilisateur.pharmacie.nom,
-        }
+          permissions,
+        } satisfies MediHelmAuthUser
       },
     }),
   ],
@@ -122,12 +153,15 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       // À la connexion initiale, `user` contient les données retournées par authorize()
       if (user) {
+        const authUser = user as unknown as MediHelmAuthUser
         token.id = user.id
-        token.nom = (user as Record<string, unknown>).nom
-        token.prenom = (user as Record<string, unknown>).prenom
-        token.roleName = (user as Record<string, unknown>).roleName
-        token.pharmacieId = (user as Record<string, unknown>).pharmacieId
-        token.pharmacieNom = (user as Record<string, unknown>).pharmacieNom
+        token.nom = authUser.nom
+        token.prenom = authUser.prenom
+        token.roleId = authUser.roleId
+        token.roleName = authUser.roleName
+        token.pharmacieId = authUser.pharmacieId
+        token.pharmacieNom = authUser.pharmacieNom
+        token.permissions = authUser.permissions
       }
       return token
     },
@@ -138,11 +172,13 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.roleId = token.roleId
         ;(session.user as Record<string, unknown>).nom = token.nom
         ;(session.user as Record<string, unknown>).prenom = token.prenom
         ;(session.user as Record<string, unknown>).roleName = token.roleName
         ;(session.user as Record<string, unknown>).pharmacieId = token.pharmacieId
         ;(session.user as Record<string, unknown>).pharmacieNom = token.pharmacieNom
+        session.user.permissions = token.permissions
       }
       return session
     },

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     )
 
     // Vérifier la complétude des exigences
-    const exigences = {
+    const exigences: Record<string, boolean> = {
       licenceExploitation: documentsRequis.some((d) => d.type === 'LICENCE' && (!d.dateValidite || new Date(d.dateValidite) >= now)),
       registreStupAjour: documentsRequis.some((d) => d.type === 'REGISTRE_STUPEFIANTS' && (!d.dateValidite || new Date(d.dateValidite) >= now)),
       rapportPharmacovigilance: documentsRequis.some((d) => d.type === 'RAPPORT_PHARMACOVIGILANCE' && (!d.dateValidite || new Date(d.dateValidite) >= now)),

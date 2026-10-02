@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         },
         paiements: true,
         utilisateur: { select: { id: true, nom: true, prenom: true } },
-        ordonnance: { select: { id: true, reference: true } },
+        ordonnance: { select: { id: true, prescripteur: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         ? `${vente.utilisateur.prenom} ${vente.utilisateur.nom}`
         : null,
       ordonnance: vente.ordonnance
-        ? { id: vente.ordonnance.id, reference: vente.ordonnance.reference }
+        ? { id: vente.ordonnance.id, prescripteur: vente.ordonnance.prescripteur }
         : null,
       lignes: vente.lignes.map((ligne) => ({
         medicament: ligne.medicament.nomCommercial,

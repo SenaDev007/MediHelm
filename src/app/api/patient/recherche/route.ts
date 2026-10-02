@@ -2,91 +2,96 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
+const ATC_CODES = new Set(['A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V'])
+
 export async function GET(request: NextRequest) {
-  const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
-  if (rateLimitResult) return rateLimitResult
+  const rateLimitResponse = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (rateLimitResponse) return rateLimitResponse
 
   try {
     const { searchParams } = new URL(request.url)
-    const q = searchParams.get('q') || ''
-    const categorie = searchParams.get('categorie') || ''
-    const prixMin = searchParams.get('prixMin') ? parseFloat(searchParams.get('prixMin')!) : undefined
-    const prixMax = searchParams.get('prixMax') ? parseFloat(searchParams.get('prixMax')!) : undefined
-    const remboursable = searchParams.get('remboursable')
-    const generique = searchParams.get('generique')
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const q = (searchParams.get('q') || '').trim().slice(0, 100)
+    if (q.length < 2) return NextResponse.json({ error: 'La recherche doit contenir au moins 2 caractères' }, { status: 400 })
 
-    // Build where clause — no pharmacieId filter (patients search ALL pharmacies)
-    const where: Record<string, unknown> = {
-      actif: true,
+    const suggestionsOnly = searchParams.get('suggestions') === 'true'
+    const categorie = searchParams.get('categorie') || ''
+    if (categorie && !ATC_CODES.has(categorie)) {
+      return NextResponse.json({ error: 'Catégorie ATC invalide' }, { status: 400 })
     }
 
-    // Search across multiple fields if q is provided
-    // Note: forme is an enum in Prisma but stored as string in PostgreSQL,
-    // so contains filter works at runtime even though the type is Record<string, unknown>
-    if (q) {
-      where.OR = [
+    const parseOptionalNumber = (key: string) => {
+      const raw = searchParams.get(key)
+      if (raw === null || raw === '') return undefined
+      const value = Number(raw)
+      return Number.isFinite(value) && value >= 0 ? value : undefined
+    }
+    const prixMin = parseOptionalNumber('prixMin')
+    const prixMax = parseOptionalNumber('prixMax')
+    const page = Math.max(1, Math.floor(Number(searchParams.get('page') || '1') || 1))
+    const limit = Math.min(50, Math.max(1, Math.floor(Number(searchParams.get('limit') || '20') || 20)))
+
+    const where: Record<string, unknown> = {
+      actif: true,
+      pharmacie: { actif: true },
+      OR: [
         { nomCommercial: { contains: q, mode: 'insensitive' } },
         { dci: { contains: q, mode: 'insensitive' } },
         { dosage: { contains: q, mode: 'insensitive' } },
-        { forme: { contains: q, mode: 'insensitive' } },
-      ]
+      ],
     }
-
-    // ATC category filter
-    if (categorie) {
-      where.categorieAtc = categorie
-    }
-
-    // Price range filters
+    if (categorie) where.categorieAtc = categorie
     if (prixMin !== undefined || prixMax !== undefined) {
-      const prixFilter: Record<string, unknown> = {}
-      if (prixMin !== undefined) prixFilter.gte = prixMin
-      if (prixMax !== undefined) prixFilter.lte = prixMax
-      where.prixPublic = prixFilter
+      where.prixPublic = {
+        ...(prixMin !== undefined ? { gte: prixMin } : {}),
+        ...(prixMax !== undefined ? { lte: prixMax } : {}),
+      }
+    }
+    if (searchParams.get('remboursable') === 'true') where.remboursable = true
+    if (searchParams.get('generique') === 'true') where.generique = true
+
+    if (suggestionsOnly) {
+      const candidates = await db.medicament.findMany({
+        where,
+        select: { nomCommercial: true, dci: true },
+        orderBy: { nomCommercial: 'asc' },
+        take: 20,
+      })
+      const suggestions = Array.from(new Set(candidates.flatMap(item => [item.nomCommercial, item.dci])))
+        .filter(value => value.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, Math.min(limit, 10))
+      return NextResponse.json({ suggestions })
     }
 
-    // Boolean filters
-    if (remboursable !== null && remboursable !== undefined && remboursable !== '') {
-      where.remboursable = remboursable === 'true'
-    }
-    if (generique !== null && generique !== undefined && generique !== '') {
-      where.generique = generique === 'true'
-    }
-
+    const now = new Date()
     const [medicaments, total] = await Promise.all([
       db.medicament.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          nomCommercial: true,
+          dci: true,
+          dosage: true,
+          forme: true,
+          prixPublic: true,
+          categorieAtc: true,
+          remboursable: true,
+          generique: true,
+          stockSecurite: true,
+          pharmacie: { select: { id: true, nom: true } },
           lots: {
-            where: {
-              quantite: { gt: 0 },
-              dateExpiration: { gt: new Date() },
-            },
-            orderBy: { dateExpiration: 'asc' },
+            where: { quantite: { gt: 0 }, dateExpiration: { gt: now } },
+            select: { quantite: true },
           },
         },
-        orderBy: { nomCommercial: 'asc' },
+        orderBy: [{ nomCommercial: 'asc' }, { prixPublic: 'asc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
       db.medicament.count({ where }),
     ])
 
-    const now = new Date()
-    const results = medicaments.map((med) => {
-      const activeLots = med.lots.filter((lot) => lot.quantite > 0 && lot.dateExpiration > now)
-      const totalStock = activeLots.reduce((sum, lot) => sum + lot.quantite, 0)
-      const nearestExpiration = activeLots.length > 0 ? activeLots[0].dateExpiration : null
-
-      let stockStatus: 'EN_STOCK' | 'STOCK_FAIBLE' | 'RUPTURE' = 'RUPTURE'
-      if (totalStock > med.stockSecurite) {
-        stockStatus = 'EN_STOCK'
-      } else if (totalStock > 0) {
-        stockStatus = 'STOCK_FAIBLE'
-      }
-
+    const data = medicaments.map(med => {
+      const totalStock = med.lots.reduce((sum, lot) => sum + lot.quantite, 0)
       return {
         id: med.id,
         nomCommercial: med.nomCommercial,
@@ -94,28 +99,20 @@ export async function GET(request: NextRequest) {
         dosage: med.dosage,
         forme: med.forme,
         prixVente: med.prixPublic,
-        categorieATC: med.categorieAtc,
-        remboursable: med.remboursable,
+        estGenerique: med.generique,
+        estRemboursable: med.remboursable,
         generique: med.generique,
-        medicamentDispo: activeLots.length > 0 && totalStock > 0,
-        stockStatus,
-        nombreLotsActifs: activeLots.length,
-        dateExpirationProche: nearestExpiration,
+        remboursable: med.remboursable,
+        pharmacieId: med.pharmacie.id,
+        pharmacieNom: med.pharmacie.nom,
+        stockDisponible: totalStock > 0,
+        categorieATC: med.categorieAtc ? { code: med.categorieAtc, nom: med.categorieAtc } : null,
       }
     })
 
-    return NextResponse.json({
-      data: results,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    })
-  } catch (error) {
-    console.error('Erreur GET patient/recherche:', error)
-    return NextResponse.json(
-      { error: 'Erreur lors de la recherche de médicaments' },
-      { status: 500 }
-    )
+    return NextResponse.json({ data, total, page, limit, totalPages: Math.ceil(total / limit) })
+  } catch {
+    console.error('Erreur GET patient/recherche')
+    return NextResponse.json({ error: 'Erreur lors de la recherche de médicaments' }, { status: 500 })
   }
 }

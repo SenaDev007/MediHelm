@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
     const authResult = await requireAuth(request, 'M06_ORDONNANCES', 'write')
     if (authResult instanceof Response) return authResult
     const user = authResult
+    if (user.roleName === 'PATIENT') {
+      return NextResponse.json({ error: 'Utilisez le portail patient pour téléverser une ordonnance' }, { status: 403 })
+    }
+    if (!user.pharmacieId) return NextResponse.json({ error: 'Tenant utilisateur manquant' }, { status: 403 })
 
     const body = await request.json()
 
@@ -68,8 +72,31 @@ export async function POST(request: NextRequest) {
     }
     const validatedData = validation.data
 
+    if (validatedData.patientId) {
+      const patient = await db.patient.findFirst({
+        where: { id: validatedData.patientId, pharmacieId: user.pharmacieId },
+        select: { id: true },
+      })
+      if (!patient) return NextResponse.json({ error: 'Patient non trouvé dans votre pharmacie' }, { status: 404 })
+    }
+
     // Enforce pharmacieId from authenticated user
-    const data = await db.ordonnance.create({ data: { ...validatedData, pharmacieId: user.pharmacieId } })
+    const { lignes, ...ordonnanceData } = validatedData
+    const data = await db.ordonnance.create({
+      data: {
+        ...ordonnanceData,
+        pharmacieId: user.pharmacieId,
+        lignes: {
+          create: lignes.map(ligne => ({
+            dci: ligne.dci,
+            posologie: ligne.posologie || null,
+            quantite: ligne.quantite ?? 1,
+            delivree: false,
+          })),
+        },
+      },
+      include: { lignes: true },
+    })
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error('Erreur POST ordonnances:', error)

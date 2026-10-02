@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 // Constantes RBAC (dupliquées pour la compatibilité Edge Runtime)
 const INSTITUTIONAL_ROLES = ['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER', 'PLATFORM_ADMIN']
@@ -20,7 +21,7 @@ const GROSSISTE_ROLES = ['GROSSISTE_PARTNER', 'PLATFORM_ADMIN']
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
-const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/api']
+const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/api', '/api/pharmacies']
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/patient/', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {
@@ -28,21 +29,12 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix))
 }
 
-function hasSessionCookie(request: NextRequest): { authenticated: boolean; roleName?: string } {
-  const sessionCookie =
-    request.cookies.get('__Secure-next-auth.session-token') ??
-    request.cookies.get('next-auth.session-token')
-
-  if (!sessionCookie?.value) {
-    return { authenticated: false }
-  }
-
+async function getVerifiedSession(request: NextRequest): Promise<{ authenticated: boolean; roleName?: string }> {
   try {
-    const parts = sessionCookie.value.split('.')
-    if (parts.length !== 3) return { authenticated: false }
-    const payload = JSON.parse(atob(parts[1]))
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    if (!token?.id) return { authenticated: false }
     // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
-    let roleName = payload.roleName as string | undefined
+    let roleName = (token as unknown as Record<string, unknown>).roleName as string | undefined
     if (roleName === 'OWNER') roleName = 'ADMIN'
     return { authenticated: true, roleName }
   } catch {
@@ -50,7 +42,7 @@ function hasSessionCookie(request: NextRequest): { authenticated: boolean; roleN
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Routes publiques — pas d'authentification
@@ -59,7 +51,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Vérification de l'authentification
-  const { authenticated, roleName } = hasSessionCookie(request)
+  const { authenticated, roleName } = await getVerifiedSession(request)
 
   if (!authenticated) {
     if (pathname.startsWith('/api/')) {

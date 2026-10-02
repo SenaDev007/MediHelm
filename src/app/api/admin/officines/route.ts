@@ -130,7 +130,7 @@ export async function PATCH(request: NextRequest) {
         if (!plan || !['SEED', 'BLOOM', 'CROWN', 'NETWORK'].includes(plan)) {
           return NextResponse.json({ error: 'Plan invalide' }, { status: 400 })
         }
-        await db.pharmacie.update({ where: { id }, data: { plan: plan as string } })
+        await db.pharmacie.update({ where: { id }, data: { plan: plan as 'SEED' | 'BLOOM' | 'CROWN' | 'NETWORK' } })
         await db.auditLog.create({
           data: {
             userId: user.id,

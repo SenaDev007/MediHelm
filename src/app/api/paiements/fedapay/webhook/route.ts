@@ -9,26 +9,28 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text()
     const signature = request.headers.get('x-fedapay-signature') || ''
 
-    // Vérifier la signature HMAC du webhook
-    if (signature && !verifyWebhookSignature(signature, rawBody)) {
+    if (!process.env.FEDAPAY_SECRET_KEY) {
+      return NextResponse.json({ error: 'Webhook Fedapay non configuré' }, { status: 503 })
+    }
+    if (!signature || !verifyWebhookSignature(signature, rawBody)) {
       return NextResponse.json(
-        { error: 'Signature de webhook invalide' },
+        { error: 'Signature de webhook absente ou invalide' },
         { status: 401 }
       )
     }
 
-    // Si pas de signature header mais qu'une clé Fedapay est configurée, on rejette
-    if (!signature && process.env.FEDAPAY_SECRET_KEY) {
+    let body: { event?: string; data?: Record<string, unknown> }
+    try {
+      body = JSON.parse(rawBody)
+    } catch {
       return NextResponse.json(
-        { error: 'Signature de webhook manquante' },
-        { status: 401 }
+        { error: 'Corps JSON invalide' },
+        { status: 400 }
       )
     }
-
-    const body = JSON.parse(rawBody)
     const { event, data } = body
 
-    if (!event || !data) {
+    if (typeof event !== 'string' || !data || typeof data !== 'object') {
       return NextResponse.json(
         { error: 'Format de webhook invalide' },
         { status: 400 }
@@ -36,13 +38,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Trouver le paiement par référence
-    const reference = data.reference || data.transaction_id
-    if (!reference) {
+    const referenceValue = data.reference ?? data.transaction_id
+    if (typeof referenceValue !== 'string' && typeof referenceValue !== 'number') {
       return NextResponse.json(
         { error: 'Référence de transaction manquante' },
         { status: 400 }
       )
     }
+    const reference = String(referenceValue)
 
     const paiement = await db.paiement.findFirst({
       where: { reference },
@@ -57,9 +60,10 @@ export async function POST(request: NextRequest) {
 
     // Vérifier la transaction directement via l'API Fedapay pour confirmation
     let fedapayTransaction: Awaited<ReturnType<typeof verifyTransaction>> | null = null
-    if (data.id && process.env.FEDAPAY_SECRET_KEY) {
+    const transactionId = typeof data.id === 'string' || typeof data.id === 'number' ? data.id : null
+    if (transactionId !== null) {
       try {
-        fedapayTransaction = await verifyTransaction(data.id)
+        fedapayTransaction = await verifyTransaction(transactionId)
       } catch (error) {
         console.warn('[Fedapay Webhook] Impossible de vérifier la transaction via API:', error)
         // On continue avec les données du webhook

@@ -118,10 +118,10 @@ export async function GET(request: NextRequest) {
     })
 
     // Construire un map pour un accès rapide
-    const abonnementCountMap = new Map(
+    const abonnementCountMap = new Map<string, number>(
       abonnementCounts.map((a) => [a.plan, a._count.id])
     )
-    const pharmacieCountMap = new Map(
+    const pharmacieCountMap = new Map<string, number>(
       pharmacieCounts.map((p) => [p.plan, p._count.id])
     )
 

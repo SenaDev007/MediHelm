@@ -5,6 +5,8 @@
 // Référence: MH-SPECS-2025-v2.0 — Paiement Fedapay
 // ============================================================
 
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
 const FEDAPAY_BASE_URL = process.env.FEDAPAY_ENV === 'live'
   ? 'https://api.fedapay.com/v1'
   : 'https://sandbox-api.fedapay.com/v1'
@@ -161,13 +163,11 @@ export function verifyWebhookSignature(
 ): boolean {
   if (!FEDAPAY_SECRET_KEY) return false
 
-  const crypto = require('crypto')
-  const expectedSignature = crypto
-    .createHmac('sha256', FEDAPAY_SECRET_KEY)
-    .update(payload)
-    .digest('hex')
-
-  return signature === expectedSignature
+  const normalized = signature.trim().replace(/^sha256=/i, '')
+  if (!/^[0-9a-f]{64}$/i.test(normalized)) return false
+  const received = Buffer.from(normalized, 'hex')
+  const expected = createHmac('sha256', FEDAPAY_SECRET_KEY).update(payload).digest()
+  return received.length === expected.length && timingSafeEqual(received, expected)
 }
 
 /**

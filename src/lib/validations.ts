@@ -14,13 +14,28 @@ export const loginSchema = z.object({
 })
 
 export const registerSchema = z.object({
-  email: z.email(),
-  nom: z.string().min(2),
-  prenom: z.string().min(2),
-  motDePasse: z.string().min(8),
-  pharmacieNom: z.string().min(2),
+  email: z.email().transform(value => value.trim().toLowerCase()),
+  nom: z.string().trim().min(2),
+  prenom: z.string().trim().min(2),
+  motDePasse: z.string().min(12),
+  pharmacieNom: z.string().trim().min(2),
+  adresse: z.string().trim().min(3),
+  ville: z.string().trim().min(2),
+  departement: z.string().trim().min(2),
+  telephone: z.string().trim().min(8),
+  emailPharmacie: z.email().nullable().optional(),
   numeroAgrement: z.string().min(3),
   plan: z.enum(['SEED', 'BLOOM', 'CROWN', 'NETWORK']),
+  periodeFacturation: z.enum(['MENSUEL', 'ANNUEL']),
+})
+
+export const registerPatientSchema = z.object({
+  email: z.email().transform(value => value.trim().toLowerCase()),
+  nom: z.string().trim().min(2),
+  prenom: z.string().trim().min(2),
+  motDePasse: z.string().min(12),
+  telephone: z.string().trim().min(8),
+  pharmacieId: z.uuid(),
 })
 
 // ─── Ventes ────────────────────────────────────────────────────
@@ -78,6 +93,23 @@ export const ordonnanceSchema = z.object({
   })).min(1),
 })
 
+export const ordonnancePatientUploadSchema = z.object({
+  patientId: z.uuid().optional(),
+  pharmacieId: z.uuid().optional(),
+  prescripteur: z.string().trim().min(2).max(160),
+  dateOrdonnance: z.string().min(10),
+  imageUrl: z.string().max(2_800_000).optional().refine(
+    value => !value || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value),
+    'Image invalide ou format non pris en charge'
+  ),
+  notes: z.string().trim().max(1000).optional(),
+  lignes: z.array(z.object({
+    dci: z.string().trim().min(2).max(160),
+    posologie: z.string().trim().max(500).optional(),
+    quantite: z.int().positive().max(100).optional(),
+  })).max(100).optional(),
+})
+
 // ─── Alerte DPMED ──────────────────────────────────────────────
 
 export const alerteDPMEDSchema = z.object({
@@ -101,6 +133,16 @@ export const commandeSchema = z.object({
     quantite: z.int().positive(),
     prixAchat: z.number().positive(),
   })).min(1),
+})
+
+export const commandePatientSchema = z.object({
+  patientId: z.uuid().optional(),
+  pharmacieId: z.uuid(),
+  lignes: z.array(z.object({
+    medicamentId: z.uuid(),
+    quantite: z.int().positive().max(100),
+  })).min(1).max(50),
+  notes: z.string().trim().max(500).optional(),
 })
 
 // ─── Employé ───────────────────────────────────────────────────

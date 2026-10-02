@@ -106,70 +106,37 @@ export default function InscriptionPage() {
       setError('Les mots de passe ne correspondent pas')
       return
     }
-    if (motDePasse.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères')
+    if (motDePasse.length < 12) {
+      setError('Le mot de passe doit contenir au moins 12 caractères')
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      // 1. Create pharmacy
-      const planLimits: Record<string, { nbUtilisateursMax: number; nbCaissiersSimut: number; stockageDocuments: number; apiGrossistesMax: number }> = {
-        SEED: { nbUtilisateursMax: 2, nbCaissiersSimut: 1, stockageDocuments: 500, apiGrossistesMax: 0 },
-        BLOOM: { nbUtilisateursMax: 5, nbCaissiersSimut: 2, stockageDocuments: 1024, apiGrossistesMax: 2 },
-        CROWN: { nbUtilisateursMax: 10, nbCaissiersSimut: 4, stockageDocuments: 5120, apiGrossistesMax: 5 },
-        NETWORK: { nbUtilisateursMax: 50, nbCaissiersSimut: 10, stockageDocuments: 20480, apiGrossistesMax: 10 },
-      }
-      const limits = planLimits[plan] || planLimits.SEED
-
-      const pharmacieRes = await fetch('/api/pharmacies', {
+      // Créer l’établissement et son premier compte dans une transaction serveur.
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nom: nomPharmacie,
+          pharmacieNom: nomPharmacie,
           adresse,
           ville,
           departement,
           telephone,
-          email: emailPharmacie || null,
+          emailPharmacie: emailPharmacie || null,
           numeroAgrement,
           plan,
-          statutAbonnement: 'ESSAI',
           periodeFacturation,
-          nbUtilisateursMax: limits.nbUtilisateursMax,
-          nbCaissiersSimut: limits.nbCaissiersSimut,
-          stockageDocuments: limits.stockageDocuments,
-          apiGrossistesMax: limits.apiGrossistesMax,
-          dateDebutEssai: new Date().toISOString(),
-          dateFinEssai: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        }),
-      })
-
-      if (!pharmacieRes.ok) {
-        const err = await pharmacieRes.json()
-        throw new Error(err.error || 'Erreur lors de la création de la pharmacie')
-      }
-
-      const pharmacie = await pharmacieRes.json()
-
-      // 2. Create admin user via the register endpoint (handles password hashing + role lookup)
-      const userRes = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pharmacieId: pharmacie.id,
           email,
           motDePasse,
           nom,
           prenom,
-          telephone,
-          roleName: 'DIRECTEUR',
         }),
       })
 
-      if (!userRes.ok) {
-        const err = await userRes.json()
+      if (!res.ok) {
+        const err = await res.json()
         throw new Error(err.error || 'Erreur lors de la création du compte')
       }
 
@@ -434,7 +401,7 @@ export default function InscriptionPage() {
                     <Input
                       id="motDePasse"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Au moins 6 caractères"
+                      placeholder="Au moins 12 caractères"
                       value={motDePasse}
                       onChange={(e) => setMotDePasse(e.target.value)}
                       className="pl-9 pr-10"

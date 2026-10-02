@@ -361,7 +361,7 @@ const ROLE_PERMISSIONS: Record<string, PermissionSet> = {
     M03_COMMANDES: { read: true, write: true, delete: false },
     M04_FOURNISSEURS: { read: false, write: false, delete: false },
     M05_PATIENTS: { read: true, write: true, delete: false },
-    M06_ORDONNANCES: { read: true, write: false, delete: false },
+    M06_ORDONNANCES: { read: true, write: true, delete: false },
     M07_RH: { read: false, write: false, delete: false },
     M08_FINANCE: { read: false, write: false, delete: false },
     M09_GARDE: { read: true, write: false, delete: false },

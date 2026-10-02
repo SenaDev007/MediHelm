@@ -18,7 +18,7 @@ export async function GET(
       include: {
         patient: true,
         utilisateur: { select: { id: true, nom: true, prenom: true } },
-        ordonnance: { select: { id: true, reference: true, prescripteur: true } },
+        ordonnance: { select: { id: true, prescripteur: true } },
         session: { select: { id: true, caisse: { select: { nom: true } } } },
         lignes: {
           include: {
@@ -58,7 +58,7 @@ export async function PATCH(
     const body = await request.json()
     const { statut } = body
 
-    const vente = await db.vente.findUnique({ where: { id } })
+    const vente = await db.vente.findUnique({ where: { id }, include: { lignes: true } })
     if (!vente) {
       return NextResponse.json({ error: 'Vente non trouvée' }, { status: 404 })
     }

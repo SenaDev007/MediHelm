@@ -4,6 +4,7 @@
 // ============================================================
 
 import { PrismaClient, PlanType, RoleType, FormeGalenique, TypeGarde, StatutVente, StatutCommande, StatutOrdonnance, TypeAlerteDPMED, NiveauUrgence, TypeSurveillance, NiveauRisque, StatutAlerte, StatutDiffusion, ModePaiement } from '@prisma/client'
+import type { Medicament, Patient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -221,7 +222,7 @@ async function main() {
     { dci: 'Salbutamol', nomCommercial: 'Ventoline', forme: FormeGalenique.INHALATEUR, dosage: '100μg/dose', prixPublic: 4500, surOrdonnance: true, estStupefiant: false },
   ]
 
-  const createdMeds = []
+  const createdMeds: Medicament[] = []
   for (const med of medsData) {
     const m = await prisma.medicament.create({
       data: {
@@ -262,7 +263,7 @@ async function main() {
     { nom: 'Lawani', prenom: 'Béatrice', telephone: '+229 96 11 11 08', assurance: 'CNSS', numeroAssurance: 'CNSS-003456' },
   ]
 
-  const createdPatients = []
+  const createdPatients: Patient[] = []
   for (const p of patientData) {
     const patient = await prisma.patient.create({
       data: {

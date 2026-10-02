@@ -6,14 +6,11 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { requirePatientAccess } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
-    if (authResult instanceof Response) return authResult
-
     // 1. Extraire les paramètres de requête
     const { searchParams } = new URL(request.url)
     const vaccinationId = searchParams.get('vaccinationId') as string | null
@@ -29,6 +26,17 @@ export async function GET(request: NextRequest) {
 
     // 3. Cas 1 : Recherche par ID de vaccination spécifique
     if (vaccinationId) {
+      const owner = await db.vaccination.findUnique({
+        where: { id: vaccinationId },
+        select: { patientId: true },
+      })
+      if (!owner) return NextResponse.json({ error: 'Vaccination non trouvée' }, { status: 404 })
+      if (patientId && patientId !== owner.patientId) {
+        return NextResponse.json({ error: 'Accès refusé à ce dossier patient' }, { status: 403 })
+      }
+      const access = await requirePatientAccess(request, owner.patientId, 'M05_PATIENTS', 'read')
+      if (access instanceof Response) return access
+
       const vaccination = await db.vaccination.findUnique({
         where: { id: vaccinationId },
         include: {
@@ -95,9 +103,10 @@ export async function GET(request: NextRequest) {
 
     // 4. Cas 2 : Recherche par patient (liste de toutes les vaccinations)
     if (patientId) {
-      const patient = await db.patient.findUnique({
-        where: { id: patientId },
-      })
+      const access = await requirePatientAccess(request, patientId, 'M05_PATIENTS', 'read')
+      if (access instanceof Response) return access
+      const authorizedPatientId = access.patientId
+      const patient = await db.patient.findUnique({ where: { id: authorizedPatientId } })
 
       if (!patient) {
         return NextResponse.json(
@@ -107,7 +116,7 @@ export async function GET(request: NextRequest) {
       }
 
       const vaccinations = await db.vaccination.findMany({
-        where: { patientId },
+        where: { patientId: authorizedPatientId },
         include: {
           pharmacie: {
             select: {

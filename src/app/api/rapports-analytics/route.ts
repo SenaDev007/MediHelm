@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     // --- Prédictions IA ---
     const predictions = await db.predictionIA.findMany({
       where: { pharmacieId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { genereeLe: 'desc' },
       take: 10,
     })
 

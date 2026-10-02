@@ -11,36 +11,7 @@ import { checkPermission } from '@/lib/rbac'
 import { db } from '@/lib/db'
 
 /**
- * Extrait le JWT brut depuis une requête HTTP.
- *
- * Sources possibles (par ordre de priorité) :
- * 1. En-tête Authorization: Bearer <token>
- * 2. Cookie NextAuth (next-auth.session-token / __Secure-next-auth.session-token)
- *
- * @param request - Requête HTTP entrante
- * @returns Le JWT encodé (string) ou null si absent
- */
-export function getTokenFromRequest(request: Request): string | null {
-  // 1. Authorization header — Bearer token
-  const authHeader = request.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.slice(7).trim() || null
-  }
-
-  // 2. Cookie NextAuth
-  const cookieHeader = request.headers.get('cookie') ?? ''
-  const cookieMatch = cookieHeader.match(
-    /(?:^|;\s*)(?:__Secure-)?next-auth\.session-token=([^;]+)/
-  )
-  if (cookieMatch?.[1]) {
-    return cookieMatch[1]
-  }
-
-  return null
-}
-
-/**
- * Décode le JWT NextAuth et retourne les informations utilisateur.
+ * Vérifie le JWT NextAuth et retourne les informations utilisateur.
  *
  * Utilise `getToken` de next-auth/jwt pour la validation complète
  * (vérification de signature, expiration, etc.).
@@ -58,72 +29,28 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
       secret: process.env.NEXTAUTH_SECRET,
     })
 
-    if (!token || !token.id) {
-      // Fallback : essayer de décoder manuellement un Bearer token
-      const rawToken = getTokenFromRequest(request)
-      if (rawToken) {
-        return decodeBearerToken(rawToken)
-      }
-      return null
-    }
+    // getToken verifies the NextAuth token (including Authorization: Bearer).
+    // Never trust a payload decoded without cryptographic verification.
+    if (!token || !token.id) return null
 
     // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
-    const rawRoleName = (token as Record<string, unknown>).roleName as string
+    const rawRoleName = (token as unknown as Record<string, unknown>).roleName as string
     const roleName = rawRoleName === 'OWNER' ? 'ADMIN' : rawRoleName
 
     return {
       id: token.id as string,
       email: token.email as string,
-      nom: (token as Record<string, unknown>).nom as string,
-      prenom: (token as Record<string, unknown>).prenom as string,
-      roleId: (token as Record<string, unknown>).roleId as string,
+      nom: (token as unknown as Record<string, unknown>).nom as string,
+      prenom: (token as unknown as Record<string, unknown>).prenom as string,
+      roleId: (token as unknown as Record<string, unknown>).roleId as string,
       roleName,
-      pharmacieId: (token as Record<string, unknown>).pharmacieId as string,
-      pharmacieNom: (token as Record<string, unknown>).pharmacieNom as string,
-      avatarUrl: (token as Record<string, unknown>).avatarUrl as string | undefined,
-      permissions: (token as Record<string, unknown>).permissions as AuthUser['permissions'],
+      pharmacieId: (token as unknown as Record<string, unknown>).pharmacieId as string,
+      pharmacieNom: (token as unknown as Record<string, unknown>).pharmacieNom as string,
+      avatarUrl: (token as unknown as Record<string, unknown>).avatarUrl as string | undefined,
+      permissions: (token as unknown as Record<string, unknown>).permissions as AuthUser['permissions'],
     }
   } catch (error) {
     console.error('Erreur extraction JWT:', error)
-    return null
-  }
-}
-
-/**
- * Décode manuellement un Bearer token JWT (sans vérification de signature).
- *
- * ⚠️ En production, la vérification de signature doit être effectuée
- * côté serveur via une librairie dédiée. Ce décodage est un fallback
- * pour les cas où `getToken` ne peut pas lire le cookie.
- *
- * @param token - JWT encodé (base64)
- * @returns L'utilisateur décodé ou null
- */
-function decodeBearerToken(token: string): AuthUser | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(atob(parts[1]))
-
-    if (!payload?.id) return null
-
-    // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
-    const rawRoleName = (payload.roleName ?? '') as string
-    const roleName = rawRoleName === 'OWNER' ? 'ADMIN' : rawRoleName
-
-    return {
-      id: payload.id as string,
-      email: (payload.email ?? '') as string,
-      nom: (payload.nom ?? '') as string,
-      prenom: (payload.prenom ?? '') as string,
-      roleId: (payload.roleId ?? '') as string,
-      roleName,
-      pharmacieId: (payload.pharmacieId ?? '') as string,
-      pharmacieNom: (payload.pharmacieNom ?? '') as string,
-      avatarUrl: payload.avatarUrl as string | undefined,
-      permissions: (payload.permissions ?? []) as AuthUser['permissions'],
-    }
-  } catch {
     return null
   }
 }
@@ -164,6 +91,45 @@ export async function requireAuth(
   }
 
   return user
+}
+
+/** Resolve and authorize a patient record from the verified session. */
+export async function requirePatientAccess(
+  request: Request,
+  requestedPatientId: string | null | undefined,
+  requiredModule: string,
+  requiredAction: string
+): Promise<{ user: AuthUser; patientId: string } | Response> {
+  const authResult = await requireAuth(request, requiredModule, requiredAction)
+  if (authResult instanceof Response) return authResult
+
+  if (authResult.roleName === 'PATIENT') {
+    const patient = await db.patient.findFirst({
+      where: { utilisateurId: authResult.id, actif: true },
+      select: { id: true },
+    })
+    if (!patient) return Response.json({ error: 'Dossier patient introuvable' }, { status: 404 })
+    if (requestedPatientId && requestedPatientId !== patient.id) {
+      return Response.json({ error: 'Accès refusé à ce dossier patient' }, { status: 403 })
+    }
+    return { user: authResult, patientId: patient.id }
+  }
+
+  if (!requestedPatientId) {
+    return Response.json({ error: 'Le paramètre patientId est requis' }, { status: 400 })
+  }
+  if (authResult.roleName !== 'PLATFORM_ADMIN' && !authResult.pharmacieId) {
+    return Response.json({ error: 'Tenant utilisateur manquant' }, { status: 403 })
+  }
+  const patient = await db.patient.findFirst({
+    where: {
+      id: requestedPatientId,
+      ...(authResult.roleName === 'PLATFORM_ADMIN' ? {} : { pharmacieId: authResult.pharmacieId }),
+    },
+    select: { id: true },
+  })
+  if (!patient) return Response.json({ error: 'Patient non trouvé ou hors de votre pharmacie' }, { status: 404 })
+  return { user: authResult, patientId: patient.id }
 }
 
 /**
