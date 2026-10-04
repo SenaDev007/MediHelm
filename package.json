@@ -20,7 +20,12 @@
     "dev:public": "pnpm --filter @medihelm/public dev",
     "dev:web": "pnpm --filter @medihelm/web dev",
     "dev:grossiste": "pnpm --filter @medihelm/grossiste dev",
-    "db:generate": "pnpm --filter @medihelm/database db:generate"
+    "dev:institutionnel": "pnpm --filter @medihelm/institutionnel dev",
+    "db:generate": "pnpm --filter @medihelm/database db:generate",
+    "db:migrate": "pnpm --filter @medihelm/database db:migrate",
+    "db:migrate:deploy": "pnpm --filter @medihelm/database db:migrate:deploy",
+    "db:migrate:status": "pnpm --filter @medihelm/database db:migrate:status",
+    "db:institution:create-user": "pnpm --filter @medihelm/database db:institution:create-user"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

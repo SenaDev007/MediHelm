@@ -18,6 +18,6 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentAuthUser() user: AuthClaims) {
-    return this.authService.getProfile(user.sub)
+    return this.authService.getProfile(user)
   }
 }

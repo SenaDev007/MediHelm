@@ -22,6 +22,7 @@ export type RoleType =
 
 export type TenantType = 'PHARMACIE' | 'GROSSISTE' | 'INSTITUTIONNEL'
 export type LegacyTenantType = 'INSTITUTION' | 'PLATFORM'
+export type InstitutionType = 'DPMED' | 'SOBAPS' | 'ABRP'
 export type PlanType = 'SEED' | 'GROW' | 'LEAD' | 'NETWORK'
 export type LegacyPlanType = 'SEED' | 'BLOOM' | 'CROWN' | 'NETWORK'
 export type TokenTenantType = TenantType | LegacyTenantType
@@ -30,6 +31,8 @@ export interface JWTPayload {
   sub: string
   pharmacieId?: string
   grossisteId?: string
+  institutionId?: string
+  institutionType?: InstitutionType
   role: RoleType
   tenantType: TokenTenantType
   pharmacieNom?: string

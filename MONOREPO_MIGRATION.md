@@ -1,40 +1,71 @@
-# Migration MediHelm vers Turborepo / NestJS
+# Migration MédiHelm vers Turborepo / NestJS
 
-## État de la branche de migration
+**État de travail : 3 octobre 2026 — branche `feat/medihelm-turborepo-migration`**
 
-Cette branche établit le monorepo sans supprimer le fonctionnement historique. L’application Next.js a été déplacée dans `apps/medihelm-web`, et le schéma Prisma partagé réside sous `packages/database`.
+Cette migration est **progressive** : elle conserve le monolithe historique pendant l’extraction des domaines, sans bascule de production ni suppression de routes existantes.
+
+## Workspaces
 
 | Workspace | État | Port local |
 | --- | --- | ---: |
-| `apps/medihelm-api` | NestJS/Fastify; santé, login pharmacie JWT, profil `/me`, CRUD médicaments tenant-scoped | 3000 |
-| `apps/medihelm-public` | Hub public statique et page `/portails` non indexable | 3010 |
-| `apps/medihelm-web` | Application historique déplacée; handlers métier et NextAuth encore disponibles | 3001 |
-| `apps/medihelm-grossiste` | Workspace séparé avec page de transition vers le portail historique | 3002 |
-| `packages/database` | Schéma Prisma unique, client généré et seed partagés entre API et web | — |
-| `packages/types` | Contrats de rôles, tenants, plans, JWT et réponses API; aliases legacy explicites | — |
-| `packages/auth` | Décodage/navigation côté navigateur uniquement — jamais une autorisation | — |
-| `packages/ui` | Composant partagé `PortalCard` | — |
-| `packages/config` | Presets TypeScript stricts pour Next.js et NestJS | — |
+| `apps/medihelm-api` | NestJS/Fastify; authentification, liveness, CRUD médicaments pharmacie, modules DPMED/SoBAPS et gardes tenant/rôle | 3000 |
+| `apps/medihelm-public` | Hub public statique, `/portails` et page `/connexion` vers les portails séparés | 3010 |
+| `apps/medihelm-web` | Application historique déplacée; ses handlers métier et NextAuth restent la référence de transition | 3001 |
+| `apps/medihelm-grossiste` | Workspace séparé; son flux métier n’est pas encore entièrement extrait de l’ancien portail | 3002 |
+| `apps/medihelm-institutionnel` | Nouveau portail distinct DPMED/SoBAPS, connexion serveur, navigation filtrée par rôle, BFF same-origin | 3004 |
+| `apps/medihelm-admin` | **Non créé** : espace administrateur séparé demandé par le prompt institutionnel, à traiter dans une étape suivante | — |
+| `packages/database` | Source Prisma centrale, client partagé, provisionnement institutionnel manuel et migrations versionnées | — |
+| `packages/types` | Contrats de rôles, tenants, plans, JWT et réponses API | — |
+| `packages/auth` | Décodage/navigation côté client uniquement — jamais une autorisation | — |
+| `packages/ui` | Composants partagés | — |
+| `packages/config` | Presets TypeScript Next.js/NestJS | — |
 
-### Parcours NestJS déjà migrés
+## Parcours API migrés
 
-- `GET /v1/health` : liveness de l’API.
-- `POST /v1/auth/login` : comptes utilisateur pharmacie actifs, vérification bcrypt ou SHA-256 legacy avec rehash bcrypt après connexion réussie; JWT HS256 signé, issuer/audience vérifiés, expiration 15 minutes.
-- `GET /v1/auth/me` : Bearer signé et profil/tenant revalidés en base.
-- `GET /v1/medicaments` et `GET /v1/medicaments/:id` : lecture tenant pharmacie, pagination bornée, filtres et lots filtrés sur le même tenant.
-- `POST /v1/medicaments`, `PATCH /v1/medicaments/:id`, `DELETE /v1/medicaments/:id` : gardes JWT, tenant, rôle et DTO strict; DELETE archive (`actif=false`) au lieu de supprimer les références historiques.
+### Authentification et pharmacie
 
-Les mutations ne prennent jamais `pharmacieId` du payload; les requêtes d’élément et d’archivage associent l’identifiant à la pharmacie du JWT. Le rate limit global est 120/minute/IP, remplacé par 5/minute sur le login. Le stockage actuel du limiteur est en mémoire, donc il doit devenir distribué (par exemple Redis) avant une exploitation multi-instance.
+- `POST /v1/auth/login` : comptes pharmacie existants; vérification bcrypt ou SHA-256 historique avec rehash bcrypt après authentification réussie. Une option explicite de tenant `INSTITUTIONNEL` permet aussi le login des comptes institutionnels.
+- `GET /v1/auth/me` : Bearer signé, profil et statut tenant revérifiés côté API.
+- `GET`, `POST`, `PATCH`, `DELETE /v1/medicaments[/:id]` : guards JWT/tenant/rôle, pagination bornée; l’ID d’officine vient du JWT et les suppressions sont des archivages.
 
-### Frontière et limites actuelles
+### DPMED (`DPMED_ADMIN`)
 
-L’API Nest **n’a pas encore** l’ensemble des CRUD métier, des guards RBAC/tenant partagés pour tous les modules, les comptes grossistes/institutionnels, le refresh-token révocable, la récupération de mot de passe ni les tests de parité complets. Les 157 handlers Next.js et NextAuth restent en service dans `apps/medihelm-web`; les portails ne sont pas encore basculés vers le nouveau login. Ne retirez pas NextAuth et ne changez pas les clients tant que les contrats/roles/tenants, les autres routes et les flux n’ont pas été migrés et validés.
+Routes sous `/v1/institutionnel/dpmed` : tableau de bord, alertes (liste/détail/création/modification/annulation/publication), signalements EI, conformité, médicaments sous surveillance et fiches DCI. La surveillance et les fiches DCI ont des opérations de création, lecture (liste et détail), modification et archivage; les écrans DPMED disposent désormais de formulaires correspondants. Les alertes en brouillon sont modifiables depuis leur écran détail. Les mutations exigent le tenant DPMED actif et le rôle exact.
 
-Le schéma déplacé est centralisé, mais cette étape n’a pas ajouté de migration SQL versionnée ni changé le schéma métier. Vérifier la compatibilité et la stratégie de migrations avant une évolution de données.
+- Les alertes sont d’abord créées en brouillon. La publication exige une paire de clés RSA-256 cohérente (`DPMED_PRIVATE_KEY` et `DPMED_PUBLIC_KEY`), vérifie la signature puis enregistre atomiquement l’état et les officines cibles.
+- Les notifications push/SMS ne sont **pas** envoyées : le worker, les fournisseurs/certificats et mTLS ne sont pas configurés. La cible documentaire de diffusion `< 2 min` n’est donc ni implémentée ni revendiquée.
+- La vue de pharmacovigilance renvoie une allowlist de métadonnées et une référence d’officine pseudonymisée; elle exclut le narratif clinique libre et l’identifiant direct de l’officine.
+- La conformité est une consultation des scores existants; elle ne constitue ni une inspection ni une certification officielle. Les registres réglementaires DPMED restent à extraire/relier.
 
-**Ne pas basculer les domaines ni déployer ces workspaces comme remplacement de production à cette étape.** Le `Caddyfile`, CI/CD, domaines et politiques de sauvegarde n’ont pas été changés. Aucun `.env` réel ni aucune base de production n’ont été lus ou modifiés.
+### SoBAPS (`SOBAPS_VIEWER`)
 
-## Installation et exécution locale
+- Portail SoBAPS en lecture seule : tableau agrégé, livraisons et confirmations/litiges sous `/v1/institutionnel/sobaps`.
+- L’officine possède un CRUD dédié sous `/v1/sobaps/receptions[/:id]` : créer une réception depuis les lignes reçues, consulter par tenant, corriger tant qu’elle est en attente, confirmer (l’état devient `CONFIRME` ou `LITIGE` selon les écarts), ou annuler.
+- Les données de réception exposées à SoBAPS sont limitées aux éléments logistiques (officine, référence BL, DCI/lot/quantités reçues et écarts). Les données patient, ventes, prix et finances ne sont pas incluses.
+- Aucun webhook sortant n’est présenté comme envoyé. L’intégration automatique des bons de livraison SoBAPS reste une étape ultérieure.
+
+## Frontière de sécurité institutionnelle
+
+Les comptes DPMED/SoBAPS sont dans des tables distinctes `InstitutionTenant`/`InstitutionUser`; ils sont créés uniquement par commande opérateur (aucune inscription publique ni seed de production). Le guard NestJS relie à chaque requête le JWT à l’utilisateur, au tenant institutionnel et au couple institution/rôle actifs en base. Le portail Next.js met un cookie `HttpOnly`, puis introspecte `/v1/auth/me` côté serveur/Proxy et via son BFF; il ne reçoit ni ne partage `JWT_SECRET`, qui reste au serveur API. L’API reste l’autorité finale des droits.
+
+Le rate limit global est de 120/minute/IP et celui du login de 5/minute/IP; son stockage actuel est en mémoire et doit devenir distribué avant une exploitation multi-instance. Les contrôles CORS s’appliquent aux appels navigateurs; le BFF institutionnel communique serveur-à-serveur.
+
+## Documentation analysée
+
+Voir [MONOREPO_DOCUMENTATION_AUDIT.md](./MONOREPO_DOCUMENTATION_AUDIT.md) : inventaire des **42 fichiers** dans `MédiHelm/`, méthodes d’extraction en lecture seule, **15 relations de duplication confirmées**, exigences et limites DPMED/SoBAPS. Les documents et archives n’ont pas été exécutés. L’orchestration par agent a produit 19 analyses structurées avant arrêt; le rapport ne prétend donc pas à une validation agent individuelle des 42 pièces. Les dossiers DPMED, SoBAPS et spécifications institutionnelles ont été consultés directement.
+
+Les documents de partenariat restent des propositions : ils ne prouvent pas l’existence d’un accord, d’une certification ou d’une API partenaire. Les décisions non déterminées (seuils/pondérations, exports réglementaires, conservation, mTLS, API réelles) ne doivent pas être inventées.
+
+## Historique Prisma et provisionnement
+
+Une migration de référence est versionnée dans `packages/database/prisma/migrations/20261003180000_initial_baseline/migration.sql`; elle a été générée depuis le schéma central et contient la création complète d’une base neuve. Aucune base réelle n’a été interrogée ni migrée.
+
+- Base neuve : `pnpm db:migrate:status`, puis `pnpm db:migrate:deploy`, puis `pnpm db:generate`.
+- Base existante : **ne pas appliquer directement** cette baseline. Faire une sauvegarde, comparer tables/colonnes/index/enums/contraintes et n’enregistrer `migrate resolve --applied 20261003180000_initial_baseline` qu’après preuve de parité complète. Voir `packages/database/prisma/migrations/README.md`.
+- Provisionnement : `pnpm db:institution:create-user` avec les variables `INSTITUTION_CODE`, `INSTITUTION_EMAIL`, `INSTITUTION_FIRST_NAME`, `INSTITUTION_LAST_NAME`, `INSTITUTION_PASSWORD` (et optionnellement `INSTITUTION_NAME`). Le mot de passe est hashé bcrypt; il n’est jamais inclus dans un commit.
+- Ne jamais exécuter `db:reset` contre une base de production.
+
+## Installation locale
 
 Pré-requis : Node.js 22 et pnpm 11.
 
@@ -42,41 +73,48 @@ Pré-requis : Node.js 22 et pnpm 11.
 pnpm install
 cp apps/medihelm-api/.env.example apps/medihelm-api/.env
 cp packages/database/.env.example packages/database/.env
+cp apps/medihelm-institutionnel/.env.example apps/medihelm-institutionnel/.env
 pnpm db:generate
 pnpm dev
 ```
 
-Remplacer les identifiants de la base et `JWT_SECRET` par des valeurs locales sûres avant de démarrer l’API; la clé doit comporter au moins 32 octets et ne peut pas rester le placeholder `REPLACE_...`. `packages/database/prisma.config.ts` charge le `.env` du workspace database pour les commandes Prisma; les builds CI doivent fournir `DATABASE_URL` au job. `pnpm dev` lance l’API sur `3000`, le hub public sur `3010`, le web historique sur `3001` et le portail grossiste sur `3002`.
+Configurer `DATABASE_URL` et `JWT_SECRET` uniquement dans l’environnement de l’API. Le portail institutionnel a besoin de `MEDIHELM_API_URL`, mais pas du secret JWT. Les clés RSA DPMED doivent venir d’un gestionnaire de secrets et ne sont pas requises pour créer des brouillons. `pnpm dev` lance les workspaces déclarant `dev`.
 
 Commandes utiles :
 
 ```bash
 pnpm typecheck
-pnpm build
+pnpm lint
 pnpm test
-pnpm --filter @medihelm/database db:generate
-pnpm --filter @medihelm/api test
+pnpm build
+pnpm db:migrate:status
+pnpm db:migrate:deploy
 ```
 
-`CORS_ORIGINS` contient la liste d’origines HTTPS de production; en développement les origines localhost documentées sont autorisées. Les opérations `db:push`, `db:migrate`, `db:reset` et `db:seed` sont disponibles dans `@medihelm/database`; n’exécutez pas les commandes destructives contre une base réelle sans revue préalable.
+## Vérifications ciblées de cette étape
 
-## Ordre de migration restant
-
-1. Ajouter migrations versionnées pour le package database et contrôler la compatibilité du schéma courant.
-2. Extraire les modules API par domaine vers NestJS; ajouter les guards RBAC, tenant, audit et tests de contrat avant les mutations.
-3. Migrer les comptes et profils grossistes/institutionnels, le refresh/revocation, la récupération de mot de passe et les tests de sécurité.
-4. Connecter progressivement les frontends au nouveau JWT et à `NEXT_PUBLIC_API_URL`; conserver NextAuth et les routes legacy comme fallback pendant la validation.
-5. Extraire les pages institutionnelles et administrateur vers leurs espaces/domaines dédiés; maintenir l’isolation demandée pour chaque institution.
-6. Migrer le POS/offline, les webhooks et les autres flux, et obtenir la parité CRUD sur tests d’intégration.
-7. Mettre à jour proxy et environnements, effectuer une revue de sécurité, puis organiser une bascule explicite avec plan de retour arrière.
-
-Chaque étape doit préserver le comportement du commit précédent; ne supprimer les handlers historiques qu’après preuve de parité fonctionnelle et de sécurité.
-
-## Vérifications de cette étape
-
-- `pnpm typecheck` : **7 tâches réussies** sur les workspaces typés.
-- `pnpm test` : **5 tests API réussis**, aucun échec; le workspace web historique découvre actuellement **0 test**.
+- `pnpm --filter @medihelm/api typecheck` : réussite.
 - `pnpm --filter @medihelm/api lint` : réussite.
-- `pnpm build` : **5 tâches réussies** (database, API, web, hub public, portail grossiste), avec une URL PostgreSQL locale factice pour `prisma generate`; aucune connexion ni donnée de production n’a été utilisée.
-- Smoke HTTP NestJS local : `/v1/health` répond 200; médicaments sans JWT répond 401; rôle patient et tenant grossiste répondent 403; tentative d’imposer `pharmacieId` dans le POST répond 400.
-- Génération Prisma testée avec un fichier d’environnement temporaire externe; aucun fichier `.env` privé n’a été lu ou modifié.
+- `pnpm --filter @medihelm/api test` : **11 tests réussis**, dont login institutionnel/roles, guard tenant, signature RSA, absence du narratif EI et isolation des confirmations pharmacie.
+- `pnpm --filter @medihelm/institutionnel lint` : réussite.
+- `pnpm --filter @medihelm/institutionnel build` : réussite; les routes DPMED/SoBAPS et le BFF sont compilés.
+- `pnpm --filter @medihelm/public typecheck` : réussite.
+- `prisma validate` : réussite; migration baseline générée (66 tables, 32 enums/types SQL).
+- `pnpm typecheck` : **8 tâches réussies** sur les workspaces qui déclarent ce script.
+- `pnpm test` : **11 tests API réussis**; le workspace web historique découvre encore 0 test.
+- `DATABASE_URL=<URL locale factice> pnpm build` : **6 tâches réussies** (database, API, institutionnel, public, grossiste et web); la première tentative sans `DATABASE_URL` a échoué à la génération Prisma, puis le build a réussi avec une URL factice et sans connexion à une base.
+- `pnpm lint` : échec exclusivement dans `@medihelm/web` historique (**92 erreurs et 4 avertissements**, principalement `react-hooks/set-state-in-effect`); les lints ciblés `@medihelm/api` et `@medihelm/institutionnel` réussissent.
+- Ces vérifications ne remplacent pas encore une suite complète d’intégration avec PostgreSQL, des tests e2e de déploiement, ni une validation de la politique d’officine en production.
+
+## Limites et étapes restantes
+
+1. Synchroniser la branche validée sur `main` après vérification des commits distants récents et conserver un dépôt de travail propre.
+2. Ajouter des tests d’intégration réels sur PostgreSQL pour les routes DPMED, SoBAPS et pharmacie; valider les transitions concurrentes et les migrations contre un schéma de staging représentatif.
+3. Extraire patients, ordonnances, fournisseurs et autres domaines API depuis `apps/medihelm-web`; vérifier chaque CRUD, RBAC, audit log et tenant.
+4. Extraire les fonctionnalités métier des frontends grossiste et DPMED/SoBAPS; terminer les vues/exports et registres prévus par les spécifications, et connecter l’interface pharmacie existante aux routes SoBAPS reçues.
+5. Créer et migrer le portail `apps/medihelm-admin` et l’espace ABRP séparé; fournir une voie explicite et testée pour leurs comptes.
+6. Reprendre et tester le POS/offline, les webhooks, l’outbox et les flux de reprise; l’ancien monolithe reste source active de ces fonctionnalités.
+7. Remplacer le rate limit mémoire, configurer mTLS et les fournisseurs de notification, puis mesurer les objectifs documentés en environnement adapté.
+8. Mettre à jour CI/CD, proxy/domaines, sauvegardes et plan de retour arrière après revue de sécurité et preuve de parité; aucune bascule de production n’a été faite dans cette étape.
+
+**La migration ne prétend pas à 100 % de conformité de la plateforme entière.** Le portail institutionnel et ses premières routes sont maintenant présents; les modules historiques, l’offline POS et plusieurs intégrations restent à migrer et à vérifier avant toute bascule.

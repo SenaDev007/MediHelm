@@ -6,6 +6,11 @@ const JWT_ISSUER = 'medihelm-api'
 const JWT_AUDIENCE = 'medihelm-client'
 const ROLE_VALUES: ReadonlySet<string> = new Set(Object.values(DatabaseRoleType))
 const TENANT_VALUES: ReadonlySet<string> = new Set(Object.values(DatabaseTenantType))
+const INSTITUTION_ROLE: Readonly<Record<string, string>> = {
+  DPMED: 'DPMED_ADMIN',
+  SOBAPS: 'SOBAPS_VIEWER',
+  ABRP: 'ABRP_VIEWER',
+}
 
 export interface AuthClaims {
   sub: string
@@ -13,6 +18,8 @@ export interface AuthClaims {
   tenantType: string
   pharmacieId?: string
   grossisteId?: string
+  institutionId?: string
+  institutionType?: string
   pharmacieNom?: string
   prenom?: string
   iat: number
@@ -40,6 +47,14 @@ function isAuthClaims(value: unknown): value is AuthClaims {
   if (value.grossisteId !== undefined && typeof value.grossisteId !== 'string') return false
   if (value.pharmacieNom !== undefined && typeof value.pharmacieNom !== 'string') return false
   if (value.prenom !== undefined && typeof value.prenom !== 'string') return false
+
+  if (value.tenantType === 'INSTITUTIONNEL') {
+    if (typeof value.institutionId !== 'string' || value.institutionId.length === 0) return false
+    if (typeof value.institutionType !== 'string') return false
+    if (INSTITUTION_ROLE[value.institutionType] !== value.role) return false
+  } else if (value.institutionId !== undefined || value.institutionType !== undefined) {
+    return false
+  }
   return true
 }
 

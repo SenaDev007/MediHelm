@@ -45,7 +45,14 @@ enum TenantType {
   PHARMACIE
   GROSSISTE
   INSTITUTION
+  INSTITUTIONNEL
   PLATFORM
+}
+
+enum InstitutionType {
+  DPMED
+  SOBAPS
+  ABRP
 }
 
 // ============================================================
@@ -208,9 +215,17 @@ enum TypeAlerteDPMED {
 }
 
 enum StatutAlerte {
+  BROUILLON
   EN_DIFFUSION
   ACQUITTEE
   EXPIREE
+  ANNULEE
+}
+
+enum StatutConfirmationSoBAPS {
+  EN_ATTENTE
+  CONFIRME
+  LITIGE
   ANNULEE
 }
 
@@ -349,7 +364,8 @@ model Pharmacie {
   planningsGarde      PlanningGarde[]
   scoreConformite     ScoreConformite[]
   diffusionsAlerte    DiffusionAlerte[]
-  signalementsEI      SignalementEI[]
+  signalementsEI     SignalementEI[]
+  confirmationsSoBAPS ConfirmationReceptionSoBAPS[]
   documents           Document[]
   sessionsCaisse      SessionCaisse[]
   caisses             Caisse[]
@@ -1164,9 +1180,11 @@ model AlerteDPMED {
   typeAlerte          TypeAlerteDPMED  @default(RAPPEL_LOT)
   niveauUrgence       NiveauUrgence    @default(URGENT)
   dciConcernee        String?
+  lotsCibles          String[]         @default([])
   description         String?
   signatureNumerique  String           @default("")
   dateEmissionDPMED   DateTime
+  datePublication     DateTime?
   statut              StatutAlerte     @default(EN_DIFFUSION)
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
@@ -1185,6 +1203,9 @@ model DiffusionAlerte {
 
   alerte    AlerteDPMED @relation(fields: [alerteId], references: [id])
   pharmacie Pharmacie   @relation(fields: [pharmacieId], references: [id])
+
+  @@unique([alerteId, pharmacieId])
+  @@index([pharmacieId, statut])
 }
 
 model MedicamentSurveillance {
@@ -1217,6 +1238,73 @@ model SignalementEI {
   updatedAt     DateTime          @updatedAt
 
   pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+}
+
+model FicheDCI {
+  id                      String   @id @default(uuid())
+  dci                     String   @unique
+  classeTherapeutique     String?
+  mecanisme               String?
+  indications             String?
+  posologie               String?
+  contreIndications       String?
+  interactionsJson        String   @default("[]")
+  effetsIndesirablesJson  String   @default("[]")
+  conservation            String?
+  source                  String?
+  actif                   Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([actif, dci])
+}
+
+model InstitutionTenant {
+  id          String          @id @default(uuid())
+  code        InstitutionType @unique
+  nom         String
+  actif       Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  utilisateurs InstitutionUser[]
+}
+
+model InstitutionUser {
+  id            String            @id @default(uuid())
+  institutionId String
+  email         String            @unique
+  nom           String
+  prenom        String
+  role          RoleType
+  motDePasse    String
+  actif         Boolean           @default(true)
+  dernierLogin  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  institution InstitutionTenant @relation(fields: [institutionId], references: [id], onDelete: Restrict)
+
+  @@index([institutionId, actif])
+}
+
+model ConfirmationReceptionSoBAPS {
+  id            String                   @id @default(uuid())
+  pharmacieId   String
+  referenceBL   String
+  dateLivraison DateTime
+  statut        StatutConfirmationSoBAPS @default(EN_ATTENTE)
+  lignesJson    String                   @default("[]")
+  ecartsJson    String                   @default("[]")
+  confirmeLe    DateTime?
+  webhookSent   Boolean                  @default(false)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id], onDelete: Restrict)
+
+  @@unique([pharmacieId, referenceBL])
+  @@index([statut, dateLivraison])
+  @@index([pharmacieId, dateLivraison])
 }
 
 // Audit Log (Global)
