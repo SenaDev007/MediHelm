@@ -1,6 +1,6 @@
 # Migration MédiHelm vers Turborepo / NestJS
 
-**État de travail : 3 octobre 2026 — branche `feat/medihelm-turborepo-migration`**
+**État au 4 octobre 2026 — intégration publiée sur `main` et branche de migration alignée**
 
 Cette migration est **progressive** : elle conserve le monolithe historique pendant l’extraction des domaines, sans bascule de production ni suppression de routes existantes.
 
@@ -103,18 +103,18 @@ pnpm db:migrate:deploy
 - `pnpm typecheck` : **8 tâches réussies** sur les workspaces qui déclarent ce script.
 - `pnpm test` : **11 tests API réussis**; le workspace web historique découvre encore 0 test.
 - `DATABASE_URL=<URL locale factice> pnpm build` : **6 tâches réussies** (database, API, institutionnel, public, grossiste et web); la première tentative sans `DATABASE_URL` a échoué à la génération Prisma, puis le build a réussi avec une URL factice et sans connexion à une base.
+- Smoke HTTP local du build institutionnel : `/login` répond 200, `/api/auth/me` sans cookie répond 401 et `/dpmed` sans session redirige en 307 vers le login.
 - `pnpm lint` : échec exclusivement dans `@medihelm/web` historique (**92 erreurs et 4 avertissements**, principalement `react-hooks/set-state-in-effect`); les lints ciblés `@medihelm/api` et `@medihelm/institutionnel` réussissent.
 - Ces vérifications ne remplacent pas encore une suite complète d’intégration avec PostgreSQL, des tests e2e de déploiement, ni une validation de la politique d’officine en production.
 
 ## Limites et étapes restantes
 
-1. Synchroniser la branche validée sur `main` après vérification des commits distants récents et conserver un dépôt de travail propre.
-2. Ajouter des tests d’intégration réels sur PostgreSQL pour les routes DPMED, SoBAPS et pharmacie; valider les transitions concurrentes et les migrations contre un schéma de staging représentatif.
-3. Extraire patients, ordonnances, fournisseurs et autres domaines API depuis `apps/medihelm-web`; vérifier chaque CRUD, RBAC, audit log et tenant.
-4. Extraire les fonctionnalités métier des frontends grossiste et DPMED/SoBAPS; terminer les vues/exports et registres prévus par les spécifications, et connecter l’interface pharmacie existante aux routes SoBAPS reçues.
-5. Créer et migrer le portail `apps/medihelm-admin` et l’espace ABRP séparé; fournir une voie explicite et testée pour leurs comptes.
-6. Reprendre et tester le POS/offline, les webhooks, l’outbox et les flux de reprise; l’ancien monolithe reste source active de ces fonctionnalités.
-7. Remplacer le rate limit mémoire, configurer mTLS et les fournisseurs de notification, puis mesurer les objectifs documentés en environnement adapté.
-8. Mettre à jour CI/CD, proxy/domaines, sauvegardes et plan de retour arrière après revue de sécurité et preuve de parité; aucune bascule de production n’a été faite dans cette étape.
+1. Ajouter des tests d’intégration réels sur PostgreSQL pour les routes DPMED, SoBAPS et pharmacie; valider les transitions concurrentes et les migrations contre un schéma de staging représentatif.
+2. Extraire patients, ordonnances, fournisseurs et autres domaines API depuis `apps/medihelm-web`; vérifier chaque CRUD, RBAC, audit log et tenant.
+3. Extraire les fonctionnalités métier des frontends grossiste et DPMED/SoBAPS; terminer les vues/exports et registres prévus par les spécifications, et connecter l’interface pharmacie existante aux routes SoBAPS reçues.
+4. Créer et migrer le portail `apps/medihelm-admin` et l’espace ABRP séparé; fournir une voie explicite et testée pour leurs comptes.
+5. Reprendre et tester le POS/offline, les webhooks, l’outbox et les flux de reprise; l’ancien monolithe reste source active de ces fonctionnalités.
+6. Remplacer le rate limit mémoire, configurer mTLS et les fournisseurs de notification, puis mesurer les objectifs documentés en environnement adapté.
+7. Mettre à jour CI/CD, proxy/domaines, sauvegardes et plan de retour arrière après revue de sécurité et preuve de parité; aucune bascule de production n’a été faite dans cette étape.
 
 **La migration ne prétend pas à 100 % de conformité de la plateforme entière.** Le portail institutionnel et ses premières routes sont maintenant présents; les modules historiques, l’offline POS et plusieurs intégrations restent à migrer et à vérifier avant toute bascule.
