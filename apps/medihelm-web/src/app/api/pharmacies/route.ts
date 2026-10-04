@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '@/lib/db'
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from '@medihelm/database'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
