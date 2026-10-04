@@ -9,14 +9,13 @@ import { Logo } from "./Logo";
 
 const navLinks = [
   { label: "Fonctionnalités", href: "#fonctionnalites" },
-  { label: "Tarifs", href: "#tarifs" },
-  { label: "Espaces", href: "#espaces" },
-  { label: "Institutions", href: "#partenariats" },
+  { label: "Tarifs Pro", href: "/espace-pro#tarifs" },
+  { label: "Espaces", href: "/#espaces" },
   { label: "Contact", href: "#contact" },
 ];
 
 const spaceLinks = [
-  { label: "MediHelm Pro", href: "/pro", description: "Espace pharmacie", color: "text-teal-400" },
+  { label: "MediHelm Pro", href: "/espace-pro", description: "Espace pharmacie", color: "text-teal-400" },
   { label: "MediHelm Patient", href: "/patient", description: "Espace patient", color: "text-blue-brand" },
   { label: "MediHelm Grossistes", href: "/grossistes", description: "Espace grossistes et fournisseurs", color: "text-amber-400" },
   { label: "MediHelm Institutions", href: "/institutions", description: "Espace institutionnel", color: "text-teal-800" },

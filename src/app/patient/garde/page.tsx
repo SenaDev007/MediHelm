@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ShieldCheck, Phone, MapPin, Calendar, Clock, Crosshair, RefreshCw,
-  ChevronUp, ChevronDown, ChevronRight, Bell, Navigation, Siren, LocateFixed,
+  ChevronUp, ChevronDown, ChevronRight, Bell, Navigation, Siren, LocateFixed, Check,
 } from 'lucide-react'
 import { motion, useDragControls } from 'framer-motion'
 import Link from 'next/link'
@@ -45,6 +45,7 @@ interface PharmacyResult {
   longitude: number | null
   distance?: number
   estGarde: boolean
+  inscriteMediHelm?: boolean
   numeroAbmed?: string | null
   officielle?: boolean
   departement?: string | null
@@ -139,6 +140,7 @@ export default function GardePage() {
           longitude: p.longitude as number | null,
           distance: p.distance as number | undefined,
           estGarde: Boolean(p.estGarde),
+          inscriteMediHelm: Boolean(p.inscriteMediHelm),
           numeroAbmed: p.numeroAbmed as string | undefined,
           officielle: p.officielle as boolean | undefined,
           departement: p.departement as string | undefined,
@@ -329,11 +331,16 @@ export default function GardePage() {
                   <ShieldCheck className="h-3 w-3 mr-0.5" />
                   De garde
                 </Badge>
-                {p.officielle && (
-                  <Badge variant="secondary" className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200">
-                    ABMed{p.numeroAbmed ? ` · ${p.numeroAbmed}` : ''}
+                {p.inscriteMediHelm ? (
+                  <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border border-primary/30">
+                    <Check className="h-3 w-3 mr-0.5" />
+                    Sur MediHelm
                   </Badge>
-                )}
+                ) : p.numeroAbmed ? (
+                  <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200">
+                    ABMed · {p.numeroAbmed}
+                  </Badge>
+                ) : null}
               </div>
               <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3 flex-shrink-0" />

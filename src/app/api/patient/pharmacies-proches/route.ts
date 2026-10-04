@@ -99,6 +99,8 @@ export async function GET(request: NextRequest) {
     // Get pharmacies — officines du registre officiel ABMed (fond de carte national)
     // Plannings de garde : vacation active AUJOURD'HUI (chevauchement — une garde
     // de nuit 20:00→08:00 reste « de garde » le lendemain matin).
+    // inscriteMediHelm : officine avec au moins un compte rattaché (onboarding
+    // effectif) — distinguée en vert sur la carte, les autres restent grises.
     const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0)
     const dayEnd = new Date(); dayEnd.setHours(23, 59, 59, 999)
     const pharmacies = await db.pharmacie.findMany({
@@ -120,6 +122,7 @@ export async function GET(request: NextRequest) {
           take: 1,
           select: { dateDebut: true, dateFin: true, type: true },
         },
+        _count: { select: { utilisateurs: true } },
       },
       take: 500,
     })
@@ -159,6 +162,7 @@ export async function GET(request: NextRequest) {
           // ─── Registre officiel ABMed (fiche complète de l'officine) ───
           numeroAbmed: p.numeroAbmed,
           officielle: p.numeroAbmed !== null,
+          inscriteMediHelm: p._count.utilisateurs > 0,
           departement: p.departement,
           zoneSanitaire: p.zoneSanitaire,
           commune: p.commune,

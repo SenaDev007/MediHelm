@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Phone, Navigation, ShieldCheck, ExternalLink, Clock } from 'lucide-react'
+import { MapPin, Phone, Navigation, ShieldCheck, ExternalLink, Clock, Check } from 'lucide-react'
 import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
 import { formatPhoneBenin } from '@/lib/phone'
 
@@ -17,6 +17,7 @@ interface PharmacyCardProps {
   longitude?: number | null
   distance?: number
   estGarde?: boolean
+  inscriteMediHelm?: boolean
   medicamentDispo?: boolean
   userLatitude?: number
   userLongitude?: number
@@ -43,6 +44,7 @@ export function PharmacyCard({
   longitude,
   distance,
   estGarde = false,
+  inscriteMediHelm,
   medicamentDispo,
   userLatitude,
   userLongitude,
@@ -96,11 +98,16 @@ export function PharmacyCard({
                   <ShieldCheck className="h-3 w-3 mr-0.5" /> Garde
                 </Badge>
               )}
-              {officielle && (
-                <Badge variant="secondary" className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200">
-                  <ShieldCheck className="h-3 w-3 mr-0.5" /> ABMed{numeroAbmed ? ` · ${numeroAbmed}` : ''}
+              {/* Inscrite sur MediHelm (services complets) vs registre ABMed seul */}
+              {inscriteMediHelm ? (
+                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border border-primary/30">
+                  <Check className="h-3 w-3 mr-0.5" /> Sur MediHelm
                 </Badge>
-              )}
+              ) : numeroAbmed ? (
+                <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200">
+                  ABMed · {numeroAbmed}
+                </Badge>
+              ) : null}
               {medicamentDispo === true && (
                 <Badge variant="secondary" className="text-[10px] bg-green-50 text-green-700 border-0">
                   Disponible

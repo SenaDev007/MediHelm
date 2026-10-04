@@ -83,13 +83,13 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
           >
-            <Link href="/pro">
+            <Link href="/espace-pro">
               <Button
                 size="lg"
                 className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
               >
                 <Building2 className="mr-2 size-5" />
-                Se connecter à MediHelm Pro
+                Découvrir MediHelm Pro
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>

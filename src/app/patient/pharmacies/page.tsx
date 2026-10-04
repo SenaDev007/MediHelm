@@ -36,6 +36,7 @@ interface PharmacyResult {
   longitude: number | null
   distance: number
   estGarde: boolean
+  inscriteMediHelm?: boolean
   medicamentDispo?: boolean
   // ─── Registre officiel ABMed ───
   numeroAbmed?: string | null
@@ -235,6 +236,7 @@ export default function PharmaciesPage() {
     latitude: p.latitude,
     longitude: p.longitude,
     estGarde: p.estGarde,
+    inscriteMediHelm: p.inscriteMediHelm,
     distance: p.distance,
     ville: p.ville,
     medicamentDispo: p.medicamentDispo,
@@ -269,6 +271,7 @@ export default function PharmaciesPage() {
                 longitude={pharmacy.longitude}
                 distance={pharmacy.distance}
                 estGarde={pharmacy.estGarde}
+                inscriteMediHelm={pharmacy.inscriteMediHelm}
                 medicamentDispo={pharmacy.medicamentDispo}
                 numeroAbmed={pharmacy.numeroAbmed}
                 officielle={pharmacy.officielle ?? (pharmacy.numeroAbmed != null)}

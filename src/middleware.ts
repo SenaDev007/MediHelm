@@ -30,7 +30,7 @@ const GROSSISTE_ROLES = [
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
-const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/inscription', '/mot-de-passe-oublie', '/api', '/api/pharmacies']
+const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/inscription', '/mot-de-passe-oublie', '/api', '/api/pharmacies', '/espace-pro']
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/api/scan', '/patient/', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {
