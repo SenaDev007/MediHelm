@@ -518,7 +518,48 @@ export default function CaissePage() {
       // Reset POS
       clearCart()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création de la vente')
+      // ── Mode hors ligne (règle non négociable : AUCUNE vente perdue) ──
+      // Réseau indisponible → la vente est mise en file locale (localStorage)
+      // puis resynchronisée automatiquement par l'OfflineBanner via
+      // POST /api/ventes/sync (idempotent, clé = référence locale).
+      const isNetworkError =
+        !navigator.onLine ||
+        (err instanceof TypeError && /fetch|network|réseau/i.test(err.message))
+      if (isNetworkError) {
+        const paiementData = showSplitPayment
+          ? splitPaiements.filter(p => p.montant > 0)
+          : [{ montant: cartTotal, mode: splitPaiements[0]?.mode || 'ESPECES' as ModePaiement }]
+        const offlineRef = `VTE-OFF-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const offlineVente = {
+          reference: offlineRef,
+          lignes: cart.map(item => ({
+            medicamentId: item.medicamentId,
+            quantite: item.quantite,
+            prixUnitaire: item.prixUnitaire,
+            remise: item.remise,
+          })),
+          modePaiement: paiementData[0]?.mode || 'ESPECES',
+          patientId: selectedPatientId || undefined,
+          metadata: {
+            horsLigne: true,
+            remise: posGlobalRemise,
+            sessionId: activeSession?.id || null,
+            createdAt: new Date().toISOString(),
+            paiements: paiementData.map(p => ({ montant: p.montant, mode: p.mode, reference: p.reference || null })),
+          },
+        }
+        try {
+          const queue = JSON.parse(localStorage.getItem('offline_ventes') || '[]')
+          queue.push(offlineVente)
+          localStorage.setItem('offline_ventes', JSON.stringify(queue))
+          toast.success(`Hors ligne — vente ${offlineRef} mise en file (${queue.length} en attente de synchronisation)`)
+          clearCart()
+        } catch {
+          toast.error('Impossible de sauvegarder la vente hors ligne')
+        }
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Erreur lors de la création de la vente')
+      }
     } finally {
       setSubmitting(false)
     }

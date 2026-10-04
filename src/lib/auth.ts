@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs'
 import { timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
 import { getRolePermissions } from '@/lib/rbac'
+import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
 
 type MediHelmAuthUser = {
   id: string
@@ -50,6 +51,31 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 /**
+ * Extrait l'IP client depuis la requête NextAuth — tolère les deux formats
+ * (Headers standard avec .get(), ou objet simple { 'x-forwarded-for': ... }).
+ */
+function extractClientIp(req: unknown): string {
+  try {
+    const headers = (req as { headers?: Record<string, unknown> & { get?: (k: string) => string | null } })?.headers
+    if (!headers) return 'unknown'
+    if (typeof headers.get === 'function') {
+      return (
+        headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        headers.get('x-real-ip')?.trim() ||
+        'unknown'
+      )
+    }
+    const fwd = headers['x-forwarded-for'] ?? headers['X-Forwarded-For']
+    if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim()
+    const real = headers['x-real-ip'] ?? headers['X-Real-Ip']
+    if (typeof real === 'string' && real) return real.trim()
+    return 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
+/**
  * Configuration NextAuth — stratégie JWT, provider Credentials
  */
 export const authOptions: NextAuthOptions = {
@@ -67,9 +93,23 @@ export const authOptions: NextAuthOptions = {
           type: 'password',
         },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email et mot de passe requis')
+        }
+
+        // Anti brute-force (cursorrules:406 — AUTH_LOGIN 5 échecs / 15 min / IP+email)
+        // Comptage des ÉCHECS uniquement : un login réussi ne consomme pas le quota.
+        const clientIp = extractClientIp(req)
+        const loginKey = `login:${clientIp}:${credentials.email}`
+        const registerFailure = () => {
+          const attempt = checkRateLimit(loginKey, RATE_LIMITS.AUTH_LOGIN)
+          if (!attempt.allowed) {
+            throw new Error('Trop de tentatives de connexion. Réessayez dans 15 minutes.')
+          }
+        }
+        if (isRateLimited(loginKey, RATE_LIMITS.AUTH_LOGIN)) {
+          throw new Error('Trop de tentatives de connexion. Réessayez dans 15 minutes.')
         }
 
         // Recherche de l'utilisateur par email
@@ -82,21 +122,25 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!utilisateur) {
+          registerFailure()
           throw new Error('Identifiants invalides')
         }
 
         // Vérifier que le compte est actif
         if (!utilisateur.actif) {
+          registerFailure()
           throw new Error('Compte désactivé. Contactez votre administrateur.')
         }
 
         // Vérifier que la pharmacie est active
         if (!utilisateur.pharmacie.actif) {
+          registerFailure()
           throw new Error('Pharmacie désactivée. Contactez le support MediHelm.')
         }
 
         // Vérification du mot de passe (bcrypt + SHA-256 legacy)
         if (!(await verifyPassword(credentials.password, utilisateur.motDePasse))) {
+          registerFailure()
           throw new Error('Identifiants invalides')
         }
         if (!/^\$2[aby]\$/.test(utilisateur.motDePasse)) {

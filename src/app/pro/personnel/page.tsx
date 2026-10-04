@@ -56,11 +56,25 @@ import {
   FileText,
   LogIn,
   LogOut,
+  Wallet,
 } from 'lucide-react'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 
 // === Types ===
+
+interface BulletinPaieItem {
+  id: string
+  mois: number
+  annee: number
+  salaireBrut: number
+  salaireNet: number
+  retenues: number
+  primes: number
+  createdAt: string
+}
+
+const MOIS_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
 interface Employe {
   id: string
@@ -244,6 +258,18 @@ export default function PersonnelPage() {
   const [presencesLoading, setPresencesLoading] = useState(true)
   const [presenceDate, setPresenceDate] = useState(new Date().toISOString().split('T')[0])
 
+  // Paie (bulletins) state — M07
+  const [bulletins, setBulletins] = useState<BulletinPaieItem[]>([])
+  const [bulletinsLoading, setBulletinsLoading] = useState(true)
+  const [bulletinDialogOpen, setBulletinDialogOpen] = useState(false)
+  const [bulletinSubmitting, setBulletinSubmitting] = useState(false)
+  const [bulletinForm, setBulletinForm] = useState({
+    periode: `${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`,
+    salaireBrut: '',
+    deductions: '',
+    primes: '',
+  })
+
   // Dialog state
   const [employeDialogOpen, setEmployeDialogOpen] = useState(false)
   const [congeDialogOpen, setCongeDialogOpen] = useState(false)
@@ -331,6 +357,62 @@ export default function PersonnelPage() {
   useEffect(() => { fetchConges() }, [fetchConges])
   useEffect(() => { fetchPresences() }, [fetchPresences])
   useEffect(() => { setPage(1) }, [search, contratFilter])
+
+  // ── Paie (M07) : chargement + création des bulletins ──
+  const fetchBulletins = useCallback(async () => {
+    if (!pharmacieId) return
+    try {
+      const res = await fetch(`/api/bulletins-paie?limit=50`)
+      if (res.ok) {
+        const json = await res.json()
+        setBulletins(Array.isArray(json) ? json : json.data || [])
+      }
+    } catch {
+      toast.error('Erreur lors du chargement des bulletins de paie')
+    } finally {
+      setBulletinsLoading(false)
+    }
+  }, [pharmacieId])
+
+  useEffect(() => { fetchBulletins() }, [fetchBulletins])
+
+  const handleCreateBulletin = async () => {
+    const brut = parseFloat(bulletinForm.salaireBrut)
+    if (!bulletinForm.periode || !/^\d{2}\/\d{4}$/.test(bulletinForm.periode)) {
+      toast.error('Période invalide — format MM/AAAA')
+      return
+    }
+    if (!brut || brut <= 0) {
+      toast.error('Le salaire brut doit être positif')
+      return
+    }
+    setBulletinSubmitting(true)
+    try {
+      const res = await fetch('/api/bulletins-paie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          periode: bulletinForm.periode,
+          salaireBrut: brut,
+          deductions: parseFloat(bulletinForm.deductions) || 0,
+          primes: parseFloat(bulletinForm.primes) || 0,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Erreur')
+      }
+      const bulletin = await res.json()
+      toast.success(`Bulletin créé — Net à payer : ${formatFCFA(bulletin.salaireNet)}`)
+      setBulletinDialogOpen(false)
+      setBulletinForm({ periode: bulletinForm.periode, salaireBrut: '', deductions: '', primes: '' })
+      fetchBulletins()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de la création du bulletin')
+    } finally {
+      setBulletinSubmitting(false)
+    }
+  }
 
   // Computed stats
   const stats = useMemo(() => {
@@ -574,6 +656,9 @@ export default function PersonnelPage() {
           </TabsTrigger>
           <TabsTrigger value="presences" className="gap-2">
             <Clock className="w-4 h-4" /> Présences
+          </TabsTrigger>
+          <TabsTrigger value="paie" className="gap-2">
+            <Wallet className="w-4 h-4" /> Paie
           </TabsTrigger>
         </TabsList>
 
@@ -854,7 +939,150 @@ export default function PersonnelPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* Paie Tab — M07 bulletins */}
+        <TabsContent value="paie" className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-3 items-center">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Bulletins de paie — net calculé serveur (Brut − Retenues + Primes)
+                  </p>
+                </div>
+                <Button onClick={() => setBulletinDialogOpen(true)} className="gap-2">
+                  <Plus className="w-4 h-4" /> Nouveau bulletin
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              {bulletinsLoading ? (
+                <div className="p-6"><TableSkeleton /></div>
+              ) : bulletins.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Wallet className="w-12 h-12 text-muted-foreground/40 mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground">Aucun bulletin de paie</p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">Créez le premier bulletin pour cette pharmacie</p>
+                </div>
+              ) : (
+                <ScrollArea className="max-h-[480px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Période</TableHead>
+                        <TableHead className="text-right">Salaire brut</TableHead>
+                        <TableHead className="text-right">Retenues</TableHead>
+                        <TableHead className="text-right">Primes</TableHead>
+                        <TableHead className="text-right">Net à payer</TableHead>
+                        <TableHead>Créé le</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bulletins.map(b => (
+                        <TableRow key={b.id}>
+                          <TableCell className="font-medium">
+                            {MOIS_LABELS[(b.mois - 1 + 12) % 12]} {b.annee}
+                          </TableCell>
+                          <TableCell className="text-right">{formatFCFA(b.salaireBrut)}</TableCell>
+                          <TableCell className="text-right text-red-700">
+                            {b.retenues ? `− ${formatFCFA(b.retenues)}` : '—'}
+                          </TableCell>
+                          <TableCell className="text-right text-teal-700">
+                            {b.primes ? `+ ${formatFCFA(b.primes)}` : '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-teal-800">
+                            {formatFCFA(b.salaireNet)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(b.createdAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Paie — Dialog création bulletin */}
+      <Dialog open={bulletinDialogOpen} onOpenChange={setBulletinDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nouveau bulletin de paie</DialogTitle>
+            <DialogDescription>
+              Le net est calculé côté serveur : Net = Brut − Retenues + Primes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="bulletin-periode">Période (MM/AAAA)</Label>
+                <Input
+                  id="bulletin-periode"
+                  value={bulletinForm.periode}
+                  onChange={e => setBulletinForm(f => ({ ...f, periode: e.target.value }))}
+                  placeholder="10/2026"
+                />
+              </div>
+              <div>
+                <Label htmlFor="bulletin-brut">Salaire brut (FCFA)</Label>
+                <Input
+                  id="bulletin-brut"
+                  type="number"
+                  min="0"
+                  value={bulletinForm.salaireBrut}
+                  onChange={e => setBulletinForm(f => ({ ...f, salaireBrut: e.target.value }))}
+                  placeholder="150000"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="bulletin-deductions">Retenues (CNSS, ITS…)</Label>
+                <Input
+                  id="bulletin-deductions"
+                  type="number"
+                  min="0"
+                  value={bulletinForm.deductions}
+                  onChange={e => setBulletinForm(f => ({ ...f, deductions: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="bulletin-primes">Primes</Label>
+                <Input
+                  id="bulletin-primes"
+                  type="number"
+                  min="0"
+                  value={bulletinForm.primes}
+                  onChange={e => setBulletinForm(f => ({ ...f, primes: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground bg-teal-50 rounded-lg p-3">
+              Net à payer estimé :{' '}
+              <span className="font-semibold text-teal-800">
+                {formatFCFA(Math.max(0,
+                  (parseFloat(bulletinForm.salaireBrut) || 0)
+                  - (parseFloat(bulletinForm.deductions) || 0)
+                  + (parseFloat(bulletinForm.primes) || 0)
+                ))}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulletinDialogOpen(false)}>Annuler</Button>
+            <Button onClick={handleCreateBulletin} disabled={bulletinSubmitting}>
+              {bulletinSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Créer le bulletin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Employe Dialog */}
       <Dialog open={employeDialogOpen} onOpenChange={setEmployeDialogOpen}>

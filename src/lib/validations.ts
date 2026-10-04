@@ -368,7 +368,9 @@ export const abonnementSchema = z.object({
 
 // ─── Bulletin de paie ──────────────────────────────────
 export const bulletinPaieSchema = z.object({
-  employeId: z.uuid(),
+  // Optionnel : le modèle BulletinPaie n'est pas encore lié à un employé
+  // (pas de colonne employeId) — garder la compatibilité des clients existants.
+  employeId: z.uuid().optional(),
   periode: z.string().min(4),
   salaireBrut: z.number().optional(),
   primes: z.number().optional(),

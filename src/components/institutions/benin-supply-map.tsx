@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import Map, { Marker, Popup, NavigationControl, Layer, Source } from 'react-map-gl/mapbox'
-import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import Map, { Marker, Popup, NavigationControl, Layer, Source } from 'react-map-gl/maplibre'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/maplibre'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { MAP_STYLE_URL } from '@/lib/map-style'
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+const MAP_STYLE = MAP_STYLE_URL // Tuiles libres CARTO/OpenStreetMap — aucun token requis
 
 interface SupplyMapProps {
   data: Array<{
@@ -103,10 +104,9 @@ export function BeninSupplyMap({ data, height = '500px' }: SupplyMapProps) {
         ref={mapRef}
         {...viewState}
         onMove={handleMove}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        mapboxAccessToken={MAPBOX_TOKEN}
+        mapStyle={MAP_STYLE}
         scrollZoom
-        attributionControl={false}
+        attributionControl={{ compact: true }}
       >
         <NavigationControl position="top-right" />
 

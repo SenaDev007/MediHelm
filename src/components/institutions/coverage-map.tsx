@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import Map, { Marker, Popup, NavigationControl, Source, Layer } from 'react-map-gl/mapbox'
-import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
+import Map, { Marker, Popup, NavigationControl } from 'react-map-gl/maplibre'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/maplibre'
 import SuperCluster from 'supercluster'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { MAP_STYLE_URL } from '@/lib/map-style'
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+const MAP_STYLE = MAP_STYLE_URL // Tuiles libres CARTO/OpenStreetMap — aucun token requis
 
 interface CoverageMapProps {
   pharmacies: Array<{
@@ -239,10 +240,9 @@ export function CoverageMap({
           {...viewState}
           onMove={handleMove}
           onLoad={handleMapLoad}
-          mapStyle="mapbox://styles/mapbox/streets-v12"
-          mapboxAccessToken={MAPBOX_TOKEN}
+          mapStyle={MAP_STYLE}
           scrollZoom
-          attributionControl={false}
+          attributionControl={{ compact: true }}
         >
           <NavigationControl position="top-right" />
 

@@ -1,12 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // POST: Verify a medication by lot number
+// F-P12 : vérification d'authenticité PUBLIQUE — aucun compte requis
+// (CDC v2.0 §7). Protégée par rate limit SEARCH (20 req/min/IP).
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (limited) return limited
+
   try {
-    const authResult = await requireAuth(request, 'M05_PATIENTS', 'read')
-    if (authResult instanceof Response) return authResult
 
     const body = await request.json()
     const { numeroLot } = body

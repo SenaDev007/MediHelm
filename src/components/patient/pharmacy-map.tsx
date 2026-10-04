@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import Map, { Marker, Popup, Source, Layer, NavigationControl, GeolocateControl, useMap } from 'react-map-gl/mapbox'
-import type { MapRef, LngLatBoundsLike } from 'react-map-gl/mapbox'
-import type { MapLayerMouseEvent } from 'mapbox-gl'
+import Map, { Marker, Popup, NavigationControl, GeolocateControl } from 'react-map-gl/maplibre'
+import type { MapRef, LngLatBoundsLike } from 'react-map-gl/maplibre'
 import SuperCluster from 'supercluster'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
+import { MAP_STYLE_URL } from '@/lib/map-style'
+import { cn } from '@/lib/utils'
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
+const MAP_STYLE = MAP_STYLE_URL // Tuiles libres CARTO/OpenStreetMap — aucun token requis
 
 interface PharmacyMapProps {
   pharmacies: Array<{
@@ -29,6 +30,7 @@ interface PharmacyMapProps {
   selectedPharmacyId?: string
   onBoundsChange?: (bounds: LngLatBoundsLike) => void
   height?: string
+  className?: string
   showClusters?: boolean
 }
 
@@ -158,6 +160,7 @@ export default function PharmacyMap({
   selectedPharmacyId,
   onBoundsChange,
   height = '400px',
+  className,
   showClusters = true,
 }: PharmacyMapProps) {
   const mapRef = useRef<MapRef>(null)
@@ -254,6 +257,16 @@ export default function PharmacyMap({
     mapRef.current.fitBounds(bounds as LngLatBoundsLike, { padding: 60, maxZoom: 15 })
   }, [pharmacies, userLatitude, userLongitude])
 
+  // Recentre la carte sur la pharmacie sélectionnée (depuis la liste)
+  useEffect(() => {
+    if (!selectedPharmacyId || !mapRef.current) return
+    const target = pharmacies.find(p => p.id === selectedPharmacyId)
+    if (target?.latitude && target?.longitude) {
+      mapRef.current.flyTo({ center: [target.longitude, target.latitude], zoom: 15, duration: 800 })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPharmacyId])
+
   const handleMove = useCallback((evt: { viewState: typeof viewState }) => {
     setViewState(evt.viewState)
     updateClusters()
@@ -291,7 +304,7 @@ export default function PharmacyMap({
 
   return (
     <div
-      className="w-full rounded-xl overflow-hidden border border-teal-200"
+      className={cn('w-full overflow-hidden', className ?? 'rounded-xl border border-teal-200')}
       style={{ height }}
     >
       <Map
@@ -299,10 +312,9 @@ export default function PharmacyMap({
         {...viewState}
         onMove={handleMove}
         onLoad={handleMapLoad}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
-        mapboxAccessToken={MAPBOX_TOKEN}
+        mapStyle={MAP_STYLE}
         scrollZoom
-        attributionControl={false}
+        attributionControl={{ compact: true }}
       >
         <NavigationControl position="top-right" />
         <GeolocateControl

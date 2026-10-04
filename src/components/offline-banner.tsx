@@ -1,8 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePWA } from '@/hooks/use-pwa'
 
 export default function OfflineBanner() {
+  // Enregistre le service worker (PWA) au montage — composant présent
+  // dans le layout racine, donc actif sur toutes les pages.
+  usePWA()
   const [isOnline, setIsOnline] = useState(true)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)

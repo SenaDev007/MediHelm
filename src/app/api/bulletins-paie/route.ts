@@ -66,15 +66,23 @@ export async function POST(request: NextRequest) {
     }
     const data = validation.data
 
+    // M07 (Specs v1.0 §10) : le net est calculé côté serveur — jamais trusté
+    // du client. Net = Brut − Retenues + Primes (les retenues incluent CNSS
+    // salarié et ITS/IRPP selon la réglementation béninoise).
+    const salaireBrut = data.salaireBrut ?? 0
+    const retenues = data.deductions ?? 0
+    const primes = data.primes ?? 0
+    const salaireNet = Math.max(0, salaireBrut - retenues + primes)
+
     const bulletin = await db.bulletinPaie.create({
       data: {
         pharmacieId,
         mois: parseInt(data.periode.slice(0, 2), 10) || 1,
         annee: parseInt(data.periode.slice(-4), 10) || new Date().getFullYear(),
-        salaireBrut: data.salaireBrut ?? 0,
-        salaireNet: data.salaireBrut ?? 0,
-        retenues: data.deductions ?? 0,
-        primes: data.primes ?? 0,
+        salaireBrut,
+        salaireNet,
+        retenues,
+        primes,
       },
     })
 

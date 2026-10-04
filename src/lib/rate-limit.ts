@@ -74,6 +74,17 @@ export function checkRateLimit(
 }
 
 /**
+ * Consulte l'état du compteur SANS incrémenter ni créer d'entrée.
+ * Utile pour les verrous "échecs uniquement" (ex. login) : on peek avant
+ * chaque tentative, et on n'incrémente (checkRateLimit) qu'en cas d'échec.
+ */
+export function isRateLimited(identifier: string, config: RateLimitConfig): boolean {
+  const now = Date.now()
+  const entry = store.get(identifier)
+  return !!entry && now <= entry.resetTime && entry.count >= config.maxRequests
+}
+
+/**
  * Extract client IP from request headers
  */
 export function getClientIp(request: Request): string {

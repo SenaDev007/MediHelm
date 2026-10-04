@@ -209,7 +209,7 @@ export interface ScanResult {
  */
 export async function resolveScan(
   rawCode: string,
-  pharmacieId: string,
+  pharmacieId: string | null,
   contexte: 'VENTE' | 'RECEPTION' | 'INVENTAIRE' | 'PATIENT' = 'VENTE',
   utilisateurId?: string
 ): Promise<ScanResult> {
@@ -218,20 +218,23 @@ export async function resolveScan(
   // Step 1: Parse GS1 code
   const parsed = parseGS1(rawCode)
 
+  // Portée de recherche : tenant (pharmacie connectée) ou globale (scan public F-P12)
+  const scope = pharmacieId ? { pharmacieId } : {}
+
   // Step 2: Find medicament by code-barres (GTIN)
   let medicament: Medicament | null = null
   let lot: Lot & { medicament?: Medicament } | null = null
 
   if (parsed.gtin) {
     medicament = await db.medicament.findFirst({
-      where: { codeBarres: parsed.gtin, pharmacieId, actif: true },
+      where: { codeBarres: parsed.gtin, ...scope, actif: true },
     })
   }
 
   // If not found by GTIN, try finding by lot number
   if (!medicament && parsed.lot) {
     lot = await db.lot.findFirst({
-      where: { numeroLot: parsed.lot, pharmacieId },
+      where: { numeroLot: parsed.lot, ...scope },
       include: { medicament: true },
     })
     if (lot) {
@@ -247,7 +250,7 @@ export async function resolveScan(
           { codeBarres: rawCode.trim() },
           { codeBarres: rawCode.trim().replace(/^0+/, '') },
         ],
-        pharmacieId,
+        ...scope,
         actif: true,
       },
     })
@@ -256,7 +259,7 @@ export async function resolveScan(
   // If lot not found yet but we have a medicament, try to find lot
   if (medicament && !lot && parsed.lot) {
     lot = await db.lot.findFirst({
-      where: { numeroLot: parsed.lot, medicamentId: medicament.id, pharmacieId },
+      where: { numeroLot: parsed.lot, medicamentId: medicament.id, ...scope },
     })
   }
 
@@ -332,20 +335,22 @@ export async function resolveScan(
 
   const tempsReponse = Date.now() - startTime
 
-  // Log scan
+  // Log scan (uniquement pour un scan authentifié tenant — ScanLog.pharmacieId requis)
   try {
-    await db.scanLog.create({
-      data: {
-        pharmacieId,
-        utilisateurId,
-        rawCode,
-        contexte,
-        resultat: status,
-        medicamentId: medicament?.id,
-        lotId: lot?.id,
-        tempsReponse,
-      },
-    })
+    if (pharmacieId) {
+      await db.scanLog.create({
+        data: {
+          pharmacieId,
+          utilisateurId,
+          rawCode,
+          contexte,
+          resultat: status,
+          medicamentId: medicament?.id,
+          lotId: lot?.id,
+          tempsReponse,
+        },
+      })
+    }
   } catch {
     // ScanLog model might not exist yet
   }
