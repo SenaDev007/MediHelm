@@ -44,7 +44,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-teal-800 leading-tight">MediHelm</span>
-                <span className="text-[10px] text-primary font-medium leading-tight">Patient • Gratuit</span>
+                <span className="text-[10px] text-primary font-medium leading-tight">Espace patient</span>
               </div>
             </Link>
           </div>
@@ -81,7 +81,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                   <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
                   <div>
                     <p className="font-bold text-teal-800">MediHelm Patient</p>
-                    <p className="text-xs text-primary">100% Gratuit</p>
+                    <p className="text-xs text-primary">Espace patient</p>
                   </div>
                 </div>
               </div>

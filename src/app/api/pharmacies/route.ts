@@ -161,12 +161,13 @@ export async function GET(request: NextRequest) {
       const now = new Date()
       let range = dayRange(now)
       if (garde === 'semaine') {
+        // 7 jours glissants à partir d'aujourd'hui (inclut les gardes de nuit
+        // de la veille encore actives ce matin) — couverture nationale.
         const start = new Date(now)
-        const day = start.getDay()
-        start.setDate(start.getDate() - (day === 0 ? 6 : day - 1))
-        start.setHours(0, 0, 0, 0)
-        const end = new Date(start)
-        end.setDate(end.getDate() + 6)
+        start.setDate(start.getDate() - 1)
+        start.setHours(12, 0, 0, 0)
+        const end = new Date(now)
+        end.setDate(end.getDate() + 7)
         end.setHours(23, 59, 59, 999)
         range = { start, end }
       }
@@ -198,7 +199,7 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: { nom: 'asc' },
-        take: 100,
+        take: 400,
       })
       return NextResponse.json(mapPublicPharmacies(pharmacies))
     }

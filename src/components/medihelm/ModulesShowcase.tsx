@@ -38,106 +38,106 @@ const coreModules: Module[] = [
   {
     id: "m01",
     number: "M01",
-    title: "Gestion des Stocks",
-    description: "Lots, expirations, alertes, CMUP",
+    title: "Gestion des stocks",
+    description: "Lots, dates de péremption et niveaux de stock",
     icon: Package,
   },
   {
     id: "m02",
     number: "M02",
-    title: "Caisse (POS)",
-    description: "Encaissement, ordonnances, reçus, multi-caissier",
+    title: "Caisse",
+    description: "Encaissements et reçus",
     icon: Calculator,
   },
   {
     id: "m03",
     number: "M03",
-    title: "Gestion des Commandes",
-    description: "Commandes fournisseurs, réception, retours",
+    title: "Commandes",
+    description: "Commandes fournisseurs et réception",
     icon: ShoppingCart,
   },
   {
     id: "m04",
     number: "M04",
-    title: "Gestion Fournisseurs",
-    description: "Référencement, conditions, évaluation",
+    title: "Fournisseurs",
+    description: "Fiches et informations fournisseurs",
     icon: Truck,
   },
   {
     id: "m05",
     number: "M05",
-    title: "Gestion Patients",
-    description: "Dossier, historique, fidélité, crédit",
+    title: "Patients",
+    description: "Dossiers et historique",
     icon: Users,
   },
   {
     id: "m06",
     number: "M06",
-    title: "Gestion Ordonnances",
-    description: "Numérisation, validation, stupéfiants",
+    title: "Ordonnances",
+    description: "Gestion des ordonnances",
     icon: FileText,
   },
   {
     id: "m07",
     number: "M07",
-    title: "Gestion RH",
-    description: "Planning, congés, présences, paie",
+    title: "Ressources humaines",
+    description: "Planning et suivi des présences",
     icon: UserCog,
   },
   {
     id: "m08",
     number: "M08",
-    title: "Gestion Financière",
-    description: "Comptabilité, trésorerie, rapports, SYSCOHADA",
+    title: "Gestion financière",
+    description: "Suivi comptable et financier",
     icon: Wallet,
   },
   {
     id: "m09",
     number: "M09",
-    title: "Pharmacie de Garde",
-    description: "Planning, diffusion, rapport de garde",
+    title: "Pharmacie de garde",
+    description: "Planning et informations de garde",
     icon: Clock,
   },
   {
     id: "m10",
     number: "M10",
-    title: "Médicaments Remboursables",
-    description: "CNSS, RAMU, tiers payant",
+    title: "Médicaments remboursables",
+    description: "Prise en charge et tiers payant",
     icon: ShieldCheck,
   },
   {
     id: "m11",
     number: "M11",
-    title: "Retours & Destructions",
-    description: "Après-vente, périmés, PV, déclaration DPMED",
+    title: "Retours et destructions",
+    description: "Suivi des retours et produits périmés",
     icon: RotateCcw,
   },
   {
     id: "m12",
     number: "M12",
-    title: "Communication Pharmacie-Patient",
-    description: "Push, SMS, campagnes, rappels",
+    title: "Communication pharmacie-patient",
+    description: "Messages et rappels",
     icon: Megaphone,
   },
   {
     id: "m13",
     number: "M13",
-    title: "Gestion Documentaire",
-    description: "Licences, diplômes, contrats, coffre",
+    title: "Gestion documentaire",
+    description: "Classement des documents",
     icon: FolderOpen,
   },
   {
     id: "m14",
     number: "M14",
-    title: "Tableau de Bord Opérationnel",
-    description: "KPIs, alertes temps réel",
+    title: "Tableau de bord opérationnel",
+    description: "Indicateurs d'activité",
     icon: LayoutDashboard,
   },
   {
     id: "m15",
     number: "M15",
-    title: "Analytics IA",
-    description: "Prédictions, scores, rapports",
+    title: "Analyses",
+    description: "Rapports et analyses",
     icon: Brain,
   },
 ];
@@ -146,32 +146,32 @@ const newModules: Module[] = [
   {
     id: "m16",
     number: "M16",
-    title: "Contrôle Qualité & Pharmacovigilance",
-    description: "Veille qualité, alertes LNCQ, signalements EI",
+    title: "Contrôle qualité et pharmacovigilance",
+    description: "Suivi qualité et signalements",
     icon: Microscope,
     isNew: true,
   },
   {
     id: "m17",
     number: "M17",
-    title: "Intégration Grossistes & SoBAPS",
-    description: "API UbiPharm, Promopharma, SoBAPS",
+    title: "Échanges avec grossistes et fournisseurs",
+    description: "Connexions et données de catalogue",
     icon: Link2,
     isNew: true,
   },
   {
     id: "m18",
     number: "M18",
-    title: "Alertes DPMED & Rappels de Lots",
-    description: "Canal officiel national de diffusion",
+    title: "Alertes et rappels de lots",
+    description: "Gestion des alertes",
     icon: Bell,
     isNew: true,
   },
   {
     id: "m19",
     number: "M19",
-    title: "Conformité Réglementaire",
-    description: "Certification DPMED, exports légaux",
+    title: "Conformité réglementaire",
+    description: "Documents et exports",
     icon: Scale,
     isNew: true,
   },
@@ -202,7 +202,7 @@ function ModuleCard({ module }: { module: Module }) {
       >
         {module.isNew && (
           <Badge className="absolute -top-2.5 right-3 bg-amber-400 text-gray-900 text-[10px] font-medium px-2 py-0.5 border-0 shadow-sm">
-            NOUVEAU v2.0
+            Complémentaires
           </Badge>
         )}
         <div className="flex items-start gap-3">
@@ -257,11 +257,10 @@ export function ModulesShowcase() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            19 Modules pour Couvrir Tout le Cycle Pharmaceutique
+            Modules présentés pour la gestion d&apos;une pharmacie
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            De la gestion quotidienne à la conformité réglementaire, chaque
-            aspect de votre pharmacie est couvert
+            Parcourez les domaines couverts par les modules MediHelm
           </p>
         </motion.div>
 
@@ -292,7 +291,7 @@ export function ModulesShowcase() {
           <div className="flex items-center gap-2 mb-6">
             <div className="h-px bg-amber-400 flex-1" />
             <span className="text-sm font-medium text-amber-500 px-3">
-              Modules NOUVEAU v2.0
+              Autres modules présentés
             </span>
             <div className="h-px bg-amber-400 flex-1" />
           </div>

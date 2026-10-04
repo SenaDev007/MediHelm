@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { PharmacyCard } from '@/components/patient/pharmacy-card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MapPin, List, Crosshair, Filter, RefreshCw, ChevronUp, ChevronDown, X, ChevronRight } from 'lucide-react'
+import { MapPin, List, Crosshair, Filter, RefreshCw, ChevronUp, ChevronDown, X, ChevronRight, LocateFixed } from 'lucide-react'
 import { motion, useDragControls } from 'framer-motion'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { useUserPosition } from '@/hooks/use-user-position'
+import { TravelPanel } from '@/components/patient/travel-panel'
+import { haversineKm, type RouteInfo, type TravelMode } from '@/lib/travel'
 
 const PharmacyMap = dynamic(
   () => import('@/components/patient/pharmacy-map'),
@@ -43,21 +46,13 @@ interface PharmacyResult {
   arrondissement?: string | null
   localisation?: string | null
   pharmacienTitulaire?: string | null
+  // ─── Garde du jour ───
+  gardeHeureDebut?: string | null
+  gardeHeureFin?: string | null
 }
 
-const radiusOptions = [1, 3, 5, 10, 20]
-
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
-}
+/** Rayon de la LISTE (km) — null = tout le Bénin. La carte montre toujours tout. */
+const radiusOptions: Array<number | null> = [1, 3, 5, 10, 20, null]
 
 type ViewMode = 'map' | 'list'
 type SheetState = 'peek' | 'half' | 'full'
@@ -66,18 +61,23 @@ type SheetState = 'peek' | 'half' | 'full'
 const PEEK_H = 92
 
 export default function PharmaciesPage() {
+  const { userLat, userLng, geoError, watching, request: getUserLocation, startWatching, stopWatching } = useUserPosition()
+
   const [pharmacies, setPharmacies] = useState<PharmacyResult[]>([])
   const [filteredPharmacies, setFilteredPharmacies] = useState<PharmacyResult[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<ViewMode>('map')
   const [sheetState, setSheetState] = useState<SheetState>('peek')
   const [panelOpen, setPanelOpen] = useState(true)
-  const [userLat, setUserLat] = useState<number | undefined>()
-  const [userLng, setUserLng] = useState<number | undefined>()
-  const [selectedRadius, setSelectedRadius] = useState(10)
-  const [geoError, setGeoError] = useState<string | null>(null)
+  const [selectedRadius, setSelectedRadius] = useState<number | null>(10)
   const [medicamentFilter, setMedicamentFilter] = useState<string | null>(null)
   const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | undefined>()
+
+  // ─── Itinéraire actif ───
+  const [routeTarget, setRouteTarget] = useState<{ destLat: number; destLng: number; destNom: string } | null>(null)
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null)
+  const [navMode, setNavMode] = useState(false)
+  const [travelMode, setTravelMode] = useState<TravelMode>('voiture')
 
   const containerRef = useRef<HTMLDivElement>(null)
   const dragControls = useDragControls()
@@ -100,40 +100,12 @@ export default function PharmaciesPage() {
     if (medId) setMedicamentFilter(medId)
   }, [])
 
-  // Get user geolocation
-  const getUserLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeoError('La géolocalisation n\'est pas supportée par votre navigateur')
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLat(position.coords.latitude)
-        setUserLng(position.coords.longitude)
-        setGeoError(null)
-      },
-      (error) => {
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            setGeoError('Accès à la localisation refusé')
-            break
-          case error.POSITION_UNAVAILABLE:
-            setGeoError('Localisation non disponible')
-            break
-          case error.TIMEOUT:
-            setGeoError('Délai d\'attente dépassé')
-            break
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-    )
-  }, [])
-
-  // Fetch pharmacies
+  // ─── Chargement : TOUTES les officines du Bénin (rayon national) ──────────
   const fetchPharmacies = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('radius', '5000') // tout le territoire — la carte affiche les 12 départements
       if (userLat) params.set('lat', userLat.toString())
       if (userLng) params.set('lng', userLng.toString())
       if (medicamentFilter) params.set('medicamentId', medicamentFilter)
@@ -148,7 +120,7 @@ export default function PharmaciesPage() {
         }) => ({
           ...p,
           distance: userLat && userLng && p.latitude && p.longitude
-            ? haversineDistance(userLat, userLng, p.latitude, p.longitude)
+            ? haversineKm({ lat: userLat, lng: userLng }, { lat: p.latitude, lng: p.longitude })
             : p.distance || 0,
           estGarde: p.estGarde || false,
         }))
@@ -169,9 +141,11 @@ export default function PharmaciesPage() {
     fetchPharmacies()
   }, [fetchPharmacies])
 
-  // Filter by radius
+  // Filter by radius — LA LISTE uniquement (la carte montre tout le Bénin)
   useEffect(() => {
-    const filtered = pharmacies.filter(p => p.distance <= selectedRadius)
+    const filtered = selectedRadius === null
+      ? pharmacies
+      : pharmacies.filter(p => p.distance <= selectedRadius)
     setFilteredPharmacies(filtered)
   }, [pharmacies, selectedRadius])
 
@@ -180,15 +154,57 @@ export default function PharmaciesPage() {
     fetchPharmacies()
   }
 
-  // Clic sur un marqueur de la carte : sélection + replier le sheet pour voir le popup
-  const handlePharmacyClick = (id: string) => {
-    setSelectedPharmacyId(id)
-    if (viewMode === 'map') setSheetState('peek')
-    const element = document.getElementById(`pharmacy-${id}`)
-    if (element && (sheetState === 'half' || sheetState === 'full')) {
-      setTimeout(() => element.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+  // ─── Sélection + itinéraire ───────────────────────────────────────────────
+  const selectPharmacy = useCallback((p: { id: string; nom: string; latitude: number | null; longitude: number | null }) => {
+    setSelectedPharmacyId(p.id)
+    if (p.latitude != null && p.longitude != null) {
+      setRouteTarget({ destLat: p.latitude, destLng: p.longitude, destNom: p.nom })
     }
-  }
+  }, [])
+
+  // Clic sur un marqueur de la carte : sélection + itinéraire + replier le sheet
+  const handlePharmacyClick = useCallback((id: string) => {
+    const p = pharmacies.find(x => x.id === id)
+    if (p) {
+      selectPharmacy(p)
+      if (viewMode === 'map') setSheetState('peek')
+      const element = document.getElementById(`pharmacy-${id}`)
+      if (element && (sheetState === 'half' || sheetState === 'full')) {
+        setTimeout(() => element.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+      }
+    }
+  }, [pharmacies, selectPharmacy, viewMode, sheetState])
+
+  /** Officine la plus proche de l'utilisateur */
+  const goToNearest = useCallback(() => {
+    if (pharmacies.length === 0) return
+    if (userLat == null || userLng == null) {
+      return
+    }
+    const nearest = pharmacies.find(p => p.latitude != null && p.longitude != null)
+    if (nearest) selectPharmacy(nearest)
+  }, [pharmacies, userLat, userLng, selectPharmacy])
+
+  const toggleNavigation = useCallback(() => {
+    if (navMode) {
+      stopWatching()
+      setNavMode(false)
+    } else {
+      setNavMode(true)
+      startWatching()
+    }
+  }, [navMode, startWatching, stopWatching])
+
+  const closeTravel = useCallback(() => {
+    setRouteTarget(null)
+    setRouteInfo(null)
+    if (navMode) {
+      stopWatching()
+      setNavMode(false)
+    }
+  }, [navMode, stopWatching])
+
+  const selected = pharmacies.find(p => p.id === selectedPharmacyId)
 
   const toggleViewMode = () => {
     if (viewMode === 'map') {
@@ -210,7 +226,8 @@ export default function PharmaciesPage() {
     full: Math.round(containerH * 0.9),
   }
 
-  const mapPharmacies = filteredPharmacies.map(p => ({
+  // ─── La CARTE affiche TOUTES les officines du Bénin (pas de filtre rayon) ──
+  const mapPharmacies = useMemo(() => pharmacies.map(p => ({
     id: p.id,
     nom: p.nom,
     adresse: p.adresse,
@@ -221,7 +238,6 @@ export default function PharmaciesPage() {
     distance: p.distance,
     ville: p.ville,
     medicamentDispo: p.medicamentDispo,
-    // ─── Registre officiel ABMed (fiche complète au survol / clic) ───
     numeroAbmed: p.numeroAbmed,
     officielle: p.officielle ?? (p.numeroAbmed != null),
     departement: p.departement,
@@ -229,8 +245,9 @@ export default function PharmaciesPage() {
     commune: p.commune,
     arrondissement: p.arrondissement,
     localisation: p.localisation,
-    pharmacienTitulaire: p.pharmacienTitulaire,
-  }))
+    gardeHeureDebut: p.gardeHeureDebut,
+    gardeHeureFin: p.gardeHeureFin,
+  })), [pharmacies])
 
   const nearest = filteredPharmacies[0]
 
@@ -259,12 +276,11 @@ export default function PharmaciesPage() {
                 zoneSanitaire={pharmacy.zoneSanitaire}
                 commune={pharmacy.commune}
                 arrondissement={pharmacy.arrondissement}
-                pharmacienTitulaire={pharmacy.pharmacienTitulaire}
+                gardeHeureDebut={pharmacy.gardeHeureDebut}
+                gardeHeureFin={pharmacy.gardeHeureFin}
                 userLatitude={userLat}
                 userLongitude={userLng}
-                onSelect={() => setSelectedPharmacyId(
-                  selectedPharmacyId === pharmacy.id ? undefined : pharmacy.id
-                )}
+                onSelect={() => selectPharmacy(pharmacy)}
               />
             </div>
           ))}
@@ -272,7 +288,7 @@ export default function PharmaciesPage() {
             <div className="text-center py-8">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm font-medium text-gray-900">Aucune pharmacie dans ce rayon</p>
-              <p className="text-xs text-muted-foreground mt-1">Augmentez le rayon de recherche</p>
+              <p className="text-xs text-muted-foreground mt-1">Élargissez le rayon ou affichez tout le Bénin</p>
             </div>
           )}
         </>
@@ -282,14 +298,17 @@ export default function PharmaciesPage() {
 
   return (
     <div ref={containerRef} className="fixed inset-x-0 top-14 bottom-16 md:bottom-0 z-[5] overflow-hidden">
-      {/* ═══ CARTE — occupe TOUTE la surface disponible ═══ */}
-      {viewMode === 'map' && !loading && (
+      {/* ═══ CARTE — occupe TOUTE la surface — TOUTES les officines du Bénin ═══ */}
+      {viewMode === 'map' && (pharmacies.length > 0 || !loading) && (
         <PharmacyMap
           pharmacies={mapPharmacies}
           userLatitude={userLat}
           userLongitude={userLng}
           selectedPharmacyId={selectedPharmacyId}
           onPharmacyClick={handlePharmacyClick}
+          route={routeTarget}
+          onRouteInfo={setRouteInfo}
+          navigation={navMode && watching}
           height="100%"
           className="absolute inset-0 rounded-none border-0"
         />
@@ -301,13 +320,13 @@ export default function PharmaciesPage() {
         <div className="absolute inset-0 bg-teal-50/40 md:hidden" />
       )}
 
-      {/* ═══ Barre flottante haute : rayons + actions ═══ */}
+      {/* ═══ Barre flottante haute : rayons (liste) + actions ═══ */}
       <div className="absolute top-3 left-3 right-3 z-20 flex items-center gap-2 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur rounded-full shadow-lg pl-3 pr-2 py-1.5 overflow-x-auto custom-scrollbar-none max-w-[60%]">
+        <div className="pointer-events-auto flex items-center gap-1 bg-white/95 backdrop-blur rounded-full shadow-lg pl-3 pr-2 py-1.5 overflow-x-auto custom-scrollbar-none max-w-[62%]">
           <Filter className="h-3 w-3 text-muted-foreground mr-0.5 shrink-0" />
-          {radiusOptions.map((r) => (
+          {radiusOptions.map((r, idx) => (
             <button
-              key={r}
+              key={r === null ? `all-${idx}` : r}
               onClick={() => setSelectedRadius(r)}
               className={cn(
                 'shrink-0 text-[11px] font-medium rounded-full px-2.5 py-1 transition-colors',
@@ -316,7 +335,7 @@ export default function PharmaciesPage() {
                   : 'text-teal-800 hover:bg-teal-50'
               )}
             >
-              {r} km
+              {r === null ? 'Tout le Bénin' : `${r} km`}
             </button>
           ))}
         </div>
@@ -349,7 +368,7 @@ export default function PharmaciesPage() {
             <span className="truncate">{geoError}</span>
             <button
               className="shrink-0 font-semibold text-[11px] text-amber-900 hover:underline"
-              onClick={getUserLocation}
+              onClick={() => getUserLocation()}
             >
               Réessayer
             </button>
@@ -370,22 +389,34 @@ export default function PharmaciesPage() {
         )}
       </div>
 
-      {/* ═══ Boutons flottants bas : recentrer + basculer Carte/Liste ═══ */}
+      {/* ═══ Boutons flottants bas : plus proche + recentrer + bascule ═══ */}
       <div className={cn(
         'absolute right-3 z-40 flex flex-col gap-2 transition-all',
         viewMode === 'map' ? 'bottom-[104px] md:bottom-4' : 'bottom-3',
         'md:left-3 md:right-auto'
       )}>
         {viewMode === 'map' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-10 w-10 p-0 bg-white/95 backdrop-blur rounded-full shadow-lg border-0 hover:bg-white"
-            onClick={getUserLocation}
-            aria-label="Recentrer sur ma position"
-          >
-            <Crosshair className="h-4 w-4 text-teal-800" />
-          </Button>
+          <>
+            <Button
+              size="sm"
+              className="h-10 rounded-full shadow-lg bg-primary hover:bg-teal-700 text-white px-3.5 text-xs font-semibold gap-1.5"
+              onClick={goToNearest}
+              disabled={userLat == null}
+              title={userLat == null ? 'Activez votre localisation' : 'Pharmacie la plus proche'}
+            >
+              <LocateFixed className="h-4 w-4" />
+              Plus proche
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-10 w-10 p-0 bg-white/95 backdrop-blur rounded-full shadow-lg border-0 hover:bg-white"
+              onClick={() => getUserLocation()}
+              aria-label="Recentrer sur ma position"
+            >
+              <Crosshair className="h-4 w-4 text-teal-800" />
+            </Button>
+          </>
         )}
         <Button
           size="sm"
@@ -399,6 +430,31 @@ export default function PharmaciesPage() {
           )}
         </Button>
       </div>
+
+      {/* ═══ PANNEAU ITINÉRAIRE — kilométrage marche / moto / voiture ═══ */}
+      {selected && viewMode === 'map' && routeTarget && (
+        <TravelPanel
+          destination={{
+            nom: selected.nom,
+            latitude: selected.latitude,
+            longitude: selected.longitude,
+            telephone: selected.telephone,
+          }}
+          routeInfo={routeInfo}
+          userLat={userLat}
+          userLng={userLng}
+          travelMode={travelMode}
+          onModeChange={setTravelMode}
+          navigation={navMode}
+          onToggleNavigation={toggleNavigation}
+          onClose={closeTravel}
+          className={cn(
+            'absolute md:right-[396px]',
+            'left-3 right-3 md:left-auto md:w-[380px]',
+            'bottom-[104px] md:bottom-4'
+          )}
+        />
+      )}
 
       {/* ═══ PANNEAU LISTE — desktop / tablette (panneau latéral droit) ═══ */}
       <aside
@@ -416,7 +472,9 @@ export default function PharmaciesPage() {
                 <div>
                   <h2 className="text-base font-bold text-teal-800">Pharmacies à proximité</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {loading ? 'Recherche…' : `${filteredPharmacies.length} pharmacie(s) dans un rayon de ${selectedRadius} km`}
+                    {loading ? 'Recherche…' : selectedRadius === null
+                      ? `${filteredPharmacies.length} officines — tout le Bénin`
+                      : `${filteredPharmacies.length} pharmacie(s) dans un rayon de ${selectedRadius} km`}
                     {userLat && userLng && !geoError && ' • Position détectée'}
                   </p>
                 </div>
@@ -482,7 +540,9 @@ export default function PharmaciesPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-teal-800 leading-tight">
                 {loading ? 'Recherche…' : `${filteredPharmacies.length} pharmacie(s)`}
-                <span className="text-xs font-normal text-muted-foreground"> • {selectedRadius} km</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  {' • '}{selectedRadius === null ? 'tout le Bénin' : `${selectedRadius} km`}
+                </span>
               </p>
               {sheetState === 'peek' && nearest && !loading && (
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">

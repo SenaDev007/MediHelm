@@ -21,7 +21,7 @@ const spaces = [
     accentBorder: "border-t-teal-400",
     bgColor: "bg-teal-50/50",
     description:
-      "Gestion complète de votre officine : stock, caisse, ordonnances, conformité DPMED",
+      "Outils de gestion d'officine : stocks, caisse, ordonnances et suivi de conformité",
     href: "/pro",
   },
   {
@@ -32,40 +32,40 @@ const spaces = [
     accentBorder: "border-t-blue-brand",
     bgColor: "bg-blue-50/30",
     description:
-      "Recherche de médicaments, géolocalisation, commandes, alertes de rappel de lot — 100% GRATUIT",
+      "Recherche de médicaments et services pharmaceutiques en ligne",
     href: "/patient",
   },
   {
     icon: Network,
     title: "MediHelm Grossistes",
-    subtitle: "Grossistes & Fournisseurs",
+    subtitle: "Grossistes et fournisseurs",
     accentColor: "#EF9F27",
     accentBorder: "border-t-amber-400",
     bgColor: "bg-amber-50/30",
     description:
-      "Portail grossistes : commandes, catalogue, statistiques de vente",
+      "Espace de consultation et d'échange : commandes, catalogue, livraisons",
     href: "/grossistes",
   },
   {
     icon: BarChart3,
     title: "MediHelm Analytics",
-    subtitle: "Tableaux de bord IA",
+    subtitle: "Analyse d'activité",
     accentColor: "#EF9F27",
     accentBorder: "border-t-amber-400",
     bgColor: "bg-amber-50/30",
     description:
-      "Prédictions IA, KPIs en temps réel, scores de conformité réglementaire",
+      "Indicateurs, rapports et analyses d'activité",
     href: "/pro/analytics",
   },
   {
     icon: Landmark,
     title: "MediHelm Institutionnel",
-    subtitle: "DPMED, SoBAPS, ABRP",
+    subtitle: "Institutions",
     accentColor: "#085041",
     accentBorder: "border-t-teal-800",
     bgColor: "bg-teal-50/50",
     description:
-      "Portail d'alertes, pharmacovigilance, traçabilité des livraisons",
+      "Alertes et suivi : diffusion d'alertes, pharmacovigilance, suivi des livraisons",
     href: "/institutions",
   },
 ];
@@ -95,11 +95,11 @@ export function ProductSpaces() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            5 Espaces, Un Écosystème
+            Cinq espaces, des outils pour chaque public
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Une plateforme complète qui connecte tous les acteurs de la santé
-            pharmaceutique au Bénin
+            Découvrez les espaces MediHelm présentés pour les pharmacies, les
+            patients, les grossistes et les institutions
           </p>
         </motion.div>
 

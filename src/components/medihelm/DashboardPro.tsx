@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Building2, Pill, AlertTriangle, ShieldCheck, Activity,
-  Package, ShoppingCart, Bell, FileCheck, TrendingUp,
+  Building2, Pill, AlertTriangle, ShieldCheck,
+  Package, ShoppingCart, Bell, FileCheck,
   RefreshCw, Database, CheckCircle2, Clock, XCircle,
-  ArrowUpRight, ArrowDownRight, Loader2,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -178,21 +178,21 @@ export function DashboardPro() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <Database className="size-5 text-teal-600" />
             <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200 px-3 py-1">
-              Données en temps réel
+              Aperçu de l&apos;interface
             </Badge>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'Georgia, serif' }}>
-            Tableau de Bord MediHelm Pro
+            Tableau de bord MediHelm Pro
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-            Visualisation en direct des données de l&apos;écosystème connecté à la base Neon PostgreSQL
+            Aperçu des indicateurs et de l&apos;inventaire affichés dans l&apos;espace pharmacie.
           </p>
           <button
             onClick={fetchData}
             className="mt-4 inline-flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700 transition-colors"
           >
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser les données
+            Actualiser l&apos;aperçu
             <span className="text-gray-400 text-xs">
               ({lastRefresh.toLocaleTimeString('fr-FR')})
             </span>
@@ -210,41 +210,39 @@ export function DashboardPro() {
           {[
             {
               title: 'Pharmacies',
-              value: kpi?.pharmacies ?? '—',
+              value: kpi ? kpi.pharmacies : null,
+              suffix: '',
               icon: Building2,
               color: 'text-teal-600',
               bg: 'bg-teal-50',
-              trend: '+12%',
-              trendUp: true,
             },
             {
               title: 'Médicaments',
-              value: kpi?.medicaments ?? '—',
+              value: kpi ? kpi.medicaments : null,
+              suffix: '',
               icon: Pill,
               color: 'text-amber-600',
               bg: 'bg-amber-50',
-              trend: '+8%',
-              trendUp: true,
             },
             {
               title: 'Alertes DPMED',
-              value: kpi?.alertes ?? '—',
+              value: kpi ? kpi.alertes : null,
+              suffix: '',
               icon: AlertTriangle,
               color: 'text-red-600',
               bg: 'bg-red-50',
-              trend: '3 actives',
-              trendUp: false,
             },
             {
-              title: 'Score Conformité',
-              value: conformite ? `${conformite.scoreTotal}%` : `${kpi?.conformite ?? '—'}%`,
+              title: 'Conformité',
+              value: conformite ? conformite.scoreTotal : (kpi ? kpi.conformite : null),
+              suffix: '%',
               icon: ShieldCheck,
               color: 'text-emerald-600',
               bg: 'bg-emerald-50',
-              trend: 'Certifié',
-              trendUp: true,
             },
-          ].map((kpiItem) => (
+          ].map((kpiItem) => {
+            const hasData = kpiItem.value !== null && kpiItem.value !== undefined && kpiItem.value !== 0
+            return (
             <motion.div key={kpiItem.title} variants={itemVariants}>
               <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
                 <CardContent className="p-4 sm:p-6">
@@ -252,19 +250,22 @@ export function DashboardPro() {
                     <div className={`${kpiItem.bg} p-2.5 rounded-xl`}>
                       <kpiItem.icon className={`size-5 ${kpiItem.color}`} />
                     </div>
-                    <span className={`text-xs font-medium flex items-center gap-0.5 ${kpiItem.trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {kpiItem.trendUp ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
-                      {kpiItem.trend}
-                    </span>
                   </div>
                   <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                    {loading ? <Loader2 className="size-6 animate-spin text-gray-400" /> : kpiItem.value}
+                    {loading ? (
+                      <Loader2 className="size-6 animate-spin text-gray-400" />
+                    ) : hasData ? (
+                      `${kpiItem.value}${kpiItem.suffix}`
+                    ) : (
+                      <span className="text-xs font-normal text-gray-400">Aucune donnée affichée</span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-500">{kpiItem.title}</div>
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+            )
+          })}
         </motion.div>
 
         {/* Dashboard Tabs */}
@@ -298,9 +299,9 @@ export function DashboardPro() {
                 {/* Stock Tab */}
                 <TabsContent value="stock" className="space-y-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">Inventaire des Médicaments</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Inventaire des médicaments</h3>
                     <Badge variant="outline" className="text-teal-600 border-teal-200">
-                      {totalStock} unités en stock
+                      {totalStock > 0 ? `${totalStock} unités en stock` : 'Aucune donnée affichée'}
                     </Badge>
                   </div>
                   <div className="overflow-x-auto">
@@ -308,8 +309,8 @@ export function DashboardPro() {
                       <thead>
                         <tr className="border-b border-gray-200">
                           <th className="text-left py-3 px-2 font-medium text-gray-500">DCI</th>
-                          <th className="text-left py-3 px-2 font-medium text-gray-500">Nom Commercial</th>
-                          <th className="text-right py-3 px-2 font-medium text-gray-500">Prix Vente</th>
+                          <th className="text-left py-3 px-2 font-medium text-gray-500">Nom commercial</th>
+                          <th className="text-right py-3 px-2 font-medium text-gray-500">Prix de vente</th>
                           <th className="text-right py-3 px-2 font-medium text-gray-500">Stock</th>
                           <th className="text-center py-3 px-2 font-medium text-gray-500">Statut</th>
                         </tr>
@@ -338,6 +339,13 @@ export function DashboardPro() {
                             </tr>
                           )
                         })}
+                        {!loading && medicaments.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-gray-400">
+                              Aucun médicament à afficher pour le moment.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -351,56 +359,28 @@ export function DashboardPro() {
                 {/* Ventes Tab */}
                 <TabsContent value="ventes" className="space-y-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">Tableau de Bord Ventes</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Suivi des ventes</h3>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Card className="bg-gradient-to-br from-teal-50 to-teal-100 border-0">
-                      <CardContent className="p-4">
-                        <Activity className="size-5 text-teal-600 mb-2" />
-                        <div className="text-2xl font-bold text-teal-800">2.4M FCFA</div>
-                        <div className="text-sm text-teal-600">Chiffre d&apos;affaires mensuel</div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-0">
-                      <CardContent className="p-4">
-                        <TrendingUp className="size-5 text-amber-600 mb-2" />
-                        <div className="text-2xl font-bold text-amber-800">+15.3%</div>
-                        <div className="text-sm text-amber-600">Croissance vs mois dernier</div>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-0">
-                      <CardContent className="p-4">
-                        <ShoppingCart className="size-5 text-emerald-600 mb-2" />
-                        <div className="text-2xl font-bold text-emerald-800">{kpi?.patients ?? 0}</div>
-                        <div className="text-sm text-emerald-600">Patients actifs</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4 mt-4">
-                    <h4 className="font-medium text-gray-700 mb-2">Répartition par mode de paiement</h4>
-                    <div className="space-y-3">
-                      {[
-                        { mode: 'Espèces', pct: 45 },
-                        { mode: 'Mobile Money', pct: 30 },
-                        { mode: 'Carte', pct: 15 },
-                        { mode: 'Tiers Payant', pct: 10 },
-                      ].map((p) => (
-                        <div key={p.mode} className="flex items-center gap-3">
-                          <span className="text-sm text-gray-600 w-28">{p.mode}</span>
-                          <Progress value={p.pct} className="flex-1 h-2" />
-                          <span className="text-sm font-medium text-gray-700 w-10 text-right">{p.pct}%</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="text-center py-12 text-gray-400">
+                    {loading ? (
+                      <Loader2 className="size-8 animate-spin mx-auto" />
+                    ) : (
+                      <>
+                        <ShoppingCart className="size-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-sm text-gray-500">
+                          Les indicateurs de ventes sont affichés dans l&apos;espace pharmacie après connexion.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </TabsContent>
 
                 {/* Alertes Tab */}
                 <TabsContent value="alertes" className="space-y-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">Alertes DPMED Actives</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Alertes DPMED</h3>
                     <Badge className="bg-red-50 text-red-700 border-red-200" variant="outline">
-                      {alertes.length} alerte(s)
+                      {alertes.length} alerte(s) affichée(s)
                     </Badge>
                   </div>
                   {alertes.length > 0 ? (
@@ -451,7 +431,7 @@ export function DashboardPro() {
                       ) : (
                         <>
                           <CheckCircle2 className="size-12 mx-auto mb-3 text-emerald-300" />
-                          <p>Aucune alerte active — tout est en ordre !</p>
+                          <p>Aucune alerte affichée pour le moment.</p>
                         </>
                       )}
                     </div>
@@ -461,14 +441,11 @@ export function DashboardPro() {
                 {/* Conformité Tab */}
                 <TabsContent value="conformite" className="space-y-6">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">Score de Conformité</h3>
-                    {conformite?.certificationDPMED && (
-                      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200" variant="outline">
-                        <ShieldCheck className="size-3 mr-1" /> Certifié DPMED
-                      </Badge>
-                    )}
+                    <h3 className="text-lg font-semibold text-gray-900">Indicateurs de conformité</h3>
                   </div>
 
+                  {conformite ? (
+                    <>
                   {/* Score Total */}
                   <div className="text-center py-6">
                     <div className="relative inline-flex items-center justify-center">
@@ -477,18 +454,18 @@ export function DashboardPro() {
                         <circle
                           cx="60" cy="60" r="50"
                           fill="none"
-                          stroke={conformite && conformite.scoreTotal >= 80 ? '#10b981' : conformite && conformite.scoreTotal >= 60 ? '#f59e0b' : '#ef4444'}
+                          stroke={conformite.scoreTotal >= 80 ? '#10b981' : conformite.scoreTotal >= 60 ? '#f59e0b' : '#ef4444'}
                           strokeWidth="8"
-                          strokeDasharray={`${(conformite?.scoreTotal ?? 78.5) * 3.14} 314`}
+                          strokeDasharray={`${conformite.scoreTotal * 3.14} 314`}
                           strokeLinecap="round"
                           transform="rotate(-90 60 60)"
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-3xl sm:text-4xl font-bold text-gray-900">
-                          {conformite?.scoreTotal ?? 78.5}%
+                          {conformite.scoreTotal}%
                         </span>
-                        <span className="text-xs text-gray-500">Score Total</span>
+                        <span className="text-xs text-gray-500">Score total</span>
                       </div>
                     </div>
                   </div>
@@ -496,11 +473,11 @@ export function DashboardPro() {
                   {/* Detailed Scores */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[
-                      { label: 'Registre Stupéfiants', score: conformite?.scoreRegistreStup ?? 92, icon: '📋' },
-                      { label: 'Alertes DPMED', score: conformite?.scoreAlerteDPMED ?? 85, icon: '🚨' },
-                      { label: 'Documents', score: conformite?.scoreDocuments ?? 70, icon: '📄' },
-                      { label: 'Pharmacovigilance', score: conformite?.scorePharmacovigi ?? 65, icon: '🔬' },
-                      { label: 'Destructions', score: conformite?.scoreDestructions ?? 80, icon: '🗑️' },
+                      { label: 'Registre stupéfiants', score: conformite.scoreRegistreStup, icon: '📋' },
+                      { label: 'Traitement des alertes', score: conformite.scoreAlerteDPMED, icon: '🚨' },
+                      { label: 'Validité des documents', score: conformite.scoreDocuments, icon: '📄' },
+                      { label: 'Suivi des signalements', score: conformite.scorePharmacovigi, icon: '🔬' },
+                      { label: 'Documentation des destructions', score: conformite.scoreDestructions, icon: '🗑️' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
                         <span className="text-xl">{item.icon}</span>
@@ -517,6 +494,18 @@ export function DashboardPro() {
                       </div>
                     ))}
                   </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-400">
+                      {loading ? (
+                        <Loader2 className="size-8 animate-spin mx-auto" />
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          Aucune donnée de conformité affichée pour le moment.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -536,7 +525,11 @@ export function DashboardPro() {
                 <AlertTriangle className="size-6 text-red-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{kpi?.surveillances ?? 0}</div>
+                {kpi && kpi.surveillances > 0 ? (
+                  <div className="text-2xl font-bold text-gray-900">{kpi.surveillances}</div>
+                ) : (
+                  <div className="text-xs text-gray-400">Aucun médicament sous surveillance affiché</div>
+                )}
                 <div className="text-sm text-gray-500">Médicaments sous surveillance</div>
               </div>
             </CardContent>
@@ -547,7 +540,11 @@ export function DashboardPro() {
                 <Pill className="size-6 text-amber-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{kpi?.medicaments ?? 0}</div>
+                {kpi && kpi.medicaments > 0 ? (
+                  <div className="text-2xl font-bold text-gray-900">{kpi.medicaments}</div>
+                ) : (
+                  <div className="text-xs text-gray-400">Aucune référence au catalogue affichée</div>
+                )}
                 <div className="text-sm text-gray-500">Références en catalogue</div>
               </div>
             </CardContent>
@@ -558,7 +555,11 @@ export function DashboardPro() {
                 <Building2 className="size-6 text-teal-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{kpi?.pharmacies ?? 0}</div>
+                {kpi && kpi.pharmacies > 0 ? (
+                  <div className="text-2xl font-bold text-gray-900">{kpi.pharmacies}</div>
+                ) : (
+                  <div className="text-xs text-gray-400">Aucune pharmacie connectée affichée</div>
+                )}
                 <div className="text-sm text-gray-500">Pharmacies connectées</div>
               </div>
             </CardContent>

@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Package, ShoppingCart, Check, AlertTriangle } from 'lucide-react'
+import { Package, ShoppingCart, Check, AlertTriangle, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
 interface MedicationCardProps {
@@ -59,7 +59,10 @@ export function MedicationCard({
               </span>
             </div>
             {pharmacieNom && (
-              <p className="text-xs text-primary mt-1">📍 {pharmacieNom}</p>
+              <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                {pharmacieNom}
+              </p>
             )}
           </div>
           <div className="flex flex-col items-end gap-2">

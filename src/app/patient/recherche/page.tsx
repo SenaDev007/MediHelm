@@ -171,7 +171,7 @@ export default function RecherchePage() {
       <SearchBar
         value={query}
         onChange={handleQueryChange}
-        placeholder="Rechercher par nom, DCI, pathologie..."
+        placeholder="Nom commercial, DCI, pathologie ou code ATC"
         suggestions={suggestions}
         onSuggestionClick={(s) => {
           setQuery(s)
@@ -341,9 +341,9 @@ export default function RecherchePage() {
       {!loading && !searchPerformed && (
         <div className="text-center py-8">
           <Search className="h-12 w-12 text-teal-200 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-900">Recherchez un médicament</p>
+          <p className="text-sm font-medium text-gray-900">Rechercher un médicament</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Par nom commercial, DCI, pathologie ou code ATC
+            Saisissez un nom commercial, une DCI, une pathologie ou un code ATC.
           </p>
         </div>
       )}

@@ -24,20 +24,20 @@ interface TechItem {
 
 const techItems: TechItem[] = [
   {
-    category: "Frontend",
-    technology: "Next.js 14",
+    category: "Interface",
+    technology: "Next.js",
     icon: Globe,
     color: "#1D9E75",
   },
   {
-    category: "Backend",
-    technology: "NestJS",
+    category: "Services applicatifs",
+    technology: "API Next.js",
     icon: Server,
     color: "#0F6E56",
   },
   {
     category: "Base de données",
-    technology: "PostgreSQL + Prisma + Supabase",
+    technology: "PostgreSQL + Prisma",
     icon: Database,
     color: "#378ADD",
   },
@@ -49,37 +49,37 @@ const techItems: TechItem[] = [
   },
   {
     category: "Paiements",
-    technology: "Fedapay (Wave, MTN, Moov, Visa/MC)",
+    technology: "Fedapay",
     icon: CreditCard,
     color: "#EF9F27",
   },
   {
     category: "Notifications",
-    technology: "Firebase FCM + AfricasTalking",
+    technology: "Notifications intégrées",
     icon: Bell,
     color: "#E24B4A",
   },
   {
-    category: "Queue",
-    technology: "BullMQ + Redis",
+    category: "Traitement des tâches",
+    technology: "Socket.io",
     icon: ListOrdered,
     color: "#1D9E75",
   },
   {
-    category: "Offline",
-    technology: "SQLite local",
+    category: "Fonctionnement hors ligne",
+    technology: "PWA + service worker",
     icon: WifiOff,
     color: "#0F6E56",
   },
   {
-    category: "Cartes",
-    technology: "Mapbox",
+    category: "Cartographie",
+    technology: "MapLibre + OpenStreetMap",
     icon: Map,
     color: "#378ADD",
   },
   {
     category: "Sécurité",
-    technology: "mTLS, RSA-256, HMAC, RLS",
+    technology: "RBAC, HMAC, bcrypt",
     icon: Lock,
     color: "#085041",
   },
@@ -110,11 +110,10 @@ export function TechStack() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            Technologie Moderne & Fiable
+            Technologies utilisées
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Une infrastructure robuste pour garantir performance, sécurité et
-            disponibilité
+            Composants techniques utilisés par la plateforme
           </p>
         </motion.div>
 

@@ -34,93 +34,93 @@ const patientFeatures: PatientFeature[] = [
     id: "fp01",
     code: "F-P01",
     title: "Recherche de médicaments",
-    description: "Nom commercial, DCI, pathologie",
+    description: "Par nom, DCI, pathologie ou code ATC",
     icon: Search,
   },
   {
     id: "fp02",
     code: "F-P02",
-    title: "Géolocalisation de pharmacies",
-    description: "Mapbox",
+    title: "Pharmacies à proximité",
+    description: "Localisation des officines recensées",
     icon: MapPin,
   },
   {
     id: "fp03",
     code: "F-P03",
     title: "Pharmacie de garde",
-    description: "Temps réel",
+    description: "Informations de garde disponibles",
     icon: Clock,
   },
   {
     id: "fp04",
     code: "F-P04",
     title: "Commande en ligne",
-    description: "Fedapay",
+    description: "Commande auprès d'une pharmacie",
     icon: ShoppingCart,
   },
   {
     id: "fp05",
     code: "F-P05",
     title: "Suivi de commande",
-    description: "Temps réel",
+    description: "Suivi de l'état de commande",
     icon: Truck,
   },
   {
     id: "fp06",
     code: "F-P06",
     title: "Profil patient",
-    description: "Carnet de santé simplifié",
+    description: "Informations enregistrées par le patient",
     icon: UserCircle,
   },
   {
     id: "fp07",
     code: "F-P07",
     title: "Ordonnances",
-    description: "Téléchargement, transmission",
+    description: "Ajout et transmission d'ordonnances",
     icon: FileText,
   },
   {
     id: "fp08",
     code: "F-P08",
     title: "Notifications",
-    description: "Rappels, fin de traitement",
+    description: "Rappels configurables",
     icon: Bell,
   },
   {
     id: "fp09",
     code: "F-P09",
     title: "Programme de fidélité",
-    description: "Points et récompenses",
+    description: "Informations du programme",
     icon: Gift,
   },
   {
     id: "fp10",
     code: "F-P10",
-    title: "Comparateur de prix & génériques",
-    description: "Meilleurs prix, alternatives",
+    title: "Prix et génériques",
+    description: "Informations comparatives",
     icon: ArrowLeftRight,
   },
   {
     id: "fp11",
     code: "F-P11",
-    title: "Alertes rappel de lot",
-    description: "Notifications de sécurité",
+    title: "Alertes de rappel de lot",
+    description: "Informations de rappel",
     icon: AlertTriangle,
     isNew: true,
   },
   {
     id: "fp12",
     code: "F-P12",
-    title: "Vérification authenticité",
-    description: "Médicament authentique",
+    title: "Authenticité des médicaments",
+    description: "Fonction de vérification",
     icon: ShieldCheck,
     isNew: true,
   },
   {
     id: "fp13",
     code: "F-P13",
-    title: "Carnet de vaccination numérique",
-    description: "Suivi vaccinal complet",
+    title: "Carnet de vaccination",
+    description: "Suivi des vaccinations enregistrées",
     icon: Syringe,
     isNew: true,
   },
@@ -151,11 +151,10 @@ export function PatientFeatures() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            MediHelm Patient — Le Compagnon Santé de Tous
+            MediHelm Patient — Services pharmaceutiques en ligne
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Un espace dédié aux patients pour accéder facilement aux services
-            pharmaceutiques
+            Consultez les outils proposés dans l&apos;espace patient
           </p>
         </motion.div>
 
@@ -235,8 +234,7 @@ export function PatientFeatures() {
           <div className="inline-flex items-center gap-2 bg-teal-800 text-white px-6 py-3 rounded-xl shadow-lg">
             <span className="text-lg">✦</span>
             <span className="font-medium text-sm">
-              L&apos;espace patient est 100% GRATUIT — stratégique et non
-              négociable
+              Espace patient : créez votre compte pour accéder aux services
             </span>
           </div>
         </motion.div>

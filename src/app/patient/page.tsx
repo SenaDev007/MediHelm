@@ -14,12 +14,12 @@ import { GardeWidget } from '@/components/patient/garde-widget'
 import { useEffect, useState } from 'react'
 
 const quickActions = [
-  { href: '/patient/recherche', icon: Search, label: 'Rechercher\nmédicament', color: 'bg-primary/10 text-primary' },
-  { href: '/patient/pharmacies', icon: MapPin, label: 'Pharmacies\nproches', color: 'bg-blue-brand/10 text-blue-brand' },
+  { href: '/patient/recherche', icon: Search, label: 'Trouver un\nmédicament', color: 'bg-primary/10 text-primary' },
+  { href: '/patient/pharmacies', icon: MapPin, label: 'Pharmacies\nà proximité', color: 'bg-blue-brand/10 text-blue-brand' },
   { href: '/patient/garde', icon: ShieldCheck, label: 'Pharmacie\nde garde', color: 'bg-amber-400/10 text-amber-600' },
-  { href: '/patient/urgence', icon: Shield, label: 'Carte\nurgence', color: 'bg-red-500/10 text-red-600' },
-  { href: '/patient/vaccinations', icon: Syringe, label: 'Carnet\nvaccination', color: 'bg-green-600/10 text-green-700' },
-  { href: '/patient/comparateur', icon: Star, label: 'Comparateur\nprix', color: 'bg-purple-600/10 text-purple-700' },
+  { href: '/patient/urgence', icon: Shield, label: "Carte\nd'urgence", color: 'bg-red-500/10 text-red-600' },
+  { href: '/patient/vaccinations', icon: Syringe, label: 'Carnet de\nvaccination', color: 'bg-green-600/10 text-green-700' },
+  { href: '/patient/comparateur', icon: Star, label: 'Comparer\nles prix', color: 'bg-purple-600/10 text-purple-700' },
 ]
 
 const container = {
@@ -93,9 +93,9 @@ export default function PatientHomePage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-xl font-bold text-teal-800">Bonjour 👋</h1>
+        <h1 className="text-xl font-bold text-teal-800">Bonjour</h1>
         <p className="text-sm text-muted-foreground">
-          Bienvenue sur MediHelm Patient — votre santé, gratuitement.
+          Bienvenue dans votre espace MediHelm Patient.
         </p>
       </motion.div>
 
@@ -164,7 +164,7 @@ export default function PatientHomePage() {
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-gray-900 text-sm">Mes commandes</h2>
           <Link href="/patient/suivi" className="text-xs text-primary hover:underline">
-            Voir tout
+            Toutes les commandes
           </Link>
         </div>
         {activeOrders.length > 0 ? (
@@ -188,7 +188,7 @@ export default function PatientHomePage() {
           <Card className="border-teal-200">
             <CardContent className="p-4 text-center">
               <ShoppingCart className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">Aucune commande en cours</p>
+              <p className="text-xs text-muted-foreground">Aucune commande en cours.</p>
               <Link href="/patient/recherche">
                 <Button size="sm" className="mt-2 h-8 text-xs bg-primary hover:bg-teal-700">
                   Commander
@@ -202,7 +202,7 @@ export default function PatientHomePage() {
       {/* Medication Reminders */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-gray-900 text-sm">Rappels médicaments</h2>
+          <h2 className="font-semibold text-gray-900 text-sm">Rappels de médicaments</h2>
           <Link href="/patient/notifications" className="text-xs text-primary hover:underline">
             Configurer
           </Link>
@@ -211,7 +211,7 @@ export default function PatientHomePage() {
           <CardContent className="p-4 text-center">
             <Clock className="h-8 w-8 text-amber-500 mx-auto mb-2" />
             <p className="text-xs text-muted-foreground">
-              Configurez vos rappels pour ne jamais oublier vos médicaments
+              Configurez les rappels de vos médicaments.
             </p>
             <Link href="/patient/notifications">
               <Button size="sm" variant="outline" className="mt-2 h-8 text-xs border-primary text-primary">
@@ -233,7 +233,7 @@ export default function PatientHomePage() {
               </div>
               <div className="flex-1">
                 <p className="text-xs font-semibold text-gray-900">Programme fidélité</p>
-                <p className="text-[10px] text-muted-foreground">Gagnez des points à chaque achat</p>
+                <p className="text-[10px] text-muted-foreground">En savoir plus</p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </CardContent>
@@ -241,11 +241,11 @@ export default function PatientHomePage() {
         </Link>
       </div>
 
-      {/* Free banner */}
+      {/* Signature */}
       <div className="text-center py-2">
         <Badge variant="secondary" className="bg-teal-50 text-teal-800 border-0 text-xs">
           <Shield className="h-3 w-3 mr-1" />
-          MediHelm Patient — 100% Gratuit
+          MediHelm Patient
         </Badge>
       </div>
     </div>

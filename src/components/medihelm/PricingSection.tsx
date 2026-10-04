@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const principles = [
-  { title: "Transparence totale", desc: "Tous les prix sont publics" },
-  { title: "Tous les modules dans tous les plans", desc: "Aucune fonctionnalité bloquée" },
-  { title: "La conformité n'est pas un luxe", desc: "DPMED inclus dès SEED" },
-  { title: "Valeur justifiable", desc: "Chaque centime défendable" },
-  { title: "Prévisibilité", desc: "Pas de facturation surprise" },
+  { title: "Quatre formules", desc: "Du démarrage au réseau d'officines" },
+  { title: "Fonctionnalités par formule", desc: "Modules selon le plan choisi" },
+  { title: "Facturation au choix", desc: "Mensuelle ou annuelle" },
+  { title: "Prix en FCFA", desc: "Indiqués pour chaque formule" },
+  { title: "Formule réseau", desc: "HELM NETWORK pour le multi-officines" },
 ];
 
 interface Plan {
@@ -20,120 +20,95 @@ interface Plan {
   target: string;
   monthly: number | null;
   annualMonthly: number | null;
-  discount: string;
-  modules: string;
-  users: string;
-  cashiers: string;
-  patients: string;
-  storage: string;
-  apiGrossiste: string;
-  conformite: string;
-  analytics: string;
-  support: string;
-  onboarding: string;
+  features: string[];
   popular?: boolean;
 }
 
 const plans: Plan[] = [
   {
     name: "HELM SEED",
-    target: "< 150 tx/mo",
+    target: "Pour démarrer",
     monthly: 19900,
-    annualMonthly: 16900,
-    discount: "-15%",
-    modules: "19/19",
-    users: "Jusqu'à 3",
-    cashiers: "1",
-    patients: "500",
-    storage: "2 Go",
-    apiGrossiste: "1 grossiste",
-    conformite: "Base",
-    analytics: "Hebdomadaire",
-    support: "Email 72h",
-    onboarding: "Tutoriels vidéo",
+    annualMonthly: 17900,
+    features: [
+      "Gestion du stock",
+      "Point de vente",
+      "Gestion des patients",
+      "Ordonnances",
+      "Support par e-mail",
+      "Jusqu'à 3 utilisateurs",
+      "Jusqu'à 500 produits",
+    ],
   },
   {
     name: "HELM BLOOM",
-    target: "150–500 tx/mo",
+    target: "Pour la croissance",
     monthly: 34900,
-    annualMonthly: 29500,
-    discount: "-15%",
-    modules: "19/19",
-    users: "Jusqu'à 8",
-    cashiers: "3",
-    patients: "5 000",
-    storage: "10 Go",
-    apiGrossiste: "2 grossistes",
-    conformite: "Complète",
-    analytics: "Quotidien",
-    support: "Email 24h + chat",
-    onboarding: "Guidé en ligne",
+    annualMonthly: 31400,
+    features: [
+      "Tout le plan Seed",
+      "Gestion RH (congés, présences)",
+      "Commandes fournisseurs",
+      "Crédits patients",
+      "Alertes DPMED",
+      "Rapports financiers",
+      "Support prioritaire",
+      "Jusqu'à 10 utilisateurs",
+      "Jusqu'à 2 000 produits",
+    ],
     popular: true,
   },
   {
     name: "HELM CROWN",
-    target: "500–1 200 tx/mo",
+    target: "Pour les officines à forte activité",
     monthly: 54900,
-    annualMonthly: 46500,
-    discount: "-15%",
-    modules: "19/19",
-    users: "Illimités",
-    cashiers: "Illimités",
-    patients: "Illimités",
-    storage: "50 Go",
-    apiGrossiste: "Illimités",
-    conformite: "Certifiée + auto exports",
-    analytics: "Quotidien + prédictions",
-    support: "Prioritaire + téléphone",
-    onboarding: "Assisté en personne",
+    annualMonthly: 49400,
+    features: [
+      "Tout le plan Bloom",
+      "Pharmacovigilance avancée",
+      "Conformité réglementaire",
+      "Communications SMS",
+      "Garde et planning",
+      "Analyses d'activité",
+      "Coffre numérique",
+      "Support dédié",
+      "Jusqu'à 25 utilisateurs",
+      "Jusqu'à 10 000 produits",
+    ],
   },
   {
     name: "HELM NETWORK",
-    target: "Réseau 2+ pharmacies",
+    target: "Réseaux de pharmacies",
     monthly: null,
     annualMonthly: null,
-    discount: "Personnalisé",
-    modules: "19/19 + multi-site",
-    users: "Illimités/site",
-    cashiers: "Illimités/site",
-    patients: "Illimités",
-    storage: "100 Go+",
-    apiGrossiste: "Illimités réseau",
-    conformite: "Certifiée réseau",
-    analytics: "Quotidien + réseau",
-    support: "Dédié + SLA",
-    onboarding: "Personnalisé",
+    features: [
+      "Tout le plan Crown",
+      "Multi-pharmacies",
+      "Tableau de bord promoteur",
+      "Consolidation financière",
+      "Transferts entre pharmacies",
+      "Intégrations grossistes",
+      "Accompagnement dédié",
+      "Utilisateurs illimités",
+      "Produits illimités",
+    ],
   },
 ];
 
 const addons = [
-  { name: "SMS Standard (500/mo)", price: "4 900 FCFA/mo" },
-  { name: "SMS Pro (2 000/mo)", price: "8 900 FCFA/mo" },
-  { name: "SMS Illimité", price: "14 900 FCFA/mo" },
-  { name: "Bilingue FR/EN", price: "3 000 FCFA/mo" },
-  { name: "Domaine personnalisé", price: "2 500 FCFA/mo" },
-  { name: "Accès API tiers", price: "9 900 FCFA/mo" },
+  { name: "SMS Standard", price: "Sur demande" },
+  { name: "SMS Pro", price: "Sur demande" },
+  { name: "SMS Illimité", price: "Sur demande" },
+  { name: "Interface bilingue FR/EN", price: "Sur demande" },
+  { name: "Domaine personnalisé", price: "Sur demande" },
+  { name: "Accès API tiers", price: "Sur demande" },
 ];
 
 const networkPricing = [
-  { range: "2-3 pharmacies", discount: "-25%" },
-  { range: "4-7 pharmacies", discount: "-35%" },
-  { range: "8-15 pharmacies", discount: "-45%" },
-  { range: "16+", discount: "Négocié (-45% à -55%)" },
-];
-
-const launchSequence = [
-  { phase: "Closed Beta", period: "Mo 1-3", price: "Gratuit" },
-  { phase: "Paid Beta", period: "Mo 4-6", price: "-30%" },
-  { phase: "Plein Tarif", period: "Mo 7+", price: "Prix complet" },
-];
-
-const paymentMethods = [
-  "Wave",
-  "MTN Mobile Money",
-  "Moov Money",
-  "Visa/Mastercard",
-  "Virement bancaire",
+  { range: "2-3 pharmacies", discount: "Sur devis" },
+  { range: "4-7 pharmacies", discount: "Sur devis" },
+  { range: "8-15 pharmacies", discount: "Sur devis" },
+  { range: "16 et plus", discount: "Sur devis" },
 ];
 
 function formatPrice(price: number): string {
@@ -154,11 +129,10 @@ export function PricingSection() {
           className="text-center mb-10"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            Tarifs Transparents — Tous les Modules dans Tous les Plans
+            Formules et conditions tarifaires
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Pas de surprise, pas de fonctionnalité cachée. La conformité DPMED
-            est incluse dès le premier plan.
+            Consultez les tarifs, options et conditions de chaque formule.
           </p>
         </motion.div>
 
@@ -210,8 +184,7 @@ export function PricingSection() {
               isAnnual ? "text-teal-800" : "text-gray-400"
             }`}
           >
-            Annuel{" "}
-            <span className="text-amber-500 text-xs font-medium">-15%</span>
+            Annuel
           </span>
         </div>
 
@@ -236,7 +209,7 @@ export function PricingSection() {
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-teal-400 text-white px-3 py-1 border-0 shadow-sm gap-1">
                       <Star size={12} />
-                      Le plus populaire
+                      Formule conseillée
                     </Badge>
                   </div>
                 )}
@@ -257,9 +230,8 @@ export function PricingSection() {
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">/mois</div>
                         {isAnnual && (
-                          <div className="text-xs text-amber-500 font-medium mt-1">
-                            {plan.discount} —{" "}
-                            {formatPrice(plan.annualMonthly! * 12)}/an
+                          <div className="text-xs text-gray-500 font-medium mt-1">
+                            {formatPrice(plan.annualMonthly! * 12)} facturés par an
                           </div>
                         )}
                       </>
@@ -272,43 +244,31 @@ export function PricingSection() {
                 </CardHeader>
                 <CardContent className="pt-2 pb-6">
                   <div className="space-y-2.5 mb-5">
-                    {[
-                      { label: "Modules", value: plan.modules },
-                      { label: "Utilisateurs", value: plan.users },
-                      { label: "Caissiers simultanés", value: plan.cashiers },
-                      { label: "Patients enregistrés", value: plan.patients },
-                      { label: "Stockage", value: plan.storage },
-                      { label: "API Grossiste", value: plan.apiGrossiste },
-                      { label: "Conformité DPMED", value: plan.conformite },
-                      { label: "Analytics IA", value: plan.analytics },
-                      { label: "Support", value: plan.support },
-                      { label: "Onboarding", value: plan.onboarding },
-                    ].map((item) => (
+                    {plan.features.map((feature) => (
                       <div
-                        key={item.label}
+                        key={feature}
                         className="flex items-start gap-2 text-sm"
                       >
                         <Check
                           size={14}
                           className="text-teal-400 mt-0.5 shrink-0"
                         />
-                        <span className="text-gray-900 text-xs">
-                          <span className="font-medium">{item.label}:</span>{" "}
-                          {item.value}
-                        </span>
+                        <span className="text-gray-900 text-xs">{feature}</span>
                       </div>
                     ))}
                   </div>
-                  <Button
-                    className={`w-full font-medium text-sm ${
-                      plan.popular
-                        ? "bg-teal-400 hover:bg-teal-600 text-white"
-                        : "bg-teal-800 hover:bg-teal-600 text-white"
-                    }`}
-                  >
-                    Essai gratuit 30 jours
-                    <ArrowRight size={14} className="ml-1" />
-                  </Button>
+                  <a href="mailto:contact@medihelm.com?subject=Demande%20de%20tarifs%20MediHelm">
+                    <Button
+                      className={`w-full font-medium text-sm ${
+                        plan.popular
+                          ? "bg-teal-400 hover:bg-teal-600 text-white"
+                          : "bg-teal-800 hover:bg-teal-600 text-white"
+                      }`}
+                    >
+                      Demander les tarifs
+                      <ArrowRight size={14} className="ml-1" />
+                    </Button>
+                  </a>
                 </CardContent>
               </Card>
             </motion.div>
@@ -378,25 +338,18 @@ export function PricingSection() {
           className="mb-10"
         >
           <h3 className="text-lg font-medium text-teal-800 text-center mb-5">
-            Séquençage de lancement
+            Calendrier de lancement
           </h3>
-          <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto">
-            {launchSequence.map((phase) => (
-              <div
-                key={phase.phase}
-                className="p-4 bg-white rounded-lg border border-teal-200 text-center"
-              >
-                <div className="text-sm font-medium text-teal-800">
-                  {phase.phase}
-                </div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  {phase.period}
-                </div>
-                <div className="text-base font-medium text-amber-500 mt-1">
-                  {phase.price}
-                </div>
+          <div className="max-w-2xl mx-auto">
+            <div className="p-4 bg-white rounded-lg border border-teal-200 text-center">
+              <div className="text-sm font-medium text-teal-800">
+                Phases de lancement
               </div>
-            ))}
+              <div className="text-xs text-gray-400 mt-1">
+                Les phases, leur calendrier et leurs conditions seront
+                communiqués lors de la mise en service.
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -411,17 +364,10 @@ export function PricingSection() {
           <h3 className="text-lg font-medium text-teal-800 mb-4">
             Moyens de paiement
           </h3>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {paymentMethods.map((method) => (
-              <Badge
-                key={method}
-                variant="outline"
-                className="text-xs border-teal-200 text-teal-600 px-3 py-1"
-              >
-                {method}
-              </Badge>
-            ))}
-          </div>
+          <p className="text-sm text-gray-400">
+            Les moyens de paiement acceptés sont communiqués lors de la
+            souscription.
+          </p>
         </motion.div>
       </div>
     </section>

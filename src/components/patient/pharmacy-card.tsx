@@ -3,8 +3,9 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Phone, Navigation, ShieldCheck, ExternalLink } from 'lucide-react'
+import { MapPin, Phone, Navigation, ShieldCheck, ExternalLink, Clock } from 'lucide-react'
 import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
+import { formatPhoneBenin } from '@/lib/phone'
 
 interface PharmacyCardProps {
   id: string
@@ -27,7 +28,9 @@ interface PharmacyCardProps {
   zoneSanitaire?: string | null
   commune?: string | null
   arrondissement?: string | null
-  pharmacienTitulaire?: string | null
+  // ─── Garde du jour ───
+  gardeHeureDebut?: string | null
+  gardeHeureFin?: string | null
 }
 
 export function PharmacyCard({
@@ -50,8 +53,11 @@ export function PharmacyCard({
   zoneSanitaire,
   commune,
   arrondissement,
-  pharmacienTitulaire,
+  gardeHeureDebut,
+  gardeHeureFin,
 }: PharmacyCardProps) {
+  const phone = formatPhoneBenin(telephone)
+
   const directionsUrl = latitude && longitude
     ? buildDirectionsUrl({
         destLat: latitude,
@@ -68,7 +74,7 @@ export function PharmacyCard({
 
   return (
     <Card
-      className="hover:shadow-md transition-shadow border-teal-200 cursor-pointer"
+      className={`hover:shadow-md transition-shadow cursor-pointer ${estGarde ? 'border-amber-300 bg-gradient-to-br from-amber-50/70 to-white' : 'border-teal-200'}`}
       onClick={onSelect}
     >
       <CardContent className="p-4">
@@ -135,25 +141,37 @@ export function PharmacyCard({
                 )}
               </div>
             )}
-            {pharmacienTitulaire && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 truncate">
-                Titulaire : <span className="font-medium text-gray-600">{pharmacienTitulaire}</span>
-              </p>
+            {/* Statut de garde du jour + horaires */}
+            {estGarde && (
+              <div className="flex items-center gap-1.5 mt-2 w-fit rounded-md border border-amber-300/60 bg-amber-50 px-2 py-1">
+                <Clock className="h-3 w-3 text-amber-600 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-amber-700">
+                  De garde aujourd&apos;hui{(gardeHeureDebut && gardeHeureFin) ? ` · ${gardeHeureDebut} — ${gardeHeureFin}` : ''}
+                </span>
+              </div>
             )}
+            {/* Téléphone de l'officine — format béninois 01 … */}
             <div className="flex items-center gap-3 mt-1.5">
-              <a
-                href={`tel:${telephone}`}
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Phone className="h-3 w-3" />
-                {telephone}
-              </a>
+              {phone ? (
+                <a
+                  href={`tel:${phone.tel}`}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Phone className="h-3 w-3" />
+                  {phone.display}
+                </a>
+              ) : (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Phone className="h-3 w-3" />
+                  Non publié
+                </span>
+              )}
             </div>
           </div>
           {distance !== undefined && (
             <div className="flex-shrink-0 text-right">
-              <p className="text-lg font-bold text-primary">{distance.toFixed(1)}</p>
+              <p className={`text-lg font-bold ${estGarde ? 'text-amber-600' : 'text-primary'}`}>{distance.toFixed(1)}</p>
               <p className="text-[10px] text-muted-foreground">km</p>
             </div>
           )}
@@ -185,12 +203,14 @@ export function PharmacyCard({
               Google Maps
             </Button>
           )}
-          <a href={`tel:${telephone}`} onClick={(e) => e.stopPropagation()}>
-            <Button size="sm" className="h-8 text-xs bg-primary hover:bg-teal-700">
-              <Phone className="h-3 w-3 mr-1" />
-              Appeler
-            </Button>
-          </a>
+          {phone && (
+            <a href={`tel:${phone.tel}`} onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" className="h-8 text-xs bg-primary hover:bg-teal-700">
+                <Phone className="h-3 w-3 mr-1" />
+                Appeler
+              </Button>
+            </a>
+          )}
         </div>
       </CardContent>
     </Card>

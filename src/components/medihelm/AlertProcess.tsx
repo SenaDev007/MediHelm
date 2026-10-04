@@ -9,9 +9,6 @@ import {
   Smartphone,
   MessageSquare,
   BarChart3,
-  AlertTriangle,
-  Clock,
-  Phone,
 } from "lucide-react";
 
 interface AlertStep {
@@ -24,67 +21,46 @@ interface AlertStep {
 
 const alertSteps: AlertStep[] = [
   {
-    time: "T+0",
+    time: "1",
     icon: Bell,
-    title: "DPMED émet l'alerte",
-    description: "Rappel de lot, contrefaçon, AMM suspendue",
+    title: "Réception de l'alerte",
+    description: "Rappel de lot, contrefaçon ou AMM suspendue",
     color: "#E24B4A",
   },
   {
-    time: "T+30s",
+    time: "2",
     icon: Search,
-    title: "Identification pharmacies",
-    description: "Lots en stock détectés automatiquement",
+    title: "Identification des pharmacies concernées",
+    description: "Recherche des lots en stock",
     color: "#1D9E75",
   },
   {
-    time: "T+30s",
+    time: "3",
     icon: Users,
-    title: "Identification patients",
-    description: "Patients ayant reçu le lot (90 jours)",
+    title: "Évaluation des lots et des patients concernés",
+    description: "Recherche des patients concernés sur la période définie",
     color: "#0F6E56",
   },
   {
-    time: "T+1min",
+    time: "4",
     icon: Smartphone,
-    title: "Push + SMS pharmaciens",
-    description: "Notification immédiate aux pharmaciens concernés",
+    title: "Information des pharmacies",
+    description: "Notification des pharmaciens concernés",
     color: "#378ADD",
   },
   {
-    time: "T+1m30s",
+    time: "5",
     icon: MessageSquare,
-    title: "Push + SMS patients",
-    description: "Alerte directe aux patients impactés",
+    title: "Information des patients",
+    description: "Alerte aux patients concernés",
     color: "#EF9F27",
   },
   {
-    time: "T+2min",
+    time: "6",
     icon: BarChart3,
-    title: "Dashboard mis à jour",
-    description: "Taux d'acquittement en temps réel",
+    title: "Suivi de l'alerte",
+    description: "Suivi des acquittements des pharmacies",
     color: "#085041",
-  },
-];
-
-const escalationSteps = [
-  {
-    time: "4h",
-    action: "Rappel automatique",
-    icon: AlertTriangle,
-    color: "#EF9F27",
-  },
-  {
-    time: "24h",
-    action: "Escalade hiérarchique",
-    icon: Clock,
-    color: "#E24B4A",
-  },
-  {
-    time: "72h",
-    action: "Contact direct DPMED",
-    icon: Phone,
-    color: "#E24B4A",
   },
 ];
 
@@ -100,12 +76,11 @@ export function AlertProcess() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            Alertes DPMED — De l&apos;Émission à la Notification en{" "}
-            <span className="text-amber-500">&lt; 2 Minutes</span>
+            Étapes de traitement d&apos;une alerte
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Un processus automatisé qui garantit une diffusion rapide et
-            traçable de chaque alerte officielle
+            Le schéma présente un parcours envisagé : sources, délais, données
+            mobilisées et responsabilités restent à confirmer
           </p>
         </motion.div>
 
@@ -165,26 +140,16 @@ export function AlertProcess() {
           transition={{ duration: 0.5 }}
         >
           <h3 className="text-base font-medium text-teal-800 text-center mb-5">
-            Alertes non-acquittées — Procédure d&apos;escalade
+            Alertes non acquittées
           </h3>
-          <div className="grid grid-cols-3 gap-3 max-w-2xl mx-auto">
-            {escalationSteps.map((step, index) => (
-              <div
-                key={index}
-                className="p-4 bg-gray-50 rounded-xl border border-teal-200 text-center"
-              >
-                <div className="flex items-center justify-center mb-2">
-                  <step.icon size={20} style={{ color: step.color }} />
-                </div>
-                <div
-                  className="text-xl font-medium mb-1"
-                  style={{ color: step.color }}
-                >
-                  {step.time}
-                </div>
-                <div className="text-xs text-gray-900">{step.action}</div>
-              </div>
-            ))}
+          <div className="max-w-2xl mx-auto">
+            <div className="p-4 bg-gray-50 rounded-xl border border-teal-200 text-center">
+              <p className="text-sm text-gray-900">
+                Une procédure d&apos;escalade est prévue pour les alertes non
+                traitées : ses délais et responsables seront confirmés avec
+                l&apos;institution concernée.
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>

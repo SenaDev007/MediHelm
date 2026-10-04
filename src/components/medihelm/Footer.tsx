@@ -7,21 +7,15 @@ import { Logo } from "./Logo";
 
 const spaceLinks = [
   { label: "MediHelm Pro", href: "/pro", desc: "Espace pharmacie" },
-  { label: "MediHelm Patient", href: "/patient", desc: "Espace patient gratuit" },
-  { label: "MediHelm Grossistes", href: "/grossistes", desc: "Portail grossistes" },
-  { label: "MediHelm Institutions", href: "/institutions", desc: "Portail DPMED/SoBAPS" },
+  { label: "MediHelm Patient", href: "/patient", desc: "Espace patient" },
+  { label: "MediHelm Grossistes", href: "/grossistes", desc: "Espace grossistes et fournisseurs" },
+  { label: "MediHelm Institutions", href: "/institutions", desc: "Espace institutionnel" },
 ];
 
-const legalLinks = [
-  { label: "Mentions légales", href: "#" },
-  { label: "Politique de confidentialité", href: "#" },
-  { label: "APDP Bénin", href: "#" },
-];
-
-const socialLinks = [
-  { label: "LinkedIn", href: "#" },
-  { label: "Twitter", href: "#" },
-  { label: "Facebook", href: "#" },
+const legalLabels = [
+  "Mentions légales",
+  "Politique de confidentialité",
+  "Informations relatives à la protection des données",
 ];
 
 export function Footer() {
@@ -32,16 +26,9 @@ export function Footer() {
           {/* Brand */}
           <div>
             <Logo variant="full" className="mb-4 [&_span]:!text-white [&_div_span:last-child]:!text-teal-200" />
-            <p
-              className="text-[10px] tracking-[0.2em] text-teal-200 mt-2 mb-4"
-              style={{ fontWeight: 500 }}
-            >
-              L&apos;ÉCOSYSTÈME SANTÉ DE CONFIANCE
-            </p>
             <p className="text-sm text-teal-200 leading-relaxed">
-              Le premier écosystème santé intégré du Bénin, connecting
-              pharmaciens, patients et institutions pour une santé plus sûre et
-              plus accessible.
+              Outils numériques pour les acteurs de la santé au Bénin :
+              pharmaciens, patients, grossistes et institutions.
             </p>
           </div>
 
@@ -68,15 +55,9 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-medium text-white mb-4">Légal</h3>
             <ul className="space-y-2.5">
-              {legalLinks.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-sm text-teal-200 hover:text-white transition-colors inline-flex items-center gap-1"
-                  >
-                    {link.label}
-                    <ExternalLink size={12} />
-                  </a>
+              {legalLabels.map((label) => (
+                <li key={label}>
+                  <span className="text-sm text-teal-200/80">{label}</span>
                 </li>
               ))}
             </ul>
@@ -97,21 +78,6 @@ export function Footer() {
                 <MapPin size={16} className="shrink-0" />
                 Cotonou, Bénin
               </div>
-            </div>
-
-            <h3 className="text-sm font-medium text-white mt-6 mb-3">
-              Suivez-nous
-            </h3>
-            <div className="flex items-center gap-3">
-              {socialLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="text-xs text-teal-200 hover:text-white transition-colors border border-teal-200/30 rounded-md px-2.5 py-1.5 hover:border-white/50"
-                >
-                  {link.label}
-                </a>
-              ))}
             </div>
           </div>
         </div>

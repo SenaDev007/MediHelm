@@ -11,15 +11,15 @@ const navLinks = [
   { label: "Fonctionnalités", href: "#fonctionnalites" },
   { label: "Tarifs", href: "#tarifs" },
   { label: "Espaces", href: "#espaces" },
-  { label: "Partenariats", href: "#partenariats" },
+  { label: "Institutions", href: "#partenariats" },
   { label: "Contact", href: "#contact" },
 ];
 
 const spaceLinks = [
   { label: "MediHelm Pro", href: "/pro", description: "Espace pharmacie", color: "text-teal-400" },
-  { label: "MediHelm Patient", href: "/patient", description: "Espace patient (gratuit)", color: "text-blue-brand" },
-  { label: "MediHelm Grossistes", href: "/grossistes", description: "Portail grossistes", color: "text-amber-400" },
-  { label: "MediHelm Institutions", href: "/institutions", description: "Portail DPMED/SoBAPS", color: "text-teal-800" },
+  { label: "MediHelm Patient", href: "/patient", description: "Espace patient", color: "text-blue-brand" },
+  { label: "MediHelm Grossistes", href: "/grossistes", description: "Espace grossistes et fournisseurs", color: "text-amber-400" },
+  { label: "MediHelm Institutions", href: "/institutions", description: "Espace institutionnel", color: "text-teal-800" },
 ];
 
 export function Navbar() {
@@ -101,12 +101,12 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-2">
             <Link href="/patient">
               <Button variant="outline" className="border-teal-400 text-teal-400 hover:bg-teal-50 font-medium text-sm">
-                Espace Patient
+                Espace patient
               </Button>
             </Link>
             <Link href="/pro">
               <Button className="bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                Essai gratuit 30 jours
+                Se connecter à MediHelm Pro
               </Button>
             </Link>
           </div>
@@ -161,12 +161,12 @@ export function Navbar() {
               <div className="pt-3 pb-1 space-y-2">
                 <Link href="/patient" onClick={() => setIsOpen(false)}>
                   <Button variant="outline" className="w-full border-teal-400 text-teal-400 font-medium text-sm">
-                    Espace Patient
+                    Espace patient
                   </Button>
                 </Link>
                 <Link href="/pro" onClick={() => setIsOpen(false)}>
                   <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                    Essai gratuit 30 jours
+                    Se connecter à MediHelm Pro
                   </Button>
                 </Link>
               </div>

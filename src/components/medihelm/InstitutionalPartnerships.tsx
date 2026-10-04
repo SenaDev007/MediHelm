@@ -32,8 +32,8 @@ interface Partnership {
 
 const partnerships: Partnership[] = [
   {
-    title: "DPMED",
-    org: "Direction de la Pharmacie, du Médicament et des Examens de Diagnostic",
+    title: "Institutions pharmaceutiques",
+    org: "Alertes, pharmacovigilance et suivi",
     accentColor: "#1D9E75",
     features: [
       {
@@ -42,63 +42,62 @@ const partnerships: Partnership[] = [
       },
       {
         icon: BarChart3,
-        text: "Tableau de bord temps réel (pharmacies notifiées, taux d'acquittement)",
+        text: "Tableau de suivi des pharmacies notifiées et des acquittements",
       },
       {
         icon: FileCheck,
-        text: "Réception rapports de pharmacovigilance",
+        text: "Réception de rapports de pharmacovigilance",
       },
     ],
-    guarantee: "< 2 minutes de diffusion à toutes les pharmacies concernées",
-    price: "GRATUIT",
+    price: "Conditions sur demande",
   },
   {
-    title: "SoBAPS",
-    org: "Société Béninoise des Approvisionnements Pharmaceutiques",
+    title: "Approvisionnement pharmaceutique",
+    org: "Réceptions, lots et écarts",
     accentColor: "#0F6E56",
     features: [
       {
         icon: CheckCircle2,
-        text: "Confirmation de réception en temps réel",
+        text: "Confirmation des réceptions",
       },
       {
         icon: ArrowLeftRight,
-        text: "Réconciliation automatique (BL vs. reçu)",
+        text: "Rapprochement des bons de livraison et des réceptions",
       },
       {
         icon: PackageSearch,
-        text: "Traçabilité des numéros de lot (UEMOA BPD)",
+        text: "Traçabilité des numéros de lot",
       },
       {
         icon: FileBarChart,
         text: "Rapports d'écarts",
       },
     ],
-    price: "GRATUIT",
+    price: "Conditions sur demande",
   },
   {
-    title: "Grossistes",
-    org: "UbiPharm / Promopharma",
+    title: "Grossistes et fournisseurs",
+    org: "Commandes, catalogues et échanges de données",
     accentColor: "#EF9F27",
     features: [
       {
         icon: ShoppingBag,
-        text: "Réception de commandes via API structurée",
+        text: "Réception de commandes de pharmacies",
       },
       {
         icon: Database,
-        text: "Catalogue synchronisé quotidiennement",
+        text: "Gestion de catalogue",
       },
       {
         icon: BarChart3,
-        text: "Données de demande agrégées (anonymisées)",
+        text: "Échanges de données avec les pharmacies",
       },
       {
         icon: ArrowLeftRight,
-        text: "Comparateur multi-grossistes",
+        text: "Comparaison entre grossistes",
       },
     ],
-    price: "GRATUIT",
+    price: "Conditions sur demande",
   },
 ];
 
@@ -127,11 +126,11 @@ export function InstitutionalPartnerships() {
           className="text-center mb-12"
         >
           <h2 className="text-2xl sm:text-3xl font-medium text-teal-800 mb-3">
-            Partenariats Institutionnels — Gratuit pour les Institutions
+            Échanges avec les acteurs du secteur
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            MediHelm s&apos;intègre gratuitement avec les institutions clés du
-            système pharmaceutique béninois
+            Les modalités de collaboration et les services présentés ci-dessous
+            restent à confirmer avec les organisations concernées
           </p>
         </motion.div>
 
@@ -154,9 +153,9 @@ export function InstitutionalPartnerships() {
                       className="p-2.5 rounded-lg"
                       style={{ backgroundColor: p.accentColor + "15" }}
                     >
-                      {p.title === "DPMED" ? (
+                      {p.title === "Institutions pharmaceutiques" ? (
                         <Shield size={22} style={{ color: p.accentColor }} />
-                      ) : p.title === "SoBAPS" ? (
+                      ) : p.title === "Approvisionnement pharmaceutique" ? (
                         <Truck size={22} style={{ color: p.accentColor }} />
                       ) : (
                         <Building
@@ -193,20 +192,6 @@ export function InstitutionalPartnerships() {
                     ))}
                   </ul>
 
-                  {p.guarantee && (
-                    <div className="p-3 bg-teal-50 rounded-lg border border-teal-200 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-teal-400" />
-                        <span className="text-xs font-medium text-teal-800">
-                          GARANTIE
-                        </span>
-                      </div>
-                      <p className="text-sm text-teal-600 mt-1 font-medium">
-                        {p.guarantee}
-                      </p>
-                    </div>
-                  )}
-
                   <div className="text-center pt-2">
                     <Badge
                       className="text-sm font-medium px-4 py-1.5 border-0"
@@ -215,7 +200,7 @@ export function InstitutionalPartnerships() {
                         color: p.accentColor,
                       }}
                     >
-                      Prix : {p.price}
+                      {p.price}
                     </Badge>
                   </div>
                 </CardContent>

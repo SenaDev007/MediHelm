@@ -15,6 +15,11 @@ function haversine(lat1: number, lon1: number, lat2: number, lon2: number): numb
   return R * c
 }
 
+/** « 08:05 » — heures de la vacation de garde du jour */
+function fmtHour(date: Date): string {
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
 export async function GET(request: NextRequest) {
   const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
   if (rateLimitResult) return rateLimitResult
@@ -92,6 +97,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get pharmacies — officines du registre officiel ABMed (fond de carte national)
+    // Plannings de garde : vacation active AUJOURD'HUI (chevauchement — une garde
+    // de nuit 20:00→08:00 reste « de garde » le lendemain matin).
+    const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(); dayEnd.setHours(23, 59, 59, 999)
     const pharmacies = await db.pharmacie.findMany({
       where: {
         actif: true,
@@ -104,12 +113,12 @@ export async function GET(request: NextRequest) {
       include: {
         planningsGarde: {
           where: {
-            date: {
-              gte: new Date(new Date().setHours(0, 0, 0, 0)),
-              lte: new Date(new Date().setHours(23, 59, 59, 999)),
-            },
+            dateDebut: { lte: dayEnd },
+            dateFin: { gte: dayStart },
           },
+          orderBy: { dateDebut: 'asc' },
           take: 1,
+          select: { dateDebut: true, dateFin: true, type: true },
         },
       },
       take: 500,
@@ -122,6 +131,7 @@ export async function GET(request: NextRequest) {
           ? haversine(lat, lng, p.latitude, p.longitude)
           : 0
         const estGarde = p.planningsGarde.length > 0
+        const gardePlanning = p.planningsGarde[0]
 
         // Determine medication availability based on actual stock
         // Only set medicamentDispo when a specific medication is being searched
@@ -157,6 +167,11 @@ export async function GET(request: NextRequest) {
           pharmacienTitulaire: p.pharmacienTitulaire,
           distance,
           estGarde,
+          ...(estGarde && gardePlanning ? {
+            gardeHeureDebut: fmtHour(gardePlanning.dateDebut),
+            gardeHeureFin: fmtHour(gardePlanning.dateFin),
+            gardeType: gardePlanning.type,
+          } : {}),
           ...(medicamentDispo !== undefined ? { medicamentDispo } : {}),
           ...(prixMedicament !== null ? { prixMedicament } : {}),
         }

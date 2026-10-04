@@ -7,9 +7,9 @@ import { ArrowRight, Building2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const stats = [
-  { value: "600+", label: "Pharmacies ciblées" },
-  { value: "19", label: "Modules" },
-  { value: "< 2 min", label: "Alertes DPMED" },
+  { value: "19", label: "Modules de gestion" },
+  { value: "398", label: "Officines au registre ABMed" },
+  { value: "4", label: "Espaces dédiés" },
 ];
 
 export function HeroSection() {
@@ -59,9 +59,9 @@ export function HeroSection() {
             className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6"
             style={{ fontFamily: "Georgia, serif" }}
           >
-            Pilotez votre santé avec{" "}
-            <span className="text-teal-200">confiance</span> et{" "}
-            <span className="text-amber-400">précision</span>
+            Le numérique au service des{" "}
+            <span className="text-teal-200">pharmacies</span> et de leurs{" "}
+            <span className="text-amber-400">publics</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -71,8 +71,9 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="text-base sm:text-lg md:text-xl text-teal-200 max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            Le premier écosystème santé du Bénin — gestion de pharmacie,
-            recherche de médicaments, alertes DPMED, conformité réglementaire
+            MediHelm présente des espaces et outils numériques destinés aux
+            pharmacies, aux patients, aux grossistes et aux institutions au
+            Bénin.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -88,7 +89,7 @@ export function HeroSection() {
                 className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
               >
                 <Building2 className="mr-2 size-5" />
-                Découvrir MediHelm Pro
+                Se connecter à MediHelm Pro
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>
@@ -99,7 +100,7 @@ export function HeroSection() {
                 className="border-white/30 text-white hover:bg-white/10 hover:text-white font-medium text-base px-8 h-12 bg-transparent"
               >
                 <Heart className="mr-2 size-5" />
-                Espace Patient
+                Accéder à l&apos;espace patient
               </Button>
             </Link>
           </motion.div>

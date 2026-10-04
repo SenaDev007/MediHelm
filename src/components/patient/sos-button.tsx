@@ -27,7 +27,7 @@ export function SosButton({ phoneNumber, pharmacieNom }: SosButtonProps) {
       }}
     >
       <Phone className="h-6 w-6" />
-      SOS — Appeler {pharmacieNom}
+      Appeler {pharmacieNom}
     </motion.a>
   )
 }

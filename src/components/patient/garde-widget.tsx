@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ShieldCheck, Phone, MapPin } from 'lucide-react'
 import Link from 'next/link'
+import { formatPhoneBenin } from '@/lib/phone'
 
 interface GardeWidgetProps {
   pharmacieNom: string
@@ -21,6 +22,7 @@ export function GardeWidget({
   heureDebut,
   heureFin,
 }: GardeWidgetProps) {
+  const phone = formatPhoneBenin(pharmacieTelephone)
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-teal-50 to-white">
       <CardContent className="p-4">
@@ -38,6 +40,9 @@ export function GardeWidget({
             <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-0">
               {heureDebut} — {heureFin}
             </Badge>
+            {phone && (
+              <span className="text-xs font-semibold text-primary">{phone.display}</span>
+            )}
           </div>
         </div>
         <div className="flex gap-2 mt-3">
@@ -46,12 +51,16 @@ export function GardeWidget({
               Détails
             </Button>
           </Link>
-          <a href={`tel:${pharmacieTelephone}`} className="flex-1">
-            <Button size="sm" className="w-full h-8 text-xs bg-primary hover:bg-teal-700">
-              <Phone className="h-3 w-3 mr-1" />
-              Appeler
-            </Button>
-          </a>
+          {phone ? (
+            <a href={`tel:${phone.tel}`} className="flex-1">
+              <Button size="sm" className="w-full h-8 text-xs bg-primary hover:bg-teal-700">
+                <Phone className="h-3 w-3 mr-1" />
+                Appeler
+              </Button>
+            </a>
+          ) : (
+            <div className="flex-1" />
+          )}
         </div>
       </CardContent>
     </Card>

@@ -44,7 +44,7 @@ export function Logo({ variant = "full", className = "" }: LogoProps) {
           className="text-[8px] tracking-[0.2em] text-gray-400 mt-0.5"
           style={{ fontWeight: 500 }}
         >
-          L&apos;ÉCOSYSTÈME SANTÉ DE CONFIANCE
+          SOLUTIONS NUMÉRIQUES SANTÉ AU BÉNIN
         </span>
       </div>
     </div>

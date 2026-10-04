@@ -10,7 +10,7 @@ import { SosButton } from '@/components/patient/sos-button'
 import {
   Shield, MapPin, Phone, Hospital, Crosshair, RefreshCw,
   AlertTriangle, Navigation, Clock, Heart, Ambulance,
-  Building2, List, Eye, Info
+  List, Eye, Info
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -49,13 +49,6 @@ interface EmergencyContact {
   categorie: string
 }
 
-interface EmergencyHospital {
-  nom: string
-  adresse: string
-  telephone: string
-  distance?: number
-}
-
 const contactIconMap: Record<string, React.ReactNode> = {
   URGENCE_MEDICALE: <Ambulance className="h-4 w-4 text-red-500" />,
   SECOURS: <AlertTriangle className="h-4 w-4 text-orange-500" />,
@@ -72,7 +65,6 @@ export default function UrgencePage() {
   const [geoError, setGeoError] = useState<string | null>(null)
   const [selectedPharmacyId, setSelectedPharmacyId] = useState<string | undefined>()
   const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([])
-  const [hospitals, setHospitals] = useState<EmergencyHospital[]>([])
   const [loadingUrgence, setLoadingUrgence] = useState(true)
 
   // Get user geolocation
@@ -159,7 +151,6 @@ export default function UrgencePage() {
         if (res.ok) {
           const data = await res.json()
           setEmergencyContacts(data.emergencyContacts || [])
-          setHospitals(data.hospitals || [])
         }
       } catch {
         // Fallback to empty — UI will show appropriate states
@@ -192,7 +183,7 @@ export default function UrgencePage() {
             Urgence médicale
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Pharmacies de garde et numéros d&apos;urgence
+            Pharmacies répertoriées et numéros utiles en cas d&apos;urgence.
           </p>
         </div>
         <Button
@@ -229,7 +220,7 @@ export default function UrgencePage() {
             transition={{ boxShadow: { duration: 2, repeat: Infinity } }}
           >
             <Phone className="h-6 w-6" />
-            SOS — Appeler le SAMU (119)
+            Appeler le SAMU (119)
           </motion.button>
         </a>
       )}
@@ -262,7 +253,7 @@ export default function UrgencePage() {
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
-            Carte des pharmacies de garde
+            Pharmacies sur la carte
           </h2>
           <Button
             variant="ghost"
@@ -290,7 +281,7 @@ export default function UrgencePage() {
       <div>
         <h2 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
           <Hospital className="h-4 w-4 text-primary" />
-          Pharmacies les plus proches
+          Pharmacies répertoriées
         </h2>
         {loading ? (
           <div className="space-y-2">
@@ -345,7 +336,7 @@ export default function UrgencePage() {
           <Card className="border-teal-200">
             <CardContent className="p-4 text-center">
               <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">Aucune pharmacie de garde trouvée</p>
+              <p className="text-xs text-muted-foreground">Aucune pharmacie répertoriée à afficher</p>
             </CardContent>
           </Card>
         )}
@@ -355,7 +346,7 @@ export default function UrgencePage() {
       <div>
         <h2 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
           <Phone className="h-4 w-4 text-red-500" />
-          Numéros d&apos;urgence
+          Numéros à contacter en cas d&apos;urgence
         </h2>
         {loadingUrgence ? (
           <div className="space-y-2">
@@ -402,46 +393,6 @@ export default function UrgencePage() {
         )}
       </div>
 
-      {/* Hospitals */}
-      <div>
-        <h2 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary" />
-          Hôpitaux et centres d&apos;urgence
-        </h2>
-        {loadingUrgence ? (
-          <div className="space-y-2">
-            {[1, 2].map(i => (
-              <Card key={i} className="border-teal-200 animate-pulse">
-                <CardContent className="p-3 space-y-2">
-                  <div className="h-4 bg-teal-50 rounded w-3/4" />
-                  <div className="h-3 bg-teal-50 rounded w-1/2" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {hospitals.map((hospital, idx) => (
-              <a key={`${hospital.telephone}-${idx}`} href={`tel:${hospital.telephone}`}>
-                <Card className="border-teal-200 hover:border-primary/30 transition-colors">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <Hospital className="h-4 w-4 text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-xs font-medium text-gray-900">{hospital.nom}</h3>
-                      <p className="text-[10px] text-muted-foreground">{hospital.adresse}</p>
-                    </div>
-                    {hospital.distance !== undefined && (
-                      <span className="text-[10px] text-primary">{hospital.distance.toFixed(1)} km</span>
-                    )}
-                    <Phone className="h-4 w-4 text-primary" />
-                  </CardContent>
-                </Card>
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Info banner */}
       <Card className="border-red-200 bg-red-50">
         <CardContent className="p-3 flex items-start gap-2">
@@ -449,8 +400,8 @@ export default function UrgencePage() {
           <div>
             <p className="text-xs font-semibold text-red-800">En cas d&apos;urgence vitale</p>
             <p className="text-[10px] text-red-700 mt-0.5">
-              Appelez immédiatement le SAMU (119) ou rendez-vous au service d&apos;accueil des urgences
-              de l&apos;hôpital le plus proche.
+              Contactez immédiatement les services d&apos;urgence locaux — voir les
+              numéros affichés sur cette page.
             </p>
           </div>
         </CardContent>

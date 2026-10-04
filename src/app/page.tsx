@@ -22,8 +22,8 @@ export default function Home() {
         {/* Quick Access Portals */}
         <section className="py-12 px-4 bg-white">
           <div className="max-w-6xl mx-auto text-center">
-            <h2 className="text-2xl font-bold text-[#085041] mb-2">Accès portails</h2>
-            <p className="text-muted-foreground mb-8">Connectez-vous à votre espace dédié</p>
+            <h2 className="text-2xl font-bold text-[#085041] mb-2">Choisissez votre espace</h2>
+            <p className="text-muted-foreground mb-8">Accédez à l&apos;espace correspondant à votre profil.</p>
             <div className="flex flex-wrap justify-center gap-4">
               <a
                 href="/pro"
@@ -46,7 +46,7 @@ export default function Home() {
                 </div>
                 <div className="text-left">
                   <p className="font-semibold text-[#378ADD] group-hover:text-blue-700">MediHelm Patient</p>
-                  <p className="text-xs text-muted-foreground">Espace patient — 100% Gratuit</p>
+                  <p className="text-xs text-muted-foreground">Espace patient</p>
                 </div>
               </a>
               <a
@@ -58,7 +58,7 @@ export default function Home() {
                 </div>
                 <div className="text-left">
                   <p className="font-semibold text-amber-700 group-hover:text-amber-800">MediHelm Grossistes</p>
-                  <p className="text-xs text-muted-foreground">UbiPharm, Promopharma…</p>
+                  <p className="text-xs text-muted-foreground">Espace grossistes et fournisseurs</p>
                 </div>
               </a>
               <a
@@ -70,7 +70,7 @@ export default function Home() {
                 </div>
                 <div className="text-left">
                   <p className="font-semibold text-[#085041] group-hover:text-teal-700">MediHelm Institutions</p>
-                  <p className="text-xs text-muted-foreground">DPMED, SoBAPS, ABRP</p>
+                  <p className="text-xs text-muted-foreground">Espace institutionnel</p>
                 </div>
               </a>
             </div>

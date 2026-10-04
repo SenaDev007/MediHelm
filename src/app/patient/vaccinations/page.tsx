@@ -75,7 +75,11 @@ export default function VaccinationsPage() {
   }, [patientId])
 
   useEffect(() => {
-    if (patientId) fetchVaccinations()
+    if (patientId) {
+      fetchVaccinations()
+    } else {
+      setLoading(false)
+    }
   }, [fetchVaccinations, patientId])
 
   const prochainesVaccinations = vaccinations.filter(v => {
@@ -133,7 +137,9 @@ export default function VaccinationsPage() {
             Carnet de vaccination
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {vaccinations.length} vaccination{vaccinations.length !== 1 ? 's' : ''} enregistrée{vaccinations.length !== 1 ? 's' : ''}
+            {vaccinations.length === 0
+              ? 'Aucune vaccination enregistrée pour le moment.'
+              : `${vaccinations.length} vaccination${vaccinations.length !== 1 ? 's' : ''} enregistrée${vaccinations.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <Button
@@ -190,7 +196,7 @@ export default function VaccinationsPage() {
           }`}
           onClick={() => setFilter('toutes')}
         >
-          Toutes ({vaccinations.length})
+          Toutes les vaccinations ({vaccinations.length})
         </Badge>
         <Badge
           variant={filter === 'prochaines' ? 'default' : 'secondary'}
@@ -384,10 +390,9 @@ export default function VaccinationsPage() {
         <CardContent className="p-3 flex items-start gap-2">
           <Shield className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-semibold text-teal-800">Carnet numérique sécurisé</p>
+            <p className="text-xs font-semibold text-teal-800">Informations du carnet</p>
             <p className="text-[10px] text-teal-700 mt-0.5">
-              Vos données de vaccination sont stockées de manière sécurisée et peuvent être partagées
-              via QR code avec les professionnels de santé.
+              Cette page présente les informations de vaccination enregistrées dans votre carnet.
             </p>
           </div>
         </CardContent>

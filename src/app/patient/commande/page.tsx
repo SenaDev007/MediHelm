@@ -5,10 +5,11 @@ import { usePatientSession } from '@/hooks/use-patient-session'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { CreditCard, Waves, Smartphone, Banknote, type LucideIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import {
-  ShoppingCart, Plus, Minus, Trash2, MapPin, CreditCard,
+  ShoppingCart, Plus, Minus, Trash2, MapPin,
   Package, ShoppingBag, Loader2, Check, AlertCircle, Store,
   X, ArrowRight, ShieldCheck
 } from 'lucide-react'
@@ -48,11 +49,11 @@ export default function CommandePage() {
   const [loadingPharmacies, setLoadingPharmacies] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string; desc: string; icon: string }>>([
-    { id: 'fedapay', label: 'Fedapay', desc: 'Mobile Money, carte bancaire', icon: '💳' },
-    { id: 'wave', label: 'Wave', desc: 'Paiement mobile Wave', icon: '🌊' },
-    { id: 'mtn', label: 'MTN MoMo', desc: 'Mobile Money MTN', icon: '📱' },
-    { id: 'especes', label: 'Espèces', desc: 'Payer à la pharmacie', icon: '💵' },
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string; desc: string; icon: LucideIcon }>>([
+    { id: 'fedapay', label: 'Fedapay', desc: 'Mobile Money, carte bancaire', icon: CreditCard },
+    { id: 'wave', label: 'Wave', desc: 'Paiement mobile Wave', icon: Waves },
+    { id: 'mtn', label: 'MTN MoMo', desc: 'Mobile Money MTN', icon: Smartphone },
+    { id: 'especes', label: 'Espèces', desc: 'Payer à la pharmacie', icon: Banknote },
   ])
 
   // Fetch payment methods from API
@@ -551,7 +552,7 @@ export default function CommandePage() {
                     key={method.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-teal-200 hover:border-primary/50 cursor-pointer transition-colors"
                   >
-                    <span className="text-lg">{method.icon}</span>
+                    <method.icon className="h-5 w-5 text-primary shrink-0" />
                     <div className="flex-1">
                       <p className="text-xs font-medium text-gray-900">{method.label}</p>
                       <p className="text-[10px] text-muted-foreground">{method.desc}</p>
