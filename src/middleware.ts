@@ -17,11 +17,20 @@ import { getToken } from 'next-auth/jwt'
 // Constantes RBAC (dupliquées pour la compatibilité Edge Runtime)
 const INSTITUTIONAL_ROLES = ['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER', 'PLATFORM_ADMIN']
 const PHARMACIE_ROLES = ['ADMIN', 'DIRECTEUR', 'PHARMACIEN', 'CAISSIER', 'MAGASINIER', 'COMPTABLE', 'STAGIAIRE', 'PROMOTEUR']
-const GROSSISTE_ROLES = ['GROSSISTE_PARTNER', 'PLATFORM_ADMIN']
+const GROSSISTE_ROLES = [
+  'GROSSISTE_PARTNER',
+  'GROSSISTE_ADMIN',
+  'GROSSISTE_COMMANDES',
+  'GROSSISTE_PREPARATEUR',
+  'GROSSISTE_LIVREUR',
+  'GROSSISTE_COMMERCIAL',
+  'GROSSISTE_COMPTABLE',
+  'PLATFORM_ADMIN',
+]
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
-const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/api', '/api/pharmacies']
+const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/inscription', '/mot-de-passe-oublie', '/api', '/api/pharmacies']
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/api/scan', '/patient/', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {

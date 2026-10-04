@@ -19,6 +19,12 @@ export const ROLES = {
   SOBAPS_VIEWER: 'SOBAPS_VIEWER',
   ABRP_VIEWER: 'ABRP_VIEWER',
   GROSSISTE_PARTNER: 'GROSSISTE_PARTNER',
+  GROSSISTE_ADMIN: 'GROSSISTE_ADMIN',
+  GROSSISTE_COMMANDES: 'GROSSISTE_COMMANDES',
+  GROSSISTE_PREPARATEUR: 'GROSSISTE_PREPARATEUR',
+  GROSSISTE_LIVREUR: 'GROSSISTE_LIVREUR',
+  GROSSISTE_COMMERCIAL: 'GROSSISTE_COMMERCIAL',
+  GROSSISTE_COMPTABLE: 'GROSSISTE_COMPTABLE',
   PLATFORM_ADMIN: 'PLATFORM_ADMIN',
   PATIENT: 'PATIENT',
 } as const
@@ -308,6 +314,44 @@ const ROLE_PERMISSIONS: Record<string, PermissionSet> = {
     M19_CONFORMITE: { read: false, write: false, delete: false },
   },
 
+  // Rôles ERP grossiste (CDC Grossiste §3 — G01 à G10)
+  // GROSSISTE_ADMIN : G01-G10 complets — accès total
+  [ROLES.GROSSISTE_ADMIN]: {
+    M03_COMMANDES: { read: true, write: true, delete: false },
+    M08_FINANCE: { read: true, write: true, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M15_ANALYTICS: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: true },
+  },
+  // GROSSISTE_COMMANDES : G03 commandes RW · G06 clients lecture · G08 catalogue
+  [ROLES.GROSSISTE_COMMANDES]: {
+    M03_COMMANDES: { read: true, write: true, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: false },
+  },
+  // GROSSISTE_PREPARATEUR : G04 picking uniquement — pas de finance
+  [ROLES.GROSSISTE_PREPARATEUR]: {
+    M03_COMMANDES: { read: true, write: false, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: false },
+  },
+  // GROSSISTE_LIVREUR : G05 livraisons (interface mobile simplifiée)
+  [ROLES.GROSSISTE_LIVREUR]: {
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: false },
+  },
+  // GROSSISTE_COMMERCIAL : G01 · G03 · G06 · G08 — saisie terrain + catalogue
+  [ROLES.GROSSISTE_COMMERCIAL]: {
+    M03_COMMANDES: { read: true, write: true, delete: false },
+    M14_DASHBOARD: { read: true, write: false, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: false },
+  },
+  // GROSSISTE_COMPTABLE : G06 clients · G09 finance et créances uniquement
+  [ROLES.GROSSISTE_COMPTABLE]: {
+    M08_FINANCE: { read: true, write: true, delete: false },
+    M17_GROSSISTES: { read: true, write: true, delete: false },
+  },
+
   // COMPTABLE — Accès finance, analytics, documents comptables
   [ROLES.COMPTABLE]: {
     M01_STOCK: { read: true, write: false, delete: false },
@@ -424,6 +468,12 @@ export const PHARMACIE_ROLES: string[] = [
 // === Rôles grossiste (accès /grossistes/*) ===
 export const GROSSISTE_ROLES: string[] = [
   ROLES.GROSSISTE_PARTNER,
+  ROLES.GROSSISTE_ADMIN,
+  ROLES.GROSSISTE_COMMANDES,
+  ROLES.GROSSISTE_PREPARATEUR,
+  ROLES.GROSSISTE_LIVREUR,
+  ROLES.GROSSISTE_COMMERCIAL,
+  ROLES.GROSSISTE_COMPTABLE,
   ROLES.PLATFORM_ADMIN,
 ]
 

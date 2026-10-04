@@ -1,0 +1,175 @@
+import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+
+// Haversine distance in km
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+export async function GET(request: NextRequest) {
+  const rateLimitResult = rateLimit(request, RATE_LIMITS.SEARCH)
+  if (rateLimitResult) return rateLimitResult
+
+  try {
+    const { searchParams } = new URL(request.url)
+    const lat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined
+    const lng = searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : undefined
+    const medicamentId = searchParams.get('medicamentId') || undefined
+    const radius = searchParams.get('radius') ? parseFloat(searchParams.get('radius')!) : 20
+
+    // If a medication ID is provided, find pharmacies that carry it
+    let pharmacyIdsWithMed: Set<string> | null = null
+    let medicamentPrix: Record<string, number> = {}
+
+    if (medicamentId) {
+      // Step 1: Look up the DCI of the given medication
+      const sourceMed = await db.medicament.findUnique({
+        where: { id: medicamentId },
+        select: { dci: true, nomCommercial: true },
+      })
+
+      if (sourceMed?.dci) {
+        // Step 2: Find ALL medications with the same DCI across all pharmacies
+        const meds = await db.medicament.findMany({
+          where: { dci: sourceMed.dci, actif: true },
+          select: {
+            id: true,
+            pharmacieId: true,
+            prixPublic: true,
+            lots: {
+              where: {
+                quantite: { gt: 0 },
+                dateExpiration: { gt: new Date() },
+              },
+              select: { id: true },
+            },
+          },
+        })
+
+        pharmacyIdsWithMed = new Set<string>()
+        for (const med of meds) {
+          if (med.lots.length > 0) {
+            pharmacyIdsWithMed.add(med.pharmacieId)
+            if (medicamentPrix[med.pharmacieId] === undefined || med.prixPublic < medicamentPrix[med.pharmacieId]) {
+              medicamentPrix[med.pharmacieId] = med.prixPublic
+            }
+          }
+        }
+      } else {
+        // Fallback: no DCI found, search by exact ID
+        const meds = await db.medicament.findMany({
+          where: { id: medicamentId, actif: true },
+          select: {
+            pharmacieId: true,
+            prixPublic: true,
+            lots: {
+              where: {
+                quantite: { gt: 0 },
+                dateExpiration: { gt: new Date() },
+              },
+              select: { id: true },
+            },
+          },
+        })
+
+        pharmacyIdsWithMed = new Set<string>()
+        for (const med of meds) {
+          if (med.lots.length > 0) {
+            pharmacyIdsWithMed.add(med.pharmacieId)
+            medicamentPrix[med.pharmacieId] = med.prixPublic
+          }
+        }
+      }
+    }
+
+    // Get pharmacies — officines du registre officiel ABMed (fond de carte national)
+    const pharmacies = await db.pharmacie.findMany({
+      where: {
+        actif: true,
+        latitude: { not: null },
+        longitude: { not: null },
+        ...(pharmacyIdsWithMed !== null ? {
+          id: { in: Array.from(pharmacyIdsWithMed) },
+        } : {}),
+      },
+      include: {
+        planningsGarde: {
+          where: {
+            date: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+              lte: new Date(new Date().setHours(23, 59, 59, 999)),
+            },
+          },
+          take: 1,
+        },
+      },
+      take: 500,
+    })
+
+    // Build results with actual stock availability
+    const results = pharmacies
+      .map((p) => {
+        const distance = lat && lng && p.latitude && p.longitude
+          ? haversine(lat, lng, p.latitude, p.longitude)
+          : 0
+        const estGarde = p.planningsGarde.length > 0
+
+        // Determine medication availability based on actual stock
+        // Only set medicamentDispo when a specific medication is being searched
+        // This ensures the availability badge only appears for targeted searches
+        let medicamentDispo: boolean | undefined = undefined
+        let prixMedicament: number | null = null
+
+        if (medicamentId && pharmacyIdsWithMed) {
+          // Check if this pharmacy has at least one lot with quantity > 0
+          // for the searched medication (already filtered by stock in the query above)
+          medicamentDispo = pharmacyIdsWithMed.has(p.id)
+          prixMedicament = medicamentPrix[p.id] ?? null
+        }
+        // When no medicamentId is provided, medicamentDispo stays undefined
+        // so the UI won't show a misleading availability badge
+
+        return {
+          id: p.id,
+          nom: p.nom,
+          adresse: p.adresse,
+          ville: p.ville,
+          telephone: p.telephone,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          // ─── Registre officiel ABMed (fiche complète de l'officine) ───
+          numeroAbmed: p.numeroAbmed,
+          officielle: p.numeroAbmed !== null,
+          departement: p.departement,
+          zoneSanitaire: p.zoneSanitaire,
+          commune: p.commune,
+          arrondissement: p.arrondissement,
+          localisation: p.localisation,
+          pharmacienTitulaire: p.pharmacienTitulaire,
+          distance,
+          estGarde,
+          ...(medicamentDispo !== undefined ? { medicamentDispo } : {}),
+          ...(prixMedicament !== null ? { prixMedicament } : {}),
+        }
+      })
+      .filter((p) => !lat || !lng || p.distance <= radius)
+      .sort((a, b) => a.distance - b.distance)
+
+    return NextResponse.json(results)
+  } catch (error) {
+    console.error('Erreur GET pharmacies proches:', error)
+    return NextResponse.json(
+      { error: 'Erreur lors de la recherche de pharmacies' },
+      { status: 500 }
+    )
+  }
+}

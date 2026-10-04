@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, GROSSISTE_TENANT_ROLES } from '@/lib/api-auth'
 
 // GET: List webhooks for a grossiste
 export async function GET(
@@ -17,7 +17,7 @@ export async function GET(
     // pharmacie n'ont pas à inspecter la configuration d'un grossiste.
     if (
       auth.roleName !== 'PLATFORM_ADMIN' &&
-      !(auth.roleName === 'GROSSISTE_PARTNER' && auth.grossisteId === id)
+      !(GROSSISTE_TENANT_ROLES.includes(auth.roleName as (typeof GROSSISTE_TENANT_ROLES)[number]) && auth.grossisteId === id)
     ) {
       return NextResponse.json({ error: 'Accès refusé à ce grossiste' }, { status: 403 })
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, checkGrossisteAccess } from '@/lib/api-auth'
+import { requireAuth, checkGrossisteAccess, GROSSISTE_TENANT_ROLES } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes/[id]/commandes

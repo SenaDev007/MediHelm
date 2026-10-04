@@ -18,15 +18,51 @@ export const registerSchema = z.object({
   nom: z.string().trim().min(2),
   prenom: z.string().trim().min(2),
   motDePasse: z.string().min(12),
-  pharmacieNom: z.string().trim().min(2),
-  adresse: z.string().trim().min(3),
-  ville: z.string().trim().min(2),
-  departement: z.string().trim().min(2),
-  telephone: z.string().trim().min(8),
+  // ─── Deux modes d'inscription ───
+  // 1. Rattachement à une officine officielle ABMed pré-enregistrée :
+  //    officineId = identifiant de l'officine au registre (les champs
+  //    d'établissement sont alors pré-remplis côté serveur).
+  // 2. Nouvelle officine (pas encore au registre) : tous les champs
+  //    d'établissement ABMed sont requis.
+  officineId: z.uuid().optional(),
+  pharmacieNom: z.string().trim().min(2).optional(),
+  adresse: z.string().trim().min(3).optional(),
+  ville: z.string().trim().min(2).optional(),
+  departement: z.string().trim().min(2).optional(),
+  telephone: z.string().trim().min(8).optional(),
   emailPharmacie: z.email().nullable().optional(),
-  numeroAgrement: z.string().min(3),
+  numeroAgrement: z.string().min(3).optional(),
   plan: z.enum(['SEED', 'BLOOM', 'CROWN', 'NETWORK']),
   periodeFacturation: z.enum(['MENSUEL', 'ANNUEL']),
+  // ─── Champs d'établissement ABMed (nouvelle officine / compléments) ───
+  zoneSanitaire: z.string().trim().optional(),
+  commune: z.string().trim().optional(),
+  arrondissement: z.string().trim().optional(),
+  localisation: z.string().trim().optional(),
+  pharmacienTitulaire: z.string().trim().optional(),
+  pharmacienResponsable: z.string().trim().optional(),
+  contactPharmacien: z.string().trim().optional(),
+  courrielPharmacien: z.email().nullable().optional(),
+  referenceAutorisation: z.string().trim().optional(),
+  dateValiditeAbmed: z.string().trim().optional(),
+  referenceQuitus: z.string().trim().optional(),
+  numeroOnpb: z.string().trim().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+}).superRefine((data, ctx) => {
+  // Mode « nouvelle officine » : champs d'établissement obligatoires
+  if (!data.officineId) {
+    const requis = ['pharmacieNom', 'adresse', 'ville', 'departement', 'telephone', 'numeroAgrement'] as const
+    for (const champ of requis) {
+      if (!data[champ]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [champ],
+          message: `Champ requis pour une nouvelle officine : ${champ}`,
+        })
+      }
+    }
+  }
 })
 
 export const registerPatientSchema = z.object({

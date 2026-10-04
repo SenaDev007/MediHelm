@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, GROSSISTE_TENANT_ROLES } from '@/lib/api-auth'
 
 /**
  * GET /api/portail/grossiste/commandes
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = {}
 
-    if (auth.roleName === 'GROSSISTE_PARTNER') {
+    if (GROSSISTE_TENANT_ROLES.includes(auth.roleName as (typeof GROSSISTE_TENANT_ROLES)[number])) {
       // Tenant grossiste: le partenaire voit toutes les commandes adressées à SON grossiste
       if (!auth.grossisteId) {
         return NextResponse.json({ error: 'Compte non rattaché à un grossiste. Contactez le support.' }, { status: 403 })
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireAuth(request, 'M03_COMMANDES', 'write')
   if (auth instanceof Response) return auth
-  if (auth.roleName === 'GROSSISTE_PARTNER') {
+  if (GROSSISTE_TENANT_ROLES.includes(auth.roleName as (typeof GROSSISTE_TENANT_ROLES)[number])) {
     return NextResponse.json({ error: 'Le compte grossiste ne dispose pas encore d’un tenant associé.' }, { status: 403 })
   }
 

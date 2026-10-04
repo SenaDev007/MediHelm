@@ -34,6 +34,15 @@ interface PharmacyResult {
   distance: number
   estGarde: boolean
   medicamentDispo?: boolean
+  // ─── Registre officiel ABMed ───
+  numeroAbmed?: string | null
+  officielle?: boolean
+  departement?: string | null
+  zoneSanitaire?: string | null
+  commune?: string | null
+  arrondissement?: string | null
+  localisation?: string | null
+  pharmacienTitulaire?: string | null
 }
 
 const radiusOptions = [1, 3, 5, 10, 20]
@@ -212,6 +221,15 @@ export default function PharmaciesPage() {
     distance: p.distance,
     ville: p.ville,
     medicamentDispo: p.medicamentDispo,
+    // ─── Registre officiel ABMed (fiche complète au survol / clic) ───
+    numeroAbmed: p.numeroAbmed,
+    officielle: p.officielle ?? (p.numeroAbmed != null),
+    departement: p.departement,
+    zoneSanitaire: p.zoneSanitaire,
+    commune: p.commune,
+    arrondissement: p.arrondissement,
+    localisation: p.localisation,
+    pharmacienTitulaire: p.pharmacienTitulaire,
   }))
 
   const nearest = filteredPharmacies[0]
@@ -235,6 +253,13 @@ export default function PharmaciesPage() {
                 distance={pharmacy.distance}
                 estGarde={pharmacy.estGarde}
                 medicamentDispo={pharmacy.medicamentDispo}
+                numeroAbmed={pharmacy.numeroAbmed}
+                officielle={pharmacy.officielle ?? (pharmacy.numeroAbmed != null)}
+                departement={pharmacy.departement}
+                zoneSanitaire={pharmacy.zoneSanitaire}
+                commune={pharmacy.commune}
+                arrondissement={pharmacy.arrondissement}
+                pharmacienTitulaire={pharmacy.pharmacienTitulaire}
                 userLatitude={userLat}
                 userLongitude={userLng}
                 onSelect={() => setSelectedPharmacyId(

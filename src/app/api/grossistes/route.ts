@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth, checkGrossisteAccess } from '@/lib/api-auth'
+import { requireAuth, checkGrossisteAccess, GROSSISTE_TENANT_ROLES } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     if (actif === 'true') where.actif = true
     else if (actif === 'false') where.actif = false
     // Isolation tenant: un partenaire grossiste ne voit que son propre grossiste
-    if (auth.roleName === 'GROSSISTE_PARTNER') {
+    if (GROSSISTE_TENANT_ROLES.includes(auth.roleName as (typeof GROSSISTE_TENANT_ROLES)[number])) {
       if (!auth.grossisteId) {
         return NextResponse.json({ error: 'Compte non rattaché à un grossiste. Contactez le support.' }, { status: 403 })
       }

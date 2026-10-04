@@ -195,15 +195,26 @@ export async function requirePharmacieAccess(
 
 /**
  * Vérifie que l'utilisateur courant peut agir sur le grossiste donné.
- * - GROSSISTE_PARTNER: uniquement SON grossiste (user.grossisteId) — tenant isolé
- * - Rôles pharmacie / PLATFORM_ADMIN: accès autorisé (relation commerciale)
+ * - Rôles grossiste (PARTNER/ADMIN/COMMANDES/PREPARATEUR/LIVREUR/COMMERCIAL/COMPTABLE) :
+ *   uniquement LEUR grossiste (user.grossisteId) — tenant isolé.
+ * - Rôles pharmacie / PLATFORM_ADMIN : accès autorisé (relation commerciale).
  * Retourne null si autorisé, sinon une Response d'erreur (403/400).
  */
+export const GROSSISTE_TENANT_ROLES = [
+  'GROSSISTE_PARTNER',
+  'GROSSISTE_ADMIN',
+  'GROSSISTE_COMMANDES',
+  'GROSSISTE_PREPARATEUR',
+  'GROSSISTE_LIVREUR',
+  'GROSSISTE_COMMERCIAL',
+  'GROSSISTE_COMPTABLE',
+] as const
+
 export function checkGrossisteAccess(
   user: AuthUser,
   grossisteId: string | null | undefined
 ): Response | null {
-  if (user.roleName === 'GROSSISTE_PARTNER') {
+  if (GROSSISTE_TENANT_ROLES.includes(user.roleName as (typeof GROSSISTE_TENANT_ROLES)[number])) {
     if (!user.grossisteId) {
       return Response.json(
         { error: 'Compte non rattaché à un grossiste. Contactez le support.' },
@@ -218,6 +229,23 @@ export function checkGrossisteAccess(
     }
   }
   return null
+}
+
+/**
+ * RBAC fin des modules ERP grossiste (CDC Grossiste §3 — rôles par module G).
+ * Retourne null si autorisé, sinon une Response 403.
+ * PLATFORM_ADMIN et GROSSISTE_PARTNER (partenaire historique full-access) passent toujours.
+ */
+export function requireGrossisteModule(
+  user: AuthUser,
+  allowedRoles: Array<(typeof GROSSISTE_TENANT_ROLES)[number]>
+): Response | null {
+  if (user.roleName === 'PLATFORM_ADMIN' || user.roleName === 'GROSSISTE_PARTNER') return null
+  if (allowedRoles.includes(user.roleName as (typeof GROSSISTE_TENANT_ROLES)[number])) return null
+  return Response.json(
+    { error: `Accès refusé — module réservé aux rôles : ${allowedRoles.join(', ')}` },
+    { status: 403 }
+  )
 }
 
 /**

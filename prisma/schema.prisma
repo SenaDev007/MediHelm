@@ -38,6 +38,12 @@ enum RoleType {
   SOBAPS_VIEWER
   ABRP_VIEWER
   GROSSISTE_PARTNER
+  GROSSISTE_ADMIN
+  GROSSISTE_COMMANDES
+  GROSSISTE_PREPARATEUR
+  GROSSISTE_LIVREUR
+  GROSSISTE_COMMERCIAL
+  GROSSISTE_COMPTABLE
   PATIENT
 }
 
@@ -337,6 +343,30 @@ model Pharmacie {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
+  // ─── Registre officiel ABMed (officines agréées du Bénin) ───
+  // Source : https://abmed.bj — répertoire des officines autorisées.
+  // Une officine pré-enregistrée au registre n'a pas encore de compte
+  // MediHelm (aucun Utilisateur rattaché) jusqu'à son onboarding.
+  numeroAbmed           String? @unique // N° ABMed (P1..P400)
+  sourceRegistre        String? // "ABMED" (registre officiel) | "MANUEL" (nouvelle officine)
+  departement           String? // ALIBORI, ATACORA, ..., LITTORAL
+  zoneSanitaire         String?
+  commune               String?
+  arrondissement        String?
+  localisation          String? // Localisation / adresse publiée ABMed
+  pharmacienTitulaire   String?
+  pharmacienResponsable String?
+  contactPharmacien     String?
+  courrielPharmacien    String?
+  referenceAutorisation String? // Référence autorisation d'ouverture
+  dateValiditeAbmed     String? // Date début validité (format publié)
+  referenceQuitus       String?
+  numeroOnpb            String?
+  statutAbmed           String? // Lecture du statut ABMed
+  suspensionAbmed       String?
+  pageRegistre          Int?
+  sourceUrlAbmed        String?
+
   utilisateurs        Utilisateur[]
   utilisateursTenant  UtilisateurTenant[]
   promoLinks          PromoPharmacieLink[]
@@ -369,6 +399,8 @@ model Pharmacie {
   alertesOp           AlerteOperationnelle[]
   rapportsAnalytics   RapportAnalytique[]
   ordonnancesGrossiste OrdonnanceGrossiste[]
+  clientsGrossiste    ClientGrossiste[]
+  commandesGrossiste  CommandeGrossiste[]
   receptions          ReceptionGrossiste[]
   commandesPatient    CommandePatient[]
   vaccinations        Vaccination[]
@@ -1115,6 +1147,7 @@ model Grossiste {
   webhooks   WebhookConfig[]
   apiKeys    GrossisteApiKey[]
   utilisateurs Utilisateur[]
+  clients    ClientGrossiste[]
 }
 
 model GrossisteApiKey {
@@ -1153,24 +1186,32 @@ model CommandeGrossiste {
   pharmacieId  String?
   reference    String          @unique
   statut       StatutCommande  @default(BROUILLON)
+  source       String          @default("MEDIHELM_PRO") // MEDIHELM_PRO · SAISIE_MANUELLE · APP_COMMERCIAL · EMAIL_EDI
   montantTotal Float           @default(0)
+  montantPaye  Float           @default(0)
+  notes        String?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
-  grossiste Grossiste              @relation(fields: [grossisteId], references: [id])
-  lignes    LigneCommandeGrossiste[]
+  grossiste  Grossiste                @relation(fields: [grossisteId], references: [id])
+  pharmacie  Pharmacie?               @relation(fields: [pharmacieId], references: [id])
+  lignes     LigneCommandeGrossiste[]
+  bonPicking BonPicking[]
+  livraisons LivraisonGrossiste[]
 }
 
 model LigneCommandeGrossiste {
-  id             String   @id @default(uuid())
-  commandeId     String
-  produitId      String?
-  dci            String
-  nomCommercial  String?
-  quantite       Int
-  prixUnitaire   Float
-  montant        Float
-  createdAt      DateTime @default(now())
+  id                String   @id @default(uuid())
+  commandeId        String
+  produitId         String?
+  dci               String
+  nomCommercial     String?
+  quantite          Int
+  quantiteConfirmee Int? // confirmation partielle (G03)
+  quantiteLivre     Int      @default(0)
+  prixUnitaire      Float
+  montant           Float
+  createdAt         DateTime @default(now())
 
   commande CommandeGrossiste @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
@@ -1382,12 +1423,54 @@ model LotGrossiste {
   quantite       Int
   dateExpiration DateTime
   emplacement    String?
-  statut         String   @default("DISPONIBLE")
+  statut         String   @default("DISPONIBLE") // DISPONIBLE · QUARANTAINE · DETRUIT
+  motifStatut    String? // motif quarantaine / PV destruction
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   produit ProduitGrossiste @relation(fields: [produitId], references: [id])
 
   @@unique([produitId, numeroLot])
+  @@index([statut])
+}
+
+// G06 — Fiches clients officines (crédit, conditions de paiement)
+model ClientGrossiste {
+  id                 String   @id @default(uuid())
+  grossisteId        String
+  pharmacieId        String
+  conditionsPaiement String   @default("COMPTANT") // COMPTANT · 30_JOURS · 60_JOURS
+  creditPlafond      Float    @default(0)
+  remiseDefaut       Float    @default(0) // % remise client
+  actif              Boolean  @default(true)
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  grossiste Grossiste @relation(fields: [grossisteId], references: [id])
+  pharmacie Pharmacie @relation(fields: [pharmacieId], references: [id])
+
+  @@unique([grossisteId, pharmacieId])
+}
+
+// Base nationale DCI — référentiel DPMED (fiches institutionnelles)
+model FicheDCI {
+  id                 String   @id @default(uuid())
+  dci                String   @unique
+  classeTherapeutique String
+  mecanisme          String?
+  indications        String?
+  posologie          String?
+  contreIndications  String?
+  interactions       String   @default("[]") // JSON : [{dci, severite, description}]
+  effetsIndesirables String   @default("[]") // JSON : [string]
+  conservation       String?
+  source             String   @default("DPMED Bénin")
+  auteurId           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([classeTherapeutique])
 }
 
 model BonPicking {
@@ -1399,6 +1482,10 @@ model BonPicking {
   scanConfirme   Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  commande CommandeGrossiste @relation(fields: [commandeId], references: [id])
+
+  @@index([commandeId])
 }
 
 model LivraisonGrossiste {
@@ -1410,4 +1497,9 @@ model LivraisonGrossiste {
   signatureElectronique String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+
+  commande CommandeGrossiste @relation(fields: [commandeId], references: [id])
+
+  @@index([commandeId])
+  @@index([statut])
 }

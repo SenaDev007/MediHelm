@@ -61,3 +61,14 @@ download/
 upload/
 tool-results/
 agent-ctx/
+
+# artefacts de dev
+dev.log
+server.log
+*.tsbuildinfo
+.env
+.env*.local
+db/*.db
+download/
+tool-results/
+agent-ctx/

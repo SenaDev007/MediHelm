@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuth, GROSSISTE_TENANT_ROLES } from '@/lib/api-auth'
 
 /**
  * GET /api/grossistes/catalogue/[id]
@@ -69,7 +69,7 @@ export async function PATCH(
     }
 
     // Isolation tenant: le partenaire ne modifie que les produits de SON grossiste
-    if (auth.roleName === 'GROSSISTE_PARTNER' && existing.grossisteId !== auth.grossisteId) {
+    if (GROSSISTE_TENANT_ROLES.includes(auth.roleName as (typeof GROSSISTE_TENANT_ROLES)[number]) && existing.grossisteId !== auth.grossisteId) {
       return NextResponse.json({ error: 'Accès refusé à ce produit.' }, { status: 403 })
     }
 
