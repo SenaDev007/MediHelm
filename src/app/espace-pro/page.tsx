@@ -37,7 +37,7 @@ const reassurance = [
 export default function EspaceProPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar />
+      <Navbar space="pro" />
       <main className="flex-1">
         {/* ─── Hero MediHelm Pro ─── */}
         <section className="relative overflow-hidden bg-teal-800 pt-16">

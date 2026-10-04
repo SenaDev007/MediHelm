@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { GardeWidget } from '@/components/patient/garde-widget'
+import { usePatientSession } from '@/hooks/use-patient-session'
 import { useEffect, useState } from 'react'
 
 const quickActions = [
@@ -36,6 +37,7 @@ const item = {
 }
 
 export default function PatientHomePage() {
+  const { prenom, nom } = usePatientSession()
   const [activeAlerts, setActiveAlerts] = useState<Array<{ id: string; titre: string; niveauUrgence: string }>>([])
   const [activeOrders, setActiveOrders] = useState<Array<{ id: string; statut: string; pharmacie: string; montant: number }>>([])
   const [gardePharmacy, setGardePharmacy] = useState<{
@@ -93,7 +95,9 @@ export default function PatientHomePage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-xl font-bold text-teal-800">Bonjour</h1>
+        <h1 className="text-xl font-bold text-teal-800">
+          {prenom || nom ? `Bonjour ${prenom ?? ''} ${nom ?? ''}`.trim().replace(/\s+/g, ' ') : 'Bonjour'}
+        </h1>
         <p className="text-sm text-muted-foreground">
           Bienvenue dans votre espace MediHelm Patient.
         </p>

@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   User, Mail, Phone, Lock, Eye, EyeOff,
-  AlertCircle, Loader2, ArrowLeft, Check, X
+  AlertCircle, Loader2, ArrowLeft, Check, X,
+  Flag, BadgeCheck
 } from 'lucide-react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -435,13 +436,16 @@ export default function InscriptionPage() {
             <div className="mt-5">
               <div className="flex items-center justify-center gap-3">
                 <Badge variant="secondary" className="bg-teal-50 text-teal-800 border-0 text-[10px]">
-                  🔒 Données chiffrées
+                  <Lock className="size-3 mr-1" />
+                  Données chiffrées
                 </Badge>
                 <Badge variant="secondary" className="bg-teal-50 text-teal-800 border-0 text-[10px]">
-                  🇧🇯 Conforme Bénin
+                  <Flag className="size-3 mr-1" />
+                  Conforme Bénin
                 </Badge>
                 <Badge variant="secondary" className="bg-teal-50 text-teal-800 border-0 text-[10px]">
-                  💯 Gratuit
+                  <BadgeCheck className="size-3 mr-1" />
+                  100% Gratuit
                 </Badge>
               </div>
             </div>

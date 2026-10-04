@@ -1,9 +1,15 @@
 // ============================================================
 // MediHelm — Middleware Next.js pour la protection des routes
-// Authentification requise pour /pro/*, /institutions/*, /grossistes/*, /admin/*
-// Routes publiques: /patient/*, /api/auth/*, /api/webhooks/*
-// RBAC spécifique: /institutions/dpmed/* → DPMED_ADMIN uniquement
+// Authentification requise pour /patient/*, /pro/*, /institutions/*, /grossistes/*, /admin/*
+// Chaque espace possède son landing page public :
+//   - /            → landing MediHelm Patient (compte gratuit)
+//   - /espace-pro  → landing MediHelm Pro (payant)
+//   - /espace-grossiste   → landing MediHelm Grossiste (payant)
+//   - /espace-institution → landing MediHelm Institution (gratuit, partenariat)
+// Redirections non-authentifiés vers le landing de l'espace visé.
 // RBAC spécifique: /admin/* → PLATFORM_ADMIN uniquement
+// RBAC spécifique: /institutions/dpmed/* → DPMED_ADMIN uniquement
+// RBAC spécifique: /patient/* → PATIENT et PLATFORM_ADMIN
 //
 // Note: La vérification JWT complète est effectuée côté serveur
 // dans les API routes via @/lib/api-auth. Le middleware effectue
@@ -28,10 +34,24 @@ const GROSSISTE_ROLES = [
   'PLATFORM_ADMIN',
 ]
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
+const PATIENT_ROLES = ['PATIENT', 'PLATFORM_ADMIN']
 
 // Routes publiques ne nécessitant pas d'authentification
-const PUBLIC_PATHS = ['/', '/patient', '/connexion', '/inscription', '/mot-de-passe-oublie', '/api', '/api/pharmacies', '/espace-pro']
-const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/api/scan', '/patient/', '/_next/', '/favicon', '/logo']
+const PUBLIC_PATHS = [
+  '/',
+  '/connexion',
+  '/inscription',
+  '/mot-de-passe-oublie',
+  '/api',
+  '/api/pharmacies',
+  '/espace-pro',
+  '/espace-grossiste',
+  '/espace-institution',
+  // Pages d'authentification patient — accessibles sans session
+  '/patient/connexion',
+  '/patient/inscription',
+]
+const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/api/scan', '/_next/', '/favicon', '/logo']
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true
@@ -66,17 +86,23 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Authentification requise' }, { status: 401 })
     }
-    const signInUrl = new URL('/connexion', request.url)
-    signInUrl.searchParams.set('callbackUrl', request.url)
-    return NextResponse.redirect(signInUrl)
-  }
 
-  // Routes API admin — vérification PLATFORM_ADMIN (double sécurité avec les handlers)
-  if (pathname.startsWith('/api/admin')) {
-    if (roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
+    // Chaque espace renvoie vers SON landing page public
+    const landingBySpace: Array<{ prefix: string; landing: string }> = [
+      { prefix: '/patient', landing: '/' },
+      { prefix: '/pro', landing: '/espace-pro' },
+      { prefix: '/grossistes', landing: '/espace-grossiste' },
+      { prefix: '/institutions', landing: '/espace-institution' },
+      { prefix: '/admin', landing: '/connexion' },
+      { prefix: '/espace-', landing: '/connexion' },
+    ]
+    const match = landingBySpace.find(({ prefix }) => pathname === prefix || pathname.startsWith(prefix + '/'))
+    const target = match?.landing ?? '/connexion'
+    const redirectUrl = new URL(target, request.url)
+    if (target === '/connexion') {
+      redirectUrl.searchParams.set('callbackUrl', request.url)
     }
-    return NextResponse.next()
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Routes API authentifiées — autoriser (la vérification RBAC fine est faite dans les handlers)
@@ -86,9 +112,11 @@ export async function middleware(request: NextRequest) {
 
   // === RBAC spécifique par section ===
 
-  // /admin/* — Réservé à PLATFORM_ADMIN uniquement
-  if (pathname.startsWith('/admin')) {
-    if (roleName !== 'PLATFORM_ADMIN') {
+  // /patient/* — Réservé aux PATIENT et PLATFORM_ADMIN.
+  // L'interface patient ne s'affiche qu'une fois le patient connecté
+  // à son compte personnel.
+  if (pathname === '/patient' || pathname.startsWith('/patient/')) {
+    if (!PATIENT_ROLES.includes(roleName ?? '')) {
       return NextResponse.redirect(new URL('/', request.url))
     }
     return NextResponse.next()
@@ -121,6 +149,22 @@ export async function middleware(request: NextRequest) {
     if (!GROSSISTE_ROLES.includes(roleName ?? '') && !PHARMACIE_ROLES.includes(roleName ?? '')) {
       return NextResponse.redirect(new URL('/', request.url))
     }
+  }
+
+  // Routes API admin — vérification PLATFORM_ADMIN (double sécurité avec les handlers)
+  if (pathname.startsWith('/api/admin')) {
+    if (roleName !== 'PLATFORM_ADMIN') {
+      return NextResponse.json({ error: 'Accès refusé. Réservé aux administrateurs plateforme.' }, { status: 403 })
+    }
+    return NextResponse.next()
+  }
+
+  // /admin/* — Réservé à PLATFORM_ADMIN uniquement
+  if (pathname.startsWith('/admin')) {
+    if (roleName !== 'PLATFORM_ADMIN') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+    return NextResponse.next()
   }
 
   return NextResponse.next()

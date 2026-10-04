@@ -3,13 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Building2, Heart } from "lucide-react";
+import { ArrowRight, BadgeCheck, Heart, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const stats = [
-  { value: "19", label: "Modules de gestion" },
   { value: "398", label: "Officines au registre ABMed" },
-  { value: "4", label: "Espaces dédiés" },
+  { value: "12", label: "Départements couverts" },
+  { value: "0", label: "FCFA — compte patient gratuit" },
 ];
 
 export function HeroSection() {
@@ -56,13 +56,25 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-6"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-white mb-4"
             style={{ fontFamily: "Georgia, serif" }}
           >
-            Le numérique au service des{" "}
-            <span className="text-teal-200">pharmacies</span> et de leurs{" "}
-            <span className="text-amber-400">publics</span>
+            Vos médicaments, vos pharmacies,
+            votre <span className="text-teal-200">espace santé</span>
           </motion.h1>
+
+          {/* Badge gratuit */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="inline-flex items-center gap-2 rounded-full bg-amber-400/15 border border-amber-400/40 px-4 py-1.5 mb-6"
+          >
+            <BadgeCheck className="size-4 text-amber-400" />
+            <span className="text-sm font-semibold text-amber-200">
+              Compte patient 100% gratuit
+            </span>
+          </motion.div>
 
           {/* Subtitle */}
           <motion.p
@@ -71,9 +83,9 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.15 }}
             className="text-base sm:text-lg md:text-xl text-teal-200 max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            MediHelm présente des espaces et outils numériques destinés aux
-            pharmacies, aux patients, aux grossistes et aux institutions au
-            Bénin.
+            Recherchez vos médicaments, trouvez les pharmacies autour de vous,
+            suivez la pharmacie de garde et commandez en ligne. Créez votre
+            compte patient gratuitement et accédez à votre espace personnel.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -83,24 +95,24 @@ export function HeroSection() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
           >
-            <Link href="/espace-pro">
+            <Link href="/patient/inscription">
               <Button
                 size="lg"
                 className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
               >
-                <Building2 className="mr-2 size-5" />
-                Découvrir MediHelm Pro
+                <Heart className="mr-2 size-5" />
+                Créer mon compte gratuit
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>
-            <Link href="/patient">
+            <Link href="/patient/connexion">
               <Button
                 size="lg"
                 variant="outline"
                 className="border-white/30 text-white hover:bg-white/10 hover:text-white font-medium text-base px-8 h-12 bg-transparent"
               >
-                <Heart className="mr-2 size-5" />
-                Accéder à l&apos;espace patient
+                <LogIn className="mr-2 size-5" />
+                Se connecter
               </Button>
             </Link>
           </motion.div>

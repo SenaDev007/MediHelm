@@ -6,10 +6,10 @@ import { Mail, MapPin, ExternalLink } from "lucide-react";
 import { Logo } from "./Logo";
 
 const spaceLinks = [
-  { label: "MediHelm Pro", href: "/espace-pro", desc: "Espace pharmacie" },
-  { label: "MediHelm Patient", href: "/patient", desc: "Espace patient" },
-  { label: "MediHelm Grossistes", href: "/grossistes", desc: "Espace grossistes et fournisseurs" },
-  { label: "MediHelm Institutions", href: "/institutions", desc: "Espace institutionnel" },
+  { label: "MediHelm Patient", href: "/patient/connexion", desc: "Espace patient — compte gratuit" },
+  { label: "MediHelm Pro", href: "/espace-pro", desc: "Espace pharmacie — payant" },
+  { label: "MediHelm Grossistes", href: "/espace-grossiste", desc: "Espace grossistes — payant" },
+  { label: "MediHelm Institutions", href: "/espace-institution", desc: "Espace institutionnel — gratuit, partenariat" },
 ];
 
 const legalLabels = [

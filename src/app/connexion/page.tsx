@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,7 +13,8 @@ import { Shield, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
 
 function ConnexionForm() {
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/pro'
+  const router = useRouter()
+  const explicitCallbackUrl = searchParams.get('callbackUrl')
   const error = searchParams.get('error')
 
   const [email, setEmail] = useState('')
@@ -28,6 +29,37 @@ function ConnexionForm() {
         : null
   )
 
+  /**
+   * Redirige vers l'espace correspondant au rôle de l'utilisateur.
+   * Chaque espace MediHelm a sa destination : patient → /patient,
+   * grossiste → /grossistes, institution → /institutions,
+   * pharmacie → /pro, plateforme → /admin.
+   */
+  function destinationForRole(roleName: string | undefined | null): string {
+    switch (roleName) {
+      case 'PLATFORM_ADMIN':
+        return '/admin'
+      case 'PATIENT':
+        return '/patient'
+      case 'GROSSISTE_PARTNER':
+      case 'GROSSISTE_ADMIN':
+      case 'GROSSISTE_COMMANDES':
+      case 'GROSSISTE_PREPARATEUR':
+      case 'GROSSISTE_LIVREUR':
+      case 'GROSSISTE_COMMERCIAL':
+      case 'GROSSISTE_COMPTABLE':
+        return '/grossistes'
+      case 'DPMED_ADMIN':
+      case 'SOBAPS_VIEWER':
+      case 'ABRP_VIEWER':
+        return '/institutions'
+      default:
+        // Rôles pharmacie : ADMIN, DIRECTEUR, PHARMACIEN, CAISSIER,
+        // MAGASINIER, COMPTABLE, STAGIAIRE, PROMOTEUR
+        return '/pro'
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
@@ -37,8 +69,7 @@ function ConnexionForm() {
       const result = await signIn('credentials', {
         email,
         password,
-        callbackUrl,
-        redirect: true,
+        redirect: false,
       })
 
       if (result?.error) {
@@ -47,6 +78,26 @@ function ConnexionForm() {
             ? 'Email ou mot de passe incorrect'
             : result.error
         )
+      } else if (result?.ok) {
+        // Récupère la session pour router vers l'espace du rôle
+        let destination = '/pro'
+        try {
+          const res = await fetch('/api/auth/session')
+          if (res.ok) {
+            const session = await res.json()
+            const roleName = (session?.user as Record<string, unknown> | undefined)?.roleName as string | undefined
+            destination = destinationForRole(roleName)
+          }
+        } catch {
+          // Session illisible — destination par défaut conservée
+        }
+        // Un callbackUrl explicite (demande d'origine) prime sur le routage par rôle
+        const callbackUrl = explicitCallbackUrl
+        if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
+          destination = callbackUrl
+        }
+        router.push(destination)
+        router.refresh()
       }
     } catch {
       setAuthError('Erreur de connexion au serveur')

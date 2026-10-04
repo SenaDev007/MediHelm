@@ -15,13 +15,40 @@ const navLinks = [
 ];
 
 const spaceLinks = [
-  { label: "MediHelm Pro", href: "/espace-pro", description: "Espace pharmacie", color: "text-teal-400" },
-  { label: "MediHelm Patient", href: "/patient", description: "Espace patient", color: "text-blue-brand" },
-  { label: "MediHelm Grossistes", href: "/grossistes", description: "Espace grossistes et fournisseurs", color: "text-amber-400" },
-  { label: "MediHelm Institutions", href: "/institutions", description: "Espace institutionnel", color: "text-teal-800" },
+  { label: "MediHelm Patient", href: "/#fonctionnalites", description: "Espace patient — compte gratuit", color: "text-blue-brand" },
+  { label: "MediHelm Pro", href: "/espace-pro", description: "Espace pharmacie — payant", color: "text-teal-400" },
+  { label: "MediHelm Grossistes", href: "/espace-grossiste", description: "Espace grossistes — payant", color: "text-amber-400" },
+  { label: "MediHelm Institutions", href: "/espace-institution", description: "Espace institutionnel — gratuit, partenariat", color: "text-teal-800" },
 ];
 
-export function Navbar() {
+interface NavbarProps {
+  /** Espace courant — adapte les boutons d'action à l'espace visité */
+  space?: "patient" | "pro" | "grossiste" | "institution";
+}
+
+const spaceCta: Record<
+  NonNullable<NavbarProps["space"]>,
+  { primary: { label: string; href: string }; secondary: { label: string; href: string } }
+> = {
+  patient: {
+    primary: { label: "Créer mon compte gratuit", href: "/patient/inscription" },
+    secondary: { label: "Se connecter", href: "/patient/connexion" },
+  },
+  pro: {
+    primary: { label: "Se connecter à MediHelm Pro", href: "/connexion?callbackUrl=%2Fpro" },
+    secondary: { label: "Inscrire mon officine", href: "/inscription" },
+  },
+  grossiste: {
+    primary: { label: "Accéder à mon espace", href: "/connexion?callbackUrl=%2Fgrossistes" },
+    secondary: { label: "Devenir partenaire", href: "mailto:contact@medihelm.com?subject=MediHelm%20Grossiste%20—%20Devenir%20partenaire" },
+  },
+  institution: {
+    primary: { label: "Accéder à mon portail", href: "/connexion?callbackUrl=%2Finstitutions" },
+    secondary: { label: "Devenir partenaire", href: "mailto:contact@medihelm.com?subject=MediHelm%20Institution%20—%20Demande%20de%20partenariat" },
+  },
+};
+
+export function Navbar({ space = "patient" }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showSpaces, setShowSpaces] = useState(false);
@@ -98,14 +125,14 @@ export function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/patient">
+            <Link href={spaceCta[space].secondary.href}>
               <Button variant="outline" className="border-teal-400 text-teal-400 hover:bg-teal-50 font-medium text-sm">
-                Espace patient
+                {spaceCta[space].secondary.label}
               </Button>
             </Link>
-            <Link href="/pro">
+            <Link href={spaceCta[space].primary.href}>
               <Button className="bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                Se connecter à MediHelm Pro
+                {spaceCta[space].primary.label}
               </Button>
             </Link>
           </div>
@@ -158,14 +185,14 @@ export function Navbar() {
                 ))}
               </div>
               <div className="pt-3 pb-1 space-y-2">
-                <Link href="/patient" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full border-teal-400 text-teal-400 font-medium text-sm">
-                    Espace patient
+                <Link href={spaceCta[space].primary.href} onClick={() => setIsOpen(false)}>
+                  <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
+                    {spaceCta[space].primary.label}
                   </Button>
                 </Link>
-                <Link href="/pro" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                    Se connecter à MediHelm Pro
+                <Link href={spaceCta[space].secondary.href} onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full border-teal-400 text-teal-400 font-medium text-sm">
+                    {spaceCta[space].secondary.label}
                   </Button>
                 </Link>
               </div>
