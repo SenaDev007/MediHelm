@@ -1,6 +1,6 @@
 # Historique des migrations MediHelm
 
-`20261005000000_init_baseline` est la migration de référence générée depuis `prisma/schema.prisma` de la branche `main` (schéma au 5 octobre 2026, incluant les 18 champs ABMed du modèle `Pharmacie`). Elle crée le schéma complet d'une base neuve : 66 tables, 30 types énumérés.
+`20261005000000_init_baseline` est la migration de référence générée depuis `prisma/schema.prisma` de la branche `main` (schéma au 5 octobre 2026, incluant les 18 champs ABMed du modèle `Pharmacie` et la table `SessionUtilisateur` des sessions persistées en base). Elle crée le schéma complet d'une base neuve : 67 tables, 30 types énumérés.
 
 ## Base neuve
 

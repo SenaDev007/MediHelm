@@ -157,6 +157,20 @@ CREATE TABLE "Utilisateur" (
 );
 
 -- CreateTable
+CREATE TABLE "SessionUtilisateur" (
+    "id" TEXT NOT NULL,
+    "utilisateurId" TEXT NOT NULL,
+    "jeton" TEXT NOT NULL,
+    "roleSnapshot" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revokedAt" TIMESTAMP(3),
+    "dernierAcces" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SessionUtilisateur_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "UtilisateurTenant" (
     "id" TEXT NOT NULL,
     "utilisateurId" TEXT NOT NULL,
@@ -1161,6 +1175,15 @@ CREATE UNIQUE INDEX "Utilisateur_email_key" ON "Utilisateur"("email");
 CREATE UNIQUE INDEX "Utilisateur_supabaseUid_key" ON "Utilisateur"("supabaseUid");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "SessionUtilisateur_jeton_key" ON "SessionUtilisateur"("jeton");
+
+-- CreateIndex
+CREATE INDEX "SessionUtilisateur_utilisateurId_idx" ON "SessionUtilisateur"("utilisateurId");
+
+-- CreateIndex
+CREATE INDEX "SessionUtilisateur_expiresAt_idx" ON "SessionUtilisateur"("expiresAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "UtilisateurTenant_utilisateurId_pharmacieId_key" ON "UtilisateurTenant"("utilisateurId", "pharmacieId");
 
 -- CreateIndex
@@ -1279,6 +1302,9 @@ ALTER TABLE "Utilisateur" ADD CONSTRAINT "Utilisateur_pharmacieId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "Utilisateur" ADD CONSTRAINT "Utilisateur_grossisteId_fkey" FOREIGN KEY ("grossisteId") REFERENCES "Grossiste"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SessionUtilisateur" ADD CONSTRAINT "SessionUtilisateur_utilisateurId_fkey" FOREIGN KEY ("utilisateurId") REFERENCES "Utilisateur"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UtilisateurTenant" ADD CONSTRAINT "UtilisateurTenant_utilisateurId_fkey" FOREIGN KEY ("utilisateurId") REFERENCES "Utilisateur"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

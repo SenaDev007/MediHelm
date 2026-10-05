@@ -16,6 +16,9 @@
     "db:seed": "bun run prisma/seed.ts",
     "postinstall": "prisma generate"
   },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "prisma": {
     "seed": "bun run prisma/seed.ts"
   },
