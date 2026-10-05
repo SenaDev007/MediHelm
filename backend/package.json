@@ -1,0 +1,6 @@
+{
+  "name": "@medihelm/backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MediHelm backend — Prisma (schéma/migrations/seed), logique métier (src/lib), implémentations des routes API (src/api), scripts serveur. Les dépendances npm vivent dans frontend/ (application Next.js qui compile et sert ce code) ; backend/node_modules est un lien symbolique vers frontend/node_modules."
+}

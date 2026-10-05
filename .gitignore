@@ -72,3 +72,6 @@ db/*.db
 download/
 tool-results/
 agent-ctx/
+
+# Le symlink backend/node_modules → ../frontend/node_modules doit être versionné
+!backend/node_modules
