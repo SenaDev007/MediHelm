@@ -113,7 +113,7 @@ function ConnexionForm() {
         <div className="flex flex-col items-center gap-2">
           <Logo />
           <p className="text-sm text-muted-foreground text-center">
-            L&apos;écosystème santé de confiance au Bénin
+            L&apos;écosystème Santé de Confiance
           </p>
         </div>
 

@@ -19,9 +19,17 @@ async function main() {
 
   // ---------- A. MIDDLEWARE ROUTING ----------
   console.log('--- A. Middleware routing (pages publiques / auth) ---')
-  for (const p of ['/patient', '/patient/recherche', '/patient/pharmacies', '/patient/garde', '/patient/urgence', '/patient/comparateur', '/patient/connexion', '/patient/inscription', '/patient/verifier']) {
+  // Depuis la ronde 4 (auth obligatoire) : les pages patient sont PROTÉGÉES —
+  // un anonyme est redirigé (307) vers le landing patient. Seules connexion
+  // et inscription restent publiques.
+  for (const p of ['/patient', '/patient/recherche', '/patient/pharmacies', '/patient/garde', '/patient/urgence', '/patient/comparateur', '/patient/verifier']) {
     const r = await page(null, p)
-    record(SUITE, `Page ${p} (anonyme)`, r.status === 200 ? 'PASS' : 'FAIL', `status=${r.status}${r.location ? ` → ${r.location}` : ''}`)
+    const gate = r.status === 307 && (r.location === '/' || (r.location || '').startsWith('/?'))
+    record(SUITE, `Page ${p} (anonyme → 307 landing)`, gate ? 'PASS' : 'FAIL', `status=${r.status}${r.location ? ` → ${r.location}` : ''}`)
+  }
+  for (const p of ['/patient/connexion', '/patient/inscription']) {
+    const r = await page(null, p)
+    record(SUITE, `Page ${p} (publique)`, r.status === 200 ? 'PASS' : 'FAIL', `status=${r.status}`)
   }
   // Pages authentifiées côté client — doivent rester accessibles (gate client)
   for (const p of ['/patient/commande', '/patient/suivi', '/patient/profil', '/patient/fidelite', '/patient/notifications', '/patient/ordonnances', '/patient/rappels', '/patient/vaccinations']) {

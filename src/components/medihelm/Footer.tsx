@@ -27,8 +27,9 @@ export function Footer() {
           <div>
             <Logo variant="full" className="mb-4 [&_span]:!text-white [&_div_span:last-child]:!text-teal-200" />
             <p className="text-sm text-teal-200 leading-relaxed">
-              Outils numériques pour les acteurs de la santé au Bénin :
-              pharmaciens, patients, grossistes et institutions.
+              L'écosystème Santé de Confiance pour les acteurs
+              de la santé au Bénin : pharmaciens, patients,
+              grossistes et institutions.
             </p>
           </div>
 

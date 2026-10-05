@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MediHelm — L'Écosystème Santé de Confiance au Bénin",
+  title: "MediHelm — L'Écosystème Santé de Confiance",
   description:
-    "Le premier écosystème santé du Bénin — gestion de pharmacie, recherche de médicaments, alertes DPMED, conformité réglementaire. Pour pharmaciens et patients.",
+    "L'écosystème Santé de Confiance — gestion de pharmacie, recherche de médicaments, alertes DPMED, conformité réglementaire. Pour pharmaciens et patients.",
   keywords: [
     "MediHelm",
     "pharmacie",

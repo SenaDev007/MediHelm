@@ -1,7 +1,7 @@
 {
-  "name": "MediHelm — Ecosystème Santé",
+  "name": "MediHelm — L'Écosystème Santé de Confiance",
   "short_name": "MediHelm",
-  "description": "Gérez votre pharmacie et suivez votre santé au Bénin",
+  "description": "L'écosystème Santé de Confiance — gérez votre pharmacie et suivez votre santé au Bénin",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#085041",

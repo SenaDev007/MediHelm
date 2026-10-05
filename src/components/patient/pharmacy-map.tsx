@@ -32,8 +32,10 @@ import { cn } from '@/lib/utils'
  *   spatial — un agrégat ne mélange JAMAIS deux départements. En vue nationale,
  *   un badge circulaire par département est positionné aux COORDONNÉES du
  *   chef-lieu (Kandi pour l'Alibori, Natitingou pour l'Atacora…) — jamais à la
- *   frontière — avec un algorithme d'anti-collision qui écarte les badges du
- *   Sud (Littoral/Atlantique/Ouémé…) pour qu'ils restent tous lisibles.
+ *   frontière. L'anti-collision (Sud dense : Littoral/Atlantique/Ouémé…) est
+ *   GÉOGRAPHIQUEMENT BORNÉE : un badge ne peut jamais quitter les limites de
+ *   son département (DEPT_BOUNDS), donc jamais atterrir chez un voisin ni
+ *   hors du Bénin — au pire un léger chevauchement, le plus gros au-dessus.
  *
  * - SPIDERMANY : deux officines peuvent partager la même adresse (ou être à
  *   quelques mètres). Le clic sur un agrégat qui ne peut plus se séparer par
@@ -81,6 +83,30 @@ const DEPT_CENTERS: Record<string, [number, number]> = {
   COLLINES: [2.1846, 7.7714],    // Dassa-Zoumè
   MONO: [1.7161, 6.6372],        // Lokossa
 }
+
+/**
+ * Étendues géographiques réelles des 12 départements — boîtes englobantes
+ * [ouest, sud, est, nord]. Un badge départemental y est STRICTEMENT
+ * confiné : l'anti-collision peut l'écarter légèrement pour la lisibilité,
+ * mais il ne quitte JAMAIS son département — et donc jamais le Bénin.
+ */
+const DEPT_BOUNDS: Record<string, [number, number, number, number]> = {
+  ALIBORI:    [2.55, 10.90, 3.65, 12.00],
+  ATACORA:    [0.75,  9.90, 2.15, 11.15],
+  DONGA:      [1.15,  9.30, 1.95,  9.95],
+  BORGOU:     [2.15,  8.70, 3.45, 10.45], // Kalalé (3.38E) inclus
+  COLLINES:   [1.65,  7.10, 2.65,  8.65],
+  ZOU:        [1.85,  6.90, 2.45,  7.55],
+  COUFFO:     [1.45,  6.65, 2.05,  7.15],
+  ATLANTIQUE: [1.85,  6.15, 2.42,  6.95],
+  LITTORAL:   [2.28,  6.15, 2.55,  6.48],
+  OUEME:      [2.45,  6.15, 2.85,  6.85],
+  PLATEAU:    [2.25,  6.55, 3.05,  7.45],
+  MONO:       [1.55,  6.15, 2.05,  6.75],
+}
+
+/** Garde-fou absolu : frontières approximatives du Bénin [ouest, sud, est, nord] */
+const BENIN_BOUNDS: [number, number, number, number] = [0.77, 6.05, 3.90, 12.45]
 
 export interface PharmacyMapPoint {
   id: string
@@ -943,7 +969,15 @@ export default function PharmacyMap({
     }
   }, [points, showClusters])
 
-  /** Anti-collision des badges départementaux (vue nationale : Sud dense) */
+  /** Anti-collision des badges départementaux (vue nationale : Sud dense).
+   *
+   *  CONTRAINTE ABSOLUE — chaque badge reste DANS SON département : toute
+   *  position candidate est bornée à la boîte géographique du département
+   *  (elle-même comprise dans les frontières du Bénin). L'anti-collision
+   *  ne peut donc JAMAIS projeter un badge vers un autre département ni
+   *  hors du pays : au pire, deux badges voisins se chevauchent légèrement
+   *  (on choisit alors la position qui pénètre le moins), et le plus gros
+   *  reste lisible au-dessus. */
   const separateDeptBadges = useCallback(
     (map: maplibregl.Map, badges: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }>) => {
       if (badges.length <= 1) return badges
@@ -951,25 +985,50 @@ export default function PharmacyMap({
       const placed: Array<{ x: number; y: number; r: number }> = []
       const out: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }> = []
 
-      // Les départements les plus fournis gardent la priorité sur leur position exacte
+      // Les départements les plus fournis gardent la priorité sur leur chef-lieu
       for (const b of [...badges].sort((a, b2) => b2.count - a.count)) {
-        const p = map.project([b.lng, b.lat])
-        let x = p.x
-        let y = p.y
+        const box = DEPT_BOUNDS[b.dept] ?? BENIN_BOUNDS
+        // Bornage géographique : la position reste dans le département
+        const clampToDept = (lng: number, lat: number): [number, number] => [
+          Math.min(Math.max(lng, box[0]), box[2]),
+          Math.min(Math.max(lat, box[1]), box[3]),
+        ]
         const r = radiusOf(b.count)
-        let clash = () => placed.some(q => Math.hypot(x - q.x, y - q.y) < r + q.r + 6)
-        let attempt = 0
-        while (clash() && attempt < 56) {
-          attempt++
-          const ring = Math.ceil(attempt / 8)
-          const angle = ((attempt % 8) / 8) * Math.PI * 2 + ring * 0.7
-          const dist = ring * (r + 16)
-          x = p.x + Math.cos(angle) * dist
-          y = p.y + Math.sin(angle) * dist
+        const anchor = map.project([b.lng, b.lat])
+        // Profondeur de chevauchement (px) — à minimiser
+        const penetration = (x: number, y: number) =>
+          placed.reduce((m, q) => Math.max(m, r + q.r + 4 - Math.hypot(x - q.x, y - q.y)), 0)
+
+        // Candidats : position exacte du chef-lieu, puis spirale COURTE
+        // (3 anneaux max) — chaque essai est immédiatement borné au
+        // département, ce qui borne aussi l'amplitude du déplacement.
+        const candidates: Array<{ x: number; y: number; lng: number; lat: number }> = []
+        const pushCandidate = (px: number, py: number) => {
+          const geo = map.unproject([px, py])
+          const [lng, lat] = clampToDept(geo.lng, geo.lat)
+          const c = map.project([lng, lat])
+          candidates.push({ x: c.x, y: c.y, lng, lat })
         }
-        placed.push({ x, y, r })
-        const pos = map.unproject([x, y])
-        out.push({ ...b, lng: pos.lng, lat: pos.lat })
+        pushCandidate(anchor.x, anchor.y)
+        for (let attempt = 1; attempt <= 24; attempt++) {
+          const ring = Math.ceil(attempt / 8) // 1..3
+          const angle = ((attempt % 8) / 8) * Math.PI * 2 + ring * 0.7
+          const dist = ring * (r + 14)
+          pushCandidate(anchor.x + Math.cos(angle) * dist, anchor.y + Math.sin(angle) * dist)
+        }
+
+        // Sélection : on minimise TOUJOURS (chevauchement + éloignement de
+        // l'ancre). Un léger chevauchement près du chef-lieu est préféré à
+        // une fuite au coin du département — les badges restent ainsi là où
+        // les pharmacies sont, tout en restant lisibles.
+        let chosen = candidates[0]
+        let bestScore = Infinity
+        for (const c of candidates) {
+          const score = penetration(c.x, c.y) + 0.35 * Math.hypot(c.x - anchor.x, c.y - anchor.y)
+          if (score < bestScore) { bestScore = score; chosen = c }
+        }
+        placed.push({ x: chosen.x, y: chosen.y, r })
+        out.push({ ...b, lng: chosen.lng, lat: chosen.lat })
       }
       return out
     },
@@ -1056,7 +1115,11 @@ type RawCluster = {
       }
     }
 
-    setDisplay([...separateDeptBadges(map, deptBadges), ...items])
+    // Rendu : le badge le plus fourni couvre ses voisins en cas de léger
+    // chevauchement (marqueur DOM ultérieur = affiché au-dessus) — on
+    // inverse l'ordre de placement (décroissant → croissant).
+    const badges = separateDeptBadges(map, deptBadges)
+    setDisplay([...badges.slice().reverse(), ...items])
   }, [showClusters, pharmacies, separateDeptBadges])
   updateDisplayRef.current = updateDisplay
 
