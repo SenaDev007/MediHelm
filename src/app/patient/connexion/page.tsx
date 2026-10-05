@@ -208,8 +208,14 @@ export default function ConnexionPage() {
             et notre politique de confidentialité.
           </p>
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
-            <span>🔒 Données sécurisées</span>
-            <span>🇧🇯 Conforme Bénin</span>
+            <span className="inline-flex items-center gap-1">
+              <Lock className="h-3 w-3" />
+              Données sécurisées
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Conforme Bénin
+            </span>
           </div>
         </div>
       </motion.div>

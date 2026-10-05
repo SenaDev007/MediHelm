@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ShieldCheck, Search, QrCode, AlertTriangle, Check, X,
   Loader2, Pill, Calendar, Package, Eye, ScanLine,
-  ChevronDown, ChevronUp, Info, Barcode, Clock
+  ChevronDown, ChevronUp, Info, Barcode, Clock, Lock, Box
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -753,11 +753,13 @@ export default function VerifierPage() {
               </div>
             </div>
             <div className="pt-2 border-t border-teal-200">
-              <p className="text-[10px] text-teal-700">
-                🔒 Vérification basée sur les données DPMED du Bénin. Protégez-vous contre les contrefaçons.
+              <p className="text-[10px] text-teal-700 flex items-center gap-1">
+                <Lock className="h-3 w-3 flex-shrink-0" />
+                Vérification basée sur les données DPMED du Bénin. Protégez-vous contre les contrefaçons.
               </p>
-              <p className="text-[10px] text-teal-600 mt-1">
-                📦 Le code GS1 DataMatrix contient : GTIN (AI 01), N° de lot (AI 10), Date d&apos;expiration (AI 17), N° de série (AI 21)
+              <p className="text-[10px] text-teal-600 mt-1 flex items-center gap-1">
+                <Box className="h-3 w-3 flex-shrink-0" />
+                Le code GS1 DataMatrix contient : GTIN (AI 01), N° de lot (AI 10), Date d&apos;expiration (AI 17), N° de série (AI 21)
               </p>
             </div>
           </CardContent>

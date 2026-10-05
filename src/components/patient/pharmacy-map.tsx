@@ -63,6 +63,13 @@ const LABEL_ZOOM = 8
 const HOVER_GRACE_MS = 320
 /** Zoom de bascule : en dessous, un badge par département ; au-dessus, clusters internes */
 const DEPT_BADGE_ZOOM = 8.6
+/** Cycle d'affichage des badges départementaux : ils apparaissent par
+ *  intermittence (12 s visibles / 18 s masqués) afin de ne JAMAIS masquer
+ *  durablement les pins des officines — pendant la phase masquée, les
+ *  clusters de villes (positionnés aux VRAIES coordonnées des officines)
+ *  prennent le relais et restent cliquables (zoom d'expansion / spiderfy). */
+const DEPT_BADGE_VISIBLE_MS = 12_000
+const DEPT_BADGE_HIDDEN_MS = 18_000
 
 /**
  * Centres officiels des départements du Bénin (chefs-lieux / position centrale
@@ -326,7 +333,7 @@ function DepartmentMarker({
           onFocus={() => setHovered(true)}
           onBlur={() => setHovered(false)}
           aria-label={`Département ${dept} — ${count} officines — explorer`}
-          className="border-0 bg-transparent cursor-pointer p-0 block"
+          className="animate-in fade-in duration-500 border-0 bg-transparent cursor-pointer p-0 block"
           style={{ width: size, height: size }}
         >
           <div className="flex flex-col items-center">
@@ -407,7 +414,7 @@ function ClusterMarker({
           onFocus={() => setHovered(true)}
           onBlur={() => setHovered(false)}
           aria-label={`${count} officines${dept ? ` — ${dept}` : ''} — afficher`}
-          className="border-0 bg-transparent cursor-pointer p-0"
+          className="animate-in fade-in duration-500 border-0 bg-transparent cursor-pointer p-0"
           style={{ width: size, height: size }}
         >
           <div
@@ -875,6 +882,27 @@ export default function PharmacyMap({
   const [display, setDisplay] = useState<DisplayItem[]>([])
   // Déploiement « araignée » d'un agrégat non séparable par le zoom
   const [spiderfy, setSpiderfy] = useState<SpiderState | null>(null)
+  // Phase d'affichage des badges départementaux (cycle intermittent)
+  const [deptBadgesVisible, setDeptBadgesVisible] = useState(true)
+
+  // ─── Cycle intermittent des badges départementaux ─────────────────────────
+  // Les badges départementaux (nombre + nom) apparaissent 12 s, puis laissent
+  // la place 18 s aux clusters/pins réels — de façon cyclique (30 s), pour
+  // qu'aucun pin d'officine ne reste caché en permanence derrière un badge.
+  useEffect(() => {
+    let hideTimer: ReturnType<typeof setTimeout> | null = null
+    const hide = () => { hideTimer = setTimeout(() => setDeptBadgesVisible(false), DEPT_BADGE_VISIBLE_MS) }
+    hide()
+    const interval = setInterval(() => {
+      setDeptBadgesVisible(true)
+      if (hideTimer) clearTimeout(hideTimer)
+      hide()
+    }, DEPT_BADGE_VISIBLE_MS + DEPT_BADGE_HIDDEN_MS)
+    return () => {
+      if (hideTimer) clearTimeout(hideTimer)
+      clearInterval(interval)
+    }
+  }, [])
 
   const superclusterRef = useRef<SuperCluster | null>(null) // officines sans département (défensif)
   const deptGroupsRef = useRef<DeptGroup[]>([])
@@ -1057,23 +1085,19 @@ type RawCluster = {
       bounds.getNorth(),
     ]
 
-    const useDeptBadges = zoom < DEPT_BADGE_ZOOM
+    const useDeptBadges = zoom < DEPT_BADGE_ZOOM && deptBadgesVisible
     const items: DisplayItem[] = []
     const deptBadges: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }> = []
 
     for (const g of deptGroupsRef.current) {
       const clusters = g.sc.getClusters(bbox, zoom) as unknown as RawCluster[]
 
-      // Le département est-il entièrement agrégé en un seul cluster ?
-      const singleFull = clusters.length === 1 && clusters[0].properties.cluster === true
-        && clusters[0].properties.point_count === g.total
-
       // Le chef-lieu est-il visible (marge) ? Sinon on montre les clusters bruts
       const [clng, clat] = g.center
       const m = 0.8 // marge en degrés ≈ garde le badge ancré près de son département
       const centerVisible = clng > bbox[0] - m && clng < bbox[2] + m && clat > bbox[1] - m && clat < bbox[3] + m
 
-      if ((useDeptBadges || singleFull) && clusters.length > 0 && centerVisible) {
+      if (useDeptBadges && clusters.length > 0 && centerVisible) {
         deptBadges.push({ kind: 'dept', dept: g.dept, count: g.total, lng: clng, lat: clat })
         continue
       }
@@ -1120,8 +1144,14 @@ type RawCluster = {
     // inverse l'ordre de placement (décroissant → croissant).
     const badges = separateDeptBadges(map, deptBadges)
     setDisplay([...badges.slice().reverse(), ...items])
-  }, [showClusters, pharmacies, separateDeptBadges])
+  }, [showClusters, pharmacies, separateDeptBadges, deptBadgesVisible])
   updateDisplayRef.current = updateDisplay
+
+  // Changement de phase du cycle intermittent → recalcul immédiat du modèle
+  // (apparition/disparition des badges départementaux et des clusters relais).
+  useEffect(() => {
+    if (mapRef.current?.loaded()) updateDisplayRef.current?.()
+  }, [deptBadgesVisible])
 
   // ─── Cadrage automatique : TOUT le Bénin + position utilisateur ───────────
   const [mapReady, setMapReady] = useState(false)

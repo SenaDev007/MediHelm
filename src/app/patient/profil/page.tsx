@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   User, Mail, Phone, Lock, MapPin, Shield, Edit3,
   Check, Loader2, Eye, EyeOff, Store, Star, LogOut,
-  ChevronRight, Bell, FileText, Syringe
+  ChevronRight, Bell, FileText, Syringe, Flag
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -492,7 +492,10 @@ export default function ProfilPage() {
       {/* App info */}
       <div className="text-center space-y-1 pb-2">
         <p className="text-[10px] text-muted-foreground">MediHelm Patient v1.0</p>
-        <p className="text-[10px] text-muted-foreground">🇧🇯 Conforme aux réglementations du Bénin</p>
+        <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1 justify-center w-full">
+          <Flag className="h-3 w-3" />
+          Conforme aux réglementations du Bénin
+        </p>
       </div>
     </div>
   )

@@ -8,14 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
 
 const navLinks = [
-  { label: "Fonctionnalités", href: "#fonctionnalites" },
+  { label: "La carte", href: "/#carte-nationale" },
   { label: "Tarifs Pro", href: "/espace-pro#tarifs" },
-  { label: "Espaces", href: "/#espaces" },
   { label: "Contact", href: "#contact" },
 ];
 
 const spaceLinks = [
-  { label: "MediHelm Patient", href: "/#fonctionnalites", description: "Espace patient — compte gratuit", color: "text-blue-brand" },
+  { label: "MediHelm Patient", href: "/", description: "Espace patient — compte gratuit", color: "text-blue-brand" },
   { label: "MediHelm Pro", href: "/espace-pro", description: "Espace pharmacie — payant", color: "text-teal-400" },
   { label: "MediHelm Grossistes", href: "/espace-grossiste", description: "Espace grossistes — payant", color: "text-amber-400" },
   { label: "MediHelm Institutions", href: "/espace-institution", description: "Espace institutionnel — gratuit, partenariat", color: "text-teal-800" },

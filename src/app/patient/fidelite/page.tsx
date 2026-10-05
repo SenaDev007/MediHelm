@@ -9,11 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import {
   Star, Gift, TrendingUp, Award, ShoppingBag, ArrowRight,
-  Clock, MapPin, Percent, Crown, Sparkles, Info
+  Clock, MapPin, Percent, Crown, Sparkles, Info, Medal, Trophy, Gem
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
 interface FideliteData {
   patientId: string
@@ -48,7 +50,7 @@ interface Level {
   min: number
   name: string
   color: string
-  icon: string
+  icon: LucideIcon
 }
 
 interface EarningRule {
@@ -57,12 +59,12 @@ interface EarningRule {
   type: string
 }
 
-// Default levels shown before API data loads
+// Default levels shown before API data loads — icônes Lucide (zéro emoji)
 const defaultLevels: Level[] = [
-  { min: 0, name: 'Bronze', color: 'text-amber-700', icon: '🥉' },
-  { min: 200, name: 'Argent', color: 'text-gray-500', icon: '🥈' },
-  { min: 500, name: 'Or', color: 'text-yellow-600', icon: '🥇' },
-  { min: 1000, name: 'Diamant', color: 'text-blue-600', icon: '💎' },
+  { min: 0, name: 'Bronze', color: 'text-amber-700', icon: Award },
+  { min: 200, name: 'Argent', color: 'text-gray-500', icon: Medal },
+  { min: 500, name: 'Or', color: 'text-yellow-600', icon: Trophy },
+  { min: 1000, name: 'Diamant', color: 'text-blue-600', icon: Gem },
 ]
 
 export default function FidelitePage() {
@@ -210,7 +212,7 @@ export default function FidelitePage() {
               {/* Level badge */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{currentLevel.icon}</span>
+                  <currentLevel.icon className="h-6 w-6" />
                   <div>
                     <p className={`text-sm font-bold ${currentLevel.color}`}>{currentLevel.name}</p>
                     <p className="text-[10px] text-muted-foreground">Niveau actuel</p>
@@ -235,7 +237,7 @@ export default function FidelitePage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className={currentLevel.color}>{currentLevel.name}</span>
-                    <span className={nextLevel.color}>{nextLevel.icon} {nextLevel.name}</span>
+                    <span className={cn('inline-flex items-center gap-1', nextLevel.color)}><nextLevel.icon className="h-3 w-3" /> {nextLevel.name}</span>
                   </div>
                   <Progress value={progressToNext} className="h-2 bg-amber-100" />
                   <p className="text-[10px] text-muted-foreground text-center">
