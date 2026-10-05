@@ -582,6 +582,7 @@ export interface AuthUser {
   pharmacieId: string
   pharmacieNom: string
   grossisteId?: string | null
+  grossisteNom?: string | null
   avatarUrl?: string
   permissions: Array<{
     module: string

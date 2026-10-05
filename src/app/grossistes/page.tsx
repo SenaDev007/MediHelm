@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -51,21 +52,32 @@ const PIE_COLORS = ["#1D9E75", "#0F6E56", "#EF9F27", "#378ADD", "#9FE1CB", "#E24
 export default function GrossistesDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const { data: session, status } = useSession()
+
+  // Tenant STRICT : l'identifiant grossiste provient de la SESSION de
+  // l'utilisateur connecté — jamais d'une liste (chaque grossiste voit
+  // uniquement SES données, l'API revalide l'appartenance côté serveur).
+  const sessionUser = session?.user as Record<string, unknown> | undefined
+  const grossisteIdSession = sessionUser?.grossisteId as string | null | undefined
+  const sessionReady = status !== "loading"
 
   useEffect(() => {
     async function fetchDashboard() {
+      // Attends une session résolue ; les rôles pharmacie peuvent naviguer
+      // dans cet espace sans grossiste rattaché → pas de dashboard tenant.
+      if (!sessionReady) return
+      if (!grossisteIdSession) {
+        setLoading(false)
+        return
+      }
       try {
-        // Get the first grossiste (UbiPharm)
-        const grossistesRes = await fetch("/api/grossistes?actif=true")
-        const grossistes = await grossistesRes.json()
-
-        if (grossistes.length === 0) {
+        const res = await fetch(
+          `/api/grossistes/dashboard?grossisteId=${grossisteIdSession}`
+        )
+        if (!res.ok) {
           setLoading(false)
           return
         }
-
-        const grossisteId = grossistes[0].id
-        const res = await fetch(`/api/grossistes/dashboard?grossisteId=${grossisteId}`)
         const dashboardData = await res.json()
         setData(dashboardData)
       } catch (error) {
@@ -76,9 +88,9 @@ export default function GrossistesDashboard() {
     }
 
     fetchDashboard()
-  }, [])
+  }, [sessionReady, grossisteIdSession])
 
-  if (loading) {
+  if (loading || !sessionReady) {
     return (
       <div className="space-y-6">
         <div>
@@ -103,7 +115,11 @@ export default function GrossistesDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground">Tableau de bord</h1>
         <Card className="p-8 text-center">
-          <p className="text-muted-foreground">Aucune donnée disponible. Vérifiez la connexion à la base de données.</p>
+          <p className="text-muted-foreground">
+            {grossisteIdSession
+              ? "Aucune donnée disponible pour votre espace grossiste. Vérifiez la connexion à la base de données."
+              : "Votre compte n'est rattaché à aucun grossiste-répartiteur. Les commandes entrantes de vos fournisseurs s'afficheront ici dès qu'un partenariat sera actif."}
+          </p>
         </Card>
       </div>
     )

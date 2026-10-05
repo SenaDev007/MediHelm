@@ -136,29 +136,32 @@ export function InstitutionSidebar({ role, onRoleChange }: InstitutionSidebarPro
 
       <Separator className="bg-teal-600" />
 
-      {/* Role Switcher */}
-      <div className="p-4 space-y-2">
-        <p className="text-xs font-semibold text-teal-300 uppercase tracking-wider">Changer de rôle</p>
-        <div className="space-y-1">
-          {(['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER'] as InstitutionRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => onRoleChange?.(r)}
-              className={cn(
-                'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors text-left',
-                role === r
-                  ? 'bg-teal-400 text-white'
-                  : 'text-teal-200 hover:bg-teal-700 hover:text-white'
-              )}
-            >
-              {r === 'DPMED_ADMIN' && <AlertTriangle className="h-3.5 w-3.5" />}
-              {r === 'SOBAPS_VIEWER' && <Truck className="h-3.5 w-3.5" />}
-              {r === 'ABRP_VIEWER' && <BarChart3 className="h-3.5 w-3.5" />}
-              {roleShortLabels[r]}
-            </button>
-          ))}
+      {/* Sélecteur de portails — UNIQUEMENT pour l'admin plateforme
+          (les agents institutionnels voient uniquement LEUR portail) */}
+      {onRoleChange && (
+        <div className="p-4 space-y-2">
+          <p className="text-xs font-semibold text-teal-300 uppercase tracking-wider">Portails (admin)</p>
+          <div className="space-y-1">
+            {(['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER'] as InstitutionRole[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => onRoleChange?.(r)}
+                className={cn(
+                  'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors text-left',
+                  role === r
+                    ? 'bg-teal-400 text-white'
+                    : 'text-teal-200 hover:bg-teal-700 hover:text-white'
+                )}
+              >
+                {r === 'DPMED_ADMIN' && <AlertTriangle className="h-3.5 w-3.5" />}
+                {r === 'SOBAPS_VIEWER' && <Truck className="h-3.5 w-3.5" />}
+                {r === 'ABRP_VIEWER' && <BarChart3 className="h-3.5 w-3.5" />}
+                {roleShortLabels[r]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Back to Home */}
       <div className="p-4 border-t border-teal-600">

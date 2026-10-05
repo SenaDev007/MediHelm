@@ -15,15 +15,20 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, LayoutDashboard, Loader2, LogOut, Mail, User as UserIcon } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, Loader2, LogOut, Mail, Settings, User as UserIcon } from 'lucide-react'
 import { UserAvatar } from './user-avatar'
 
 interface SessionUserMenuProps {
   /** Lien vers la page profil de l'utilisateur dans SON espace (optionnel) */
   profileHref?: string
+  /** Lien vers les paramètres de l'interface dans SON espace (optionnel) */
+  settingsHref?: string
+  settingsLabel?: string
   /** Lien vers l'accueil de l'espace (optionnel — « Mon dashboard ») */
   dashboardHref?: string
   dashboardLabel?: string
+  /** Destination après déconnexion — le landing public de l'espace courant */
+  logoutCallbackUrl?: string
   /** Afficher le nom complet à côté de l'avatar (desktop) */
   showName?: boolean
   size?: 'xs' | 'sm' | 'md'
@@ -31,8 +36,11 @@ interface SessionUserMenuProps {
 
 export function SessionUserMenu({
   profileHref,
+  settingsHref,
+  settingsLabel = 'Paramètres',
   dashboardHref,
   dashboardLabel = 'Mon dashboard',
+  logoutCallbackUrl = '/',
   showName = false,
   size = 'md',
 }: SessionUserMenuProps) {
@@ -52,15 +60,17 @@ export function SessionUserMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  if (status !== 'authenticated' || !session?.user) return null
+  // Garde stricte : une session dont la validation en base a échoué
+  // (révoquée/expirée) ne porte plus de user.id → traitée comme déconnectée.
+  if (status !== 'authenticated' || !session?.user?.id) return null
 
   const { prenom, nom, email } = session.user
   const fullName = `${prenom ?? ''} ${nom ?? ''}`.trim()
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    // Déconnexion → retour au landing public de l'espace patient
-    await signOut({ callbackUrl: '/' })
+    // Déconnexion → retour au landing public de l'espace d'origine
+    await signOut({ callbackUrl: logoutCallbackUrl })
   }
 
   return (
@@ -137,6 +147,17 @@ export function SessionUserMenu({
                 >
                   <UserIcon className="h-4 w-4 text-teal-600" />
                   Mon profil
+                </Link>
+              )}
+              {settingsHref && (
+                <Link
+                  href={settingsHref}
+                  onClick={() => setOpen(false)}
+                  role="menuitem"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-teal-900 hover:bg-teal-50 transition-colors"
+                >
+                  <Settings className="h-4 w-4 text-teal-600" />
+                  {settingsLabel}
                 </Link>
               )}
               <div className="my-1 h-px bg-teal-100" />

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useSession, SessionProvider } from 'next-auth/react'
+import { useSession, SessionProvider, signOut } from 'next-auth/react'
 
 // === Types ===
 
@@ -134,7 +134,9 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   }, [session])
 
   // Construire l'objet User depuis la session NextAuth
-  const user: User | null = session?.user
+  // Garde stricte : une session révoquée/expirée côté base ne porte plus
+  // de user.id — traitée comme déconnectée.
+  const user: User | null = session?.user?.id
     ? {
         id: (session.user as Record<string, unknown>).id as string || '',
         nom: ((session.user as Record<string, unknown>).nom as string) || '',
@@ -145,16 +147,16 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       }
     : null
 
-  const isAuthenticated = !!session?.user
+  const isAuthenticated = !!session?.user?.id
 
   const login = useCallback(() => {
-    // Rediriger vers la page de connexion NextAuth
-    window.location.href = '/connexion'
+    // Rediriger vers la page de connexion dédiée à l'espace pharmacie
+    window.location.href = '/pro/connexion'
   }, [])
 
   const logout = useCallback(() => {
-    // Déconnexion NextAuth + nettoyage
-    window.location.href = '/api/auth/signout'
+    // Déconnexion NextAuth (révoque la session en base) → landing public Pro
+    signOut({ callbackUrl: '/espace-pro' })
   }, [])
 
   return (

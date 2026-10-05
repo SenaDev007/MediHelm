@@ -12,6 +12,7 @@ import { db } from '@/lib/db'
 import { getRolePermissions } from '@/lib/rbac'
 import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
 import { resolveAuthSecret } from '@/lib/auth-secret'
+import { createDbSession, validateDbSession, revokeDbSession } from '@/lib/session-store'
 
 type MediHelmAuthUser = {
   id: string
@@ -24,6 +25,7 @@ type MediHelmAuthUser = {
   pharmacieId: string
   pharmacieNom: string
   grossisteId?: string | null
+  grossisteNom?: string | null
   permissions: Array<{ module: string; action: string; code: string }>
 }
 
@@ -184,6 +186,7 @@ export const authOptions: NextAuthOptions = {
           pharmacieId: utilisateur.pharmacieId,
           pharmacieNom: utilisateur.pharmacie.nom,
           grossisteId: utilisateur.grossisteId,
+          grossisteNom: utilisateur.grossiste?.nom ?? null,
           permissions,
         } satisfies MediHelmAuthUser
       },
@@ -213,7 +216,10 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     /**
-     * Callback JWT — enrichit le token avec les données métier
+     * Callback JWT — enrichit le token avec les données métier et
+     * PERSISTE la session en base à la connexion initiale.
+     * Un enregistrement SessionUtilisateur est créé (jeton = jti du JWT) :
+     * l'état « connecté » devient vérifiable et révocable côté serveur.
      */
     async jwt({ token, user }) {
       // À la connexion initiale, `user` contient les données retournées par authorize()
@@ -227,16 +233,35 @@ export const authOptions: NextAuthOptions = {
         token.pharmacieId = authUser.pharmacieId
         token.pharmacieNom = authUser.pharmacieNom
         token.grossisteId = authUser.grossisteId ?? null
+        token.grossisteNom = authUser.grossisteNom ?? null
         token.permissions = authUser.permissions
+
+        // Persistance base de la session (claim jti fourni par NextAuth)
+        const dbSession = await createDbSession(
+          user.id,
+          token.jti ?? `${user.id}:${Date.now()}`,
+          authUser.roleName
+        )
+        token.sid = dbSession.id
       }
       return token
     },
 
     /**
-     * Callback session — enrichit la session client avec les données du JWT
+     * Callback session — VALIDE la session persistée en base avant
+     * d'exposer les données : une session révoquée ou expirée côté serveur
+     * ne produit PLUS d'utilisateur (les gardes client et les layouts
+     * protégés traitent alors l'utilisateur comme déconnecté).
      */
     async session({ session, token }) {
       if (session.user) {
+        const validity = await validateDbSession(token.sid, token.id)
+        if (!validity.valid) {
+          // Session invalide côté base → session « vide » : aucun champ utilisateur
+          session.user = undefined as unknown as typeof session.user
+          return session
+        }
+
         session.user.id = token.id as string
         session.user.roleId = token.roleId
         ;(session.user as Record<string, unknown>).nom = token.nom
@@ -245,9 +270,24 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as Record<string, unknown>).pharmacieId = token.pharmacieId
         ;(session.user as Record<string, unknown>).pharmacieNom = token.pharmacieNom
         ;(session.user as Record<string, unknown>).grossisteId = token.grossisteId
+        ;(session.user as Record<string, unknown>).grossisteNom = token.grossisteNom
+        ;(session.user as Record<string, unknown>).sessionId = token.sid
         session.user.permissions = token.permissions
       }
       return session
+    },
+  },
+
+  /**
+   * Événements — révocation de la session en base à la déconnexion.
+   * Le JWT devient orphelin : toutes les requêtes API suivantes seront 401.
+   */
+  events: {
+    async signOut(message) {
+      // Stratégie JWT : le « session » de l'événement est le token décodé
+      const token = (message as { token?: Record<string, unknown> }).token
+      const sid = token?.sid as string | undefined
+      if (sid) await revokeDbSession(sid)
     },
   },
 

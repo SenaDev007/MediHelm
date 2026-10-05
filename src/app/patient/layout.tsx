@@ -7,9 +7,14 @@ import { usePatientSession } from '@/hooks/use-patient-session'
 import { Bell, LogOut, Menu, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { signOut } from 'next-auth/react'
+
+// Pages d'authentification de l'espace patient — rendues HORS chrome
+// dashboard (pas de topbar/menu : le formulaire occupe tout l'écran).
+const PATIENT_AUTH_PAGES = ['/patient/connexion', '/patient/inscription']
 
 const menuItems = [
   { href: '/patient', label: 'Accueil' },
@@ -31,7 +36,25 @@ const menuItems = [
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const { prenom, nom, email } = usePatientSession()
+  const router = useRouter()
+  const pathname = usePathname()
+  const { prenom, nom, email, isLoading, isAuthenticated } = usePatientSession()
+  const isAuthPage = PATIENT_AUTH_PAGES.includes(pathname)
+
+  // Garde de session : une session révoquée/expirée en base (déconnexion
+  // depuis un autre onglet, révocation administrateur…) renvoie le patient
+  // vers la page de connexion — jamais de menus visibles hors connexion.
+  // Les pages d'auth sont exclues (sinon boucle de redirection).
+  useEffect(() => {
+    if (!isAuthPage && !isLoading && !isAuthenticated) {
+      router.replace('/patient/connexion')
+    }
+  }, [isAuthPage, isLoading, isAuthenticated, router])
+
+  // Pages d'auth : rendu direct plein écran (pas de coquille dashboard)
+  if (isAuthPage) {
+    return <>{children}</>
+  }
 
   const fullName = `${prenom ?? ''} ${nom ?? ''}`.trim()
 

@@ -37,6 +37,39 @@ const GROSSISTE_ROLES = [
 const DPMED_ROLES = ['DPMED_ADMIN', 'PLATFORM_ADMIN']
 const PATIENT_ROLES = ['PATIENT', 'PLATFORM_ADMIN']
 
+/** Accueil de l'espace correspondant au rôle (Edge — même table que use-space-login). */
+const ROLE_HOME: Record<string, string> = {
+  PLATFORM_ADMIN: '/admin',
+  PATIENT: '/patient',
+  GROSSISTE_PARTNER: '/grossistes',
+  GROSSISTE_ADMIN: '/grossistes',
+  GROSSISTE_COMMANDES: '/grossistes',
+  GROSSISTE_PREPARATEUR: '/grossistes',
+  GROSSISTE_LIVREUR: '/grossistes',
+  GROSSISTE_COMMERCIAL: '/grossistes',
+  GROSSISTE_COMPTABLE: '/grossistes',
+  DPMED_ADMIN: '/institutions',
+  SOBAPS_VIEWER: '/institutions',
+  ABRP_VIEWER: '/institutions',
+}
+
+/** Toutes les pages d'authentification des 4 espaces + pages génériques. */
+const AUTH_PAGES = [
+  '/patient/connexion',
+  '/patient/inscription',
+  '/pro/connexion',
+  '/grossistes/connexion',
+  '/institutions/connexion',
+  '/connexion',
+  '/inscription',
+]
+
+function homeForRole(roleName: string | undefined): string {
+  if (!roleName) return '/connexion'
+  const mapped = roleName === 'OWNER' ? 'ADMIN' : roleName
+  return ROLE_HOME[mapped] ?? '/pro' // rôles pharmacie par défaut
+}
+
 // Routes publiques ne nécessitant pas d'authentification
 const PUBLIC_PATHS = [
   '/',
@@ -83,13 +116,14 @@ async function getVerifiedSession(request: NextRequest): Promise<{ authenticated
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Pages d'authentification patient — un patient DÉJÀ connecté n'a
-  // plus rien à y faire : redirection directe vers son dashboard
-  // (formulaire de connexion/inscription invisible pour lui).
-  if (pathname === '/patient/connexion' || pathname === '/patient/inscription') {
+  // ─── Pages d'authentification de TOUS les espaces ────────────────────────
+  // Un utilisateur DÉJÀ authentifié n'a plus rien à faire sur un formulaire
+  // de connexion ou d'inscription : redirection directe vers l'accueil de
+  // SON espace (selon son rôle), quel que soit le formulaire visité.
+  if (AUTH_PAGES.includes(pathname)) {
     const { authenticated, roleName } = await getVerifiedSession(request)
-    if (authenticated && PATIENT_ROLES.includes(roleName ?? '')) {
-      return NextResponse.redirect(new URL('/patient', request.url))
+    if (authenticated) {
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
     return NextResponse.next()
   }
@@ -131,13 +165,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // === RBAC spécifique par section ===
+  // Un utilisateur authentifié mais avec le MAUVAIS rôle pour la section
+  // visitée est redirigé vers l'accueil de SON propre espace (jamais vers
+  // l'espace d'un autre, jamais vers le landing d'un autre).
 
   // /patient/* — Réservé aux PATIENT et PLATFORM_ADMIN.
   // L'interface patient ne s'affiche qu'une fois le patient connecté
   // à son compte personnel.
   if (pathname === '/patient' || pathname.startsWith('/patient/')) {
     if (!PATIENT_ROLES.includes(roleName ?? '')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
     return NextResponse.next()
   }
@@ -145,14 +182,14 @@ export async function middleware(request: NextRequest) {
   // /pro/* — Accessible uniquement aux rôles pharmacie + PLATFORM_ADMIN
   if (pathname.startsWith('/pro')) {
     if (!PHARMACIE_ROLES.includes(roleName ?? '') && roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
   }
 
   // /institutions/dpmed/* — Réservé à DPMED_ADMIN + PLATFORM_ADMIN
   if (pathname.startsWith('/institutions/dpmed')) {
     if (!DPMED_ROLES.includes(roleName ?? '')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
     return NextResponse.next()
   }
@@ -160,14 +197,14 @@ export async function middleware(request: NextRequest) {
   // /institutions/* — Accessible aux rôles institutionnels
   if (pathname.startsWith('/institutions')) {
     if (!INSTITUTIONAL_ROLES.includes(roleName ?? '')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
   }
 
   // /grossistes/* — Accessible aux rôles grossiste + rôles pharmacie
   if (pathname.startsWith('/grossistes')) {
     if (!GROSSISTE_ROLES.includes(roleName ?? '') && !PHARMACIE_ROLES.includes(roleName ?? '')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
   }
 
@@ -182,7 +219,7 @@ export async function middleware(request: NextRequest) {
   // /admin/* — Réservé à PLATFORM_ADMIN uniquement
   if (pathname.startsWith('/admin')) {
     if (roleName !== 'PLATFORM_ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL(homeForRole(roleName), request.url))
     }
     return NextResponse.next()
   }

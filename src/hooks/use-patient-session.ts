@@ -33,7 +33,9 @@ export function usePatientSession(): PatientSession {
   const [patientId, setPatientId] = useState<string | null>(null)
 
   const isLoading = status === 'loading'
-  const isAuthenticated = status === 'authenticated'
+  // Garde stricte : une session révoquée/expirée côté base ne porte plus
+  // de user.id — traitée comme déconnectée (redirection par le layout).
+  const isAuthenticated = status === 'authenticated' && !!session?.user?.id
 
   useEffect(() => {
     if (isAuthenticated && session?.user?.id) {

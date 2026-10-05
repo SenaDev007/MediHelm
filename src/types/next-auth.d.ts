@@ -26,6 +26,12 @@ declare module 'next-auth' {
       pharmacieId: string
       /** Nom de la pharmacie */
       pharmacieNom: string
+      /** ID du grossiste rattaché (comptes grossistes) */
+      grossisteId?: string | null
+      /** Nom du grossiste rattaché */
+      grossisteNom?: string | null
+      /** ID de la session persistée en base (SessionUtilisateur) */
+      sessionId?: string
       /** URL de l'avatar */
       avatarUrl?: string
       /** Permissions du rôle */
@@ -46,6 +52,8 @@ declare module 'next-auth' {
     roleName: string
     pharmacieId: string
     pharmacieNom: string
+    grossisteId?: string | null
+    grossisteNom?: string | null
     avatarUrl?: string
     permissions: Array<{
       module: string
@@ -64,6 +72,12 @@ declare module 'next-auth/jwt' {
     roleName: string
     pharmacieId: string
     pharmacieNom: string
+    grossisteId?: string | null
+    grossisteNom?: string | null
+    /** ID de la session persistée en base */
+    sid?: string
+    /** Identifiant unique du JWT (relié à la ligne SessionUtilisateur) */
+    jti?: string
     avatarUrl?: string
     permissions: Array<{
       module: string

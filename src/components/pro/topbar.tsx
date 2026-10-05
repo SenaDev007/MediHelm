@@ -4,17 +4,9 @@ import { useAuth } from '@/app/pro/auth-context'
 import { Bell, Search, Menu, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { SessionUserMenu } from '@/components/auth/session-user-menu'
 import { useTheme } from 'next-themes'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useState, useEffect } from 'react'
@@ -67,10 +59,6 @@ export function ProTopbar({ onToggleSidebar }: { onToggleSidebar?: () => void })
   }, [pharmacie?.id])
 
   const unreadCount = notifications.filter(n => !n.lu).length
-
-  const initials = user
-    ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}`
-    : 'MH'
 
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4 shrink-0">
@@ -150,38 +138,14 @@ export function ProTopbar({ onToggleSidebar }: { onToggleSidebar?: () => void })
           </PopoverContent>
         </Popover>
 
-        {/* User menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 px-2">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden md:flex flex-col items-start">
-                <span className="text-xs font-medium">
-                  {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {user?.role || 'Rôle'}
-                </span>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>
-              {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Mon profil</DropdownMenuItem>
-            <DropdownMenuItem>Paramètres</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
-              Déconnexion
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* User menu — avatar de la session + profil / paramètres / déconnexion */}
+        <SessionUserMenu
+          profileHref="/pro/personnel"
+          settingsHref="/pro/parametres"
+          logoutCallbackUrl="/espace-pro"
+          showName
+          size="sm"
+        />
       </div>
     </header>
   )

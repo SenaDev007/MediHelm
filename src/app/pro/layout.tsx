@@ -4,11 +4,34 @@ import { AuthProvider, useAuth } from './auth-context'
 import { ProSidebar } from '@/components/pro/sidebar'
 import { ProTopbar } from '@/components/pro/topbar'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+
+// Pages d'authentification de l'espace — rendues HORS chrome dashboard
+// (pas de sidebar/topbar, pas de garde : le formulaire occupe tout l'écran).
+const PRO_AUTH_PAGES = ['/pro/connexion']
 
 function ProLayoutInner({ children }: { children: React.ReactNode }) {
-  const { isLoading } = useAuth()
+  const { isLoading, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
+  const isAuthPage = PRO_AUTH_PAGES.includes(pathname)
+
+  // Garde de session : l'espace Pro (menus, modules, données) n'est JAMAIS
+  // visible sans session valide — une session révoquée/expirée en base
+  // renvoie vers la page de connexion dédiée à l'espace pharmacie.
+  // Les pages d'auth elles-mêmes sont exclues (sinon boucle de redirection).
+  useEffect(() => {
+    if (!isAuthPage && !isLoading && !isAuthenticated) {
+      router.replace('/pro/connexion')
+    }
+  }, [isAuthPage, isLoading, isAuthenticated, router])
+
+  // Page d'auth : rendu direct plein écran (pas de coquille dashboard)
+  if (isAuthPage) {
+    return <>{children}</>
+  }
 
   if (isLoading) {
     return (

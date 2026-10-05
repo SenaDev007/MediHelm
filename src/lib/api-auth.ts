@@ -10,6 +10,7 @@ import type { AuthUser } from '@/lib/rbac'
 import { checkPermission } from '@/lib/rbac'
 import { db } from '@/lib/db'
 import { resolveAuthSecret } from '@/lib/auth-secret'
+import { validateDbSessionCached } from '@/lib/session-store'
 
 /**
  * Vérifie le JWT NextAuth et retourne les informations utilisateur.
@@ -35,22 +36,38 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
     // Never trust a payload decoded without cryptographic verification.
     if (!token || !token.id) return null
 
+    // ─── Validation stricte de la session persistée en base ────────────────
+    // Le JWT seul ne suffit plus : la session correspondante doit exister,
+    // être active (non révoquée) et non expirée dans SessionUtilisateur.
+    // Une session révoquée (déconnexion, désactivation) est rejetée ici —
+    // même si le cookie/JWT n'a pas encore expiré naturellement. Le cache
+    // court (30 s) est invalidé immédiatement à toute révocation.
+    const tokenRecord = token as unknown as Record<string, unknown>
+    if (
+      typeof tokenRecord.sid !== 'string' ||
+      typeof token.id !== 'string' ||
+      !(await validateDbSessionCached(tokenRecord.sid, token.id))
+    ) {
+      return null
+    }
+
     // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
-    const rawRoleName = (token as unknown as Record<string, unknown>).roleName as string
+    const rawRoleName = tokenRecord.roleName as string
     const roleName = rawRoleName === 'OWNER' ? 'ADMIN' : rawRoleName
 
     return {
       id: token.id as string,
       email: token.email as string,
-      nom: (token as unknown as Record<string, unknown>).nom as string,
-      prenom: (token as unknown as Record<string, unknown>).prenom as string,
-      roleId: (token as unknown as Record<string, unknown>).roleId as string,
+      nom: tokenRecord.nom as string,
+      prenom: tokenRecord.prenom as string,
+      roleId: tokenRecord.roleId as string,
       roleName,
-      pharmacieId: (token as unknown as Record<string, unknown>).pharmacieId as string,
-      pharmacieNom: (token as unknown as Record<string, unknown>).pharmacieNom as string,
-      grossisteId: (token as unknown as Record<string, unknown>).grossisteId as string | null | undefined,
-      avatarUrl: (token as unknown as Record<string, unknown>).avatarUrl as string | undefined,
-      permissions: (token as unknown as Record<string, unknown>).permissions as AuthUser['permissions'],
+      pharmacieId: tokenRecord.pharmacieId as string,
+      pharmacieNom: tokenRecord.pharmacieNom as string,
+      grossisteId: tokenRecord.grossisteId as string | null | undefined,
+      grossisteNom: tokenRecord.grossisteNom as string | null | undefined,
+      avatarUrl: tokenRecord.avatarUrl as string | undefined,
+      permissions: tokenRecord.permissions as AuthUser['permissions'],
     }
   } catch (error) {
     console.error('Erreur extraction JWT:', error)

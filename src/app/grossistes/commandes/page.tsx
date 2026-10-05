@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   ShoppingCart,
   Search,
@@ -88,6 +89,13 @@ export default function CommandesPage() {
   } | null>(null)
   const [sortBy, setSortBy] = useState<'date' | 'montant'>('date')
 
+  const { data: session } = useSession()
+  const sessionUser = session?.user as Record<string, unknown> | undefined
+  // Tenant de la session : un compte grossiste ne voit que SON grossiste
+  const sessionGrossisteId = sessionUser?.grossisteId as string | null | undefined
+  const sessionRole = sessionUser?.roleName as string | undefined
+  const isGrossisteTenant = sessionRole?.startsWith('GROSSISTE_') ?? false
+
   // ─── Fetch grossistes ────────────────────────────────────────
   useEffect(() => {
     const fetchGrossistes = async () => {
@@ -96,14 +104,21 @@ export default function CommandesPage() {
         if (res.ok) {
           const data = await res.json()
           setGrossistes(data)
-          if (data.length > 0) setGrossisteId(data[0].id)
+          // Tenant STRICT : le grossiste de la session prime sur la liste ;
+          // sinon premier grossiste actif (usage pharmacie multi-fournisseurs)
+          if (sessionGrossisteId && data.some((g: { id: string }) => g.id === sessionGrossisteId)) {
+            setGrossisteId(sessionGrossisteId)
+          } else if (data.length > 0) {
+            setGrossisteId(data[0].id)
+          }
         }
       } catch (error) {
         console.error('Erreur:', error)
       }
     }
     fetchGrossistes()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionGrossisteId])
 
   // ─── Fetch commandes ─────────────────────────────────────────
   const fetchCommandes = useCallback(async () => {
@@ -238,7 +253,7 @@ export default function CommandesPage() {
           </div>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <Select value={grossisteId} onValueChange={setGrossisteId}>
+          <Select value={grossisteId} onValueChange={isGrossisteTenant ? undefined : setGrossisteId} disabled={isGrossisteTenant}>
             <SelectTrigger className="w-48 border-teal-200">
               <SelectValue placeholder="Sélectionner grossiste" />
             </SelectTrigger>

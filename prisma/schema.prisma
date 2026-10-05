@@ -427,6 +427,7 @@ model Utilisateur {
   pharmacie        Pharmacie          @relation(fields: [pharmacieId], references: [id])
   grossiste        Grossiste?         @relation(fields: [grossisteId], references: [id])
   tenants          UtilisateurTenant[]
+  sessionsAuth     SessionUtilisateur[]
   ventes           Vente[]
   sessionsCaisse   SessionCaisse[]
   patients         Patient[]
@@ -434,6 +435,27 @@ model Utilisateur {
   notifications    Notification[]
 
   @@unique([supabaseUid])
+}
+
+// Sessions d'authentification persistées en base (NextAuth stratégie JWT
+// + enregistrement serveur). Chaque connexion crée une ligne ; la
+// déconnexion la révoque ; toutes les routes API vérifient sa validité.
+// Permet la révocation immédiate côté serveur et l'audit des sessions.
+model SessionUtilisateur {
+  id            String    @id @default(uuid())
+  utilisateurId String
+  // Identifiant unique du JWT NextAuth (claim jti) — relie le cookie à la ligne DB
+  jeton         String    @unique
+  roleSnapshot  String
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  dernierAcces  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  utilisateur Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId])
+  @@index([expiresAt])
 }
 
 model UtilisateurTenant {
