@@ -173,7 +173,7 @@ export default function EspaceInstitutionPage() {
                 transition={{ duration: 0.7, delay: 0.3 }}
                 className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
               >
-                <Link href="/connexion?callbackUrl=%2Finstitutions">
+                <Link href="/institutions/connexion">
                   <Button
                     size="lg"
                     className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
@@ -365,7 +365,7 @@ export default function EspaceInstitutionPage() {
               votre partenariat.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/connexion?callbackUrl=%2Finstitutions">
+              <Link href="/institutions/connexion">
                 <Button
                   size="lg"
                   className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"

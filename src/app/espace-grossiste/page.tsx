@@ -164,7 +164,7 @@ export default function EspaceGrossistePage() {
                 transition={{ duration: 0.7, delay: 0.3 }}
                 className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
               >
-                <Link href="/connexion?callbackUrl=%2Fgrossistes">
+                <Link href="/grossistes/connexion">
                   <Button
                     size="lg"
                     className="bg-white text-teal-800 hover:bg-teal-50 font-medium text-base px-8 h-12 shadow-lg"
@@ -350,7 +350,7 @@ export default function EspaceGrossistePage() {
                   <ArrowRight className="ml-2 size-4" />
                 </Button>
               </a>
-              <Link href="/connexion?callbackUrl=%2Fgrossistes">
+              <Link href="/grossistes/connexion">
                 <Button
                   size="lg"
                   variant="outline"

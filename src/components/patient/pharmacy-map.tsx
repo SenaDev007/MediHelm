@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import MapGL, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import type { MapRef, LngLatBoundsLike } from 'react-map-gl/maplibre'
-import SuperCluster from 'supercluster'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { MapPin, Phone, Navigation, ShieldCheck, Check, X, Clock, ExternalLink, Info } from 'lucide-react'
 import { buildDirectionsUrl, buildMapUrl } from '@/lib/directions'
@@ -28,20 +27,12 @@ import { cn } from '@/lib/utils'
  *       l'information la plus actionnable pour le patient).
  *   Une officine qui s'inscrit officiellement passe donc du gris au vert.
  *
- * - CLUSTERING PAR DÉPARTEMENT : chaque département possède son propre index
- *   spatial — un agrégat ne mélange JAMAIS deux départements. En vue nationale,
- *   un badge circulaire par département est positionné aux COORDONNÉES du
- *   chef-lieu (Kandi pour l'Alibori, Natitingou pour l'Atacora…) — jamais à la
- *   frontière. L'anti-collision (Sud dense : Littoral/Atlantique/Ouémé…) est
- *   GÉOGRAPHIQUEMENT BORNÉE : un badge ne peut jamais quitter les limites de
- *   son département (DEPT_BOUNDS), donc jamais atterrir chez un voisin ni
- *   hors du Bénin — au pire un léger chevauchement, le plus gros au-dessus.
- *
- * - SPIDERMANY : deux officines peuvent partager la même adresse (ou être à
- *   quelques mètres). Le clic sur un agrégat qui ne peut plus se séparer par
- *   le zoom déploie ses officines en cercle autour du point — chacune devient
- *   un pin individuel cliquable (la « badge 2 » de Parakou enfin visible).
- *
+ * - PINS DIRECTS (zéro badge de comptage) : chaque officine est affichée
+ *   en permanence à ses COORDONNÉES EXACTES — aucun badge circulaire ni
+ *   agrégat ne se superpose aux pins. Les effectifs par département
+ *   (nombre d'officines, nombre de gardes) sont consultables dans la
+ *   LÉGENDE DÉPARTEMENTALE en bas de carte (panneau cliquable → zoom sur
+ *   le département concerné).
  * - BADGE NOM : chaque pin individuel est accompagné du nom de l'officine,
  *   visible en permanence dès que le zoom sépare les officines — comme les
  *   labels Google Maps.
@@ -57,45 +48,18 @@ import { cn } from '@/lib/utils'
 
 const MAP_STYLE = MAP_STYLE_URL // Style de marque MediHelm — auto-hébergé
 
-/** Zoom au-delà duquel les badges nominatifs s'affichent sur tous les pins */
-const LABEL_ZOOM = 8
+/** Zoom au-delà duquel les badges nominatifs s'affichent sur les pins.
+ *  Seuil HAUT : en zoom national/régional, seuls les PINS sont visibles
+ *  (pas de pluie d'étiquettes sur les zones denses comme Cotonou) — les noms
+ *  apparaissent dès que la vue « sépare » réellement les officines. */
+const LABEL_ZOOM = 10.5
 /** Délai de grâce avant fermeture de la fiche de survol (ms) */
 const HOVER_GRACE_MS = 320
-/** Zoom de bascule : en dessous, un badge par département ; au-dessus, clusters internes */
-const DEPT_BADGE_ZOOM = 8.6
-/** Cycle d'affichage des badges départementaux : ils apparaissent par
- *  intermittence (12 s visibles / 18 s masqués) afin de ne JAMAIS masquer
- *  durablement les pins des officines — pendant la phase masquée, les
- *  clusters de villes (positionnés aux VRAIES coordonnées des officines)
- *  prennent le relais et restent cliquables (zoom d'expansion / spiderfy). */
-const DEPT_BADGE_VISIBLE_MS = 12_000
-const DEPT_BADGE_HIDDEN_MS = 18_000
-
-/**
- * Centres officiels des départements du Bénin (chefs-lieux / position centrale
- * du territoire) — [longitude, latitude]. Les badges départementaux y sont
- * ancrés : l'Alibori à Kandi (et non à la frontière nigériane), etc.
- */
-const DEPT_CENTERS: Record<string, [number, number]> = {
-  ALIBORI: [2.9383, 11.1339],    // Kandi
-  ATACORA: [1.3778, 10.3044],    // Natitingou
-  DONGA: [1.6653, 9.7083],       // Djougou
-  BORGOU: [2.6344, 9.3522],      // Parakou
-  LITTORAL: [2.4234, 6.3653],    // Cotonou
-  ATLANTIQUE: [2.2071, 6.5031],  // Allada
-  OUEME: [2.6061, 6.4969],       // Porto-Novo
-  PLATEAU: [2.6260, 6.9900],     // Pobè / Adja-Ouèrè
-  COUFFO: [1.6728, 6.9392],      // Aplahoué
-  ZOU: [2.2794, 7.1827],         // Abomey
-  COLLINES: [2.1846, 7.7714],    // Dassa-Zoumè
-  MONO: [1.7161, 6.6372],        // Lokossa
-}
 
 /**
  * Étendues géographiques réelles des 12 départements — boîtes englobantes
- * [ouest, sud, est, nord]. Un badge départemental y est STRICTEMENT
- * confiné : l'anti-collision peut l'écarter légèrement pour la lisibilité,
- * mais il ne quitte JAMAIS son département — et donc jamais le Bénin.
+ * [ouest, sud, est, nord]. Servent au ZOOM par département déclenché depuis
+ * la légende départementale (clic sur une ligne « ATACORA — 26 officines »).
  */
 const DEPT_BOUNDS: Record<string, [number, number, number, number]> = {
   ALIBORI:    [2.55, 10.90, 3.65, 12.00],
@@ -112,8 +76,21 @@ const DEPT_BOUNDS: Record<string, [number, number, number, number]> = {
   MONO:       [1.55,  6.15, 2.05,  6.75],
 }
 
-/** Garde-fou absolu : frontières approximatives du Bénin [ouest, sud, est, nord] */
-const BENIN_BOUNDS: [number, number, number, number] = [0.77, 6.05, 3.90, 12.45]
+/** Noms d'affichage des départements (légende) */
+const DEPT_DISPLAY: Record<string, string> = {
+  ALIBORI: 'Alibori',
+  ATACORA: 'Atacora',
+  DONGA: 'Donga',
+  BORGOU: 'Borgou',
+  COLLINES: 'Collines',
+  ZOU: 'Zou',
+  COUFFO: 'Couffo',
+  ATLANTIQUE: 'Atlantique',
+  LITTORAL: 'Littoral',
+  OUEME: 'Ouémé',
+  PLATEAU: 'Plateau',
+  MONO: 'Mono',
+}
 
 export interface PharmacyMapPoint {
   id: string
@@ -151,7 +128,6 @@ interface PharmacyMapProps {
   onBoundsChange?: (bounds: LngLatBoundsLike) => void
   height?: string
   className?: string
-  showClusters?: boolean
   /** Destination d'itinéraire active — trace la route depuis l'utilisateur */
   route?: { destLat: number; destLng: number; destNom: string } | null
   /** Remonte l'itinéraire calculé (distance réelle, durée, tracé) */
@@ -302,161 +278,6 @@ function PharmacyMarker({
         </span>
       )}
     </button>
-  )
-}
-
-// ─── Badge départemental — ancré au chef-lieu, anti-collision ───────────────
-function DepartmentMarker({
-  dept,
-  count,
-  longitude,
-  latitude,
-  onClick,
-}: {
-  dept: string
-  count: number
-  longitude: number
-  latitude: number
-  onClick: () => void
-}) {
-  const size = count < 15 ? 46 : count < 60 ? 56 : 66
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <Marker longitude={longitude} latitude={latitude} anchor="center">
-      <div className="relative">
-        <button
-          type="button"
-          onClick={onClick}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          onFocus={() => setHovered(true)}
-          onBlur={() => setHovered(false)}
-          aria-label={`Département ${dept} — ${count} officines — explorer`}
-          className="animate-in fade-in duration-500 border-0 bg-transparent cursor-pointer p-0 block"
-          style={{ width: size, height: size }}
-        >
-          <div className="flex flex-col items-center">
-            <div
-              style={{
-                width: size,
-                height: size,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #27B086 0%, #0F6E56 100%)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: size < 50 ? 14 : 17,
-                border: '3px solid white',
-                boxShadow: hovered ? '0 4px 20px rgba(15,110,86,0.55)' : '0 3px 14px rgba(15,110,86,0.45)',
-                transition: 'box-shadow 150ms',
-              }}
-            >
-              {count}
-            </div>
-            {/* Nom du département — toujours visible */}
-            <div
-              className="mt-1 whitespace-nowrap rounded-full px-2 py-[2px] text-[10px] font-bold tracking-wide shadow-sm"
-              style={{ background: 'rgba(255,255,255,0.96)', color: '#0F6E56', border: '1px solid rgba(15,110,86,0.35)' }}
-            >
-              {dept}
-            </div>
-          </div>
-        </button>
-
-        {/* Aide au survol (PC) */}
-        {hovered && (
-          <div
-            className="pointer-events-none absolute left-1/2 -translate-x-1/2 z-10 whitespace-nowrap"
-            style={{ bottom: 'calc(100% + 10px)' }}
-          >
-            <div
-              className="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-teal-900 shadow-lg"
-              style={{ background: 'rgba(255,255,255,0.96)', border: '1px solid rgba(15,110,86,0.35)' }}
-            >
-              {dept} — {count} officines
-              <div className="text-[9px] font-medium text-teal-600">Cliquez pour explorer</div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Marker>
-  )
-}
-
-// ─── Cluster interne à un département (vue rapprochée) ─────────────────────
-function ClusterMarker({
-  count,
-  dept,
-  longitude,
-  latitude,
-  onClick,
-}: {
-  count: number
-  dept: string | null
-  longitude: number
-  latitude: number
-  onClick: () => void
-}) {
-  const size = count < 10 ? 44 : count < 50 ? 56 : 68
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <Marker longitude={longitude} latitude={latitude} anchor="center">
-      <div className="relative">
-        <button
-          type="button"
-          onClick={onClick}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          onFocus={() => setHovered(true)}
-          onBlur={() => setHovered(false)}
-          aria-label={`${count} officines${dept ? ` — ${dept}` : ''} — afficher`}
-          className="animate-in fade-in duration-500 border-0 bg-transparent cursor-pointer p-0"
-          style={{ width: size, height: size }}
-        >
-          <div
-            style={{
-              width: size,
-              height: size,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #27B086 0%, #0F6E56 100%)',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: size < 50 ? 14 : 18,
-              border: '3px solid white',
-              boxShadow: '0 3px 14px rgba(15,110,86,0.45)',
-            }}
-          >
-            {count}
-          </div>
-        </button>
-
-        {/* Étiquette département — survol PC */}
-        {dept && (
-          <div
-            className={cn(
-              'pointer-events-none absolute left-1/2 -translate-x-1/2 z-10 whitespace-nowrap transition-all duration-150',
-              hovered ? 'opacity-100 -translate-y-1' : 'opacity-0 translate-y-0'
-            )}
-            style={{ bottom: 'calc(100% + 8px)' }}
-          >
-            <div
-              className="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-teal-900 shadow-lg"
-              style={{ background: 'rgba(255,255,255,0.96)', border: '1px solid rgba(15,110,86,0.35)' }}
-            >
-              {dept} ({count})
-              <div className="text-[9px] font-medium text-teal-600">Cliquez pour afficher les officines</div>
-            </div>
-          </div>
-        )}
-      </div>
-    </Marker>
   )
 }
 
@@ -741,7 +562,7 @@ function PharmacyCard({
   )
 }
 
-// ─── Bandeau d'identification de zone (tap cluster/badge mobile) ────────────
+// ─── Bandeau d'identification de zone (retour visuel du zoom départemental) ─
 function ZoneBanner({ label }: { label: string }) {
   return (
     <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-30 max-w-[92%]">
@@ -767,7 +588,7 @@ function MapLegend() {
   ]
 
   return (
-    <div className="absolute bottom-2 left-2 z-10">
+    <div>
       {open ? (
         <div
           className="rounded-xl px-2.5 py-2 shadow-md backdrop-blur-sm space-y-1.5"
@@ -813,43 +634,97 @@ function MapLegend() {
   )
 }
 
-// ─── Types internes du modèle d'affichage ───────────────────────────────────
-type ClusterPoint = {
-  type: 'Feature'
-  properties: {
-    cluster: false
-    pharmacyId: string
-    nom: string
-    adresse: string
-    telephone: string
-    estGarde: boolean
-    inscriteMediHelm: boolean
-    distance?: number
-    ville?: string
-    medicamentDispo?: boolean
-    departement: string | null
+// ─── Légende départementale — effectifs par département (HORS carte) ────────
+// Remplace les anciens badges circulaires : le nombre d'officines et le
+// nombre de gardes de chaque département se consultent dans ce panneau en
+// bas de carte — la carte elle-même ne montre QUE les pins réels. Chaque
+// ligne est cliquable : la carte vole vers le département concerné.
+function DeptLegend({ stats, onSelect }: { stats: DeptStat[]; onSelect: (stat: DeptStat) => void }) {
+  const [open, setOpen] = useState(false)
+
+  if (stats.length === 0) return null
+
+  const totalOfficines = stats.reduce((sum, d) => sum + d.officines, 0)
+  const totalGardes = stats.reduce((sum, d) => sum + d.gardes, 0)
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 shadow-sm backdrop-blur-sm hover:bg-white transition-colors"
+        style={{ border: '1px solid rgba(15,110,86,0.18)' }}
+        aria-label="Effectifs par département"
+      >
+        <MapPin size={12} className="text-[#0F6E56] shrink-0" />
+        <span className="text-[10px] font-semibold tracking-wide text-[#0F6E56]">
+          Départements · {stats.length}
+        </span>
+      </button>
+    )
   }
-  geometry: { type: 'Point'; coordinates: [number, number] }
+
+  return (
+    <div
+      className="rounded-xl px-2.5 py-2 shadow-md backdrop-blur-sm w-[218px]"
+      style={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(15,110,86,0.25)' }}
+    >
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <span className="text-[10px] font-bold tracking-wide text-[#0F6E56]">
+          EFFECTIFS PAR DÉPARTEMENT
+        </span>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[#6B7280] hover:text-[#0F6E56]"
+          aria-label="Fermer les effectifs"
+        >
+          <X size={11} />
+        </button>
+      </div>
+
+      <div className="max-h-[168px] overflow-y-auto space-y-[3px] pr-1">
+        {stats.map(d => (
+          <button
+            key={d.dept}
+            type="button"
+            onClick={() => onSelect(d)}
+            className="w-full flex items-center justify-between gap-2 rounded-md px-1.5 py-[3px] text-left hover:bg-teal-50/80 transition-colors"
+            aria-label={`${DEPT_DISPLAY[d.dept] ?? d.dept} — ${d.officines} officines${d.gardes > 0 ? ` · ${d.gardes} de garde` : ''} — zoomer`}
+          >
+            <span className="text-[9.5px] font-semibold text-gray-700 truncate">
+              {DEPT_DISPLAY[d.dept] ?? d.dept}
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              <span className="text-[9.5px] font-medium text-gray-500">{d.officines}</span>
+              {d.gardes > 0 ? (
+                <span
+                  className="text-[8.5px] font-bold rounded-full px-1.5 py-[1px]"
+                  style={{ background: 'rgba(245,178,75,0.18)', color: '#92610A', border: '1px solid rgba(217,126,18,0.35)' }}
+                >
+                  {d.gardes} garde{d.gardes > 1 ? 's' : ''}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-1.5 pt-1.5 border-t border-teal-100/70 flex items-center justify-between">
+        <span className="text-[9px] font-semibold text-[#0F6E56]">Total</span>
+        <span className="text-[9px] font-medium text-gray-600">
+          {totalOfficines} officines{totalGardes > 0 ? ` · ${totalGardes} de garde` : ''}
+        </span>
+      </div>
+    </div>
+  )
 }
 
-type DeptGroup = {
+// ─── Statistiques départementales (légende du bas de carte) ────────────────
+type DeptStat = {
   dept: string
-  center: [number, number]
-  bounds: [number, number, number, number] // [ouest, sud, est, nord]
-  total: number
-  sc: SuperCluster
-}
-
-type DisplayItem =
-  | { kind: 'dept'; dept: string; count: number; lng: number; lat: number }
-  | { kind: 'cluster'; clusterId: number; dept: string | null; count: number; lng: number; lat: number }
-  | { kind: 'pharmacy'; pharmacy: PharmacyMapPoint }
-
-type SpiderState = {
-  key: string
-  center: [number, number]
-  zoom: number
-  items: Array<{ p: PharmacyMapPoint; lng: number; lat: number }>
+  officines: number
+  gardes: number
 }
 
 export default function PharmacyMap({
@@ -861,7 +736,6 @@ export default function PharmacyMap({
   onBoundsChange,
   height = '400px',
   className,
-  showClusters = true,
   route,
   onRouteInfo,
   navigation = false,
@@ -869,7 +743,9 @@ export default function PharmacyMap({
   const mapRef = useRef<MapRef>(null)
   /** Zoom courant (pour les badges nominatifs) — la caméra est en mode
    *  NON CONTRÔLÉ : react-maplibre n'écrase jamais les déplacements
-   *  programmatiques (fitBounds/flyTo) avec des props obsolètes. */
+   *  programmatiques (fitBounds/flyTo) avec des props obsolètes.
+   *  Le zoom est QUANTIFIÉ (pas de 0,5) pour éviter des re-rendus des
+   *  ~400 marqueurs à chaque pixel de pincement. */
   const [currentZoom, setCurrentZoom] = useState(userLatitude ? 14 : 7)
   // Fiche persistante (clic / tap — mobile & PC)
   const [popupInfo, setPopupInfo] = useState<PharmacyMapPoint | null>(null)
@@ -879,279 +755,46 @@ export default function PharmacyMap({
   const [routeData, setRouteData] = useState<RouteInfo | null>(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [zoneBanner, setZoneBanner] = useState<string | null>(null)
-  const [display, setDisplay] = useState<DisplayItem[]>([])
-  // Déploiement « araignée » d'un agrégat non séparable par le zoom
-  const [spiderfy, setSpiderfy] = useState<SpiderState | null>(null)
-  // Phase d'affichage des badges départementaux (cycle intermittent)
-  const [deptBadgesVisible, setDeptBadgesVisible] = useState(true)
 
-  // ─── Cycle intermittent des badges départementaux ─────────────────────────
-  // Les badges départementaux (nombre + nom) apparaissent 12 s, puis laissent
-  // la place 18 s aux clusters/pins réels — de façon cyclique (30 s), pour
-  // qu'aucun pin d'officine ne reste caché en permanence derrière un badge.
-  useEffect(() => {
-    let hideTimer: ReturnType<typeof setTimeout> | null = null
-    const hide = () => { hideTimer = setTimeout(() => setDeptBadgesVisible(false), DEPT_BADGE_VISIBLE_MS) }
-    hide()
-    const interval = setInterval(() => {
-      setDeptBadgesVisible(true)
-      if (hideTimer) clearTimeout(hideTimer)
-      hide()
-    }, DEPT_BADGE_VISIBLE_MS + DEPT_BADGE_HIDDEN_MS)
-    return () => {
-      if (hideTimer) clearTimeout(hideTimer)
-      clearInterval(interval)
-    }
-  }, [])
-
-  const superclusterRef = useRef<SuperCluster | null>(null) // officines sans département (défensif)
-  const deptGroupsRef = useRef<DeptGroup[]>([])
-  const updateDisplayRef = useRef<(() => void) | null>(null) // dernière version de updateDisplay
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const zoneBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
 
-  const points = useMemo<ClusterPoint[]>(
+  // ─── Statistiques par département (légende départementale) ─────────────────
+  // Les effectifs (nombre d'officines, nombre de gardes du jour) sont calculés
+  // depuis les données affichées : la légende reflète TOUJOURS la carte. Un
+  // clic sur une ligne zoome sur le département (focusDepartment).
+  const deptStats = useMemo<DeptStat[]>(() => {
+    const byDept = new Map<string, DeptStat>()
+    for (const p of pharmacies) {
+      if (!p.latitude || !p.longitude) continue
+      const d = (p.departement ?? '').toString().trim().toUpperCase()
+      if (!d) continue
+      const cur = byDept.get(d) ?? { dept: d, officines: 0, gardes: 0 }
+      cur.officines += 1
+      if (p.estGarde) cur.gardes += 1
+      byDept.set(d, cur)
+    }
+    return Array.from(byDept.values()).sort((a, b) => b.officines - a.officines)
+  }, [pharmacies])
+
+  /** Pins à afficher : TOUTES les officines géolocalisées, en permanence.
+   *  Aucun badge de comptage ne se superpose aux positions réelles ;
+   *  l'ordre de rendu met les pins de garde (ambre) puis les inscrites
+   *  (vert) AU-DESSUS des pins registre (gris) lors des chevauchements
+   *  inévitables en zoom national — l'information la plus actionnable
+   *  reste visible. */
+  const mapPoints = useMemo(
     () =>
       pharmacies
         .filter(p => p.latitude && p.longitude)
-        .map(p => ({
-          type: 'Feature' as const,
-          properties: {
-            cluster: false,
-            pharmacyId: p.id,
-            nom: p.nom,
-            adresse: p.adresse,
-            telephone: p.telephone,
-            estGarde: p.estGarde || false,
-            inscriteMediHelm: p.inscriteMediHelm || false,
-            distance: p.distance,
-            ville: p.ville,
-            medicamentDispo: p.medicamentDispo,
-            departement: p.departement ?? null,
-          },
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [p.longitude!, p.latitude!] as [number, number],
-          },
-        })),
+        .slice()
+        .sort((a, b) => {
+          const rank = (p: PharmacyMapPoint) => (p.estGarde ? 2 : p.inscriteMediHelm ? 1 : 0)
+          return rank(a) - rank(b)
+        }),
     [pharmacies]
   )
-
-  // ─── Index spatiaux : UN SuperCluster par département ─────────────────────
-  // Un agrégat ne peut jamais mélanger deux départements ; le badge
-  // départemental est ancré aux coordonnées du chef-lieu.
-  useEffect(() => {
-    if (!showClusters) return
-
-    const groups = new Map<string, ClusterPoint[]>()
-    const loose: ClusterPoint[] = []
-
-    for (const pt of points) {
-      const d = (pt.properties.departement ?? '').toString().trim().toUpperCase()
-      if (d) {
-        const arr = groups.get(d) ?? []
-        arr.push(pt)
-        groups.set(d, arr)
-      } else {
-        loose.push(pt)
-      }
-    }
-
-    const makeSC = (pts: ClusterPoint[]) => {
-      const sc = new SuperCluster({
-        radius: 56,
-        maxZoom: 16,
-        map: (props) => ({ count: 1 }),
-        reduce: (acc, props) => { acc.count += props.count },
-      })
-      sc.load(pts)
-      return sc
-    }
-
-    const deptGroups: DeptGroup[] = Array.from(groups.entries()).map(([dept, pts]) => {
-      const lngs = pts.map(p => p.geometry.coordinates[0])
-      const lats = pts.map(p => p.geometry.coordinates[1])
-      const known = DEPT_CENTERS[dept]
-      const center: [number, number] = known ?? [
-        (Math.min(...lngs) + Math.max(...lngs)) / 2,
-        (Math.min(...lats) + Math.max(...lats)) / 2,
-      ]
-      return {
-        dept,
-        center,
-        bounds: [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
-        total: pts.length,
-        sc: makeSC(pts),
-      }
-    })
-
-    deptGroupsRef.current = deptGroups
-    superclusterRef.current = loose.length > 0 ? makeSC(loose) : null
-    setSpiderfy(null) // les données ont changé → tout déploiement est obsolète
-
-    // Les groupes viennent d'être (re)construits : recalcul immédiat du modèle
-    // d'affichage si la carte est déjà chargée (sinon handleMapLoad s'en charge).
-    if (mapRef.current?.loaded()) {
-      updateDisplayRef.current?.()
-    }
-  }, [points, showClusters])
-
-  /** Anti-collision des badges départementaux (vue nationale : Sud dense).
-   *
-   *  CONTRAINTE ABSOLUE — chaque badge reste DANS SON département : toute
-   *  position candidate est bornée à la boîte géographique du département
-   *  (elle-même comprise dans les frontières du Bénin). L'anti-collision
-   *  ne peut donc JAMAIS projeter un badge vers un autre département ni
-   *  hors du pays : au pire, deux badges voisins se chevauchent légèrement
-   *  (on choisit alors la position qui pénètre le moins), et le plus gros
-   *  reste lisible au-dessus. */
-  const separateDeptBadges = useCallback(
-    (map: maplibregl.Map, badges: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }>) => {
-      if (badges.length <= 1) return badges
-      const radiusOf = (count: number) => (count < 15 ? 23 : count < 60 ? 28 : 33) + 12
-      const placed: Array<{ x: number; y: number; r: number }> = []
-      const out: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }> = []
-
-      // Les départements les plus fournis gardent la priorité sur leur chef-lieu
-      for (const b of [...badges].sort((a, b2) => b2.count - a.count)) {
-        const box = DEPT_BOUNDS[b.dept] ?? BENIN_BOUNDS
-        // Bornage géographique : la position reste dans le département
-        const clampToDept = (lng: number, lat: number): [number, number] => [
-          Math.min(Math.max(lng, box[0]), box[2]),
-          Math.min(Math.max(lat, box[1]), box[3]),
-        ]
-        const r = radiusOf(b.count)
-        const anchor = map.project([b.lng, b.lat])
-        // Profondeur de chevauchement (px) — à minimiser
-        const penetration = (x: number, y: number) =>
-          placed.reduce((m, q) => Math.max(m, r + q.r + 4 - Math.hypot(x - q.x, y - q.y)), 0)
-
-        // Candidats : position exacte du chef-lieu, puis spirale COURTE
-        // (3 anneaux max) — chaque essai est immédiatement borné au
-        // département, ce qui borne aussi l'amplitude du déplacement.
-        const candidates: Array<{ x: number; y: number; lng: number; lat: number }> = []
-        const pushCandidate = (px: number, py: number) => {
-          const geo = map.unproject([px, py])
-          const [lng, lat] = clampToDept(geo.lng, geo.lat)
-          const c = map.project([lng, lat])
-          candidates.push({ x: c.x, y: c.y, lng, lat })
-        }
-        pushCandidate(anchor.x, anchor.y)
-        for (let attempt = 1; attempt <= 24; attempt++) {
-          const ring = Math.ceil(attempt / 8) // 1..3
-          const angle = ((attempt % 8) / 8) * Math.PI * 2 + ring * 0.7
-          const dist = ring * (r + 14)
-          pushCandidate(anchor.x + Math.cos(angle) * dist, anchor.y + Math.sin(angle) * dist)
-        }
-
-        // Sélection : on minimise TOUJOURS (chevauchement + éloignement de
-        // l'ancre). Un léger chevauchement près du chef-lieu est préféré à
-        // une fuite au coin du département — les badges restent ainsi là où
-        // les pharmacies sont, tout en restant lisibles.
-        let chosen = candidates[0]
-        let bestScore = Infinity
-        for (const c of candidates) {
-          const score = penetration(c.x, c.y) + 0.35 * Math.hypot(c.x - anchor.x, c.y - anchor.y)
-          if (score < bestScore) { bestScore = score; chosen = c }
-        }
-        placed.push({ x: chosen.x, y: chosen.y, r })
-        out.push({ ...b, lng: chosen.lng, lat: chosen.lat })
-      }
-      return out
-    },
-    []
-  )
-
-  /** Résultat brut de SuperCluster.getClusters (cluster ou officine individuelle) */
-type RawCluster = {
-  id?: number
-  properties: { cluster?: boolean; pharmacyId?: string; point_count?: number }
-  geometry: { coordinates: [number, number] }
-}
-
-// ─── Recalcul du modèle d'affichage à chaque déplacement ─────────────────
-  const updateDisplay = useCallback(() => {
-    if (!showClusters || !mapRef.current) return
-    const map = mapRef.current.getMap() as maplibregl.Map
-    const bounds = map.getBounds()
-    if (!bounds) return
-    const zoom = map.getZoom()
-
-    const bbox: [number, number, number, number] = [
-      bounds.getWest(),
-      bounds.getSouth(),
-      bounds.getEast(),
-      bounds.getNorth(),
-    ]
-
-    const useDeptBadges = zoom < DEPT_BADGE_ZOOM && deptBadgesVisible
-    const items: DisplayItem[] = []
-    const deptBadges: Array<{ kind: 'dept'; dept: string; count: number; lng: number; lat: number }> = []
-
-    for (const g of deptGroupsRef.current) {
-      const clusters = g.sc.getClusters(bbox, zoom) as unknown as RawCluster[]
-
-      // Le chef-lieu est-il visible (marge) ? Sinon on montre les clusters bruts
-      const [clng, clat] = g.center
-      const m = 0.8 // marge en degrés ≈ garde le badge ancré près de son département
-      const centerVisible = clng > bbox[0] - m && clng < bbox[2] + m && clat > bbox[1] - m && clat < bbox[3] + m
-
-      if (useDeptBadges && clusters.length > 0 && centerVisible) {
-        deptBadges.push({ kind: 'dept', dept: g.dept, count: g.total, lng: clng, lat: clat })
-        continue
-      }
-
-      for (const c of clusters) {
-        if (c.properties.cluster) {
-          items.push({
-            kind: 'cluster',
-            clusterId: c.id as number,
-            dept: g.dept,
-            count: c.properties.point_count || 0,
-            lng: c.geometry.coordinates[0],
-            lat: c.geometry.coordinates[1],
-          })
-        } else {
-          const pharmacy = pharmacies.find(p => p.id === c.properties.pharmacyId)
-          if (pharmacy) items.push({ kind: 'pharmacy', pharmacy })
-        }
-      }
-    }
-
-    // Officines sans département (défensif — la base ABMed est complète)
-    if (superclusterRef.current) {
-      const loose = superclusterRef.current.getClusters(bbox, zoom) as unknown as RawCluster[]
-      for (const c of loose) {
-        if (c.properties.cluster) {
-          items.push({
-            kind: 'cluster',
-            clusterId: c.id as number,
-            dept: null,
-            count: c.properties.point_count || 0,
-            lng: c.geometry.coordinates[0],
-            lat: c.geometry.coordinates[1],
-          })
-        } else {
-          const pharmacy = pharmacies.find(p => p.id === c.properties.pharmacyId)
-          if (pharmacy) items.push({ kind: 'pharmacy', pharmacy })
-        }
-      }
-    }
-
-    // Rendu : le badge le plus fourni couvre ses voisins en cas de léger
-    // chevauchement (marqueur DOM ultérieur = affiché au-dessus) — on
-    // inverse l'ordre de placement (décroissant → croissant).
-    const badges = separateDeptBadges(map, deptBadges)
-    setDisplay([...badges.slice().reverse(), ...items])
-  }, [showClusters, pharmacies, separateDeptBadges, deptBadgesVisible])
-  updateDisplayRef.current = updateDisplay
-
-  // Changement de phase du cycle intermittent → recalcul immédiat du modèle
-  // (apparition/disparition des badges départementaux et des clusters relais).
-  useEffect(() => {
-    if (mapRef.current?.loaded()) updateDisplayRef.current?.()
-  }, [deptBadgesVisible])
 
   // ─── Cadrage automatique : TOUT le Bénin + position utilisateur ───────────
   const [mapReady, setMapReady] = useState(false)
@@ -1297,108 +940,63 @@ type RawCluster = {
   }, [])
 
   const handleMove = useCallback((evt: { viewState: { zoom: number } }) => {
-    setCurrentZoom(evt.viewState.zoom)
-    // Le moindre changement de zoom referme le déploiement « araignée »
-    setSpiderfy(prev => (prev && Math.abs(evt.viewState.zoom - prev.zoom) > 0.02 ? null : prev))
-    updateDisplay()
+    // Zoom QUANTIFIÉ (pas de 0,5) : les ~400 marqueurs ne se re-rendent
+    // qu'en franchissant un demi-niveau de zoom, pas à chaque pixel.
+    const quantized = Math.round(evt.viewState.zoom * 2) / 2
+    setCurrentZoom(prev => (prev === quantized ? prev : quantized))
     if (onBoundsChange && mapRef.current) {
       const map = mapRef.current.getMap()
       const b = map.getBounds()
       if (!b) return
       onBoundsChange([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
     }
-  }, [updateDisplay, onBoundsChange])
+  }, [onBoundsChange])
 
-  // ─── Clic badge départemental : zoom sur le département ───────────────────
-  const handleDeptClick = useCallback((dept: string) => {
-    const g = deptGroupsRef.current.find(x => x.dept === dept)
-    if (!g || !mapRef.current) return
-    showZoneBanner(`${dept} — ${g.total} officines`)
-    setSpiderfy(null)
+  // ─── Légende départementale : zoom sur le département cliqué ────────────
+  const focusDepartment = useCallback((stat: DeptStat) => {
+    const box = DEPT_BOUNDS[stat.dept]
+    if (!box || !mapRef.current) return
+    const label = DEPT_DISPLAY[stat.dept] ?? stat.dept
+    showZoneBanner(
+      stat.gardes > 0
+        ? `${label} — ${stat.officines} officines · ${stat.gardes} de garde`
+        : `${label} — ${stat.officines} officines`,
+    )
 
-    // Zoom cible calculé explicitement (fitBounds de maplibre ne garantit pas
-    // de franchir le seuil des badges départementaux) : on cadre le département
-    // tout en restant TOUJOURS au-dessus du seuil → clusters de villes, puis
-    // officines individuelles.
+    // Zoom cible calculé explicitement (Mercator) : cadre entièrement le
+    // département dans la zone utile de la carte (sans les panneaux flottants).
     const w = Math.max((mapContainerRef.current?.clientWidth ?? 900) - 150, 100)
     const h = Math.max((mapContainerRef.current?.clientHeight ?? 600) - 150, 100)
     const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))
-    const dx = Math.max(g.bounds[2] - g.bounds[0], 0.02)
-    const dyRad = Math.max(mercY(g.bounds[3]) - mercY(g.bounds[1]), 0.0005)
+    const dx = Math.max(box[2] - box[0], 0.02)
+    const dyRad = Math.max(mercY(box[3]) - mercY(box[1]), 0.0005)
     const zFit = Math.min(
       Math.log2((360 * w) / (256 * dx)),
       Math.log2((2 * Math.PI * h) / (256 * dyRad)),
     )
-    const targetZoom = Math.max(Math.min(zFit, 13), DEPT_BADGE_ZOOM + 0.45)
+    const targetZoom = Math.min(zFit, 12.5)
 
     mapRef.current.flyTo({
-      center: [(g.bounds[0] + g.bounds[2]) / 2, (g.bounds[1] + g.bounds[3]) / 2],
+      center: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2],
       zoom: targetZoom,
       duration: 850,
     })
   }, [showZoneBanner])
 
-  /** Positions en cercle autour d'un point (déploiement « araignée ») */
-  const spiderPositions = useCallback((map: maplibregl.Map, center: [number, number], n: number): Array<[number, number]> => {
-    const c = map.project(center)
-    const radius = n <= 5 ? 48 : n <= 10 ? 68 : 90
-    const out: Array<[number, number]> = []
-    for (let i = 0; i < n; i++) {
-      const angle = Math.PI / 2 + (2 * Math.PI * i) / n
-      const p = map.unproject([c.x + Math.cos(angle) * radius, c.y + Math.sin(angle) * radius])
-      out.push([p.lng, p.lat])
-    }
-    return out
-  }, [])
-
-  // ─── Clic cluster : zoom d'expansion OU déploiement « araignée » ──────────
-  const handleClusterClick = useCallback((item: Extract<DisplayItem, { kind: 'cluster' }>) => {
-    const map = mapRef.current
-    if (!map) return
-    const g = item.dept !== null ? deptGroupsRef.current.find(x => x.dept === item.dept) : undefined
-    const sc = g?.sc ?? superclusterRef.current
-    if (!sc) return
-
-    if (item.dept) showZoneBanner(`${item.dept} — ${item.count} officines`)
-
-    const zoom = map.getZoom()
-    const expansionZoom = sc.getClusterExpansionZoom(item.clusterId)
-
-    if (expansionZoom > zoom + 0.5) {
-      // Le cluster se sépare encore par le zoom → on zoome
-      setSpiderfy(null)
-      map.flyTo({ center: [item.lng, item.lat], zoom: expansionZoom + 0.1, duration: 600 })
-      return
-    }
-
-    // Cluster indivisible par le zoom (officines voisines/identiques) →
-    // déploiement en cercle : chaque officine devient un pin cliquable.
-    const leaves = sc.getLeaves(item.clusterId, 200) as Array<{ properties: { pharmacyId?: string } }>
-    const pts = leaves
-      .map(l => pharmacies.find(p => p.id === l.properties.pharmacyId))
-      .filter((p): p is PharmacyMapPoint => Boolean(p))
-    if (pts.length === 0) return
-
-    const rawMap = map.getMap() as maplibregl.Map
-    const positions = spiderPositions(rawMap, [item.lng, item.lat], pts.length)
-    setSpiderfy({
-      key: `${item.dept ?? 'x'}:${item.clusterId}`,
-      center: [item.lng, item.lat],
-      zoom,
-      items: pts.map((p, i) => ({ p, lng: positions[i][0], lat: positions[i][1] })),
-    })
-  }, [pharmacies, showZoneBanner, spiderPositions])
-
   const handleMapLoad = useCallback(() => {
     setMapReady(true)
-    updateDisplay()
-  }, [updateDisplay])
+  }, [])
 
-  // Fin de déplacement/animation : recalcul garanti à la position finale
-  // (le modèle peut sinon rester figé sur une vue intermédiaire du fitBounds).
+  // Fin de déplacement/animation : remonte les bornes finales (les pages
+  // qui filtrent leur liste selon la vue doivent avoir la position d'arrivée).
   const handleMoveEnd = useCallback(() => {
-    updateDisplay()
-  }, [updateDisplay])
+    if (onBoundsChange && mapRef.current) {
+      const map = mapRef.current.getMap()
+      const b = map.getBounds()
+      if (!b) return
+      onBoundsChange([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
+    }
+  }, [onBoundsChange])
 
   // Le style de marque local n'a pas pu charger → repli CDN Voyager
   const handleMapError = useCallback(() => {
@@ -1408,14 +1006,6 @@ type RawCluster = {
   // Fiche affichée : priorité au survol (PC), sinon la fiche cliquée
   const activeInfo = hoverInfo ?? popupInfo
   const isFromHover = hoverInfo !== null
-
-  // Pins individuels sans clustering (mode liste brute)
-  const unclusteredItems = useMemo(
-    () => pharmacies.filter(p => p.latitude && p.longitude).map(p => ({ kind: 'pharmacy' as const, pharmacy: p })),
-    [pharmacies]
-  )
-
-  const renderItems = showClusters ? display : unclusteredItems
 
   // ─── Cadrage INITIAL (mode non contrôlé) ──────────────────────────────────
   // Calculé au MONTAGE (les pages montent la carte une fois les données
@@ -1462,7 +1052,6 @@ type RawCluster = {
         onMoveEnd={handleMoveEnd}
         onLoad={handleMapLoad}
         onError={handleMapError}
-        onClick={() => setSpiderfy(null)}
         mapStyle={styleFailed ? MAP_STYLE_FALLBACK_URL : MAP_STYLE}
         scrollZoom
         attributionControl={{ compact: true }}
@@ -1507,41 +1096,6 @@ type RawCluster = {
           </Source>
         )}
 
-        {/* Déploiement « araignée » — rayons + point central */}
-        {spiderfy && spiderfy.items.length > 0 && (
-          <Source
-            id="mh-spider"
-            type="geojson"
-            data={{
-              type: 'FeatureCollection',
-              features: [
-                ...spiderfy.items.map(it => ({
-                  type: 'Feature' as const,
-                  properties: {},
-                  geometry: { type: 'LineString' as const, coordinates: [[spiderfy.center[0], spiderfy.center[1]], [it.lng, it.lat]] },
-                })),
-                {
-                  type: 'Feature' as const,
-                  properties: {},
-                  geometry: { type: 'Point' as const, coordinates: spiderfy.center },
-                },
-              ],
-            }}
-          >
-            <Layer
-              id="mh-spider-lines"
-              type="line"
-              paint={{ 'line-color': '#0F6E56', 'line-width': 1.6, 'line-opacity': 0.55 }}
-            />
-            <Layer
-              id="mh-spider-dot"
-              type="circle"
-              filter={['==', '$type', 'Point']}
-              paint={{ 'circle-radius': 4.5, 'circle-color': '#0F6E56', 'circle-stroke-width': 1.6, 'circle-stroke-color': '#ffffff' }}
-            />
-          </Source>
-        )}
-
         {/* Position utilisateur — pastille bleu MediHelm pulsée */}
         {userLatitude && userLongitude && (
           <Marker longitude={userLongitude} latitude={userLatitude} anchor="center">
@@ -1566,39 +1120,12 @@ type RawCluster = {
           </Marker>
         )}
 
-        {/* Badges départementaux + clusters + officines individuelles */}
-        {renderItems.map((item) => {
-          if (item.kind === 'dept') {
-            return (
-              <DepartmentMarker
-                key={`dept-${item.dept}`}
-                dept={item.dept}
-                count={item.count}
-                longitude={item.lng}
-                latitude={item.lat}
-                onClick={() => handleDeptClick(item.dept)}
-              />
-            )
-          }
-
-          if (item.kind === 'cluster') {
-            // Le cluster déployé en « araignée » est remplacé par ses officines
-            if (spiderfy && spiderfy.key === `${item.dept ?? 'x'}:${item.clusterId}`) return null
-            return (
-              <ClusterMarker
-                key={`cluster-${item.dept ?? 'x'}-${item.clusterId}`}
-                count={item.count}
-                dept={item.dept}
-                longitude={item.lng}
-                latitude={item.lat}
-                onClick={() => handleClusterClick(item)}
-              />
-            )
-          }
-
-          const p = item.pharmacy
+        {/* TOUTES les officines — pins individuels aux coordonnées EXACTES.
+         *  Aucun badge de comptage ne recouvre les positions : la carte ne
+         *  montre QUE des pins de géolocalisation (légende départementale
+         *  en bas de carte pour les effectifs). */}
+        {mapPoints.map((p) => {
           if (!p.latitude || !p.longitude) return null
-
           const isHovered = hoverInfo?.id === p.id
           const isSelected = selectedPharmacyId === p.id
           const showLabel = p.estGarde || p.inscriteMediHelm || isSelected || isHovered || currentZoom >= LABEL_ZOOM
@@ -1630,29 +1157,6 @@ type RawCluster = {
             </Marker>
           )
         })}
-
-        {/* Officines déployées en « araignée » (cluster indivisible) */}
-        {spiderfy?.items.map(({ p, lng, lat }) => (
-          <Marker key={`spider-${p.id}`} longitude={lng} latitude={lat} anchor="bottom">
-            <PharmacyMarker
-              nom={p.nom}
-              variant={pinVariant(p)}
-              isSelected={selectedPharmacyId === p.id}
-              isDimmed={p.medicamentDispo === false}
-              showLabel
-              onHover={() => {
-                cancelHoverClose()
-                setHoverInfo({ ...p, longitude: lng, latitude: lat })
-              }}
-              onLeave={scheduleHoverClose}
-              onClick={() => {
-                onPharmacyClick?.(p.id)
-                setHoverInfo(null)
-                openPharmacyCard(p, { atLng: lng, atLat: lat })
-              }}
-            />
-          </Marker>
-        ))}
 
         {/* Fiche officine — survol (PC) OU clic (mobile & PC) — TOUJOURS AU-DESSUS du pin */}
         {activeInfo && activeInfo.latitude && activeInfo.longitude && (
@@ -1693,8 +1197,13 @@ type RawCluster = {
         </div>
       )}
 
-      {/* Légende des couleurs — gris / vert / ambre */}
-      <MapLegend />
+      {/* Légendes du bas de carte — couleurs + effectifs par département.
+          Les BADGES de comptage sur la carte ont été supprimés : les
+          effectifs se consultent ici, sans jamais recouvrir les pins. */}
+      <div className="absolute bottom-2 left-2 z-10 flex flex-col items-start gap-1.5">
+        <MapLegend />
+        <DeptLegend stats={deptStats} onSelect={focusDepartment} />
+      </div>
 
       {/* Signature de marque — badge discret en bas à droite */}
       <div className="pointer-events-none absolute bottom-2 right-2 z-10">

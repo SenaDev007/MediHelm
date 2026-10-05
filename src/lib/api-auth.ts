@@ -9,6 +9,7 @@ import type { NextRequest } from 'next/server'
 import type { AuthUser } from '@/lib/rbac'
 import { checkPermission } from '@/lib/rbac'
 import { db } from '@/lib/db'
+import { resolveAuthSecret } from '@/lib/auth-secret'
 
 /**
  * Vérifie le JWT NextAuth et retourne les informations utilisateur.
@@ -26,7 +27,8 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
 
     const token = await getToken({
       req: nextRequest,
-      secret: process.env.NEXTAUTH_SECRET,
+      // Même résolution de secret que la signature des JWT (src/lib/auth.ts)
+      secret: resolveAuthSecret(),
     })
 
     // getToken verifies the NextAuth token (including Authorization: Bearer).

@@ -11,6 +11,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { db } from '@/lib/db'
 import { getRolePermissions } from '@/lib/rbac'
 import { checkRateLimit, isRateLimited, RATE_LIMITS } from '@/lib/rate-limit'
+import { resolveAuthSecret } from '@/lib/auth-secret'
 
 type MediHelmAuthUser = {
   id: string
@@ -132,8 +133,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Compte désactivé. Contactez votre administrateur.')
         }
 
-        // Vérifier que la pharmacie est active
-        if (!utilisateur.pharmacie.actif) {
+        // Vérifier que la pharmacie est active — UNIQUEMENT si l'utilisateur
+        // est rattaché à une officine. Les comptes grossistes et institutionnels
+        // n'ont PAS de pharmacie (relation null) : l'ancien accès direct
+        // `utilisateur.pharmacie.actif` levait un TypeError qui faisait échouer
+        // leur connexion avec une erreur générique.
+        if (utilisateur.pharmacie && !utilisateur.pharmacie.actif) {
           registerFailure()
           throw new Error('Pharmacie désactivée. Contactez le support MediHelm.')
         }
@@ -184,7 +189,12 @@ export const authOptions: NextAuthOptions = {
   },
 
   jwt: {
-    secret: process.env.NEXTAUTH_SECRET,
+    // Résilience : NEXTAUTH_SECRET > AUTH_SECRET > valeur dérivée de la
+    // chaîne DB (déploiements où la variable n'est pas encore configurée).
+    // Sans secret en production, NextAuth refuse TOUTES les connexions
+    // (MissingSecret → HTTP 500 « There is a problem with the server
+    // configuration »). Voir src/lib/auth-secret.ts.
+    secret: resolveAuthSecret(),
     maxAge: 24 * 60 * 60, // 24 heures
   },
 

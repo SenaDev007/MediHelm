@@ -19,6 +19,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { resolveAuthSecretEdge } from '@/lib/auth-secret-edge'
 
 // Constantes RBAC (dupliquées pour la compatibilité Edge Runtime)
 const INSTITUTIONAL_ROLES = ['DPMED_ADMIN', 'SOBAPS_VIEWER', 'ABRP_VIEWER', 'PLATFORM_ADMIN']
@@ -50,6 +51,11 @@ const PUBLIC_PATHS = [
   // Pages d'authentification patient — accessibles sans session
   '/patient/connexion',
   '/patient/inscription',
+  // Pages d'authentification dédiées aux autres espaces
+  // (design propre à chaque espace, formulaire à gauche)
+  '/pro/connexion',
+  '/grossistes/connexion',
+  '/institutions/connexion',
 ]
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/webhooks/', '/api/patient/', '/api/scan', '/_next/', '/favicon', '/logo']
 
@@ -60,7 +66,10 @@ function isPublicPath(pathname: string): boolean {
 
 async function getVerifiedSession(request: NextRequest): Promise<{ authenticated: boolean; roleName?: string }> {
   try {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    // Même résilience que src/lib/auth.ts : sans secret partagé, le JWT
+    // émis par les routes API serait indécodable ici (session rejetée).
+    const secret = await resolveAuthSecretEdge()
+    const token = await getToken({ req: request, secret })
     if (!token?.id) return { authenticated: false }
     // Mapping OWNER (Prisma enum) → ADMIN (RBAC) pour cohérence
     let roleName = (token as unknown as Record<string, unknown>).roleName as string | undefined
