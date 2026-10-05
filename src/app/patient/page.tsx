@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { GardeWidget } from '@/components/patient/garde-widget'
+import { UserAvatar } from '@/components/auth/user-avatar'
 import { usePatientSession } from '@/hooks/use-patient-session'
 import { useEffect, useState } from 'react'
 
@@ -89,18 +90,29 @@ export default function PatientHomePage() {
 
   return (
     <div className="px-4 py-4 space-y-5 max-w-lg mx-auto">
-      {/* Welcome */}
+      {/* Welcome — avatar du compte connecté */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-xl font-bold text-teal-800">
-          {prenom || nom ? `Bonjour ${prenom ?? ''} ${nom ?? ''}`.trim().replace(/\s+/g, ' ') : 'Bonjour'}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Bienvenue dans votre espace MediHelm Patient.
-        </p>
+        <div className="flex items-center gap-3.5">
+          <UserAvatar prenom={prenom} nom={nom} size="xl" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-teal-800 truncate">
+              {prenom || nom ? `Bonjour ${prenom ?? ''} ${nom ?? ''}`.trim().replace(/\s+/g, ' ') : 'Bonjour'}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Bienvenue dans votre espace MediHelm Patient.
+            </p>
+          </div>
+          <Link
+            href="/patient/profil"
+            className="shrink-0 text-xs font-medium text-primary hover:underline"
+          >
+            Profil
+          </Link>
+        </div>
       </motion.div>
 
       {/* DPMED Alert Banner */}

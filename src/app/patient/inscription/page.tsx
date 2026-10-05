@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -28,7 +28,6 @@ interface ValidationErrors {
 }
 
 export default function InscriptionPage() {
-  const router = useRouter()
   const [nom, setNom] = useState('')
   const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
@@ -142,9 +141,23 @@ export default function InscriptionPage() {
       }
 
       setSuccess(true)
-      setTimeout(() => {
-        router.push('/patient/connexion')
-      }, 2500)
+
+      // ── Auto-connexion immédiate ──────────────────────────────────
+      // Un flux professionnel n'oblige JAMAIS le patient à ressaisir
+      // ses identifiants juste après avoir créé son compte : la session
+      // est ouverte ici, puis il est dirigé directement vers SON
+      // dashboard (avatar + bouton de déconnexion).
+      try {
+        await signIn('credentials', {
+          email: email.trim().toLowerCase(),
+          password,
+          redirect: false,
+        })
+      } catch {
+        // L'auto-connexion a échoué → formulaire de connexion classique
+      }
+      // Navigation complète : le cookie de session vient d'être émis
+      window.location.assign('/patient')
     } catch {
       setError('Une erreur est survenue. Veuillez réessayer.')
     } finally {
@@ -181,7 +194,8 @@ export default function InscriptionPage() {
               <h2 className="text-xl font-bold text-teal-800 mb-2">Compte créé !</h2>
               <p className="text-sm text-muted-foreground">
                 Votre compte patient a été créé avec succès.
-                Vous allez être redirigé vers la page de connexion.
+                Connexion en cours… vous allez être redirigé vers votre
+                tableau de bord.
               </p>
             </motion.div>
           )}

@@ -3,9 +3,12 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronDown, LayoutDashboard, LogOut, Loader2 } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
+import { SessionUserMenu } from "@/components/auth/session-user-menu";
+import { destinationForRole } from "@/components/auth/use-space-login";
 
 const navLinks = [
   { label: "La carte", href: "/#carte-nationale" },
@@ -51,6 +54,25 @@ export function Navbar({ space = "patient" }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showSpaces, setShowSpaces] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { data: session, status } = useSession();
+
+  // Utilisateur connecté → l'accueil de SON espace ; les boutons
+  // « Se connecter / Créer un compte » disparaissent complètement.
+  const isAuthenticated = status === "authenticated" && !!session?.user;
+  const roleName = session?.user?.roleName;
+  const isPatient = roleName === "PATIENT";
+  const userHome = isAuthenticated
+    ? isPatient
+      ? "/patient"
+      : destinationForRole(roleName)
+    : null;
+  const userHomeLabel = isPatient ? "Mon dashboard" : "Mon espace";
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut({ callbackUrl: "/" });
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -123,17 +145,35 @@ export function Navbar({ space = "patient" }: NavbarProps) {
             </div>
           </div>
 
+          {/* Actions — connecté : Mon dashboard + avatar menu ; anonyme : CTA de l'espace */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href={spaceCta[space].secondary.href}>
-              <Button variant="outline" className="border-teal-400 text-teal-400 hover:bg-teal-50 font-medium text-sm">
-                {spaceCta[space].secondary.label}
-              </Button>
-            </Link>
-            <Link href={spaceCta[space].primary.href}>
-              <Button className="bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                {spaceCta[space].primary.label}
-              </Button>
-            </Link>
+            {isAuthenticated && userHome ? (
+              <>
+                <Link href={userHome}>
+                  <Button className="bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
+                    <LayoutDashboard className="mr-1.5 size-4" />
+                    {userHomeLabel}
+                  </Button>
+                </Link>
+                <SessionUserMenu
+                  size="sm"
+                  profileHref={isPatient ? "/patient/profil" : undefined}
+                />
+              </>
+            ) : (
+              <>
+                <Link href={spaceCta[space].secondary.href}>
+                  <Button variant="outline" className="border-teal-400 text-teal-400 hover:bg-teal-50 font-medium text-sm">
+                    {spaceCta[space].secondary.label}
+                  </Button>
+                </Link>
+                <Link href={spaceCta[space].primary.href}>
+                  <Button className="bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
+                    {spaceCta[space].primary.label}
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -184,16 +224,42 @@ export function Navbar({ space = "patient" }: NavbarProps) {
                 ))}
               </div>
               <div className="pt-3 pb-1 space-y-2">
-                <Link href={spaceCta[space].primary.href} onClick={() => setIsOpen(false)}>
-                  <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
-                    {spaceCta[space].primary.label}
-                  </Button>
-                </Link>
-                <Link href={spaceCta[space].secondary.href} onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full border-teal-400 text-teal-400 font-medium text-sm">
-                    {spaceCta[space].secondary.label}
-                  </Button>
-                </Link>
+                {isAuthenticated && userHome ? (
+                  <>
+                    <Link href={userHome} onClick={() => setIsOpen(false)}>
+                      <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
+                        <LayoutDashboard className="mr-1.5 size-4" />
+                        {userHomeLabel}
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      className="w-full border-red-300 text-red-700 hover:bg-red-50 font-medium text-sm"
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                    >
+                      {loggingOut ? (
+                        <Loader2 className="mr-1.5 size-4 animate-spin" />
+                      ) : (
+                        <LogOut className="mr-1.5 size-4" />
+                      )}
+                      Se déconnecter
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href={spaceCta[space].primary.href} onClick={() => setIsOpen(false)}>
+                      <Button className="w-full bg-teal-400 hover:bg-teal-600 text-white font-medium text-sm">
+                        {spaceCta[space].primary.label}
+                      </Button>
+                    </Link>
+                    <Link href={spaceCta[space].secondary.href} onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full border-teal-400 text-teal-400 font-medium text-sm">
+                        {spaceCta[space].secondary.label}
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

@@ -1,11 +1,15 @@
 'use client'
 
 import { BottomNav } from '@/components/patient/bottom-nav'
-import { Bell, Menu, X } from 'lucide-react'
+import { SessionUserMenu } from '@/components/auth/session-user-menu'
+import { UserAvatar } from '@/components/auth/user-avatar'
+import { usePatientSession } from '@/hooks/use-patient-session'
+import { Bell, LogOut, Menu, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { signOut } from 'next-auth/react'
 
 const menuItems = [
   { href: '/patient', label: 'Accueil' },
@@ -26,10 +30,20 @@ const menuItems = [
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { prenom, nom, email } = usePatientSession()
+
+  const fullName = `${prenom ?? ''} ${nom ?? ''}`.trim()
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    // Déconnexion → retour au landing public patient
+    await signOut({ callbackUrl: '/' })
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Top Bar */}
+      {/* Top Bar — logo + cloche + avatar avec menu (profil / déconnexion) */}
       <header className="sticky top-0 z-40 bg-white border-b border-teal-200 shadow-sm">
         <div className="flex items-center justify-between h-14 px-4">
           <div className="flex items-center gap-2">
@@ -48,17 +62,25 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               </div>
             </Link>
           </div>
-          <Link
-            href="/patient/notifications"
-            className="relative p-2 rounded-lg hover:bg-teal-50 transition-colors"
-          >
-            <Bell className="h-5 w-5 text-gray-900" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/patient/notifications"
+              className="relative p-2 rounded-lg hover:bg-teal-50 transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell className="h-5 w-5 text-gray-900" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+            </Link>
+            {/* Avatar du patient — menu : identité, profil, déconnexion */}
+            <SessionUserMenu
+              profileHref="/patient/profil"
+              size="md"
+            />
+          </div>
         </div>
       </header>
 
-      {/* Side Menu Overlay */}
+      {/* Side Menu Overlay — navigation des modules + compte */}
       <AnimatePresence>
         {menuOpen && (
           <>
@@ -74,18 +96,28 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 w-72 bg-white z-40 shadow-xl overflow-y-auto"
+              className="fixed top-0 left-0 bottom-0 w-72 bg-white z-40 shadow-xl overflow-y-auto flex flex-col"
             >
-              <div className="p-4 border-b border-teal-200">
-                <div className="flex items-center gap-2">
-                  <Image src="/logo-MediHelm-01.png" alt="MediHelm" width={32} height={32} className="shrink-0" />
-                  <div>
-                    <p className="font-bold text-teal-800">MediHelm Patient</p>
-                    <p className="text-xs text-primary">Espace patient</p>
+              {/* Bloc compte du patient */}
+              <div className="p-4 border-b border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50/50">
+                <div className="flex items-center gap-3">
+                  <UserAvatar prenom={prenom} nom={nom} size="lg" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-teal-900 truncate leading-tight">
+                      {fullName || 'Mon compte'}
+                    </p>
+                    {email && (
+                      <p className="text-[11px] text-teal-700/80 truncate mt-0.5">{email}</p>
+                    )}
+                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wide mt-0.5">
+                      Patient
+                    </p>
                   </div>
                 </div>
               </div>
-              <nav className="p-2">
+
+              {/* Navigation — les 14 modules de l'espace patient */}
+              <nav className="p-2 flex-1">
                 {menuItems.map((item) => (
                   <Link
                     key={item.href}
@@ -97,6 +129,19 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                   </Link>
                 ))}
               </nav>
+
+              {/* Déconnexion — toujours accessible en bas du menu */}
+              <div className="p-3 border-t border-teal-100">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-red-700 hover:bg-red-50 transition-colors disabled:opacity-60"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Se déconnecter
+                </button>
+              </div>
             </motion.div>
           </>
         )}

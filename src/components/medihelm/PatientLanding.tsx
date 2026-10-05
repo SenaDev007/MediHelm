@@ -4,12 +4,14 @@ import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useSession, signOut } from "next-auth/react";
 import {
   ArrowRight,
   BadgeCheck,
   Bell,
   Building2,
   Heart,
+  LayoutDashboard,
   LogIn,
   MapPin,
   Package,
@@ -18,6 +20,7 @@ import {
   Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/auth/user-avatar";
 import type { PharmacyMapPoint } from "@/components/patient/pharmacy-map";
 
 const PharmacyMap = dynamic(
@@ -71,6 +74,14 @@ const otherSpaces = [
 export function PatientLanding() {
   const [pharmacies, setPharmacies] = useState<PharmacyMapPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
+
+  // Patient connecté → plus aucun bouton « Se connecter / Créer un compte » :
+  // un unique accès vers son dashboard, avec son identité affichée.
+  const isPatientAuthenticated =
+    status === "authenticated" && session?.user?.roleName === "PATIENT";
+  const fullName =
+    `${session?.user?.prenom ?? ""} ${session?.user?.nom ?? ""}`.trim();
 
   // ─── Toutes les officines du Bénin (registre ABMed + inscrites MediHelm) ──
   useEffect(() => {
@@ -199,33 +210,71 @@ export function PatientLanding() {
               ))}
             </div>
 
-            {/* Créer un compte / Se connecter */}
+            {/* Accès au compte : patient connecté → son dashboard ; anonyme → créer / se connecter */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
-              className="flex flex-col sm:flex-row gap-3 mb-5"
+              className="mb-5"
             >
-              <Link href="/patient/inscription" className="flex-1">
-                <Button
-                  size="lg"
-                  className="w-full bg-[#0F6E56] hover:bg-teal-700 text-white font-medium text-base h-12 shadow-lg shadow-teal-900/20"
-                >
-                  <Heart className="mr-2 size-5" />
-                  Créer mon compte gratuit
-                  <ArrowRight className="ml-2 size-4" />
-                </Button>
-              </Link>
-              <Link href="/patient/connexion" className="flex-1">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full border-[#0F6E56]/40 text-[#0F6E56] hover:bg-[#E1F5EE] font-medium text-base h-12"
-                >
-                  <LogIn className="mr-2 size-5" />
-                  Se connecter
-                </Button>
-              </Link>
+              {isPatientAuthenticated ? (
+                <div className="space-y-3">
+                  <Link href="/patient" className="block">
+                    <Button
+                      size="lg"
+                      className="w-full bg-[#0F6E56] hover:bg-teal-700 text-white font-medium text-base h-12 shadow-lg shadow-teal-900/20"
+                    >
+                      <LayoutDashboard className="mr-2 size-5" />
+                      Accéder à mon dashboard
+                      <ArrowRight className="ml-2 size-4" />
+                    </Button>
+                  </Link>
+                  <div className="flex items-center justify-center gap-2.5 text-[13px] text-gray-500">
+                    <UserAvatar
+                      prenom={session?.user?.prenom}
+                      nom={session?.user?.nom}
+                      size="sm"
+                    />
+                    <span>
+                      Connecté en tant que{" "}
+                      <strong className="text-gray-900 font-semibold">
+                        {fullName || "patient"}
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => signOut({ callbackUrl: "/" })}
+                      className="inline-flex items-center gap-1 text-red-700/80 hover:text-red-700 hover:underline font-medium ml-1"
+                    >
+                      <LogIn className="size-3.5 rotate-180" />
+                      Se déconnecter
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Link href="/patient/inscription" className="flex-1">
+                    <Button
+                      size="lg"
+                      className="w-full bg-[#0F6E56] hover:bg-teal-700 text-white font-medium text-base h-12 shadow-lg shadow-teal-900/20"
+                    >
+                      <Heart className="mr-2 size-5" />
+                      Créer mon compte gratuit
+                      <ArrowRight className="ml-2 size-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/patient/connexion" className="flex-1">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full border-[#0F6E56]/40 text-[#0F6E56] hover:bg-[#E1F5EE] font-medium text-base h-12"
+                    >
+                      <LogIn className="mr-2 size-5" />
+                      Se connecter
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </motion.div>
 
             {/* Chiffres clés — dynamiques depuis la base */}

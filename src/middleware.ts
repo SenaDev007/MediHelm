@@ -83,6 +83,17 @@ async function getVerifiedSession(request: NextRequest): Promise<{ authenticated
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Pages d'authentification patient — un patient DÉJÀ connecté n'a
+  // plus rien à y faire : redirection directe vers son dashboard
+  // (formulaire de connexion/inscription invisible pour lui).
+  if (pathname === '/patient/connexion' || pathname === '/patient/inscription') {
+    const { authenticated, roleName } = await getVerifiedSession(request)
+    if (authenticated && PATIENT_ROLES.includes(roleName ?? '')) {
+      return NextResponse.redirect(new URL('/patient', request.url))
+    }
+    return NextResponse.next()
+  }
+
   // Routes publiques — pas d'authentification
   if (isPublicPath(pathname) || (pathname.includes('.') && !pathname.startsWith('/api/'))) {
     return NextResponse.next()

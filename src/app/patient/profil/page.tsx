@@ -181,7 +181,9 @@ export default function ProfilPage() {
   }
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/patient/connexion' })
+    // Déconnexion → retour au landing public patient
+    // (les boutons « Se connecter / Créer un compte » y réapparaissent)
+    await signOut({ callbackUrl: '/' })
   }
 
   const initials = profile
