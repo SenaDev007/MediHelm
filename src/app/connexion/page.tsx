@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,7 +13,6 @@ import { Shield, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
 
 function ConnexionForm() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const explicitCallbackUrl = searchParams.get('callbackUrl')
   const error = searchParams.get('error')
 
@@ -96,8 +95,10 @@ function ConnexionForm() {
         if (callbackUrl && callbackUrl.startsWith('/') && !callbackUrl.startsWith('//')) {
           destination = callbackUrl
         }
-        router.push(destination)
-        router.refresh()
+        // Navigation COMPLÈTE post-connexion : garantit que le cookie de session
+        // fraîchement émis accompagne la requête suivante (middleware + RSC) —
+        // router.push peut perdre la course contre l'installation du cookie.
+        window.location.assign(destination)
       }
     } catch {
       setAuthError('Erreur de connexion au serveur')

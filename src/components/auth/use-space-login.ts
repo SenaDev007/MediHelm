@@ -10,7 +10,7 @@
 
 import { useState, useCallback } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 export type SpaceId = 'patient' | 'pro' | 'grossiste' | 'institution'
 
@@ -65,7 +65,6 @@ function humanizeError(raw: string | undefined): string {
 }
 
 export function useSpaceLogin() {
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   const [email, setEmail] = useState('')
@@ -125,15 +124,22 @@ export function useSpaceLogin() {
             // session illisible : /connexion reste une valeur sûre
           }
         }
-        router.push(destination ?? '/connexion')
-        router.refresh()
+        // Navigation POST-CONNEXION : navigation COMPLÈTE (window.location)
+        // plutôt que router.push — le cookie de session vient d'être émis et
+        // une navigation dure garantit que la requête suivante (middleware,
+        // RSC, layouts serveur) part avec le cookie engagé. Avec router.push,
+        // la requête RSC peut déclencher CONCURRENT la mise en place du cookie
+        // et être rejetée par le middleware (connexion « invisible » observée
+        // en production). C'est aussi le comportement natif de NextAuth
+        // (window.location.href après signIn).
+        window.location.assign(destination ?? '/connexion')
       } catch {
         setError('Erreur de connexion au serveur. Vérifiez votre réseau.')
       } finally {
         setLoading(false)
       }
     },
-    [email, password, router, searchParams],
+    [email, password, searchParams],
   )
 
   return {
