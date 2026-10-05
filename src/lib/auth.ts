@@ -80,6 +80,14 @@ function extractClientIp(req: unknown): string {
  * Configuration NextAuth — stratégie JWT, provider Credentials
  */
 export const authOptions: NextAuthOptions = {
+  // ─── Secret de signature — NIVEAU RACINE (obligatoire) ────────────────────
+  // Le handler App Router de NextAuth v4 (NextAuthRouteHandler) ne fusionne
+  // PAS options.jwt.secret vers options.secret : sans secret racine, la
+  // production sans NEXTAUTH_SECRET configuré renvoie MissingSecret → HTTP
+  // 500 « There is a problem with the server configuration » sur TOUTES les
+  // routes /api/auth/*. Résilience : NEXTAUTH_SECRET > AUTH_SECRET > valeur
+  // dérivée de la chaîne DB (voir src/lib/auth-secret.ts).
+  secret: resolveAuthSecret(),
   providers: [
     CredentialsProvider({
       name: 'credentials',
