@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "git checkout -- pnpm-lock.yaml || true; pnpm install --frozen-lockfile"
+}
