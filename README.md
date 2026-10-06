@@ -44,6 +44,25 @@ pnpm dev             # http://localhost:3000
 ## Déploiement Railway
 
 Le service Railway reste configuré avec le **Root Directory = racine du dépôt**.
+
+> ### ⚠️ Root Directory : JAMAIS un sous-dossier
+>
+> Deux incidents de build ont déjà été causés par un Root Directory erroné :
+>
+> 1. Contexte = `src/app/api` → build impossible (fichiers de routes seuls) ;
+> 2. Contexte = `backend/` (2026-10-06) → `cd: frontend: No such file or directory`,
+>    setup retombé sur `nodejs_18` (pas de `.nvmrc` dans `backend/`), `npm i`
+>    « audited 1 package » (`backend/package.json` n'a AUCUNE dépendance) et
+>    `Removing non-directory /app/node_modules` (`backend/node_modules` est un
+>    symlink git-tracked vers `../frontend/node_modules`).
+>
+> **`backend/` est une unité d'organisation du code, PAS une unité de
+> déploiement** : `frontend/` compile les deux (routes API via l'alias
+> `@backend/*`, schéma Prisma via `../backend/prisma`). Un service Railway
+> enraciné sur `backend/` ne peut physiquement rien construire. Si un second
+> service pointe vers `backend/`, le supprimer. En déploiement CLI, lancer
+> `railway up` depuis la racine du dépôt, jamais depuis un sous-dossier.
+
 `railway.json` orchestre : build dans `frontend/`, migrations Prisma au
 démarrage (`backend/prisma`), puis `node .next/standalone/frontend/server.js`.
 Le serveur standalone imbriqué sert `public/` et `.next/static/` depuis son
