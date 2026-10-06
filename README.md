@@ -46,5 +46,9 @@ pnpm dev             # http://localhost:3000
 Le service Railway reste configuré avec le **Root Directory = racine du dépôt**.
 `railway.json` orchestre : build dans `frontend/`, migrations Prisma au
 démarrage (`backend/prisma`), puis `node .next/standalone/frontend/server.js`.
+Le serveur standalone imbriqué sert `public/` et `.next/static/` depuis son
+propre dossier (`process.chdir(__dirname)`) : le post-build
+`frontend/scripts/copy-standalone-assets.js` (chaîné dans `pnpm build`) les y
+copie — sans lui, tous les JS/CSS/images clients renverraient 404 en production.
 
 Variables requises : `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`.
