@@ -142,13 +142,19 @@ export default function PharmaciesPage() {
     fetchPharmacies()
   }, [fetchPharmacies])
 
-  // Filter by radius — LA LISTE uniquement (la carte montre tout le Bénin)
+  // Filter by radius — LA LISTE uniquement (la carte montre tout le Bénin).
+  // Le rayon n'a de sens qu'AVEC la position utilisateur : sans elle les
+  // distances renvoyées par l'API valent toutes 0 et un filtre « 10 km »
+  // laisserait passer TOUT le Bénin sous une étiquette mensongère. En attente
+  // de géolocalisation (ou refus) → tout le Bénin, clairement étiqueté.
+  const hasPosition = userLat != null && userLng != null
+
   useEffect(() => {
-    const filtered = selectedRadius === null
+    const filtered = selectedRadius === null || !hasPosition
       ? pharmacies
       : pharmacies.filter(p => p.distance <= selectedRadius)
     setFilteredPharmacies(filtered)
-  }, [pharmacies, selectedRadius])
+  }, [pharmacies, selectedRadius, hasPosition])
 
   const handleRefresh = () => {
     getUserLocation()
@@ -475,10 +481,11 @@ export default function PharmaciesPage() {
                 <div>
                   <h2 className="text-base font-bold text-teal-800">Pharmacies à proximité</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {loading ? 'Recherche…' : selectedRadius === null
+                    {loading ? 'Recherche…' : selectedRadius === null || !hasPosition
                       ? `${filteredPharmacies.length} officines — tout le Bénin`
                       : `${filteredPharmacies.length} pharmacie(s) dans un rayon de ${selectedRadius} km`}
-                    {userLat && userLng && !geoError && ' • Position détectée'}
+                    {hasPosition && !geoError && ' • Position détectée'}
+                    {!hasPosition && !geoError && !loading && ' • Localisation en cours…'}
                   </p>
                 </div>
                 {viewMode === 'map' && (
@@ -544,10 +551,10 @@ export default function PharmaciesPage() {
               <p className="text-sm font-bold text-teal-800 leading-tight">
                 {loading ? 'Recherche…' : `${filteredPharmacies.length} pharmacie(s)`}
                 <span className="text-xs font-normal text-muted-foreground">
-                  {' • '}{selectedRadius === null ? 'tout le Bénin' : `${selectedRadius} km`}
+                  {' • '}{selectedRadius === null || !hasPosition ? 'tout le Bénin' : `${selectedRadius} km`}
                 </span>
               </p>
-              {sheetState === 'peek' && nearest && !loading && (
+              {sheetState === 'peek' && nearest && !loading && hasPosition && (
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                   <MapPin className="h-3 w-3 inline mr-0.5 text-primary" />
                   {nearest.nom} — {nearest.distance.toFixed(1)} km{nearest.estGarde ? ' • De garde' : ''}

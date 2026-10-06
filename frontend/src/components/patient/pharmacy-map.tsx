@@ -8,7 +8,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { MapPin, Phone, Navigation, ShieldCheck, Check, X, Clock, ExternalLink, Info } from 'lucide-react'
 import { buildDirectionsUrl, buildMapUrl } from '@backend/lib/directions'
 import { formatPhoneBenin } from '@backend/lib/phone'
-import { fetchRoute, type RouteInfo } from '@backend/lib/travel'
+import { fetchRoute, haversineKm, type RouteInfo } from '@backend/lib/travel'
 import { MAP_STYLE_URL, MAP_STYLE_FALLBACK_URL } from '@backend/lib/map-style'
 import { cn } from '@backend/lib/utils'
 
@@ -63,6 +63,13 @@ const LABEL_ZOOM = 8
 const HOVER_GRACE_MS = 320
 /** Zoom de bascule : en dessous, un badge par département ; au-dessus, clusters internes */
 const DEPT_BADGE_ZOOM = 8.6
+/** Rayon (km) définissant la « zone de localisation » de l'utilisateur — même
+ *  valeur que le rayon par défaut de la liste « Pharmacies à proximité ». */
+const USER_ZONE_RADIUS_KM = 10
+/** Nombre maximal d'officines servant à cadrer la zone utilisateur (les plus proches) */
+const USER_ZONE_MAX_PINS = 25
+/** Zoom de cadrage de la zone quand aucune officine n'est proche */
+const USER_ZONE_ZOOM = 13
 
 /**
  * Centres officiels des départements du Bénin (chefs-lieux / position centrale
@@ -863,7 +870,7 @@ export default function PharmacyMap({
   /** Zoom courant (pour les badges nominatifs) — la caméra est en mode
    *  NON CONTRÔLÉ : react-maplibre n'écrase jamais les déplacements
    *  programmatiques (fitBounds/flyTo) avec des props obsolètes. */
-  const [currentZoom, setCurrentZoom] = useState(userLatitude ? 14 : 7)
+  const [currentZoom, setCurrentZoom] = useState(userLatitude ? USER_ZONE_ZOOM : 7)
   // Fiche persistante (clic / tap — mobile & PC)
   const [popupInfo, setPopupInfo] = useState<PharmacyMapPoint | null>(null)
   // Fiche éphémère (survol PC — stable grâce au délai de grâce)
@@ -1125,14 +1132,91 @@ type RawCluster = {
   }, [showClusters, pharmacies, separateDeptBadges, deptBadgesVisible])
   updateDisplayRef.current = updateDisplay
 
-  // ─── Cadrage automatique : TOUT le Bénin + position utilisateur ───────────
+  // ─── Bandeau d'identification de zone (défini tôt : utilisé par le cadrage auto)
+  const showZoneBanner = useCallback((label: string) => {
+    setZoneBanner(label)
+    if (zoneBannerTimer.current) clearTimeout(zoneBannerTimer.current)
+    zoneBannerTimer.current = setTimeout(() => setZoneBanner(null), 2600)
+  }, [])
+
+  // ─── Cadrage automatique ─────────────────────────────────────────────────
+  //  · Localisation activée → la carte va DIRECTEMENT dans la zone de
+  //    localisation de l'utilisateur (position + officines à proximité ≤
+  //    USER_ZONE_RADIUS_KM) — demande utilisateur 2026-10-07. One-shot : sans
+  //    ce garde-fou, chaque rafraîchissement des données re-cadrerait la carte
+  //    sous les doigts de l'utilisateur.
+  //  · Sinon (refusée / indisponible / en attente) → tout le Bénin, comportement
+  //    historique conservé.
   const [mapReady, setMapReady] = useState(false)
+  const didUserZoneFrameRef = useRef(false)
+  /** Position précédente — distingue première acquisition (cadrage zone) et
+   *  rafraîchissement (bouton « Recentrer » → recentrage doux). */
+  const prevUserPosRef = useRef<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     if (!mapReady) return
     const validPharmacies = pharmacies.filter(p => p.latitude && p.longitude)
     if (validPharmacies.length === 0 || !mapRef.current) return
 
+    // ── Zone de localisation de l'utilisateur ──
+    if (userLatitude && userLongitude) {
+      // Première position ≠ rafraîchissement (bouton « Recentrer » / Refresh) :
+      // la première cadre LA ZONE ; un rafraîchissement recentre sans re-cadrer,
+      // en respectant le zoom courant (et jamais pendant le suivi « en route »,
+      // qui possède son propre effet de suivi).
+      const prev = prevUserPosRef.current
+      const isRefresh = prev !== null && (prev.lat !== userLatitude || prev.lng !== userLongitude)
+      prevUserPosRef.current = { lat: userLatitude, lng: userLongitude }
+
+      if (isRefresh) {
+        if (!navigation && mapRef.current) {
+          const map = mapRef.current.getMap()
+          mapRef.current.easeTo({
+            center: [userLongitude, userLatitude],
+            zoom: Math.max(map.getZoom(), USER_ZONE_ZOOM),
+            duration: 700,
+          })
+        }
+        return
+      }
+
+      if (didUserZoneFrameRef.current) return
+      didUserZoneFrameRef.current = true
+
+      // Distances recalculées ici depuis les coordonnées fraîches : le champ
+      // `distance` des props peut être périmé le temps du refetch post-géoloc.
+      const userPos = { lat: userLatitude, lng: userLongitude }
+      const ranked = validPharmacies
+        .map(p => ({ p, d: haversineKm(userPos, { lat: p.latitude!, lng: p.longitude! }) }))
+        .sort((a, b) => a.d - b.d)
+      const inZone = ranked.filter(x => x.d <= USER_ZONE_RADIUS_KM)
+      // Zone rurale (aucune officine ≤ 10 km) → cadrer sur les 10 plus proches
+      const anchors = (inZone.length > 0 ? inZone : ranked.slice(0, 10)).slice(0, USER_ZONE_MAX_PINS)
+
+      showZoneBanner(inZone.length > 0
+        ? `Autour de vous — ${inZone.length} officine${inZone.length > 1 ? 's' : ''} à moins de ${USER_ZONE_RADIUS_KM} km`
+        : 'Autour de vous')
+
+      if (anchors.length === 0) {
+        mapRef.current.flyTo({ center: [userLongitude, userLatitude], zoom: USER_ZONE_ZOOM, duration: 900 })
+        return
+      }
+      const bounds: [number, number, number, number] = [userLongitude, userLatitude, userLongitude, userLatitude]
+      for (const { p } of anchors) {
+        bounds[0] = Math.min(bounds[0], p.longitude!)
+        bounds[1] = Math.min(bounds[1], p.latitude!)
+        bounds[2] = Math.max(bounds[2], p.longitude!)
+        bounds[3] = Math.max(bounds[3], p.latitude!)
+      }
+      try {
+        mapRef.current.fitBounds(bounds as LngLatBoundsLike, { padding: 70, maxZoom: 14.5, duration: 900 })
+      } catch {
+        // cadrage indisponible (carte non prête) — le cadrage initial s'en charge
+      }
+      return
+    }
+
+    // ── Pas de position : tout le Bénin ──
     const bounds: [number, number, number, number] = [
       Math.min(...validPharmacies.map(p => p.longitude!)),
       Math.min(...validPharmacies.map(p => p.latitude!)),
@@ -1140,19 +1224,12 @@ type RawCluster = {
       Math.max(...validPharmacies.map(p => p.latitude!)),
     ]
 
-    if (userLatitude && userLongitude) {
-      bounds[0] = Math.min(bounds[0], userLongitude)
-      bounds[1] = Math.min(bounds[1], userLatitude)
-      bounds[2] = Math.max(bounds[2], userLongitude)
-      bounds[3] = Math.max(bounds[3], userLatitude)
-    }
-
     try {
       mapRef.current.fitBounds(bounds as LngLatBoundsLike, { padding: 60, maxZoom: 15 })
     } catch {
       // cadrage indisponible (carte non prête) — le cadrage initial s'en charge
     }
-  }, [mapReady, pharmacies, userLatitude, userLongitude])
+  }, [mapReady, pharmacies, userLatitude, userLongitude, showZoneBanner, navigation])
 
   /**
    * Ouvre la fiche d'une officine et décale la carte vers le bas pour que la
@@ -1261,12 +1338,6 @@ type RawCluster = {
     cancelHoverClose()
     hoverCloseTimer.current = setTimeout(() => setHoverInfo(null), HOVER_GRACE_MS)
   }, [cancelHoverClose])
-
-  const showZoneBanner = useCallback((label: string) => {
-    setZoneBanner(label)
-    if (zoneBannerTimer.current) clearTimeout(zoneBannerTimer.current)
-    zoneBannerTimer.current = setTimeout(() => setZoneBanner(null), 2600)
-  }, [])
 
   const handleMove = useCallback((evt: { viewState: { zoom: number } }) => {
     setCurrentZoom(evt.viewState.zoom)
@@ -1394,6 +1465,12 @@ type RawCluster = {
   // chargées) : react-maplibre l'applique en interne, sans conflit avec les
   // déplacements programmatiques ultérieurs (fitBounds/flyTo/easeTo).
   const initialViewState = useMemo(() => {
+    // Position déjà connue au montage → vue immédiate sur la zone utilisateur
+    // (le cadrage automatique affine ensuite sur position + officines proches,
+    // ce qui évite le flash « tout le Bénin » avant le recentrage).
+    if (userLatitude && userLongitude) {
+      return { longitude: userLongitude, latitude: userLatitude, zoom: USER_ZONE_ZOOM }
+    }
     const valid = pharmacies.filter(p => p.latitude && p.longitude)
     if (valid.length === 0) {
       return {
