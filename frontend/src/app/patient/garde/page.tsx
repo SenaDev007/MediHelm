@@ -18,6 +18,7 @@ import { formatPhoneBenin } from '@backend/lib/phone'
 import { formatKm, type RouteInfo, type TravelMode } from '@backend/lib/travel'
 import { useUserPosition } from '@/hooks/use-user-position'
 import { TravelPanel } from '@/components/patient/travel-panel'
+import { MapErrorBoundary } from '@/components/patient/map-error-boundary'
 import { cn } from '@backend/lib/utils'
 
 const PharmacyMap = dynamic(
@@ -503,18 +504,20 @@ export default function GardePage() {
     <div ref={containerRef} className="fixed inset-x-0 top-14 bottom-16 md:bottom-0 z-[5] overflow-hidden">
       {/* ═══ CARTE PLEIN ÉCRAN — identique à la page géolocalisation ═══ */}
       {viewMode === 'map' && (allPharmacies.length > 0 || !loading) && (
-        <PharmacyMap
-          pharmacies={mapPharmacies}
-          userLatitude={userLat}
-          userLongitude={userLng}
-          selectedPharmacyId={selectedPharmacyId}
-          onPharmacyClick={handlePharmacyClick}
-          route={routeTarget}
-          onRouteInfo={setRouteInfo}
-          navigation={navMode && watching}
-          height="100%"
-          className="absolute inset-0 rounded-none border-0"
-        />
+        <MapErrorBoundary subject="La carte des pharmacies de garde">
+          <PharmacyMap
+            pharmacies={mapPharmacies}
+            userLatitude={userLat}
+            userLongitude={userLng}
+            selectedPharmacyId={selectedPharmacyId}
+            onPharmacyClick={handlePharmacyClick}
+            route={routeTarget}
+            onRouteInfo={setRouteInfo}
+            navigation={navMode && watching}
+            height="100%"
+            className="absolute inset-0 rounded-none border-0"
+          />
+        </MapErrorBoundary>
       )}
       {viewMode === 'map' && loading && (
         <Skeleton className="absolute inset-0 rounded-none" />

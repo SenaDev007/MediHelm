@@ -110,7 +110,7 @@ export default function EspaceProPage() {
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
                 </Link>
-                <Link href="/pro">
+                <Link href="/pro/connexion">
                   <Button
                     size="lg"
                     variant="outline"

@@ -25,15 +25,30 @@ export default function Error({
         <p className="text-muted-foreground mb-6">
           Une erreur inattendue s&apos;est produite. Veuillez réessayer.
         </p>
-        <button
-          onClick={reset}
-          className="inline-flex items-center gap-2 bg-[#1D9E75] hover:bg-[#085041] text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Réessayer
-        </button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={reset}
+            className="inline-flex items-center gap-2 bg-[#1D9E75] hover:bg-[#085041] text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Réessayer
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 border border-teal-200 text-teal-800 hover:bg-teal-50 px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Recharger la page
+          </button>
+        </div>
+        <p className="mt-6 text-xs text-muted-foreground">
+          Si le problème persiste, videz le cache du site (Paramètres du
+          navigateur) puis rouvrez MediHelm.
+        </p>
       </div>
     </div>
   )

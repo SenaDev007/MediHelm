@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { MapErrorBoundary } from '@/components/patient/map-error-boundary'
 import { SosButton } from '@/components/patient/sos-button'
 import {
   Shield, MapPin, Phone, Hospital, Crosshair, RefreshCw,
@@ -266,14 +267,16 @@ export default function UrgencePage() {
           </Button>
         </div>
         {showMap && (
-          <PharmacyMap
-            pharmacies={mapPharmacies}
-            userLatitude={userLat}
-            userLongitude={userLng}
-            selectedPharmacyId={selectedPharmacyId}
-            onPharmacyClick={setSelectedPharmacyId}
-            height="280px"
-          />
+          <MapErrorBoundary subject="La carte d'urgence">
+            <PharmacyMap
+              pharmacies={mapPharmacies}
+              userLatitude={userLat}
+              userLongitude={userLng}
+              selectedPharmacyId={selectedPharmacyId}
+              onPharmacyClick={setSelectedPharmacyId}
+              height="280px"
+            />
+          </MapErrorBoundary>
         )}
       </div>
 

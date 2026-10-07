@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { MapErrorBoundary } from "@/components/patient/map-error-boundary";
 import type { PharmacyMapPoint } from "@/components/patient/pharmacy-map";
 
 const PharmacyMap = dynamic(
@@ -126,11 +127,13 @@ export function PatientLanding() {
               className="relative h-[380px] sm:h-[480px] lg:h-[640px] rounded-2xl overflow-hidden shadow-lg shadow-teal-900/10 ring-1 ring-teal-200/70 scroll-mt-24"
             >
               {pharmacies.length > 0 ? (
-                <PharmacyMap
-                  pharmacies={pharmacies}
-                  height="100%"
-                  className="rounded-2xl border-0"
-                />
+                <MapErrorBoundary subject="La carte nationale">
+                  <PharmacyMap
+                    pharmacies={pharmacies}
+                    height="100%"
+                    className="rounded-2xl border-0"
+                  />
+                </MapErrorBoundary>
               ) : (
                 <div className="h-full w-full flex items-center justify-center bg-teal-50/60">
                   <div className="text-center">

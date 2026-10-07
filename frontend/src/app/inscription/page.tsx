@@ -275,7 +275,10 @@ export default function InscriptionPage() {
         throw new Error(err.error || 'Erreur lors de la création du compte')
       }
 
-      router.push('/connexion?registered=1')
+      // Espace PHARMACIE : la connexion se fait sur la page dédiée à
+      // cet espace (workflow séparé par espace) — le paramètre
+      // registered=1 y affiche le bandeau de confirmation.
+      router.push('/pro/connexion?registered=1')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue')
     } finally {

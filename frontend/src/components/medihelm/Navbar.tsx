@@ -37,15 +37,15 @@ const spaceCta: Record<
     secondary: { label: "Se connecter", href: "/patient/connexion" },
   },
   pro: {
-    primary: { label: "Se connecter à MediHelm Pro", href: "/connexion?callbackUrl=%2Fpro" },
+    primary: { label: "Se connecter à MediHelm Pro", href: "/pro/connexion" },
     secondary: { label: "Inscrire mon officine", href: "/inscription" },
   },
   grossiste: {
-    primary: { label: "Accéder à mon espace", href: "/connexion?callbackUrl=%2Fgrossistes" },
+    primary: { label: "Accéder à mon espace", href: "/grossistes/connexion" },
     secondary: { label: "Devenir partenaire", href: "mailto:contact@medihelm.com?subject=MediHelm%20Grossiste%20—%20Devenir%20partenaire" },
   },
   institution: {
-    primary: { label: "Accéder à mon portail", href: "/connexion?callbackUrl=%2Finstitutions" },
+    primary: { label: "Accéder à mon portail", href: "/institutions/connexion" },
     secondary: { label: "Devenir partenaire", href: "mailto:contact@medihelm.com?subject=MediHelm%20Institution%20—%20Demande%20de%20partenariat" },
   },
 };

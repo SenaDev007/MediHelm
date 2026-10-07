@@ -6,7 +6,7 @@ import { Mail, MapPin, ExternalLink } from "lucide-react";
 import { Logo } from "./Logo";
 
 const spaceLinks = [
-  { label: "MediHelm Patient", href: "/patient/connexion", desc: "Espace patient — compte gratuit" },
+  { label: "MediHelm Patient", href: "/", desc: "Espace patient — compte gratuit" },
   { label: "MediHelm Pro", href: "/espace-pro", desc: "Espace pharmacie — payant" },
   { label: "MediHelm Grossistes", href: "/espace-grossiste", desc: "Espace grossistes — payant" },
   { label: "MediHelm Institutions", href: "/espace-institution", desc: "Espace institutionnel — gratuit, partenariat" },

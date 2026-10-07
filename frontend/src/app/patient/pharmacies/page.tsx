@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { cn } from '@backend/lib/utils'
 import { useUserPosition } from '@/hooks/use-user-position'
 import { TravelPanel } from '@/components/patient/travel-panel'
+import { MapErrorBoundary } from '@/components/patient/map-error-boundary'
 import { haversineKm, type RouteInfo, type TravelMode } from '@backend/lib/travel'
 
 const PharmacyMap = dynamic(
@@ -309,18 +310,20 @@ export default function PharmaciesPage() {
     <div ref={containerRef} className="fixed inset-x-0 top-14 bottom-16 md:bottom-0 z-[5] overflow-hidden">
       {/* ═══ CARTE — occupe TOUTE la surface — TOUTES les officines du Bénin ═══ */}
       {viewMode === 'map' && (pharmacies.length > 0 || !loading) && (
-        <PharmacyMap
-          pharmacies={mapPharmacies}
-          userLatitude={userLat}
-          userLongitude={userLng}
-          selectedPharmacyId={selectedPharmacyId}
-          onPharmacyClick={handlePharmacyClick}
-          route={routeTarget}
-          onRouteInfo={setRouteInfo}
-          navigation={navMode && watching}
-          height="100%"
-          className="absolute inset-0 rounded-none border-0"
-        />
+        <MapErrorBoundary subject="La carte des pharmacies">
+          <PharmacyMap
+            pharmacies={mapPharmacies}
+            userLatitude={userLat}
+            userLongitude={userLng}
+            selectedPharmacyId={selectedPharmacyId}
+            onPharmacyClick={handlePharmacyClick}
+            route={routeTarget}
+            onRouteInfo={setRouteInfo}
+            navigation={navMode && watching}
+            height="100%"
+            className="absolute inset-0 rounded-none border-0"
+          />
+        </MapErrorBoundary>
       )}
       {viewMode === 'map' && loading && (
         <Skeleton className="absolute inset-0 rounded-none" />

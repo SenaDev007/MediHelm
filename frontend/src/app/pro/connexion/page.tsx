@@ -3,8 +3,9 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Store, BarChart3, CalendarClock, ShieldCheck, PackageSearch } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, Store, BarChart3, CalendarClock, ShieldCheck, PackageSearch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,9 +14,25 @@ import { useSpaceLogin } from '@/components/auth/use-space-login'
 // ─── Formulaire (composant interne — Suspense pour useSearchParams) ─────────
 function ProLoginForm() {
   const login = useSpaceLogin()
+  const searchParams = useSearchParams()
+  const justRegistered = searchParams.get('registered') === '1'
 
   return (
     <form onSubmit={login.submit} className="space-y-5">
+      {justRegistered && !login.error && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-emerald-50 border border-emerald-200 p-3.5 flex items-start gap-2.5"
+          role="status"
+        >
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <p className="text-[13px] leading-snug text-emerald-800">
+            Votre espace pharmacie a été créé avec succès. Connectez-vous
+            avec vos identifiants pour l&apos;activer.
+          </p>
+        </motion.div>
+      )}
       {login.error && (
         <motion.div
           initial={{ opacity: 0, y: -6 }}
